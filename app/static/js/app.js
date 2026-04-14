@@ -234,6 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   if (notificationsForm) {
+    // تم تعطيل الإرسال عبر AJAX في مركز الإشعارات عمدًا.
+    // نعتمد على submit عادي + redirect + flash messages لأنه أضمن على Render.
+    return;
+
     notificationsForm.querySelectorAll('[data-ajax-test]').forEach((btn) => {
       btn.addEventListener('click', async (event) => {
         event.preventDefault();

@@ -12,18 +12,18 @@
         </div>
       </div>
       <div class="topbar-actions d-flex gap-2">
-        <form method="post" action="{{ url_for('main.notifications_test_send') }}" data-ajax-notification>
+        <form method="post" action="{{ url_for('main.notifications_test_send') }}">
           <input type="hidden" name="channel" value="telegram">
           <button class="btn btn-outline-primary">اختبار Telegram</button>
         </form>
-        <form method="post" action="{{ url_for('main.notifications_test_send') }}" data-ajax-notification>
+        <form method="post" action="{{ url_for('main.notifications_test_send') }}">
           <input type="hidden" name="channel" value="both">
           <button class="btn btn-solar">اختبار القناتين</button>
         </form>
       </div>
     </header>
 
-    <div id="notificationAjaxStatus" class="ajax-status-banner" hidden></div>
+    <div id="notificationAjaxStatus" class="ajax-status-banner" hidden data-disabled="true"></div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
