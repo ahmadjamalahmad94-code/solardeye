@@ -10,6 +10,10 @@ load_dotenv(BASE_DIR / '.env')
 
 
 class Config:
+    _db_url = os.getenv('DATABASE_URL', '').strip()
+    if _db_url.startswith('postgres://'):
+        _db_url = 'postgresql://' + _db_url[len('postgres://'):]
+
     # ── Security ──────────────────────────────────────────────────────────────
     _raw_secret = os.getenv('SECRET_KEY', '')
     SECRET_KEY = _raw_secret if len(_raw_secret) >= 32 else secrets.token_hex(32)
@@ -23,12 +27,12 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
 
     # ── Database ──────────────────────────────────────────────────────────────
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///solar_v8.db')
+    SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///solar_v8.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
 
     # ── App ───────────────────────────────────────────────────────────────────
-    LOCAL_TIMEZONE = os.getenv('LOCAL_TIMEZONE', 'Asia/Hebron')
+    LOCAL_TIMEZONE = os.getenv('LOCAL_TIMEZONE') or os.getenv('TIMEZONE', 'Asia/Hebron')
     BATTERY_CAPACITY_KWH = float(os.getenv('BATTERY_CAPACITY_KWH', '5') or '5')
     BATTERY_RESERVE_PERCENT = float(os.getenv('BATTERY_RESERVE_PERCENT', '20') or '20')
 
