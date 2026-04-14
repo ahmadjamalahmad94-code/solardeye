@@ -23,7 +23,7 @@
       </div>
     </header>
 
-    <div id="notificationAjaxStatus" class="ajax-status-banner" hidden data-disabled="true"></div>
+    <div id="notificationAjaxStatus" class="ajax-status-banner" hidden></div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -377,4 +377,80 @@
     </form>
   </main>
 </div>
+
+<script>
+(function () {
+  // ── banner helper ──────────────────────────────────────────────
+  function showBanner(msg, ok) {
+    const banner = document.getElementById('notificationAjaxStatus');
+    if (!banner) return;
+    banner.removeAttribute('hidden');
+    banner.textContent = msg;
+    banner.className = 'ajax-status-banner ' + (ok ? 'is-success' : 'is-error');
+    clearTimeout(showBanner._t);
+    showBanner._t = setTimeout(function () { banner.setAttribute('hidden', ''); }, 4000);
+  }
+
+  // ── intercept test buttons (capture phase → قبل أي listener آخر) ──
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('button');
+    if (!btn) return;
+
+    const action = btn.getAttribute('formaction') || '';
+    const isTest =
+      action.includes('/notifications/test') ||
+      action.includes('/notifications/test-section') ||
+      action.includes('/telegram/menu/send');
+
+    if (!isTest) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    const originalForm = btn.form;
+    if (!originalForm) return;
+
+    // جمع بيانات الفورم
+    const fd = new FormData(originalForm);
+    if (btn.name) fd.set(btn.name, btn.value || '');
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ جاري الإرسال...';
+
+    fetch(action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd,
+      credentials: 'same-origin',
+    })
+      .then(function (res) {
+        // إذا انتهت الجلسة → أعد توجيه للـ login
+        if (res.redirected && res.url.includes('/login')) {
+          showBanner('انتهت الجلسة. يُعاد توجيهك لتسجيل الدخول...', false);
+          setTimeout(function () { window.location.href = res.url; }, 1500);
+          return null;
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        if (data.ok) {
+          showBanner('✅ ' + (data.message || 'تم الإرسال بنجاح'), true);
+        } else {
+          showBanner('❌ ' + (data.message || 'فشل الإرسال'), false);
+        }
+      })
+      .catch(function (err) {
+        showBanner('❌ خطأ في الاتصال: ' + err.message, false);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
+  }, true); // capture phase
+})();
+</script>
+
 {% endblock %}

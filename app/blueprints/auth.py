@@ -35,7 +35,6 @@ def protect_routes():
     if not session.get('logged_in'):
         wants_json = (
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-            or request.accept_mimetypes.best == 'application/json'
         )
         if wants_json:
             return jsonify({

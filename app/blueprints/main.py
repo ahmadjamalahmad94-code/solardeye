@@ -1139,7 +1139,9 @@ def alerts():
 
 
 def _is_ajax_request():
-    return request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+    # مركز الإشعارات يعتمد الآن على submit عادي + redirect.
+    # نعتبر طلبات AJAX فقط عند وجود الهيدر الصريح، ونتجاهل Accept لأنه قد يسبب false positives.
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
 def _json_response(ok: bool, message: str, **extra):
