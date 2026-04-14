@@ -759,10 +759,16 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
     if weather and getattr(weather, 'sunset_time', None):
         sunset_label = weather.sunset_time
         try:
-            sunset_raw = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00')
+            sunset_raw = datetime.fromisoformat(
+                now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00'
+            )
+            # نوحّد النوع الزمني حتى لا يحدث خلط بين aware و naive
+            if now_local.tzinfo is not None and sunset_raw.tzinfo is None:
+                sunset_raw = sunset_raw.replace(tzinfo=now_local.tzinfo)
+
             effective_raw = sunset_raw - timedelta(hours=1 if subtract_hour else 0)
             effective_sunset_label = effective_raw.strftime('%H:%M')
-            remaining_hours = max((effective_raw - now_local.replace(tzinfo=None)).total_seconds() / 3600, 0.0)
+            remaining_hours = max((effective_raw - now_local).total_seconds() / 3600, 0.0)
         except Exception:
             remaining_hours = None
 
@@ -771,7 +777,7 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
         effective = fallback - timedelta(hours=1 if subtract_hour else 0)
         sunset_label = fallback.strftime('%H:%M')
         effective_sunset_label = effective.strftime('%H:%M')
-        remaining_hours = max((effective - now_local.replace(tzinfo=None)).total_seconds() / 3600, 0.0)
+        remaining_hours = max((effective - now_local).total_seconds() / 3600, 0.0)
 
     charge_power_w = float(battery.get('charge_power_w', 0) or 0)
     discharge_power_w = float(battery.get('discharge_power_w', 0) or 0)
