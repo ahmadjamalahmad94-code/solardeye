@@ -215,22 +215,63 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         data = JSON.parse(rawText);
       } catch (_err) {
-        throw new Error('رد JSON غير صالح من السيرفر');
+        const err = new Error('رد JSON غير صالح من السيرفر');
+        err.response = response;
+        err.rawText = rawText;
+        err.shouldFallback = true;
+        throw err;
       }
     } else {
+      const looksLikeHtml = response.redirected || /<!doctype html>/i.test(rawText) || /<html[\s>]/i.test(rawText);
       if (response.status === 401) {
-        throw new Error('انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.');
+        const err = new Error('انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.');
+        err.response = response;
+        err.rawText = rawText;
+        throw err;
       }
-      if (response.redirected || /<!doctype html>/i.test(rawText)) {
-        throw new Error('السيرفر أعاد صفحة HTML بدل JSON. أعد تسجيل الدخول أو راجع مسار الاختبار.');
+      if (looksLikeHtml) {
+        const err = new Error('تم التحويل للوضع المباشر لأن السيرفر أعاد صفحة HTML بدل JSON.');
+        err.response = response;
+        err.rawText = rawText;
+        err.shouldFallback = true;
+        throw err;
       }
-      throw new Error(rawText || 'تعذر قراءة رد السيرفر');
+      const err = new Error(rawText || 'تعذر قراءة رد السيرفر');
+      err.response = response;
+      err.rawText = rawText;
+      throw err;
     }
 
     if (!response.ok || !data.ok) {
-      throw new Error(data.message || 'فشل تنفيذ الطلب');
+      const err = new Error((data && data.message) || 'فشل تنفيذ الطلب');
+      err.response = response;
+      err.rawData = data;
+      throw err;
     }
     return data;
+  };
+
+  const submitFormDirectly = (sourceForm, submitter = null) => {
+    const directForm = document.createElement('form');
+    directForm.method = (submitter?.getAttribute('formmethod') || sourceForm.method || 'post').toUpperCase();
+    directForm.action = submitter?.getAttribute('formaction') || sourceForm.action || window.location.href;
+    directForm.style.display = 'none';
+
+    const formData = new FormData(sourceForm);
+    if (submitter?.name) {
+      formData.set(submitter.name, submitter.value);
+    }
+
+    for (const [key, value] of formData.entries()) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      directForm.appendChild(input);
+    }
+
+    document.body.appendChild(directForm);
+    directForm.submit();
   };
 
   if (notificationsForm) {
@@ -247,6 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await postNotificationAjax(action, formData);
           showAjaxBanner(data.message || 'تم الإرسال', true);
         } catch (error) {
+          if (error?.shouldFallback) {
+            showAjaxBanner('تعذر عرض النتيجة فورياً، سيتم تنفيذ الطلب مباشرة داخل الصفحة...', true);
+            submitFormDirectly(notificationsForm, btn);
+            return;
+          }
           showAjaxBanner(error.message || 'تعذر إرسال الاختبار', false);
         } finally {
           btn.disabled = false;
@@ -270,6 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await postNotificationAjax(form.action, formData);
           showAjaxBanner(data.message || 'تم الإرسال', true);
         } catch (error) {
+          if (error?.shouldFallback) {
+            showAjaxBanner('تعذر عرض النتيجة فورياً، سيتم تنفيذ الطلب مباشرة داخل الصفحة...', true);
+            submitFormDirectly(form, submitter);
+            return;
+          }
           showAjaxBanner(error.message || 'تعذر إرسال الاختبار', false);
         } finally {
           if (submitter) {
