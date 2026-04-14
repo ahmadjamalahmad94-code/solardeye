@@ -116,6 +116,7 @@ def _start_scheduler(app):
     scheduler.add_job(_job('app.blueprints.notifications.send_daily_weather_summary'), 'cron', hour=7, minute=0, id='weather_daily_summary', replace_existing=True, max_instances=1)
     scheduler.add_job(_job('app.blueprints.notifications.send_daily_morning_report'), 'cron', hour=9, minute=5, id='daily_morning_report', replace_existing=True, max_instances=1)
     scheduler.add_job(_job('app.blueprints.notifications.send_periodic_status_update'), 'interval', minutes=5, id='periodic_status_check', replace_existing=True, max_instances=1)
+    scheduler.add_job(_job('app.blueprints.notifications.run_advanced_notification_scheduler'), 'interval', minutes=1, id='advanced_notifications_check', replace_existing=True, max_instances=1)
 
     scheduler.start()
     app._scheduler_started = True

@@ -478,7 +478,7 @@ def process_telegram_update(settings: dict, update: dict):
     return ok, resp_text
 
 
-def _periodic_load_suggestion(latest):
+def _periodic_load_suggestion(latest, phase_override=None):
     loads = UserLoad.query.filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     if not latest or not loads:
         return None
@@ -635,6 +635,189 @@ def build_periodic_status_message(latest, weather=None, settings=None, phase_ove
 
 
 # ── Scheduled senders ─────────────────────────────────────────────────────────
+
+
+def _schedule_interval_minutes(value, unit):
+    try:
+        raw = max(int(float(value or 1)), 1)
+    except Exception:
+        raw = 1
+    unit = (unit or 'hours').strip().lower()
+    if unit in ('minute', 'minutes', 'min', 'mins', 'دقيقة', 'دقائق'):
+        return raw
+    return raw * 60
+
+
+def _parse_iso_utc(value):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt
+    except Exception:
+        return None
+
+
+def _resolve_schedule_token(token, now_local, weather=None):
+    token = (token or '').strip().lower()
+    if not token:
+        return None
+    if token == 'sunset':
+        return _parse_hhmm_local(getattr(weather, 'sunset_time', None), now_local) if weather else None
+    return _parse_hhmm_local(token, now_local)
+
+
+def _is_within_schedule_window(now_local, start_token, end_token, weather=None):
+    start_dt = _resolve_schedule_token(start_token, now_local, weather)
+    end_dt = _resolve_schedule_token(end_token, now_local, weather)
+
+    if start_dt is None and end_dt is None:
+        return True
+    if start_dt is not None and end_dt is None:
+        return now_local >= start_dt
+    if start_dt is None and end_dt is not None:
+        return now_local <= end_dt
+
+    # نطاق يعبر منتصف الليل
+    if start_dt > end_dt:
+        return now_local >= start_dt or now_local <= end_dt
+    return start_dt <= now_local <= end_dt
+
+
+def _schedule_matches(prefix, settings, now_local, weather=None):
+    mode = (settings.get(f'{prefix}_schedule_mode', 'manual') or 'manual').strip().lower()
+    if mode == 'manual':
+        return False
+
+    if not _is_within_schedule_window(
+        now_local,
+        settings.get(f'{prefix}_time_start', ''),
+        settings.get(f'{prefix}_time_end', ''),
+        weather,
+    ):
+        return False
+
+    last_sent = _parse_iso_utc(settings.get(f'{prefix}_last_sent_at', ''))
+    now_utc = datetime.now(UTC)
+
+    if mode == 'interval':
+        interval_minutes = _schedule_interval_minutes(
+            settings.get(f'{prefix}_interval_value', '1'),
+            settings.get(f'{prefix}_interval_unit', 'hours'),
+        )
+        if last_sent and (now_utc - last_sent).total_seconds() < interval_minutes * 60:
+            return False
+        return True
+
+    if mode in ('specific', 'specific_hours'):
+        allowed = []
+        for item in str(settings.get(f'{prefix}_specific_hours', '') or '').split(','):
+            item = item.strip()
+            if item:
+                allowed.append(item)
+        current_hm = now_local.strftime('%H:%M')
+        if current_hm not in allowed:
+            return False
+        if last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M'):
+            return False
+        return True
+
+    if mode == 'threshold':
+        # هذا النمط يعتمد غالبًا على process_notifications للأحداث الحقيقية
+        # لكن نسمح برسالة دورية احتياطية كل فترة لو تم تحديد interval
+        interval_minutes = _schedule_interval_minutes(
+            settings.get(f'{prefix}_interval_value', '60'),
+            settings.get(f'{prefix}_interval_unit', 'hours'),
+        )
+        if last_sent and (now_utc - last_sent).total_seconds() < interval_minutes * 60:
+            return False
+        return True
+
+    return False
+
+
+def _send_scheduled_notification(prefix, title, message, channel, level='info'):
+    settings = load_settings()
+    now = datetime.now(UTC)
+    dispatch_notification(
+        settings,
+        f'{prefix}-{int(now.timestamp())}',
+        prefix,
+        title,
+        message,
+        channel or 'telegram',
+        level,
+        dedupe_minutes=0,
+    )
+    _upsert_setting(f'{prefix}_last_sent_at', now.isoformat())
+    db.session.commit()
+
+
+def run_advanced_notification_scheduler():
+    settings = load_settings()
+    if str(settings.get('notifications_enabled', 'true')).lower() != 'true':
+        return
+
+    latest, weather = _get_weather_for_latest()
+    if not latest:
+        return
+
+    now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
+
+    # 1) التحديث الدوري النهاري
+    if str(settings.get('periodic_day_enabled', 'true')).lower() == 'true':
+        is_day = _weather_day_window(now_local, weather, start_hour=9)
+        if is_day and _schedule_matches('periodic_day', settings, now_local, weather):
+            title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+            _send_scheduled_notification('periodic_day', title, message, settings.get('periodic_day_channel', 'telegram'), 'info')
+
+    # 2) التحديث الدوري الليلي
+    if str(settings.get('periodic_night_enabled', 'true')).lower() == 'true':
+        is_day = _weather_day_window(now_local, weather, start_hour=9)
+        if (not is_day) and _schedule_matches('periodic_night', settings, now_local, weather):
+            title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
+            _send_scheduled_notification('periodic_night', title, message, settings.get('periodic_night_channel', 'telegram'), 'info')
+
+    # 3) تحليل ما قبل الغروب
+    if str(settings.get('pre_sunset_enabled', 'false')).lower() == 'true':
+        if _schedule_matches('pre_sunset', settings, now_local, weather):
+            try:
+                prediction = build_pre_sunset_prediction(latest, weather, settings)
+                if not (
+                    prediction
+                    and str(settings.get('pre_sunset_only_if_not_full', 'false')).lower() == 'true'
+                    and prediction.get('will_full_before_sunset')
+                ):
+                    title, message, level = build_pre_sunset_message(latest, weather, settings=settings)
+                    _send_scheduled_notification('pre_sunset', title, message, settings.get('pre_sunset_channel', 'telegram'), level)
+            except Exception:
+                pass
+
+    # 4) اقتراح الأحمال
+    if str(settings.get('load_alert_enabled', 'true')).lower() == 'true':
+        if _schedule_matches('load_alert', settings, now_local, weather):
+            title = '⚡ اقتراح الأحمال'
+            message = build_telegram_quick_reply('loads', latest, weather, settings=settings)
+            _send_scheduled_notification('load_alert', title, message, settings.get('load_alert_channel', 'telegram'), 'info')
+
+    # 5) اختبار البطارية
+    if str(settings.get('battery_test_enabled', 'true')).lower() == 'true':
+        if _schedule_matches('battery_test', settings, now_local, weather):
+            _dummy_title, base_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+            title = '🧪 اختبار حالة البطارية'
+            _send_scheduled_notification('battery_test', title, base_message, settings.get('battery_test_channel', 'telegram'), 'warning')
+
+    # 6) التقرير الصباحي
+    if str(settings.get('daily_report_enabled', 'true')).lower() == 'true':
+        report_time = (settings.get('daily_report_time', '07:00') or '07:00').strip()
+        if now_local.strftime('%H:%M') == report_time:
+            last_sent = _parse_iso_utc(settings.get('daily_report_last_sent_at', ''))
+            same_minute = last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M')
+            if not same_minute:
+                title, message = build_daily_morning_report_message(latest, settings=settings)
+                _send_scheduled_notification('daily_report', title, message, settings.get('daily_report_channel', 'telegram'), 'info')
 
 def _get_weather_for_latest():
     from ..services.weather_service import fetch_weather
