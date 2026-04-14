@@ -424,12 +424,24 @@
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
       body: fd,
       credentials: 'same-origin',
+      redirect: 'manual',
     })
       .then(function (res) {
-        // إذا انتهت الجلسة → أعد توجيه للـ login
-        if (res.redirected && res.url.includes('/login')) {
-          showBanner('انتهت الجلسة. يُعاد توجيهك لتسجيل الدخول...', false);
-          setTimeout(function () { window.location.href = res.url; }, 1500);
+        // redirect:'manual' → type==='opaqueredirect' = session منتهية (302 → login)
+        if (res.type === 'opaqueredirect' || res.status === 0 || res.status === 302) {
+          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
+          setTimeout(function () { window.location.href = '/login'; }, 1200);
+          return null;
+        }
+        if (res.status === 401) {
+          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
+          setTimeout(function () { window.location.href = '/login'; }, 1200);
+          return null;
+        }
+        var ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
+          setTimeout(function () { window.location.href = '/login'; }, 1200);
           return null;
         }
         return res.json();

@@ -16,7 +16,17 @@ class Config:
 
     # ── Security ──────────────────────────────────────────────────────────────
     _raw_secret = os.getenv('SECRET_KEY', '')
+    if not _raw_secret or len(_raw_secret) < 32:
+        warnings.warn(
+            "\n\n*** تحذير: SECRET_KEY غير محدد أو قصير جداً في .env\n"
+            "    سيتم توليد مفتاح عشوائي في كل restart مما يُنهي جميع sessions!\n"
+            "    أضف SECRET_KEY بقيمة ثابتة (32+ حرف) في .env أو متغيرات Render.\n",
+            stacklevel=2,
+        )
     SECRET_KEY = _raw_secret if len(_raw_secret) >= 32 else secrets.token_hex(32)
+
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
 
     _admin_pass = os.getenv('ADMIN_PASSWORD', '')
     if not _admin_pass or _admin_pass in ('admin123', 'admin', 'password', 'change-this'):
