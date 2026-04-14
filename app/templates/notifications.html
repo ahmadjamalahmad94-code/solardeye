@@ -23,7 +23,6 @@
       </div>
     </header>
 
-    <div id="notificationAjaxStatus" class="ajax-status-banner" hidden></div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -127,7 +126,7 @@
                     <label class="switch-pill"><input type="checkbox" name="periodic_day_include_loads" data-preview-toggle="loads" {% if settings.periodic_day_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
                     <label class="switch-pill"><input type="checkbox" name="periodic_day_include_sunset" data-preview-toggle="sunset" {% if settings.periodic_day_include_sunset != 'false' %}checked{% endif %}><span>تحليل الغروب</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="periodic_day">🧪 تجربة هذا الإشعار</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="periodic_day"><button class="btn btn-outline-primary" type="submit">🧪 تجربة هذا الإشعار</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card>
                   <div class="preview-title">المعاينة الحية</div>
@@ -171,7 +170,7 @@
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" data-preview-toggle="loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاد</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="periodic_night">🧪 تجربة الإشعار الليلي</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="periodic_night"><button class="btn btn-outline-primary" type="submit">🧪 تجربة الإشعار الليلي</button></form></div>
                 </div>
                 <div class="notify-preview-card"><div class="preview-title">النص المعتمد</div><pre>🔔 التحديث الدوري للطاقة - ليلًا
 ███████░░░ 71%
@@ -208,7 +207,7 @@
                     <label class="switch-pill"><input type="checkbox" name="pre_sunset_subtract_hour" {% if settings.pre_sunset_subtract_hour != 'false' %}checked{% endif %}><span>خصم ساعة من الغروب</span></label>
                     <label class="switch-pill"><input type="checkbox" name="pre_sunset_only_if_not_full" {% if settings.pre_sunset_only_if_not_full == 'true' %}checked{% endif %}><span>فقط إذا لم تمتلئ</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="sunset">🧪 تجربة التحليل</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="sunset"><button class="btn btn-outline-secondary" type="submit">🧪 تجربة التحليل</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🌇 تنبيه الشحن نهارًا - تحليل ما قبل الغروب</div><div class="preview-line" data-preview-key="soc">🔋 نسبة البطارية: 71%</div><div class="preview-line" data-preview-key="charge_power">⚡ الشحن الحالي: 1001 واط</div><div class="preview-line">🕕 الغروب الفعلي للحساب: 06:10 مساءً</div><div class="preview-line">🕒 المتبقي للغروب: 7 ساعة و 41 دقيقة</div><div class="preview-line" data-preview-key="eta">⏳ وقت الامتلاء: 1 ساعة و 27 دقيقة</div><div class="preview-line">✅ النتيجة: سيتم شحن البطارية قبل الغروب</div><div class="preview-line" data-preview-key="advice">💡 نصيحة: الوضع جيد.</div></div></div>
               </div>
@@ -228,7 +227,7 @@
                     <label class="switch-pill"><input type="checkbox" name="night_discharge_include_device" data-preview-toggle="device" {% if settings.night_discharge_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز</span></label>
                     <label class="switch-pill"><input type="checkbox" name="night_discharge_include_energy" data-preview-toggle="energy" {% if settings.night_discharge_include_energy != 'false' %}checked{% endif %}><span>الطاقة فوق الاحتياطي</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-warning" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="discharge">🧪 تجربة التفريغ</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="discharge"><button class="btn btn-outline-warning" type="submit">🧪 تجربة التفريغ</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🌙 تنبيه التفريغ الليلي</div><div class="preview-line">██████████ 97%</div><div class="preview-line">🔋 الحالة الحالية: يتم التفريغ</div><div class="preview-line" data-preview-key="device">📊 حالة المنظومة: اعتماد على البطارية</div><div class="preview-line">🔌 الداخل للبطارية: 0.0 واط</div><div class="preview-line">🔋 المسحوب من البطارية: 299.0 واط</div><div class="preview-line">🏠 المسحوب في المنزل: 321.0 واط</div><div class="preview-line" data-preview-key="energy">📦 الطاقة المتاحة فوق الاحتياطي: 3.85 kWh</div><div class="preview-line">⏳ الوقت المتوقع: 12 ساعة و 53 دقيقة</div></div></div>
               </div>
@@ -252,7 +251,7 @@
                     <label class="switch-pill"><input type="checkbox" name="load_alert_include_allowed" data-preview-toggle="allowed" {% if settings.load_alert_include_allowed != 'false' %}checked{% endif %}><span>الأجهزة المسموحة</span></label>
                     <label class="switch-pill"><input type="checkbox" name="load_alert_include_blocked" data-preview-toggle="blocked" {% if settings.load_alert_include_blocked != 'false' %}checked{% endif %}><span>الأجهزة الممنوعة</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-dark" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="load">🧪 تجربة إشعار الأحمال</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="load"><button class="btn btn-outline-dark" type="submit">🧪 تجربة إشعار الأحمال</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">⚡ إشعار الأحمال القابلة للتشغيل والممنوعة</div><div class="preview-line">🌙 وضع الليل</div><div class="preview-line">🔌 الحد المحدد: 500W</div><div class="preview-line">🏠 الحمل الحالي: 170W</div><div class="preview-line">⚡ المتاح: 330W</div><div class="preview-line spacer"></div><div class="preview-line" data-preview-key="allowed">يمكنك تشغيل: شاشة سامسونج، مكيف مروحة فقط، بلايستيشن</div><div class="preview-line" data-preview-key="blocked">⚠️ لا ينصح: سخان ماء</div></div></div>
               </div>
@@ -271,7 +270,7 @@
                     <label class="switch-pill"><input type="checkbox" name="weather_test_include_next_hour" data-preview-toggle="next_hour" {% if settings.weather_test_include_next_hour != 'false' %}checked{% endif %}><span>خلال ساعة</span></label>
                     <label class="switch-pill"><input type="checkbox" name="weather_test_include_smart_tip" data-preview-toggle="smart_tip" {% if settings.weather_test_include_smart_tip != 'false' %}checked{% endif %}><span>نصيحة ذكية</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="weather">🧪 تجربة الطقس</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="weather"><button class="btn btn-outline-primary" type="submit">🧪 تجربة الطقس</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">☁️ اختبار تنبيه الطقس</div><div class="preview-line">الآن: ☀️ مشمس • 21.1°</div><div class="preview-line" data-preview-key="next_hour">خلال ساعة: غيوم خفيفة</div><div class="preview-line" data-preview-key="smart_tip">نصيحة ذكية: الساعات القادمة مناسبة للإنتاج حتى الغروب.</div><div class="preview-line spacer"></div><div class="preview-line tiny">يعمل من الساعة 6 صباحًا حتى الغروب فقط.</div></div></div>
               </div>
@@ -292,7 +291,7 @@
                     <label class="switch-pill"><input type="checkbox" name="battery_test_include_sunset" data-preview-toggle="sunset" {% if settings.battery_test_include_sunset != 'false' %}checked{% endif %}><span>الغروب</span></label>
                     <label class="switch-pill"><input type="checkbox" name="battery_test_include_loads" data-preview-toggle="loads" {% if settings.battery_test_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-success" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="charge">🧪 تجربة حالة البطارية</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="charge"><button class="btn btn-outline-success" type="submit">🧪 تجربة حالة البطارية</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🧪 اختبار حالة البطارية</div><div class="preview-line">███████░░░ 71%</div><div class="preview-line">🔋 الحالة: يتم شحن البطارية</div><div class="preview-line">☀️ الشمس الآن: 1,228.0 واط</div><div class="preview-line">🏠 استهلاك المنزل: 152.0 واط</div><div class="preview-line">🔋 الداخل للبطارية الآن: 950 واط</div><div class="preview-line">⏳ وقت الامتلاء: 1 ساعة و 27 دقيقة</div><div class="preview-line" data-preview-key="day_summary">📅 ملخص اليوم (من 12 منتصف الليل)</div><div class="preview-line">🔧 حالة الجهاز: حرارة الانفيرتر + البطارية + الجهد</div><div class="preview-line" data-preview-key="sunset">🌇 الغروب: 07:10 مساءً | الفعلي: 06:10 مساءً</div><div class="preview-line" data-preview-key="loads">☀️ الأحمال نهارًا: الحمل الحالي 152W | المتاح 1076W</div></div></div>
               </div>
@@ -311,7 +310,7 @@
                     <label class="switch-pill"><input type="checkbox" name="daily_report_include_yesterday" data-preview-toggle="yesterday" {% if settings.daily_report_include_yesterday != 'false' %}checked{% endif %}><span>بيانات الأمس</span></label>
                     <label class="switch-pill"><input type="checkbox" name="daily_report_include_device" data-preview-toggle="device" {% if settings.daily_report_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز الآن</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="daily_report">🧪 تجربة تقرير الصباح</button></div>
+                  <div class="test-actions mt-3"><form method="post" action="{{ url_for('main.notifications_test_section') }}"><input type="hidden" name="section" value="daily_report"><button class="btn btn-outline-info" type="submit">🧪 تجربة تقرير الصباح</button></form></div>
                 </div>
                 <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">☀️ تقرير الصباح اليومي</div><div class="preview-line">🌅 تقرير صباح يوم 2026-04-14</div><div class="preview-line" data-preview-key="totals">📊 الإجماليات الكلية منذ بدء التشغيل: إنتاج / استهلاك / شحن / تفريغ</div><div class="preview-line" data-preview-key="yesterday">📅 اليوم السابق (آخر قراءة): 1.70 kWh / 1.80 kWh</div><div class="preview-line" data-preview-key="device">🔧 حالة الجهاز الآن: نسبة البطارية + حرارة الانفيرتر + BMS</div></div></div>
               </div>
@@ -378,91 +377,5 @@
   </main>
 </div>
 
-<script>
-(function () {
-  // ── banner helper ──────────────────────────────────────────────
-  function showBanner(msg, ok) {
-    const banner = document.getElementById('notificationAjaxStatus');
-    if (!banner) return;
-    banner.removeAttribute('hidden');
-    banner.textContent = msg;
-    banner.className = 'ajax-status-banner ' + (ok ? 'is-success' : 'is-error');
-    clearTimeout(showBanner._t);
-    showBanner._t = setTimeout(function () { banner.setAttribute('hidden', ''); }, 4000);
-  }
-
-  // ── intercept test buttons (capture phase → قبل أي listener آخر) ──
-  document.addEventListener('click', function (event) {
-    const btn = event.target.closest('button');
-    if (!btn) return;
-
-    const action = btn.getAttribute('formaction') || '';
-    const isTest =
-      action.includes('/notifications/test') ||
-      action.includes('/notifications/test-section') ||
-      action.includes('/telegram/menu/send');
-
-    if (!isTest) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-
-    const originalForm = btn.form;
-    if (!originalForm) return;
-
-    // جمع بيانات الفورم
-    const fd = new FormData(originalForm);
-    if (btn.name) fd.set(btn.name, btn.value || '');
-
-    const originalLabel = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ جاري الإرسال...';
-
-    fetch(action, {
-      method: 'POST',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      body: fd,
-      credentials: 'same-origin',
-      redirect: 'manual',
-    })
-      .then(function (res) {
-        // redirect:'manual' → type==='opaqueredirect' = session منتهية (302 → login)
-        if (res.type === 'opaqueredirect' || res.status === 0 || res.status === 302) {
-          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
-          setTimeout(function () { window.location.href = '/login'; }, 1200);
-          return null;
-        }
-        if (res.status === 401) {
-          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
-          setTimeout(function () { window.location.href = '/login'; }, 1200);
-          return null;
-        }
-        var ct = res.headers.get('content-type') || '';
-        if (!ct.includes('application/json')) {
-          showBanner('⚠️ انتهت الجلسة. جاري إعادة التوجيه...', false);
-          setTimeout(function () { window.location.href = '/login'; }, 1200);
-          return null;
-        }
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data) return;
-        if (data.ok) {
-          showBanner('✅ ' + (data.message || 'تم الإرسال بنجاح'), true);
-        } else {
-          showBanner('❌ ' + (data.message || 'فشل الإرسال'), false);
-        }
-      })
-      .catch(function (err) {
-        showBanner('❌ خطأ في الاتصال: ' + err.message, false);
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = originalLabel;
-      });
-  }, true); // capture phase
-})();
-</script>
 
 {% endblock %}
