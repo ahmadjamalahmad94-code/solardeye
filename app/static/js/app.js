@@ -218,6 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('رد JSON غير صالح من السيرفر');
       }
     } else {
+      if (response.status === 401) {
+        throw new Error('انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.');
+      }
       if (response.redirected || /<!doctype html>/i.test(rawText)) {
         throw new Error('السيرفر أعاد صفحة HTML بدل JSON. أعد تسجيل الدخول أو راجع مسار الاختبار.');
       }

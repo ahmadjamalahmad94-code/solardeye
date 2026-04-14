@@ -171,7 +171,7 @@
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" data-preview-toggle="loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاد</span></label>
                   </div>
-                  <div class="test-actions mt-3"><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="periodic_day" data-ajax-test>🧪 تجربة الإشعار الليلي</button></div>
+                  <div class="test-actions mt-3"><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_test_section') }}" formmethod="post" name="section" value="periodic_night" data-ajax-test>🧪 تجربة الإشعار الليلي</button></div>
                 </div>
                 <div class="notify-preview-card"><div class="preview-title">النص المعتمد</div><pre>🔔 التحديث الدوري للطاقة - ليلًا
 ███████░░░ 71%

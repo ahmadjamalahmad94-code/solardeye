@@ -1,5 +1,5 @@
 from __future__ import annotations
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -33,4 +33,13 @@ def protect_routes():
     if ep in public_endpoints or ep.startswith('static'):
         return
     if not session.get('logged_in'):
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json'
+        )
+        if wants_json:
+            return jsonify({
+                'ok': False,
+                'message': 'انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.'
+            }), 401
         return redirect(url_for('auth.login'))
