@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area live-data-page">
+    <header class="topbar live-topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>البيانات الحية الكاملة</h1>
+          <p class="mb-0">عرض مرتب وواضح لأهم قراءات النظام لحظة بلحظة.</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="live-update-chip">{% if latest %}آخر تحديث: {{ format_local(latest.created_at) }}{% endif %}</span>
+      </div>
+    </header>
+
+    {% if not latest or not d %}
+    <div class="panel-card empty-panel"><h3>لا توجد بيانات بعد</h3><p>نفّذ مزامنة أولًا من الصفحة الرئيسية.</p></div>
+    {% else %}
+
+    <section class="cards-grid devices-identity-row live-identity-row mt-4">
+      <div class="stat-card live-hero-card live-hero-status">
+        <span>وضع النظام الآن</span>
+        <strong>{{ latest.status_text or 'لا توجد قراءة' }}</strong>
+        <small>{{ 'يتم الشحن والاستخدام المنزلي بشكل طبيعي' if (latest.status_text or '') else 'بانتظار أول قراءة' }}</small>
+      </div>
+      <div class="stat-card live-hero-card live-hero-blue">
+        <span>الإنتاج الشمسي اللحظي</span>
+        <strong>{{ format_power(d.totalDcInputPower or latest.solar_power or 0) }} واط</strong>
+        <small>الدخل الحالي من الشمس</small>
+      </div>
+      <div class="stat-card live-hero-card live-hero-cyan">
+        <span>استهلاك المنزل الآن</span>
+        <strong>{{ format_power(d.inverterOutputPowerL1l2 or latest.home_load or 0) }} واط</strong>
+        <small>الحمل الحالي</small>
+      </div>
+      <div class="stat-card live-hero-card live-hero-gold">
+        <span>نسبة البطارية</span>
+        <strong>{{ d.soc|int }}%</strong>
+        <small>{{ 'يتم الشحن' if (d.batteryPower|float(0)) < 0 else ('يتم الاستخدام' if (d.batteryPower|float(0)) > 0 else 'مستقرة') }}</small>
+      </div>
+      <div class="stat-card live-hero-card live-hero-soft">
+        <span>إنتاج اليوم</span>
+        <strong>{{ format_energy(d.dailyProductionActive or 0) }}</strong>
+        <small>آخر قيمة من الجهاز</small>
+      </div>
+    </section>
+
+    <section class="live-panels-grid mt-4">
+      <article class="panel-card live-panel-block">
+        <div class="section-head live-panel-head">
+          <div>
+            <h3>الإنتاج الشمسي</h3>
+            <small>ملخص سريع لحالة الألواح والإنفرتر</small>
+          </div>
+          <span class="section-badge section-badge-solar">طاقة شمسية</span>
+        </div>
+        <div class="live-rich-grid cols-5">
+          <div class="live-kpi-card accent-solar"><span>القدرة الحالية من الألواح</span><strong>{{ format_power(d.totalDcInputPower or 0) }} واط</strong><small>الدخل الحالي من الشمس</small></div>
+          <div class="live-kpi-card"><span>إنتاج اليوم</span><strong>{{ format_energy(d.dailyProductionActive or 0) }}</strong><small>طاقة تم توليدها اليوم</small></div>
+          <div class="live-kpi-card"><span>إنتاج هذا الشهر</span><strong>{{ format_energy(d.monthlyProductionActive or 0) }}</strong><small>من عداد الجهاز</small></div>
+          <div class="live-kpi-card"><span>إجمالي الإنتاج</span><strong>{{ format_energy(d.cumulativeProductionActive or 0) }}</strong><small>منذ بداية التشغيل</small></div>
+          <div class="live-kpi-card"><span>القدرة القصوى للجهاز</span><strong>{{ ((d.ratedPower or 6000)|float / 1000)|round(1) }} كيلوواط</strong><small>الحد الأعلى للإنفرتر</small></div>
+        </div>
+      </article>
+
+      <article class="panel-card live-panel-block">
+        <div class="section-head live-panel-head">
+          <div>
+            <h3>حالة البطارية</h3>
+            <small>قراءات أساسية واضحة ومباشرة</small>
+          </div>
+          <span class="section-badge section-badge-battery">بطارية</span>
+        </div>
+        <div class="live-rich-grid cols-5">
+          <div class="live-kpi-card accent-battery"><span>نسبة الشحن</span><strong>{{ d.soc|int }}%</strong><small>{{ 'يتم الشحن' if (d.batteryPower|float(0)) < 0 else ('يتم الاستخدام' if (d.batteryPower|float(0)) > 0 else 'مستقرة') }}</small></div>
+          <div class="live-kpi-card"><span>قدرة البطارية</span><strong>{{ format_power((d.batteryPower|float(0))|abs) }} واط</strong><small>{{ 'شحن' if (d.batteryPower|float(0)) < 0 else ('تفريغ' if (d.batteryPower|float(0)) > 0 else 'بدون تدفق') }}</small></div>
+          <div class="live-kpi-card"><span>جهد البطارية</span><strong>{{ '%.2f'|format(d.batteryVoltage|float(0)) }} V</strong><small>قياس مباشر</small></div>
+          <div class="live-kpi-card"><span>تيار البطارية</span><strong>{{ '%.2f'|format(d.batteryCurrent|float(0)) }} A</strong><small>التيار الحالي</small></div>
+          <div class="live-kpi-card"><span>الدورات المكافئة</span><strong>{{ (((d.totalChargingEnergy|float(0)) / ((settings.battery_capacity_kwh|float(5)) if (settings.battery_capacity_kwh|float(5)) > 0 else 1)) )|round(1) }}</strong><small>{{ settings.battery_capacity_kwh }} kWh سعة مضبوطة</small></div>
+        </div>
+      </article>
+
+      <article class="panel-card live-panel-block">
+        <div class="section-head live-panel-head">
+          <div>
+            <h3>استهلاك المنزل والشبكة</h3>
+            <small>قراءات الحمل والتغذية الحالية</small>
+          </div>
+          <span class="section-badge section-badge-home">المنزل</span>
+        </div>
+        <div class="live-rich-grid cols-4">
+          <div class="live-kpi-card accent-home"><span>الاستهلاك الحالي</span><strong>{{ format_power(d.inverterOutputPowerL1l2 or latest.home_load or 0) }} واط</strong><small>الحمل الآن</small></div>
+          <div class="live-kpi-card"><span>قدرة الشبكة</span><strong>{{ format_power(latest.grid_power or 0) }} واط</strong><small>{% if (latest.grid_power or 0) == 0 %}مفصولة حاليًا{% else %}قياس مباشر{% endif %}</small></div>
+          <div class="live-kpi-card"><span>قدرة الخرج AC</span><strong>{{ format_power(d.inverterOutputPowerL1l2 or 0) }} واط</strong><small>خرج الإنفرتر</small></div>
+          <div class="live-kpi-card"><span>حمل مقارنة بالقدرة القصوى</span><strong>{{ ((((d.inverterOutputPowerL1l2 or latest.home_load or 0)|float) / ((d.ratedPower or 6000)|float) * 100) if ((d.ratedPower or 6000)|float) > 0 else 0)|round(1) }}%</strong><small>من حد الجهاز الأقصى</small></div>
+        </div>
+      </article>
+
+      <article class="panel-card live-panel-block">
+        <div class="section-head live-panel-head">
+          <div>
+            <h3>سلاسل الألواح</h3>
+            <small>قدرة وجهد وتيار كل مدخل شمسي</small>
+          </div>
+          <span class="section-badge section-badge-pv">PV</span>
+        </div>
+        <div class="live-rich-grid cols-3">
+          {% set any_pv = false %}
+          {% for i in [1,2,3] %}
+            {% set pv = d['dcPowerPv' ~ i] | float(0) %}
+            {% set vv = d['dcVoltagePv' ~ i] | float(0) %}
+            {% set cc = d['dcCurrentPv' ~ i] | float(0) %}
+            {% if pv > 0 or vv > 0 or cc > 0 %}
+              {% set any_pv = true %}
+              <div class="live-kpi-card pv-card">
+                <span>سلسلة PV{{ i }}</span>
+                <strong>{{ format_power(pv) }} واط</strong>
+                <small>{{ '%.1f'|format(vv) }} V • {{ '%.2f'|format(cc) }} A</small>
+              </div>
+            {% endif %}
+          {% endfor %}
+          {% if not ((d.dcPowerPv1|float(0) > 0) or (d.dcPowerPv2|float(0) > 0) or (d.dcPowerPv3|float(0) > 0) or (d.dcVoltagePv1|float(0) > 0) or (d.dcVoltagePv2|float(0) > 0) or (d.dcVoltagePv3|float(0) > 0)) %}
+            <div class="empty-state compact-empty">لا توجد قراءات PV ظاهرة الآن.</div>
+          {% endif %}
+        </div>
+      </article>
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

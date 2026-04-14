@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>إعدادات ربط Deye</h1>
+          <p class="mb-0">إعدادات الربط الحقيقي + سعة البطارية + المنطقة الزمنية المحلية</p>
+        </div>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} mt-2">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="panel-card">
+      <form method="post" class="settings-form">
+        <div>
+          <label>App ID</label>
+          <input name="deye_app_id" value="{{ settings.deye_app_id or '' }}" class="form-control" required>
+        </div>
+        <div>
+          <label>App Secret</label>
+          <input name="deye_app_secret" value="{{ settings.deye_app_secret or '' }}" class="form-control" required>
+        </div>
+        <div>
+          <label>بريد Deye</label>
+          <input name="deye_email" value="{{ settings.deye_email or '' }}" class="form-control" required>
+        </div>
+        <div>
+          <label>كلمة المرور العادية</label>
+          <input name="deye_password" value="{{ settings.deye_password or '' }}" class="form-control">
+        </div>
+        <div>
+          <label>أو كلمة المرور المشفرة SHA-256</label>
+          <input name="deye_password_hash" value="{{ settings.deye_password_hash or '' }}" class="form-control">
+        </div>
+        <div>
+          <label>Plant ID</label>
+          <input name="deye_plant_id" value="{{ settings.deye_plant_id or '' }}" class="form-control" required>
+        </div>
+        <div>
+          <label>Inverter SN <small style="color:var(--color-text-secondary)">(رقم الانفيرتر)</small></label>
+          <input name="deye_device_sn" value="{{ settings.deye_device_sn or '' }}" class="form-control" placeholder="مثال: 2504265119">
+        </div>
+        <div>
+          <label>Logger SN <small style="color:var(--color-text-success)">★ مهم — رقم الـ Logger</small></label>
+          <input name="deye_logger_sn" value="{{ settings.deye_logger_sn or '' }}" class="form-control" placeholder="مثال: 3434586752">
+          <small style="color:var(--color-text-secondary)">رقم Logger الموجود في صفحة الأجهزة على موقع Deye — ضروري لجلب بيانات PV والانفيرتر</small>
+        </div>
+        <div>
+          <label>اسم المحطة</label>
+          <input name="deye_plant_name" value="{{ settings.deye_plant_name or '' }}" class="form-control">
+        </div>
+        <div>
+          <label>المنطقة</label>
+          <input name="deye_region" value="{{ settings.deye_region or '' }}" class="form-control">
+        </div>
+        <div>
+          <label>سعة البطارية kWh</label>
+          <input name="battery_capacity_kwh" value="{{ settings.battery_capacity_kwh or '5' }}" 
+                 class="form-control" type="number" step="0.1" min="0.1"
+                 placeholder="مثال: 5 لبطارية 5 kWh">
+          <small style="color:var(--color-text-secondary)">
+            احسبها: سعة البطارية (Ah) × جهد البطارية (V) ÷ 1000 — مثال: 200Ah × 53V = 10.6 kWh
+          </small>
+        </div>
+        <div>
+          <label>الاحتياطي المحمي للبطارية %</label>
+          <input name="battery_reserve_percent" value="{{ settings.battery_reserve_percent or '20' }}" class="form-control">
+        </div>
+        <div>
+          <label>Battery SN الرئيسي</label>
+          <input name="deye_battery_sn_main" value="{{ settings.deye_battery_sn_main or '' }}" class="form-control">
+        </div>
+        <div>
+          <label>Battery SN الفرعي / الموديول</label>
+          <input name="deye_battery_sn_module" value="{{ settings.deye_battery_sn_module or '' }}" class="form-control">
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-solar">💾 حفظ الإعدادات</button>
+        </div>
+      </form>
+
+      <div class="mt-4 d-flex gap-2 flex-wrap">
+        <form method="post" action="{{ url_for('main.test_connection') }}">
+          <button class="btn btn-outline-primary">اختبار الاتصال</button>
+        </form>
+        <form method="post" action="{{ url_for('main.sync_now') }}">
+          <button class="btn btn-outline-success">جلب قراءة حقيقية الآن</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

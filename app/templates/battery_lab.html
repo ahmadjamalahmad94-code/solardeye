@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>مختبر البطارية</h1>
+          <p class="mb-0">قراءة أعمق لصحة البطارية، الاستفادة الحالية، والتغيرات الزمنية لأهم المؤشرات.</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="battery-lab-grid">
+      <div class="panel-card battery-lab-main">
+        <div class="stats-panel-head">
+          <div><h3>الحالة الحالية</h3><small>آخر قراءة محفوظة محليًا</small></div>
+          <div class="battery-badge">{{ battery_details.battery_status }}</div>
+        </div>
+        <div class="battery-metric-grid">
+          <div class="battery-metric"><span>نسبة الشحن</span><strong>{{ latest.battery_soc if latest else 0 }}%</strong></div>
+          <div class="battery-metric"><span>الطاقة داخل البطارية</span><strong>{{ battery_insights.stored_kwh }} kWh</strong></div>
+          <div class="battery-metric"><span>المتاح حتى الحماية</span><strong>{{ battery_insights.usable_now_kwh }} kWh</strong></div>
+          <div class="battery-metric"><span>المتبقي للامتلاء</span><strong>{{ battery_insights.remaining_to_full_kwh }} kWh</strong></div>
+          {% if battery_details.battery_voltage is not none %}<div class="battery-metric"><span>الجهد</span><strong>{{ battery_details.battery_voltage }} V</strong></div>{% endif %}
+          {% if battery_details.battery_current is not none %}<div class="battery-metric"><span>التيار</span><strong>{{ battery_details.battery_current }} A</strong></div>{% endif %}
+          {% if battery_details.battery_cycles is not none %}<div class="battery-metric"><span>عدد الدورات</span><strong>{{ battery_details.battery_cycles }}</strong></div>{% endif %}
+          {% if battery_details.battery_soh is not none %}<div class="battery-metric"><span>الصحة SOH</span><strong>{{ battery_details.battery_soh }}%</strong></div>{% endif %}
+          {% if battery_details.battery_total_capacity_ah is not none %}<div class="battery-metric"><span>السعة Ah</span><strong>{{ battery_details.battery_total_capacity_ah }}</strong></div>{% endif %}
+          {% if battery_details.battery_temp is not none %}<div class="battery-metric"><span>الحرارة</span><strong>{{ battery_details.battery_temp }}°</strong></div>{% endif %}
+        </div>
+      </div>
+      <div class="panel-card battery-lab-side">
+        <div class="stats-panel-head compact"><div><h3>مؤشرات التشغيل</h3><small>ملخص ذكي</small></div></div>
+        <div class="battery-insight-list">
+          <div><span>الوضع الحالي</span><strong>{{ battery_insights.mode_label }}</strong></div>
+          <div><span>وقت الامتلاء</span><strong>{{ battery_insights.charge_eta }}</strong></div>
+          <div><span>وقت النفاد</span><strong>{{ battery_insights.discharge_eta }}</strong></div>
+          <div><span>الاحتياطي المحجوز</span><strong>{{ battery_insights.reserve_kwh }} kWh</strong></div>
+          <div><span>قدرة الشحن</span><strong>{{ battery_insights.charge_power_w }} W</strong></div>
+          <div><span>قدرة التفريغ</span><strong>{{ battery_insights.discharge_power_w }} W</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-layout-v10 mt-4">
+      <div class="panel-card stats-main-panel">
+        <div class="stats-panel-head"><div><h3>تغير نسبة البطارية</h3><small>قراءة مجمعة كل ساعة — آخر 48 ساعة</small></div></div>
+        <canvas id="batteryLabSocChart" height="260" data-labels='{{ labels|tojson }}' data-soc='{{ soc_values|tojson }}'></canvas>
+      </div>
+      <div class="panel-card stats-main-panel">
+        <div class="stats-panel-head"><div><h3>قدرة البطارية والجهد</h3><small>قراءة مجمعة كل ساعة — تفريغ / شحن / جهد</small></div></div>
+        <canvas id="batteryLabPowerChart" height="260" data-labels='{{ labels|tojson }}' data-power='{{ power_values|tojson }}' data-voltage='{{ voltage_values|tojson }}' data-current='{{ current_values|tojson }}'></canvas>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

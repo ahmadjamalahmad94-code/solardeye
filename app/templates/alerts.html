@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><h1>السجل والتنبيهات</h1><p class="mb-0">كل رسائل الاتصال والمزامنة</p></div></div>
+    </header>
+    <div class="panel-card">
+      <div class="log-list">
+        {% for log in logs %}
+          <div class="log-item {{ log.level }}">
+            <div class="w-100">
+              <strong>{{ log.message }}</strong>
+              <div class="small text-muted mt-1">{{ format_local(log.created_at) }}</div>
+              {% if log.raw_json and log.raw_json != '{}' %}
+                <details class="mt-2"><summary>عرض الرد الخام</summary><pre class="json-box">{{ log.raw_json }}</pre></details>
+              {% endif %}
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state">لا يوجد سجل بعد.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

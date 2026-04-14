@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>مركز الإحصائيات</h1>
+          <p class="mb-0">جميع القراءات محفوظة محليًا بشكل دائم ويمكن استعراض أي يوم أو أسبوع أو شهر مع تصدير عربي كامل.</p>
+        </div>
+      </div>
+      <div class="topbar-actions d-flex gap-2">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">تصدير CSV</a>
+        <a class="btn btn-solar" href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">تصدير PDF</a>
+      </div>
+    </header>
+
+    <section class="stats-toolbar-v10 panel-card">
+      <form method="get" action="{{ url_for('main.statistics') }}" class="stats-toolbar-grid">
+        <div class="segmented-control">
+          <button class="seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">يومي</button>
+          <button class="seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">أسبوعي</button>
+          <button class="seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">شهري</button>
+        </div>
+        <div class="period-picker">
+          <a class="nav-date-btn" href="{{ url_for('main.statistics', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
+          <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" class="form-control stats-date-input">
+          <button class="btn btn-outline-primary" type="submit">تطبيق</button>
+          {% if can_go_next %}<a class="nav-date-btn" href="{{ url_for('main.statistics', view=selected_view, date=next_date.strftime('%Y-%m-%d')) }}">›</a>{% endif %}
+        </div>
+      </form>
+    </section>
+
+    <section class="stats-header-cards">
+      <div class="stats-summary-card aqua"><span>إنتاج الشمس</span><strong>{{ stats.solar_generated_kwh }} kWh</strong></div>
+      <div class="stats-summary-card blue"><span>استهلاك المنزل</span><strong>{{ stats.home_consumed_kwh }} kWh</strong></div>
+      <div class="stats-summary-card navy"><span>من البطارية إلى البيت</span><strong>{{ stats.battery_to_home_kwh }} kWh</strong></div>
+      <div class="stats-summary-card amber"><span>المتوسط العام للبطارية</span><strong>{{ stats.avg_battery_soc }}%</strong></div>
+    </section>
+
+    <section class="stats-layout-v10 mt-4">
+      <div class="panel-card stats-main-panel">
+        <div class="stats-panel-head">
+          <div>
+            <h3>الملف الزمني للطاقة</h3>
+            <small>{{ title_hint }}</small>
+          </div>
+          <div class="stats-legend-inline">
+            <span><i class="dot green"></i> شمس</span>
+            <span><i class="dot orange"></i> استهلاك</span>
+            <span><i class="dot blue"></i> بطارية</span>
+            <span><i class="dot navy"></i> SOC</span>
+          </div>
+        </div>
+        <canvas id="statsProfileChart" height="220"
+          data-kind="{{ selected_view }}"
+          data-labels='{{ chart.labels|tojson }}'
+          data-solar='{{ chart.solar|tojson }}'
+          data-home='{{ chart.home|tojson }}'
+          data-battery='{{ chart.battery|tojson }}'
+          data-grid='{{ chart.grid|tojson }}'
+          data-soc='{{ chart.soc|tojson }}'></canvas>
+      </div>
+
+      <div class="panel-card stats-side-panel">
+        <div class="stats-panel-head compact">
+          <div>
+            <h3>توزيع الاستخدام</h3>
+            <small>تلخيص بصري للفترة</small>
+          </div>
+        </div>
+        <canvas id="statsUsageChart" height="220"
+          data-labels='{{ summary_chart.labels|tojson }}'
+          data-solar='{{ summary_chart.solar|tojson }}'
+          data-home='{{ summary_chart.home|tojson }}'
+          data-battery='{{ summary_chart.battery|tojson }}'
+          data-grid='{{ summary_chart.grid|tojson }}'></canvas>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="stats-panel-head">
+        <div>
+          <h3>الجدول التحليلي</h3>
+          <small>جدول نظيف وواضح لكل فترة فرعية داخل النطاق</small>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle solar-table mb-0 stats-modern-table">
+          <thead>
+            <tr>
+              <th>الفترة</th>
+              <th>إنتاج الشمس</th>
+              <th>استهلاك المنزل</th>
+              <th>شمس ← بيت</th>
+              <th>شمس ← بطارية</th>
+              <th>بطارية ← بيت</th>
+              <th>شبكة ← بيت</th>
+              <th>متوسط SOC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in table_rows %}
+            <tr>
+              <td><span class="stats-pill">{{ row.label }}</span></td>
+              <td>{{ row.solar_generated_kwh }} kWh</td>
+              <td>{{ row.home_consumed_kwh }} kWh</td>
+              <td>{{ row.solar_to_home_kwh }} kWh</td>
+              <td>{{ row.solar_to_battery_kwh }} kWh</td>
+              <td>{{ row.battery_to_home_kwh }} kWh</td>
+              <td>{{ row.grid_to_home_kwh }} kWh</td>
+              <td>{{ row.avg_battery_soc }}%</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center py-4">لا توجد بيانات كافية لهذه الفترة بعد.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

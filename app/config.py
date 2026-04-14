@@ -1,0 +1,70 @@
+import os
+import secrets
+import warnings
+from datetime import timedelta
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
+
+
+class Config:
+    # ── Security ──────────────────────────────────────────────────────────────
+    _raw_secret = os.getenv('SECRET_KEY', '')
+    SECRET_KEY = _raw_secret if len(_raw_secret) >= 32 else secrets.token_hex(32)
+
+    _admin_pass = os.getenv('ADMIN_PASSWORD', '')
+    if not _admin_pass or _admin_pass in ('admin123', 'admin', 'password', 'change-this'):
+        warnings.warn("ADMIN_PASSWORD is weak or not set in .env", stacklevel=2)
+    ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
+    ADMIN_PASSWORD = _admin_pass or 'admin123'
+
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+
+    # ── Database ──────────────────────────────────────────────────────────────
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///solar_v8.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+
+    # ── App ───────────────────────────────────────────────────────────────────
+    LOCAL_TIMEZONE = os.getenv('LOCAL_TIMEZONE', 'Asia/Hebron')
+    BATTERY_CAPACITY_KWH = float(os.getenv('BATTERY_CAPACITY_KWH', '5') or '5')
+    BATTERY_RESERVE_PERCENT = float(os.getenv('BATTERY_RESERVE_PERCENT', '20') or '20')
+
+    AUTO_SYNC_ENABLED = os.getenv('AUTO_SYNC_ENABLED', 'true').lower() == 'true'
+    AUTO_SYNC_MINUTES = max(int(os.getenv('AUTO_SYNC_MINUTES', '5') or '5'), 1)
+
+    # Limits & retention
+    MAX_READINGS_QUERY = int(os.getenv('MAX_READINGS_QUERY', '2000') or '2000')
+    SYNCLOG_RETENTION_DAYS = int(os.getenv('SYNCLOG_RETENTION_DAYS', '30') or '30')
+    NOTIFICATIONLOG_RETENTION_DAYS = int(os.getenv('NOTIFICATIONLOG_RETENTION_DAYS', '90') or '90')
+
+    # ── Battery known fallback values ─────────────────────────────────────────
+    BATTERY_KNOWN_VOLTAGE = os.getenv('BATTERY_KNOWN_VOLTAGE', '')
+    BATTERY_KNOWN_CURRENT = os.getenv('BATTERY_KNOWN_CURRENT', '')
+    BATTERY_KNOWN_HEALTH = os.getenv('BATTERY_KNOWN_HEALTH', '')
+    BATTERY_KNOWN_CAPACITY_AH = os.getenv('BATTERY_KNOWN_CAPACITY_AH', '')
+    BATTERY_KNOWN_CYCLES = os.getenv('BATTERY_KNOWN_CYCLES', '')
+    BATTERY_KNOWN_TEMPERATURE = os.getenv('BATTERY_KNOWN_TEMPERATURE', '')
+
+    # ── Deye API ──────────────────────────────────────────────────────────────
+    DEYE_BASE_URL = os.getenv('DEYE_BASE_URL', 'https://eu1-developer.deyecloud.com/v1.0').rstrip('/')
+    DEYE_APP_ID = os.getenv('DEYE_APP_ID', '')
+    DEYE_APP_SECRET = os.getenv('DEYE_APP_SECRET', '')
+    DEYE_EMAIL = os.getenv('DEYE_EMAIL', '')
+    DEYE_PASSWORD = os.getenv('DEYE_PASSWORD', '')
+    DEYE_PASSWORD_HASH = os.getenv('DEYE_PASSWORD_HASH', '')
+    DEYE_REGION = os.getenv('DEYE_REGION', 'EMEA')
+    DEYE_PLANT_ID = os.getenv('DEYE_PLANT_ID', '')
+    DEYE_DEVICE_SN = os.getenv('DEYE_DEVICE_SN', '')
+    DEYE_LOGGER_SN = os.getenv('DEYE_LOGGER_SN', '')  # Logger SN (e.g. 3434586752) — needed for device/originalData
+    DEYE_PLANT_NAME = os.getenv('DEYE_PLANT_NAME', '')
+    DEYE_BATTERY_SN_MAIN = os.getenv('DEYE_BATTERY_SN_MAIN', '')
+    DEYE_BATTERY_SN_MODULE = os.getenv('DEYE_BATTERY_SN_MODULE', '')
+
+    DEYE_TOKEN_ENDPOINT = os.getenv('DEYE_TOKEN_ENDPOINT', '/account/token')
+    DEYE_ACCOUNT_INFO_ENDPOINT = os.getenv('DEYE_ACCOUNT_INFO_ENDPOINT', '/account/info')
+    DEYE_STATION_LIST_ENDPOINT = os.getenv('DEYE_STATION_LIST_ENDPOINT', '/station/list')
+    DEYE_STATION_LATEST_ENDPOINT = os.getenv('DEYE_STATION_LATEST_ENDPOINT', '/station/latest')
+    DEYE_STATION_HISTORY_ENDPOINT = os.getenv('DEYE_STATION_HISTORY_ENDPOINT', '/station/history')

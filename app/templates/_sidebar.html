@@ -1,0 +1,32 @@
+<aside class="sidebar" id="sidebar">
+  <div>
+    <div class="brand-row">
+      <div class="brand-icon">☀️</div>
+      <div>
+        <h4 class="mb-0" data-ar="منصة الطاقة" data-en="Energy Platform">منصة الطاقة</h4>
+        <small data-ar="V17 المطورة" data-en="V17 Enhanced">V17 المطورة</small>
+      </div>
+    </div>
+
+    <nav class="nav-menu mt-4">
+      <a class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard', lang=ui_lang) }}" data-ar="🏠 النظرة العامة" data-en="🏠 Overview">🏠 النظرة العامة</a>
+      <a class="{% if request.endpoint == 'main.statistics' %}active{% endif %}" href="{{ url_for('main.statistics', lang=ui_lang) }}" data-ar="📊 الإحصائيات" data-en="📊 Statistics">📊 الإحصائيات</a>
+      <a class="{% if request.endpoint == 'main.reports' %}active{% endif %}" href="{{ url_for('main.reports', lang=ui_lang) }}" data-ar="🧾 التقارير" data-en="🧾 Reports">🧾 التقارير</a>
+      <a class="{% if request.endpoint == 'main.battery_lab' %}active{% endif %}" href="{{ url_for('main.battery_lab', lang=ui_lang) }}" data-ar="🔋 مختبر البطارية" data-en="🔋 Battery Lab">🔋 مختبر البطارية</a>
+      <a class="{% if request.endpoint == 'main.devices' %}active{% endif %}" href="{{ url_for('main.devices', lang=ui_lang) }}" data-ar="🖥️ الأجهزة" data-en="🖥️ Devices">🖥️ الأجهزة</a>
+      <a class="{% if request.endpoint == 'main.live_data' %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}" data-ar="📡 البيانات الحية" data-en="📡 Live Data">📡 البيانات الحية</a>
+      <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}" data-ar="💡 أحمالك" data-en="💡 Your Loads">💡 أحمالك</a>
+      <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}" data-ar="📲 مركز الإشعارات" data-en="📲 Notifications">📲 مركز الإشعارات</a>
+      <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}" data-ar="🚨 السجل والتنبيهات" data-en="🚨 Alerts Log">🚨 السجل والتنبيهات</a>
+      <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}" data-ar="📍 معلومات المحطة" data-en="📍 Plant Info">📍 معلومات المحطة</a>
+      <a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>
+      <a class="{% if request.endpoint == 'main.deye_settings' %}active{% endif %}" href="{{ url_for('main.deye_settings', lang=ui_lang) }}" data-ar="🔐 ربط Deye" data-en="🔐 Deye Setup">🔐 ربط Deye</a>
+      <a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>
+    </nav>
+  </div>
+  <div class="sidebar-footer">
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <button class="btn btn-outline-light w-100" data-ar="تسجيل الخروج" data-en="Sign out">تسجيل الخروج</button>
+    </form>
+  </div>
+</aside>

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area loads-page">
+    <header class="topbar dashboard-topbar">
+      <div class="dashboard-meta-bar">
+        <div class="meta-pill"><span data-ar="🕒 الساعة الآن" data-en="🕒 Current time">🕒 الساعة الآن</span><strong id="liveClock">--:--:--</strong></div>
+        <div class="meta-pill"><span data-ar="🔄 آخر تحديث" data-en="🔄 Last update">🔄 آخر تحديث</span><strong>{{ format_local(latest.created_at) if latest else '—' }}</strong></div>
+      </div>
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1 data-ar="أحمالك الذكية" data-en="Smart Loads">أحمالك الذكية</h1>
+          <p class="mb-0" data-ar="أضف أجهزتك واترك المنصة تقترح ما يمكن تشغيله بأمان." data-en="Add your devices and let the platform suggest what can be safely turned on.">أضف أجهزتك واترك المنصة تقترح ما يمكن تشغيله بأمان.</p>
+        </div>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <section class="cards-grid loads-hero-row mt-4">
+      <div class="stat-card live-hero-card loads-hero-card live-hero-soft">
+        <span data-ar="التوصية الحالية" data-en="Current advice">التوصية الحالية</span>
+        <strong>{{ smart_loads.headline_en if ui_lang == 'en' else smart_loads.headline_ar }}</strong>
+        <small data-ar="تتجدد مع كل مزامنة" data-en="Refreshes with every sync">تتجدد مع كل مزامنة</small>
+      </div>
+      <div class="stat-card live-hero-card loads-hero-card live-hero-gold">
+        <span data-ar="البطارية الآن" data-en="Battery now">البطارية الآن</span>
+        <strong>{{ smart_loads.battery_soc|round(0) }}%</strong>
+        <small data-ar="تدخل البطارية محسوب ضمن هامش الأمان" data-en="Battery impact is included in the safety margin">تدخل البطارية محسوب ضمن هامش الأمان</small>
+      </div>
+      <div class="stat-card live-hero-card loads-hero-card live-hero-blue">
+        <span data-ar="الفائض الآمن المتاح" data-en="Safe available surplus">الفائض الآمن المتاح</span>
+        <strong>{{ format_power(smart_loads.safe_available_w) }} واط</strong>
+        <small>{{ smart_loads.mode_en if ui_lang == 'en' else smart_loads.mode_ar }}</small>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4 load-simulator-card">
+      <div class="section-head">
+        <h3 data-ar="تجريب اقتراح الأحمال" data-en="Test load suggestions">تجريب اقتراح الأحمال</h3>
+      </div>
+      <div class="load-sim-grid">
+        <form method="post" class="load-sim-main-form">
+          <input type="hidden" name="action" value="simulate">
+          <div>
+            <label class="form-label" data-ar="أقصى حمل تريد السماح به ليلًا (واط)" data-en="Night max draw you allow (W)">أقصى حمل تريد السماح به ليلًا (واط)</label>
+            <input class="form-control" type="number" name="simulate_max_w" min="1" step="1" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}" placeholder="500">
+          </div>
+          <div class="load-form-actions align-end load-inline-actions">
+            <button class="btn btn-solar" type="submit" data-ar="🧪 جرّب الاقتراح" data-en="🧪 Test suggestion">🧪 جرّب الاقتراح</button>
+          </div>
+        </form>
+        <div class="load-side-actions">
+          <form method="post" class="inline-mini-form">
+            <input type="hidden" name="action" value="save_night_limit">
+            <input type="hidden" name="night_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
+            <button class="btn btn-outline-primary" type="submit" data-ar="💾 حفظ الحد الليلي" data-en="💾 Save night limit">💾 حفظ الحد الليلي</button>
+          </form>
+          <form method="post" class="inline-mini-form">
+            <input type="hidden" name="action" value="send_telegram_loads">
+            <input type="hidden" name="simulate_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
+            <button class="btn btn-outline-primary" type="submit" data-ar="📤 أرسل الاقتراح إلى Telegram" data-en="📤 Send suggestion to Telegram">📤 أرسل الاقتراح إلى Telegram</button>
+          </form>
+        </div>
+      </div>
+      <div class="saved-night-limit-note">
+        <span class="stats-pill">{{ 'الحد الليلي المحفوظ' if ui_lang == 'ar' else 'Saved night limit' }}: {{ saved_night_max_w|round(0)|int }}W</span>
+      </div>
+      {% if simulation %}
+      <div class="load-sim-result mt-3">
+        <div class="sim-topline">
+          <span class="stats-pill">{{ simulation.mode_en if ui_lang == 'en' else simulation.mode_ar }}</span>
+          <span class="stats-pill">{{ format_power(simulation.current_load_w) }} W</span>
+          <span class="stats-pill">{{ 'Available' if ui_lang == 'en' else 'المتاح' }}: {{ format_power(simulation.available_w) }} W</span>
+        </div>
+        <p class="mb-2">{{ simulation.reason_en if ui_lang == 'en' else simulation.reason_ar }}</p>
+        <div class="smart-chip-list large">
+          {% for item in simulation.fit %}
+            <div class="smart-chip success large"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
+          {% else %}
+            <div class="empty-state" data-ar="لا يوجد جهاز مناسب ضمن الهامش الحالي." data-en="No device fits within the current margin.">لا يوجد جهاز مناسب ضمن الهامش الحالي.</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <h3 data-ar="ربط Telegram التفاعلي" data-en="Interactive Telegram">ربط Telegram التفاعلي</h3>
+      </div>
+      <p class="mb-2">{% if ui_lang == 'en' %}You can send the interactive button menu now. To make buttons work inside Telegram, set your bot webhook to <code>/telegram/webhook</code> on your public domain after deployment.{% else %}يمكنك الآن إرسال قائمة الأزرار التفاعلية. ولتشغيل الأزرار داخل Telegram فعليًا، اربط Webhook البوت على المسار <code>/telegram/webhook</code> بعد نشر الموقع على رابط عام.{% endif %}</p>
+      <form method="post" action="{{ url_for('main.telegram_send_menu_route') }}">
+        <button class="btn btn-outline-primary" type="submit">📲 {% if ui_lang == 'en' %}Send Telegram menu{% else %}إرسال قائمة Telegram{% endif %}</button>
+      </form>
+    </section>
+
+    <section class="loads-layout mt-4">
+      <article class="panel-card load-form-card">
+        <div class="section-head">
+          <h3 data-ar="إضافة حمل جديد" data-en="Add a new load">إضافة حمل جديد</h3>
+        </div>
+        <form method="post" class="load-form-grid">
+          <input type="hidden" name="action" value="add">
+          <div>
+            <label class="form-label" data-ar="اسم الجهاز" data-en="Device name">اسم الجهاز</label>
+            <input class="form-control" type="text" name="name" placeholder="مثال: سخان ماء / Water heater" required>
+          </div>
+          <div>
+            <label class="form-label" data-ar="القدرة بالواط" data-en="Power in watts">القدرة بالواط</label>
+            <input class="form-control" type="number" name="power_w" min="1" step="1" placeholder="700" required>
+          </div>
+          <div>
+            <label class="form-label" data-ar="الأولوية" data-en="Priority">الأولوية</label>
+            <select class="form-select" name="priority">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </div>
+          <div class="load-form-actions">
+            <button class="btn btn-solar" type="submit" data-ar="➕ إضافة الحمل" data-en="➕ Add load">➕ إضافة الحمل</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel-card load-advice-card">
+        <div class="section-head">
+          <h3 data-ar="ما الذي يمكنك تشغيله الآن؟" data-en="What can you run now?">ما الذي يمكنك تشغيله الآن؟</h3>
+        </div>
+        <div class="smart-chip-list large">
+          {% for item in smart_loads.can_run %}
+            <div class="smart-chip success large"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
+          {% else %}
+            <div class="empty-state" data-ar="لم تتم إضافة أحمال بعد أو أن الفائض الحالي محدود." data-en="No loads were added yet, or the current surplus is limited.">لم تتم إضافة أحمال بعد أو أن الفائض الحالي محدود.</div>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <h3 data-ar="قائمة الأحمال" data-en="Loads list">قائمة الأحمال</h3>
+      </div>
+      <div class="loads-grid">
+        {% for row in loads %}
+          <div class="load-item-card {% if row.is_enabled %}enabled{% else %}disabled{% endif %}">
+            <div class="load-item-main">
+              <span class="load-item-name">{{ row.name }}</span>
+              <strong>{{ row.power_w|round(0)|int }} W</strong>
+              <small>{% if ui_lang == 'en' %}Priority{% else %}الأولوية{% endif %}: {{ row.priority }}</small>
+            </div>
+            <div class="load-item-actions">
+              <form method="post">
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="load_id" value="{{ row.id }}">
+                <button class="btn btn-sm btn-outline-primary" type="submit">{% if row.is_enabled %}{% if ui_lang == 'en' %}Disable{% else %}تعطيل{% endif %}{% else %}{% if ui_lang == 'en' %}Enable{% else %}تفعيل{% endif %}{% endif %}</button>
+              </form>
+              <form method="post" onsubmit="return confirm('{{ 'Delete this load?' if ui_lang == 'en' else 'حذف هذا الحمل؟' }}')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="load_id" value="{{ row.id }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">{% if ui_lang == 'en' %}Delete{% else %}حذف{% endif %}</button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state" data-ar="لا توجد أحمال مضافة حتى الآن." data-en="No loads have been added yet.">لا توجد أحمال مضافة حتى الآن.</div>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

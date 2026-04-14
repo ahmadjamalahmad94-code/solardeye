@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar dashboard-topbar">
+      <div class="dashboard-meta-bar">
+        <div class="meta-pill"><span data-ar="🕒 الساعة الآن" data-en="🕒 Current time">🕒 الساعة الآن</span><strong id="liveClock">--:--:--</strong></div>
+        <div class="meta-pill"><span data-ar="🔄 آخر تحديث" data-en="🔄 Last update">🔄 آخر تحديث</span><strong>{{ format_local(latest.created_at) if latest else '—' }}</strong></div>
+      </div>
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>{{ latest.plant_name if latest else settings.deye_plant_name or 'منصة الطاقة الشمسية' }}</h1>
+          <p class="mb-0">{{ system_status.description if latest else 'نفّذ مزامنة أولًا لعرض البيانات.' }}</p>
+        </div>
+      </div>
+      <div class="topbar-actions d-flex gap-2">
+        <form method="post" action="{{ url_for('main.sync_now') }}">
+          <button class="btn btn-solar">⟳ مزامنة الآن</button>
+        </form>
+        <a href="{{ url_for('main.deye_settings') }}" class="btn btn-outline-primary">الإعدادات</a>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <section class="top-scroll-cards top-kpis-row">
+      <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
+        <span>الحالة العامة</span>
+        <strong id="system-status-title">{{ system_status.title }}</strong>
+        <small id="system-status-desc">{{ system_status.description }}</small>
+      </div>
+      <div class="hero-card hero-kpi blue">
+        <span>إنتاج اليوم</span>
+        <strong>{{ (production_summary.today_kwh if production_summary else 0)|round(2) }}</strong>
+        <small>kWh</small>
+      </div>
+      <div class="hero-card hero-kpi week">
+        <span>إنتاج هذا الأسبوع</span>
+        <strong>{{ (production_summary.week_kwh if production_summary else 0)|round(2) }}</strong>
+        <small>السبت ← اليوم</small>
+      </div>
+      <div class="hero-card hero-kpi solar">
+        <span>إنتاج هذا الشهر</span>
+        <strong>{{ (production_summary.month_kwh if production_summary else 0)|round(2) }}</strong>
+        <small>kWh</small>
+      </div>
+      <div class="hero-card hero-kpi yellow">
+        <span>الإنتاج العام</span>
+        <strong>{{ format_energy(production_summary.total_kwh) if production_summary else '0.00 kWh' }}</strong>
+        <small>منذ بداية التشغيل</small>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4 overview-shell">
+      <div class="overview-side two-column-side">
+        <div class="side-stat-card">
+          <span>حالة البطارية</span>
+          <strong>{{ battery_insights.mode_label }}</strong>
+          <small>{% if battery_insights.charge_power_w > 0 %}شحن {{ format_power(battery_insights.charge_power_w) }} واط{% elif battery_insights.discharge_power_w > 0 %}تفريغ {{ format_power(battery_insights.discharge_power_w) }} واط{% else %}لا يوجد سحب أو شحن واضح{% endif %}</small>
+        </div>
+        <div class="side-stat-card">
+          <span>الناتج من الشمس</span>
+          <strong>{{ format_power(latest.solar_power) if latest else '0.0' }} واط</strong>
+          <small>الإنتاج اللحظي الآن</small>
+        </div>
+        <div class="side-stat-card">
+          <span>الذاهب للبيت</span>
+          <strong>{{ format_power(latest.home_load) if latest else '0.0' }} واط</strong>
+          <small>الاستهلاك الحالي للمنزل</small>
+        </div>
+        <div class="side-stat-card">
+          <span>الذاهب للبطارية وحالتها</span>
+          <strong>{% if battery_insights.charge_power_w > 0 %}{{ format_power(battery_insights.charge_power_w) }} واط{% elif battery_insights.discharge_power_w > 0 %}{{ format_power(battery_insights.discharge_power_w) }} واط{% else %}0.0 واط{% endif %}</strong>
+          <small>الحالة: {{ battery_insights.mode_label }} • الشحن {{ (latest.battery_soc or 0)|int }}%</small>
+        </div>
+        <div class="side-stat-card">
+          <span>الشبكة</span>
+          <strong>{{ format_power(latest.grid_power) if latest else '0.0' }} واط</strong>
+          <small>{% if latest and (latest.grid_power or 0) == 0 %}مفصولة حاليًا{% else %}قياس الشبكة الحالي{% endif %}</small>
+        </div>
+        <div class="side-stat-card">
+          <span>إجمالي الإنتاج اليومي</span>
+          <strong>{{ format_energy(production_summary.today_kwh) if production_summary else '0.00 kWh' }}</strong>
+          <small>ملخص اليوم</small>
+        </div>
+      </div>
+
+      <div class="deye-flow-stage official-flow-stage">
+        <svg class="flow-svg official-flow-svg" viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <path id="solarTrack" d="M178 150 H 300 C 338 150 355 170 355 208 V 252 H 412" class="track-base"/>
+          <path d="M178 150 H 300 C 338 150 355 170 355 208 V 252 H 412" class="track-animated energy-use {{ 'active' if (latest and latest.solar_power > 0) else '' }}"/>
+
+          <path id="gridTrack" d="M722 150 H 600 C 562 150 545 170 545 208 V 252 H 488" class="track-base"/>
+          <path d="M722 150 H 600 C 562 150 545 170 545 208 V 252 H 488" class="track-animated energy-idle {{ 'active' if (latest and latest.grid_power and latest.grid_power|abs > 0) else '' }} {{ 'reverse' if latest and latest.grid_power and latest.grid_power > 0 else '' }}"/>
+
+          <path id="batteryTrack" d="M178 410 H 300 C 338 410 355 390 355 352 V 308 H 412" class="track-base"/>
+          <path d="M178 410 H 300 C 338 410 355 390 355 352 V 308 H 412" class="track-animated {{ 'energy-charge active reverse' if battery_insights.charge_power_w > 0 else ('energy-use active' if battery_insights.discharge_power_w > 0 else 'energy-idle') }}"/>
+
+          <path id="homeTrack" d="M722 410 H 600 C 562 410 545 390 545 352 V 308 H 488" class="track-base"/>
+          <path d="M722 410 H 600 C 562 410 545 390 545 352 V 308 H 488" class="track-animated energy-use {{ 'active reverse' if (latest and latest.home_load > 0) else '' }}"/>
+
+          {% if latest and latest.solar_power > 0 %}
+          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#solarTrack"/></animateMotion></circle>
+          {% endif %}
+          {% if latest and latest.home_load > 0 %}
+          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#homeTrack"/></animateMotion></circle>
+          {% endif %}
+          {% if battery_insights.charge_power_w > 0 %}
+          <circle r="8" class="flow-dot dot-charge"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#batteryTrack"/></animateMotion></circle>
+          {% elif battery_insights.discharge_power_w > 0 %}
+          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#batteryTrack"/></animateMotion></circle>
+          {% endif %}
+          {% if latest and latest.grid_power and latest.grid_power|abs > 0 %}
+          <circle r="8" class="flow-dot dot-idle"><animateMotion dur="2.5s" repeatCount="indefinite" rotate="auto" {% if latest.grid_power > 0 %}keyPoints="1;0" keyTimes="0;1" calcMode="linear"{% endif %}><mpath href="#gridTrack"/></animateMotion></circle>
+          {% endif %}
+        </svg>
+        <div class="flow-box solar highlight">
+          <div class="icon-wrap">☀️</div>
+          <div class="flow-value">{{ format_power(latest.solar_power) if latest else '0.0' }}</div>
+          <div class="flow-title">الألواح</div>
+        </div>
+        <div class="flow-box grid">
+          <div class="icon-wrap">⚡</div>
+          <div class="flow-value">{{ format_power(latest.grid_power) if latest else '0.0' }}</div>
+          <div class="flow-title">الشبكة</div>
+          <div class="flow-state {% if latest and (latest.grid_power or 0) == 0 %}muted{% endif %}">{% if latest and (latest.grid_power or 0) == 0 %}Off-grid{% else %}قياس مباشر{% endif %}</div>
+        </div>
+        <div class="flow-box inverter highlight centered-gap">
+          <div class="icon-wrap">▣</div>
+          <div class="flow-value">{{ system_status.title }}</div>
+          <div class="flow-title">الانفرتر</div>
+        </div>
+        <div class="flow-box battery">
+          <div class="soc-tag">{{ (latest.battery_soc or 0)|int }}%</div>
+          <div class="icon-wrap">🔋</div>
+          <div class="flow-value">{{ format_power((battery_insights.charge_power_w or battery_insights.discharge_power_w) if latest else 0) }}</div>
+          <div class="flow-title">البطارية</div>
+        </div>
+        <div class="flow-box home">
+          <div class="icon-wrap">🏠</div>
+          <div class="flow-value">{{ format_power(latest.home_load) if latest else '0.0' }}</div>
+          <div class="flow-title">البيت</div>
+        </div>
+      </div>
+    </section>
+
+    {% if solar_prediction or weather %}
+    <section class="panel-card mt-4 weather-smart-panel compact-weather-layout">
+      <div class="weather-overview-card">
+        <div class="weather-overview-icon">{{ weather.icon if weather else '🌤️' }}</div>
+        <div class="weather-overview-main">
+          <div class="weather-overview-temp">{{ weather.temperature if weather else '--' }}°</div>
+          <div class="weather-overview-text">{{ weather.condition_ar if weather else 'غير متاح' }}</div>
+        </div>
+      </div>
+
+      <div class="weather-title-block">
+        <div class="weather-status-chip {{ solar_prediction.level if solar_prediction else 'success' }}">{{ solar_prediction.verdict if solar_prediction else 'تحليل الطقس' }}</div>
+        <div class="weather-big-title">تحليل ما قبل الغروب</div>
+      </div>
+
+      <div class="weather-summary-grid">
+        <div class="info-box"><span>الغروب الرسمي</span><strong>{{ _to_12h_label(solar_prediction.sunset_time) if solar_prediction else '--' }}</strong></div>
+        <div class="info-box"><span>الغروب الفعلي</span><strong>{{ _to_12h_label(solar_prediction.effective_sunset_time) if solar_prediction else '--' }}</strong></div>
+        <div class="info-box"><span>المتبقي للغروب</span><strong>{{ solar_prediction.remaining_label if solar_prediction else '--' }}</strong></div>
+        <div class="info-box"><span>وقت امتلاء البطارية</span><strong>{{ human_duration_hours(solar_prediction.time_to_full_hours) if solar_prediction else '--' }}</strong></div>
+      </div>
+
+      <div class="weather-timeline compact">
+        {% for slot in (weather.timeline if weather and weather.timeline else []) %}
+        <div class="weather-slot compact-slot">
+          <span>{{ slot.time_label }}</span>
+          <div class="wx-icon">{{ slot.icon }}</div>
+          <strong>{{ slot.temperature }}°</strong>
+          <div class="slot-status">{{ slot.condition_ar }}</div>
+          <small>☁️ {{ slot.cloud_cover }}%</small>
+          <em>{{ slot.solar_rating }}</em>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="weather-advice-grid">
+        <div class="advice-box blue">
+          <span>التحليل الذكي</span>
+          <strong>{{ solar_prediction.verdict if solar_prediction else 'لا يوجد تحليل' }}</strong>
+          <p>{{ solar_prediction.advice if solar_prediction else '—' }}</p>
+        </div>
+        <div class="advice-box amber">
+          <span>نصيحة الطقس</span>
+          <strong>{{ weather.condition_ar if weather else '—' }}</strong>
+          <p>{{ weather_insight.headline if weather_insight else 'لا تتوفر بيانات كافية.' }}</p>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+
+    <section class="panel-card mt-4 smart-loads-panel">
+      <div class="section-head">
+        <div>
+          <h3 data-ar="التوصيات الذكية للأحمال" data-en="Smart load suggestions">التوصيات الذكية للأحمال</h3>
+          <p class="section-subtitle" data-ar="اعتمادًا على الفائض الشمسي وحالة البطارية الحالية" data-en="Based on solar surplus and current battery state">اعتمادًا على الفائض الشمسي وحالة البطارية الحالية</p>
+        </div>
+        <a href="{{ url_for('main.loads_page', lang=ui_lang) }}" class="btn btn-outline-primary" data-ar="إدارة أحمالك" data-en="Manage your loads">إدارة أحمالك</a>
+      </div>
+      <div class="smart-loads-grid">
+        <div class="smart-summary-card">
+          <span data-ar="الفائض الشمسي الحالي" data-en="Current solar surplus">الفائض الشمسي الحالي</span>
+          <strong>{{ format_power(smart_loads.safe_available_w) }} واط</strong>
+          <small>{{ smart_loads.headline_en if ui_lang == 'en' else smart_loads.headline_ar }}</small>
+        </div>
+        <div class="smart-summary-card alt">
+          <span data-ar="حالة القرار" data-en="Decision mode">حالة القرار</span>
+          <strong>{{ smart_loads.mode_en if ui_lang == 'en' else smart_loads.mode_ar }}</strong>
+          <small data-ar="البطارية الآن" data-en="Battery now">البطارية الآن</small>
+          <em>{{ smart_loads.battery_soc|round(0) }}%</em>
+        </div>
+      </div>
+      <div class="smart-loads-columns">
+        <div class="smart-list-card">
+          <h4 data-ar="يمكن تشغيلها الآن" data-en="Can run now">يمكن تشغيلها الآن</h4>
+          <div class="smart-chip-list">
+            {% for item in smart_loads.can_run %}
+              <div class="smart-chip success"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
+            {% else %}
+              <div class="empty-state" data-ar="لا يوجد حمل مناسب الآن" data-en="No suitable load right now">لا يوجد حمل مناسب الآن</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="smart-list-card muted">
+          <h4 data-ar="يفضل تأجيلها" data-en="Better to postpone">يفضل تأجيلها</h4>
+          <div class="smart-chip-list">
+            {% for item in smart_loads.hold[:6] %}
+              <div class="smart-chip"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
+            {% else %}
+              <div class="empty-state" data-ar="كل الأحمال المضافة ضمن الحدود المتاحة" data-en="All added loads fit within the available margin">كل الأحمال المضافة ضمن الحدود المتاحة</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <h3>الرسوم البيانية</h3>
+        <form method="get" action="{{ url_for('main.dashboard') }}" class="chart-filter-form">
+          <button type="submit" class="btn btn-outline-primary">عرض</button>
+          <input type="date" name="day" value="{{ selected_day_label }}" class="form-control stats-date-input">
+        </form>
+      </div>
+      <div class="charts-grid balanced-charts">
+        <div class="chart-card">
+          <div class="chart-title">ملف القدرة عبر الوقت <small>تجميع كل ساعة — {{ selected_day_label }}</small></div>
+          <div class="chart-wrapper"><canvas id="powerChart" data-labels='{{ labels|tojson }}' data-solar='{{ solar_values|tojson }}' data-load='{{ load_values|tojson }}' data-grid='{{ grid_values|tojson }}' data-battery='{{ battery_power_values|tojson }}'></canvas></div>
+        </div>
+        <div class="chart-card mini">
+          <div class="chart-title">نسبة شحن البطارية SOC</div>
+          <div class="chart-wrapper chart-wrapper-small"><canvas id="batteryChart" data-labels='{{ labels|tojson }}' data-battery='{{ battery_soc_values|tojson }}'></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head"><h3>آخر عمليات المزامنة</h3></div>
+      <div class="log-list">
+        {% for log in logs %}<div class="log-item {{ log.level }}"><div><strong>{{ log.message }}</strong><div class="small text-muted">{{ format_local(log.created_at) }}</div></div></div>{% else %}<div class="empty-state">لا توجد سجلات بعد.</div>{% endfor %}
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

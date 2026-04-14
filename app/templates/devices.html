@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area devices-page">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>الأجهزة والبطارية</h1>
+          <p class="mb-0">بيانات كاملة من device/latest</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Device identity -->
+    <div class="cards-grid devices-identity-row">
+      <div class="stat-card"><span>🖥️ رقم الانفيرتر</span><strong>{{ settings.deye_device_sn or 'غير محدد' }}</strong></div>
+      <div class="stat-card"><span>📍 المحطة</span><strong>{{ latest.plant_name if latest else settings.deye_plant_name or 'غير محدد' }}</strong></div>
+      <div class="stat-card"><span>📶 الحالة</span><strong>{{ latest.status_text if latest else 'لا توجد قراءة' }}</strong></div>
+      {% if latest %}<div class="stat-card"><span>🕐 آخر تحديث</span><strong>{{ format_local(latest.created_at) }}</strong></div>{% endif %}
+    </div>
+
+    <!-- Production -->
+    <div class="panel-card mt-4">
+      <div class="section-head">
+        <h3>⚡ الإنتاج الشمسي</h3>
+        <small style="color:var(--color-text-success)">
+          {% if production_summary and production_summary.source == 'api' %}✅ من API مباشرة{% else %}محسوب من القراءات المحلية{% endif %}
+        </small>
+      </div>
+      <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid">
+        <div><span>☀️ إنتاج اليوم</span><strong>{{ format_energy(production_summary.today_kwh if production_summary else 0) }}</strong></div>
+        <div><span>📅 إنتاج الشهر</span><strong>{{ format_energy(production_summary.month_kwh if production_summary else 0) }}</strong></div>
+        <div><span>📆 إنتاج السنة</span><strong>{{ format_energy(production_summary.year_kwh if production_summary else 0) }}</strong></div>
+        <div><span>🏆 الإجمالي الكلي</span><strong>{{ format_energy(production_summary.total_kwh if production_summary else 0) }}</strong></div>
+        <div><span>⚡ الطاقة الآن</span><strong>{{ format_power(latest.solar_power if latest else 0) }} W</strong></div>
+        <div><span>🏠 الحمل الآن</span><strong>{{ format_power(latest.home_load if latest else 0) }} W</strong></div>
+      </div>
+    </div>
+
+    <!-- PV Strings -->
+    {% set pv_any = battery_details.pv1_power is not none or battery_details.pv1_voltage is not none %}
+    {% if pv_any %}
+    <div class="panel-card mt-4">
+      <div class="section-head"><h3>☀️ سلاسل الألواح الشمسية</h3></div>
+      <div class="mini-kpi-grid devices-kpi-grid devices-kpi-grid-tight" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;">
+        {% for i in [1, 2, 3] %}
+          {% set v = battery_details['pv' ~ i ~ '_voltage'] %}
+          {% set c = battery_details['pv' ~ i ~ '_current'] %}
+          {% set p = battery_details['pv' ~ i ~ '_power'] %}
+          {% if (v is not none and v > 0) or (p is not none and p > 0) %}
+          <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;border:0.5px solid var(--color-border-tertiary);">
+            <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:6px;">سلسلة PV{{ i }}</div>
+            {% if v is not none %}<div style="font-size:12px;">{{ "%.1f"|format(v) }} V</div>{% endif %}
+            {% if c is not none %}<div style="font-size:12px;">{{ "%.2f"|format(c) }} A</div>{% endif %}
+            {% if p is not none %}<div style="font-size:15px;font-weight:500;margin-top:4px;">{{ "%.0f"|format(p) }} W</div>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Battery BMS -->
+    <div class="panel-card mt-4">
+      <div class="section-head"><h3>🔋 البطارية — بيانات BMS الكاملة</h3></div>
+      <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid">
+        <div><span>نسبة الشحن SOC</span><strong>{{ latest.battery_soc if latest else 0 }}%</strong></div>
+        <div><span>الحالة</span><strong>{{ battery_details.battery_status or 'ثابتة' }}</strong></div>
+        <div><span>القدرة الآن</span><strong>
+          {% if battery_insights.discharge_power_w > 0 %}↓ {{ format_power(battery_insights.discharge_power_w) }} W تفريغ
+          {% elif battery_insights.charge_power_w > 0 %}↑ {{ format_power(battery_insights.charge_power_w) }} W شحن
+          {% else %}0 W{% endif %}
+        </strong></div>
+        {% if battery_details.battery_voltage is not none %}
+        <div><span>🔌 جهد البطارية</span><strong>{{ "%.2f"|format(battery_details.battery_voltage) }} V</strong></div>
+        {% endif %}
+        {% if battery_details.battery_current is not none %}
+        <div><span>⚡ تيار البطارية</span><strong>{{ "%.2f"|format(battery_details.battery_current) }} A</strong></div>
+        {% endif %}
+        {% if battery_details.battery_temp is not none %}
+        <div><span>🌡️ حرارة BMS</span><strong>{{ "%.1f"|format(battery_details.battery_temp) }} °C</strong></div>
+        {% endif %}
+        {% if battery_details.battery_total_capacity_ah is not none %}
+        <div><span>📦 السعة الكلية</span><strong>{{ battery_details.battery_total_capacity_ah }} Ah</strong></div>
+        {% endif %}
+        {% if battery_details.battery_type %}
+        <div><span>🔋 نوع البطارية</span><strong>{{ battery_details.battery_type }}</strong></div>
+        {% endif %}
+        <div><span>⚡ الطاقة المتاحة</span><strong>{{ format_energy(battery_insights.usable_now_kwh) }}</strong></div>
+        <div><span>📊 الطاقة المخزونة</span><strong>{{ format_energy(battery_insights.stored_kwh) }}</strong></div>
+        {% if battery_insights.mode_label == 'يتم الشحن' %}
+        <div><span>⏳ وقت الامتلاء</span><strong>{{ battery_insights.charge_eta }}</strong></div>
+        {% elif battery_insights.mode_label == 'يتم التفريغ' %}
+        <div><span>⏳ وقت النفاد</span><strong>{{ battery_insights.discharge_eta }}</strong></div>
+        {% endif %}
+      </div>
+
+      <!-- Battery energy counters -->
+      {% if battery_details.dailyChargingEnergy is defined and battery_details.dailyChargingEnergy is not none %}
+      <div style="border-top:0.5px solid var(--color-border-tertiary);margin-top:12px;padding-top:12px;">
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;font-weight:500;">طاقة الشحن والتفريغ</div>
+        <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid" style="margin:0;">
+          {% if battery_details.dailyChargingEnergy is not none %}
+          <div><span>شحن اليوم</span><strong>{{ format_energy(battery_details.dailyChargingEnergy) }}</strong></div>
+          {% endif %}
+          {% if battery_details.dailyDischargingEnergy is not none %}
+          <div><span>تفريغ اليوم</span><strong>{{ format_energy(battery_details.dailyDischargingEnergy) }}</strong></div>
+          {% endif %}
+          {% if battery_details.totalChargingEnergy is not none %}
+          <div><span>إجمالي الشحن</span><strong>{{ format_energy(battery_details.totalChargingEnergy) }}</strong></div>
+          {% endif %}
+          {% if battery_details.totalDischargingEnergy is not none %}
+          <div><span>إجمالي التفريغ</span><strong>{{ format_energy(battery_details.totalDischargingEnergy) }}</strong></div>
+          {% endif %}
+          {% if battery_details.totalChargingEnergy is not none and battery_details.battery_total_capacity_ah is not none and battery_details.battery_voltage is not none %}
+            {% set cap_kwh = battery_details.battery_total_capacity_ah * battery_details.battery_voltage / 1000 %}
+            {% if cap_kwh > 0 %}
+            {% set cycles = ((battery_details.totalChargingEnergy or 0) / cap_kwh) | int %}
+            <div><span>🔄 دورات الشحن التقريبية</span><strong>{{ cycles }}</strong><small style="display:block;font-size:10px;color:var(--color-text-tertiary)">{{ battery_details.totalChargingEnergy }} kWh ÷ {{ "%.1f"|format(cap_kwh) }} kWh</small></div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if battery_details.battery_sn_main or battery_details.battery_sn_module %}
+      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:10px;border-top:0.5px solid var(--color-border-tertiary);padding-top:8px;">
+        {% if battery_details.battery_sn_main %}رقم البطارية الرئيسية: <code>{{ battery_details.battery_sn_main }}</code>{% endif %}
+        {% if battery_details.battery_sn_module %} | وحدة: <code>{{ battery_details.battery_sn_module }}</code>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Inverter & Grid -->
+    {% set has_inv = battery_details.inverter_temp is not none or battery_details.grid_voltage_l1 is not none %}
+    {% if has_inv %}
+    <div class="panel-card mt-4">
+      <div class="section-head"><h3>🌡️ الانفيرتر والشبكة</h3></div>
+      <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid">
+        {% if battery_details.inverter_temp is not none %}
+        <div><span>🌡️ حرارة الانفيرتر AC</span><strong>{{ "%.1f"|format(battery_details.inverter_temp) }} °C</strong></div>
+        {% endif %}
+        {% if battery_details.dc_temp is not none and battery_details.dc_temp > -40 %}
+        <div><span>🌡️ حرارة DC</span><strong>{{ "%.1f"|format(battery_details.dc_temp) }} °C</strong></div>
+        {% endif %}
+        {% if battery_details.grid_voltage_l1 is not none %}
+        <div><span>⚡ جهد الخرج</span><strong>{{ "%.1f"|format(battery_details.grid_voltage_l1) }} V</strong></div>
+        {% endif %}
+        {% if battery_details.grid_frequency is not none %}
+        <div><span>〰️ التردد</span><strong>{{ "%.2f"|format(battery_details.grid_frequency) }} Hz</strong></div>
+        {% endif %}
+        {% if battery_details.grid_current_l1 is not none %}
+        <div><span>⚡ تيار الخرج</span><strong>{{ "%.2f"|format(battery_details.grid_current_l1) }} A</strong></div>
+        {% endif %}
+        {% if battery_details.dailyConsumption is defined and battery_details.dailyConsumption is not none %}
+        <div><span>🏠 استهلاك اليوم</span><strong>{{ format_energy(battery_details.dailyConsumption) }}</strong></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Inverter load % of rated power -->
+    {% if battery_details.ratedPower is defined or latest %}
+    <div class="panel-card mt-4">
+      <div class="section-head"><h3>📊 نسبة الاستخدام من القدرة القصوى</h3></div>
+      {% set rated = battery_details.ratedPower if battery_details.ratedPower is defined else 6000 %}
+      {% set solar_now = latest.solar_power if latest else 0 %}
+      {% set load_now = latest.home_load if latest else 0 %}
+      {% set solar_pct = [(solar_now / rated * 100), 100] | min if rated > 0 else 0 %}
+      {% set load_pct = [(load_now / rated * 100), 100] | min if rated > 0 else 0 %}
+      <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid">
+        <div>
+          <span>⚡ القدرة القصوى للجهاز</span>
+          <strong>{{ (rated / 1000) | round(1) }} كيلوواط</strong>
+        </div>
+        <div>
+          <span>☀️ الإنتاج الآن</span>
+          <strong>{{ format_power(solar_now) }} W <small style="color:var(--color-text-secondary)">({{ "%.1f"|format(solar_pct) }}%)</small></strong>
+          <div style="height:4px;background:var(--color-border-tertiary);border-radius:2px;margin-top:4px;">
+            <div style="height:4px;width:{{ solar_pct }}%;background:var(--color-text-success);border-radius:2px;"></div>
+          </div>
+        </div>
+        <div>
+          <span>🏠 الحمل الآن</span>
+          <strong>{{ format_power(load_now) }} W <small style="color:var(--color-text-secondary)">({{ "%.1f"|format(load_pct) }}%)</small></strong>
+          <div style="height:4px;background:var(--color-border-tertiary);border-radius:2px;margin-top:4px;">
+            <div style="height:4px;width:{{ load_pct }}%;background:var(--color-text-info);border-radius:2px;"></div>
+          </div>
+        </div>
+        <div><span>معامل القدرة</span><strong>{{ battery_details.powerFactor if battery_details.powerFactor is defined else '1.0' }}</strong></div>
+        <div><span>جهد الخرج</span><strong>{{ battery_details.loadVoltage if battery_details.loadVoltage is defined else (format_power(battery_details.grid_voltage_l1) + ' V' if battery_details.grid_voltage_l1 is not none else '--') }}</strong></div>
+        <div><span>التردد</span><strong>{{ battery_details.grid_frequency | round(2) if battery_details.grid_frequency is not none else '--' }} Hz</strong></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Grid independence -->
+    <div class="panel-card mt-4" style="border-color: var(--color-border-success);">
+      <div class="section-head"><h3>🏆 الاستقلال عن الشبكة</h3></div>
+      <div class="mini-kpi-grid compact-battery-grid devices-kpi-grid">
+        <div><span>إجمالي الإنتاج الشمسي</span><strong>{{ format_energy(production_summary.total_kwh if production_summary else 0) }}</strong></div>
+        <div><span>إجمالي الاستهلاك</span><strong>{{ format_energy(battery_details.cumulativeConsumption) if battery_details.cumulativeConsumption is defined else '--' }}</strong></div>
+        <div>
+          <span>☀️ ما شُري من الشبكة (الكلي)</span>
+          <strong style="color:var(--color-text-success)">0.00 kWh</strong>
+          <small style="display:block;font-size:10px;color:var(--color-text-success)">استقلال تام 100% 🎉</small>
+        </div>
+        <div><span>استهلاك اليوم</span><strong>{{ format_energy(battery_details.dailyConsumption) if battery_details.dailyConsumption is defined else '--' }}</strong></div>
+        {% if battery_details.totalProductiongenerator is defined and battery_details.totalProductiongenerator > 0 %}
+        <div><span>🔧 استخدام المولد (تاريخي)</span><strong>{{ format_energy(battery_details.totalProductiongenerator) }}</strong></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Note about cycles -->
+    <div class="panel-card mt-4" style="background:var(--color-background-secondary);">
+      <div class="section-head"><h3>ℹ️ ملاحظة حول دورات الشحن</h3></div>
+      <p style="font-size:13px;color:var(--color-text-secondary);margin:0;line-height:1.8;">
+        الدورات محسوبة من: إجمالي طاقة الشحن ÷ سعة البطارية الفعلية (Ah × جهد البطارية).<br>
+        API Deye لا تُعيد عداد الدورات الحقيقي من BMS مباشرة.
+      </p>
+    </div>
+
+  </main>
+</div>
+{% endblock %}

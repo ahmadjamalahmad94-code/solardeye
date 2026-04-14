@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>تشخيص البيانات</h1>
+          <p class="mb-0">ما يُعيده Deye API لحسابك</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a href="{{ url_for('main.api_raw_debug') }}" target="_blank" class="btn btn-outline-primary">Raw JSON</a>
+      </div>
+    </header>
+
+    {% if latest %}
+    <div class="cards-grid mb-3">
+      <div class="stat-card"><span>🕐 آخر مزامنة</span><strong>{{ format_local(latest.created_at) }}</strong></div>
+      <div class="stat-card"><span>☀️ الطاقة</span><strong>{{ latest.solar_power }} W</strong></div>
+      <div class="stat-card"><span>🔋 SOC</span><strong>{{ latest.battery_soc }}%</strong></div>
+      <div class="stat-card"><span>🏠 الحمل</span><strong>{{ latest.home_load }} W</strong></div>
+    </div>
+    {% endif %}
+
+    <!-- What the API returns -->
+    <div class="panel-card mb-3" style="border-color: var(--color-border-info);">
+      <div class="section-head"><h3>ℹ️ ما تُعيده Deye API الشخصية</h3></div>
+      <div style="font-size: 13px; color: var(--color-text-secondary); line-height: 2;">
+        <span style="color:var(--color-text-success)">✓ متاح:</span> القدرة اللحظية (generationPower) · الاستهلاك · SOC · حالة البطارية · موقع المحطة<br>
+        <span style="color:var(--color-text-danger)">✗ غير متاح:</span> الإنتاج اليومي/الشهري/الكلي · بيانات PV · جهد/تيار البطارية · حرارة الانفيرتر<br>
+        <span style="color:var(--color-text-info)">⟳ محسوب محلياً:</span> الإنتاج اليومي/الشهري/السنوي من القراءات المخزنة
+      </div>
+    </div>
+
+    {% if raw_data.latest %}
+    <section class="panel-card mb-3">
+      <div class="section-head"><h3>📡 station/latest — البيانات اللحظية</h3></div>
+      <pre class="json-box" style="max-height: 300px; overflow-y: auto;">{{ raw_data.latest | tojson(indent=2) }}</pre>
+    </section>
+    {% endif %}
+
+    {% if raw_data.derived %}
+    <section class="panel-card mb-3">
+      <div class="section-head"><h3>⚙️ Derived — القيم المحسوبة داخلياً</h3></div>
+      <pre class="json-box">{{ raw_data.derived | tojson(indent=2) }}</pre>
+    </section>
+    {% endif %}
+
+    {% if raw_data.station_summary %}
+    <section class="panel-card mb-3">
+      <div class="section-head"><h3>📍 station_summary — بيانات المحطة</h3></div>
+      <pre class="json-box" style="max-height: 250px; overflow-y: auto;">{{ raw_data.station_summary | tojson(indent=2) }}</pre>
+    </section>
+    {% endif %}
+
+  </main>
+</div>
+{% endblock %}

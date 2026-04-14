@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>لوحة التقارير الاحترافية</h1>
+          <p class="mb-0">ملخص مرئي وتحليلي للفترة المختارة، مع مؤشرات أداء واضحة وقابلة للتصدير.</p>
+        </div>
+      </div>
+      <div class="topbar-actions d-flex gap-2">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">CSV</a>
+        <a class="btn btn-solar" href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">PDF</a>
+      </div>
+    </header>
+
+    <section class="stats-toolbar-v10 panel-card">
+      <form method="get" action="{{ url_for('main.reports') }}" class="stats-toolbar-grid">
+        <div class="segmented-control">
+          <button class="seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">يومي</button>
+          <button class="seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">أسبوعي</button>
+          <button class="seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">شهري</button>
+        </div>
+        <div class="period-picker">
+          <a class="nav-date-btn" href="{{ url_for('main.reports', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
+          <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" class="form-control stats-date-input">
+          <button class="btn btn-outline-primary" type="submit">تطبيق</button>
+          {% if can_go_next %}<a class="nav-date-btn" href="{{ url_for('main.reports', view=selected_view, date=next_date.strftime('%Y-%m-%d')) }}">›</a>{% endif %}
+        </div>
+      </form>
+    </section>
+
+    <section class="report-hero-grid mt-4">
+      <div class="report-hero-card accent-aqua">
+        <span>استقلال الطاقة</span>
+        <strong>{{ self_sufficiency }}%</strong>
+        <small>كلما ارتفعت النسبة قل اعتمادك على الشبكة</small>
+      </div>
+      <div class="report-hero-card accent-blue">
+        <span>تغطية الشمس للحمل</span>
+        <strong>{{ solar_share }}%</strong>
+        <small>من الاستهلاك الكلي للفترة</small>
+      </div>
+      <div class="report-hero-card accent-indigo">
+        <span>شحن البطارية من الشمس</span>
+        <strong>{{ battery_share }}%</strong>
+        <small>نسبة الطاقة الشمسية التي ذهبت لشحن البطارية</small>
+      </div>
+      <div class="report-hero-card accent-amber">
+        <span>الطاقة الشمسية الفائضة</span>
+        <strong>{{ solar_surplus }} kWh</strong>
+        <small>إنتاج لم يذهب مباشرة للحمل</small>
+      </div>
+    </section>
+
+    <section class="report-kpi-grid mt-4">
+      <div class="panel-card kpi-large"><span>إنتاج الشمس</span><strong>{{ stats.solar_generated_kwh }} kWh</strong></div>
+      <div class="panel-card kpi-large"><span>استهلاك المنزل</span><strong>{{ stats.home_consumed_kwh }} kWh</strong></div>
+      <div class="panel-card kpi-large"><span>من الشمس إلى البطارية</span><strong>{{ stats.solar_to_battery_kwh }} kWh</strong></div>
+      <div class="panel-card kpi-large"><span>متوسط البطارية</span><strong>{{ stats.avg_battery_soc }}%</strong></div>
+      <div class="panel-card kpi-large"><span>أعلى إنتاج لحظي</span><strong>{{ stats.max_solar_w }} W</strong></div>
+      <div class="panel-card kpi-large"><span>متوسط الحمل التقريبي</span><strong>{{ avg_load }} W</strong></div>
+    </section>
+
+    <section class="stats-layout-v10 report-layout mt-4">
+      <div class="panel-card stats-main-panel">
+        <div class="stats-panel-head">
+          <div>
+            <h3>الملف الزمني للطاقة</h3>
+            <small>{{ title_hint }}</small>
+          </div>
+        </div>
+        <div class="report-chart-wrap report-main-chart-wrap">
+          <canvas id="reportsMainChart"
+            data-kind="{{ selected_view }}"
+            data-labels='{{ chart.labels|tojson }}'
+            data-solar='{{ chart.solar|tojson }}'
+            data-home='{{ chart.home|tojson }}'
+            data-battery='{{ chart.battery|tojson }}'
+            data-grid='{{ chart.grid|tojson }}'
+            data-soc='{{ chart.soc|tojson }}'></canvas>
+        </div>
+      </div>
+      <div class="report-side-stack">
+        <div class="panel-card report-weather-card">
+          <div class="report-weather-top">
+            <div>
+              <h3>ملخص الطقس الحالي</h3>
+              <small>لربط الأداء الجوي مع الإنتاج</small>
+            </div>
+            {% if weather %}<div class="weather-chip">{{ weather.icon }} {{ weather.condition_ar }}</div>{% endif %}
+          </div>
+          {% if weather %}
+          <div class="weather-grid-mini">
+            <div><span>الآن</span><strong>{{ weather.temperature }}°</strong></div>
+            <div><span>الغيوم</span><strong>{{ weather.cloud_cover }}%</strong></div>
+            <div><span>بعد ساعة</span><strong>{{ weather.next_hour.condition_ar if weather.next_hour else '—' }}</strong></div>
+            <div><span>التوقع القادم</span><strong>{{ weather.next_hour.temperature if weather.next_hour else '—' }}°</strong></div>
+          </div>
+          {% else %}
+          <div class="empty-state">لا تتوفر بيانات طقس للموقع الحالي.</div>
+          {% endif %}
+        </div>
+        <div class="panel-card report-ratio-card">
+          <div class="stats-panel-head compact"><div><h3>توزيع الطاقة</h3><small>شمس / بطارية / شبكة</small></div></div>
+          <div class="report-chart-wrap report-mix-chart-wrap">
+            <canvas id="reportsMixChart" data-values='{{ [stats.solar_to_home_kwh, stats.battery_to_home_kwh, stats.grid_to_home_kwh]|tojson }}'></canvas>
+          </div>
+        </div>
+        <div class="panel-card report-load-card">
+          <div class="stats-panel-head compact"><div><h3>اقتراح الأحمال الآن</h3><small>مبني على الفائض وحالة البطارية</small></div></div>
+          <div class="smart-chip-list">
+            {% for item in smart_loads.can_run[:4] %}
+              <div class="smart-chip success"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
+            {% else %}
+              <div class="empty-state">لا يوجد حمل مناسب حاليًا.</div>
+            {% endfor %}
+          </div>
+          <p class="mt-3 mb-0">{{ smart_loads.headline_ar }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="stats-panel-head">
+        <div>
+          <h3>الجدول التنفيذي</h3>
+          <small>تفصيل الفترات الفرعية داخل {{ title_hint }}</small>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle solar-table mb-0 stats-modern-table">
+          <thead>
+            <tr>
+              <th>الفترة</th>
+              <th>شمس</th>
+              <th>منزل</th>
+              <th>شمس ← بيت</th>
+              <th>شمس ← بطارية</th>
+              <th>بطارية ← بيت</th>
+              <th>شبكة ← بيت</th>
+              <th>بطارية %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in table_rows %}
+            <tr>
+              <td><span class="stats-pill">{{ row.label }}</span></td>
+              <td>{{ row.solar_generated_kwh }}</td>
+              <td>{{ row.home_consumed_kwh }}</td>
+              <td>{{ row.solar_to_home_kwh }}</td>
+              <td>{{ row.solar_to_battery_kwh }}</td>
+              <td>{{ row.battery_to_home_kwh }}</td>
+              <td>{{ row.grid_to_home_kwh }}</td>
+              <td>{{ row.avg_battery_soc }}%</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center py-4">لا توجد بيانات كافية لهذه الفترة.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

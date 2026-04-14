@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>🔬 API Explorer</h1>
+          <p class="mb-0">يجرب كل endpoint متاح في Deye API ويعرض ماذا يعيد</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a href="{{ url_for('probe.api_probe_page') }}?run=1" class="btn btn-solar">
+          ▶ تشغيل الفحص الكامل
+        </a>
+      </div>
+    </header>
+
+    {% if not probe %}
+    <div class="panel-card mt-4" style="text-align:center; padding: 3rem 2rem;">
+      <p style="font-size: 2rem; margin-bottom: 1rem;">🔬</p>
+      <h3>فحص Deye API الشامل</h3>
+      <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem;">
+        يجرب هذا الفحص كل endpoint معروف في Deye API باستخدام بياناتك الحالية
+        ويعرض لك ماذا يعيد كل واحد — مفيد لمعرفة ما هو متاح لحسابك.
+      </p>
+      <a href="{{ url_for('probe.api_probe_page') }}?run=1" class="btn btn-solar" style="font-size:15px; padding: 10px 28px;">
+        ▶ ابدأ الفحص الآن
+      </a>
+      <p style="font-size:12px; color:var(--color-text-tertiary); margin-top: 1rem;">
+        قد يستغرق 20–40 ثانية
+      </p>
+    </div>
+
+    {% else %}
+
+    <!-- Summary banner -->
+    {% set s = probe.summary %}
+    <div class="cards-grid mt-3">
+      <div class="stat-card" style="border-top: 3px solid var(--color-border-success);">
+        <span>✅ يعيد بيانات</span>
+        <strong style="font-size:2rem; color:var(--color-text-success);">{{ s.working }}</strong>
+      </div>
+      <div class="stat-card" style="border-top: 3px solid var(--color-border-danger);">
+        <span>❌ فشل / فارغ</span>
+        <strong style="font-size:2rem; color:var(--color-text-danger);">{{ s.failed }}</strong>
+      </div>
+      <div class="stat-card">
+        <span>📊 إجمالي المحاولات</span>
+        <strong style="font-size:2rem;">{{ s.total }}</strong>
+      </div>
+      <div class="stat-card">
+        <span>🔑 Token</span>
+        <strong style="font-size:12px; font-family: monospace;">{{ probe.token or 'فشل' }}</strong>
+      </div>
+    </div>
+
+    {% if s.working_names %}
+    <div class="panel-card mt-3" style="border-color: var(--color-border-success); background: var(--color-background-success);">
+      <div class="section-head"><h3 style="color:var(--color-text-success)">✅ Endpoints تُعيد بيانات حقيقية</h3></div>
+      {% for name in s.working_names %}
+      <div style="font-family: monospace; font-size: 13px; padding: 3px 0; color: var(--color-text-success);">{{ name }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Results by category -->
+    {% set categories = [
+      ('auth',         '🔑 المصادقة'),
+      ('account',      '👤 الحساب'),
+      ('station',      '🏠 المحطة'),
+      ('energy',       '⚡ الطاقة والإنتاج'),
+      ('station_extra','🔧 محطة — إضافي'),
+      ('device',       '🖥️ الجهاز (device/originalData)'),
+      ('device_sn',    '📱 Device endpoints (deviceSn مباشرة)'),
+      ('alt_url',      '🌐 URLs بديلة'),
+      ('battery',      '🔋 البطارية'),
+      ('error',        '⛔ أخطاء'),
+    ] %}
+
+    {% for cat_id, cat_label in categories %}
+      {% set cat_results = probe.results | selectattr('category', 'equalto', cat_id) | list %}
+      {% if cat_results %}
+      <div class="panel-card mt-3">
+        <div class="section-head"><h3>{{ cat_label }}</h3></div>
+        {% for r in cat_results %}
+        <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; margin-bottom: 10px; overflow: hidden;">
+          <!-- Header row -->
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+                      background: {% if r.has_data %}var(--color-background-success){% elif r.ok %}var(--color-background-warning){% else %}var(--color-background-danger){% endif %};">
+            <span style="font-size:18px; line-height:1;">
+              {% if r.has_data %}✅{% elif r.ok %}⚠️{% else %}❌{% endif %}
+            </span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-family: monospace; font-size: 13px; font-weight:500;
+                          color: {% if r.has_data %}var(--color-text-success){% elif r.ok %}var(--color-text-warning){% else %}var(--color-text-danger){% endif %};">
+                {{ r.name }}
+              </div>
+              <div style="font-size:12px; color:var(--color-text-secondary); margin-top:2px;">{{ r.note }}</div>
+            </div>
+            <div style="text-align:right; white-space:nowrap;">
+              <span style="font-size:12px; color:var(--color-text-secondary);">HTTP {{ r.status }}</span>
+              <span style="font-size:11px; color:var(--color-text-tertiary); margin-right:8px;">{{ r.ms }}ms</span>
+            </div>
+          </div>
+          <!-- Data preview -->
+          {% if r.data %}
+          <details style="padding: 0;">
+            <summary style="cursor:pointer; padding: 6px 14px; font-size:12px;
+                            color:var(--color-text-secondary); user-select:none;
+                            border-top: 0.5px solid var(--color-border-tertiary);">
+              {% if r.has_data %}📄 عرض البيانات المُعادة{% else %}📄 عرض الرد{% endif %}
+            </summary>
+            <pre style="margin:0; padding: 12px 14px; font-size:11px; overflow-x:auto;
+                        max-height:300px; overflow-y:auto; background:var(--color-background-primary);
+                        border-top: 0.5px solid var(--color-border-tertiary);">{{ r.data | tojson(indent=2) }}</pre>
+          </details>
+          {% endif %}
+          {% if r.error %}
+          <div style="padding: 6px 14px; font-size:12px; color:var(--color-text-danger);
+                      border-top: 0.5px solid var(--color-border-tertiary);">
+            {{ r.error }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+
+    <div style="margin-top: 2rem; text-align:center;">
+      <a href="{{ url_for('probe.api_probe_page') }}?run=1" class="btn btn-outline-primary">🔄 تشغيل مرة أخرى</a>
+    </div>
+
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
