@@ -1139,8 +1139,6 @@ def alerts():
 
 
 def _is_ajax_request():
-    # مركز الإشعارات يعتمد الآن على submit عادي + redirect.
-    # نعتبر طلبات AJAX فقط عند وجود الهيدر الصريح، ونتجاهل Accept لأنه قد يسبب false positives.
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
@@ -1149,6 +1147,77 @@ def _json_response(ok: bool, message: str, **extra):
     payload.update(extra)
     return jsonify(payload)
 
+
+
+def _build_notification_test_payload(section: str, settings: dict, latest, weather):
+    now_ts = int(datetime.now(UTC).timestamp())
+    section = (section or '').strip().lower()
+    if section in ('periodic', 'periodic_day'):
+        title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+        return {'section':'periodic_day','title':title,'message':message,'channel':settings.get('periodic_day_channel','telegram'),'rule_name':'اختبار دوري نهاري','event_key':f'test-periodic-day-{now_ts}','level':'info','success_message':'تم إرسال اختبار التحديث الدوري النهاري','preview_message':'تم تحديث معاينة التحديث الدوري النهاري'}
+    if section in ('periodic_night', 'night'):
+        title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
+        return {'section':'periodic_night','title':title,'message':message,'channel':settings.get('periodic_night_channel','telegram'),'rule_name':'اختبار دوري ليلي','event_key':f'test-periodic-night-{now_ts}','level':'info','success_message':'تم إرسال اختبار التحديث الدوري الليلي','preview_message':'تم تحديث معاينة التحديث الدوري الليلي'}
+    if section in ('charge', 'battery'):
+        _title, base_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+        return {'section':'charge','title':'🧪 اختبار حالة البطارية','message':base_message,'channel':settings.get('battery_test_channel','telegram'),'rule_name':'اختبار البطارية','event_key':f'test-battery-{now_ts}','level':'warning','success_message':'تم إرسال اختبار حالة البطارية','preview_message':'تم تحديث معاينة حالة البطارية'}
+    if section == 'weather':
+        from ..blueprints.notifications import _format_weather_check
+        return {'section':'weather','title':'☁️ اختبار تنبيه الطقس','message':_format_weather_check(latest, weather, settings=settings),'channel':settings.get('weather_test_channel','telegram'),'rule_name':'اختبار الطقس','event_key':f'test-weather-{now_ts}','level':'info','success_message':'تم إرسال اختبار تنبيه الطقس','preview_message':'تم تحديث معاينة تنبيه الطقس'}
+    if section == 'sunset':
+        title, message, level = build_pre_sunset_message(latest, weather, settings=settings)
+        return {'section':'sunset','title':title,'message':message,'channel':settings.get('pre_sunset_channel','telegram'),'rule_name':'اختبار الغروب','event_key':f'test-sunset-{now_ts}','level':level,'success_message':'تم إرسال اختبار تحليل الغروب','preview_message':'تم تحديث معاينة تحليل الغروب'}
+    if section == 'daily_report':
+        title, message = build_daily_morning_report_message(latest, settings=settings)
+        return {'section':'daily_report','title':title,'message':message,'channel':settings.get('daily_report_channel','telegram'),'rule_name':'اختبار تقرير الصباح','event_key':f'test-daily-report-{now_ts}','level':'info','success_message':'تم إرسال تقرير الصباح التجريبي','preview_message':'تم تحديث معاينة تقرير الصباح'}
+    if section == 'discharge':
+        _title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
+        return {'section':'discharge','title':'🌙 تنبيه التفريغ الليلي','message':message,'channel':settings.get('night_discharge_channel','telegram'),'rule_name':'اختبار التفريغ','event_key':f'test-discharge-{now_ts}','level':'warning','success_message':'تم إرسال اختبار التفريغ الليلي','preview_message':'تم تحديث معاينة التفريغ الليلي'}
+    if section == 'load':
+        return {'section':'load','title':'⚡ إشعار الأحمال القابلة للتشغيل والممنوعة','message':build_telegram_quick_reply('loads', latest, weather, settings=settings),'channel':settings.get('load_alert_channel','telegram'),'rule_name':'اختبار الأحمال','event_key':f'test-load-{now_ts}','level':'info','success_message':'تم إرسال اختبار إشعار الأحمال','preview_message':'تم تحديث معاينة إشعار الأحمال'}
+    raise ValueError('قسم الاختبار غير معروف')
+
+def _store_notification_preview(payload: dict):
+    session['notification_preview'] = {'section':payload.get('section',''),'title':payload.get('title',''),'message':payload.get('message',''),'channel':payload.get('channel','telegram')}
+
+@main_bp.route('/notifications/action', methods=['POST'])
+def notifications_action():
+    action = (request.args.get('action') or request.form.get('notification_action') or '').strip().lower()
+    section = (request.args.get('section') or request.form.get('section') or '').strip().lower()
+    if not action:
+        flash('الإجراء المطلوب غير محدد.', 'warning')
+        return redirect(url_for('main.notifications_settings'))
+    try:
+        settings = apply_form_settings_overrides(load_settings(), request.form)
+        latest = Reading.query.order_by(Reading.created_at.desc()).first()
+        weather = get_weather_for_latest(latest)
+        if section == 'quick_telegram':
+            payload = {'section':'quick_telegram','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'telegram','rule_name':'اختبار Telegram','event_key':f"test-telegram-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار Telegram بنجاح','preview_message':'هذه رسالة الاختبار السريعة لقناة Telegram'}
+        elif section == 'quick_both':
+            payload = {'section':'quick_both','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'both','rule_name':'اختبار القناتين','event_key':f"test-both-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار القناتين','preview_message':'هذه رسالة الاختبار السريعة للقناتين'}
+        elif section == 'telegram_menu':
+            payload = {'section':'telegram_menu','title':'📋 قائمة Telegram','message':'اختر ما تريد فحصه الآن من الأزرار التالية:','channel':'telegram','rule_name':'قائمة Telegram','event_key':f"test-telegram-menu-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال قائمة Telegram بنجاح','preview_message':'سيتم إرسال قائمة أزرار Telegram التفاعلية إلى المحادثة.'}
+        else:
+            payload = _build_notification_test_payload(section, settings, latest, weather)
+        if action == 'preview':
+            _store_notification_preview(payload)
+            flash(payload.get('preview_message') or 'تم تحديث المعاينة بنجاح', 'info')
+            return redirect(url_for('main.notifications_settings'))
+        if action != 'send':
+            flash('الإجراء غير معروف.', 'warning')
+            return redirect(url_for('main.notifications_settings'))
+        if section == 'telegram_menu':
+            ok, resp = send_telegram_menu(settings)
+            flash(payload.get('success_message') if ok else f'فشل إرسال قائمة Telegram: {resp}', 'success' if ok else 'danger')
+            log_notification(payload['event_key'], payload['rule_name'], payload['title'], payload['message'], 'telegram', 'success' if ok else 'danger', resp, force=True)
+            return redirect(url_for('main.notifications_settings'))
+        dispatch_notification(settings, payload['event_key'], payload['rule_name'], payload['title'], payload['message'], payload.get('channel','telegram'), payload.get('level','info'), dedupe_minutes=0)
+        _store_notification_preview(payload)
+        flash(payload.get('success_message') or 'تم إرسال الاختبار بنجاح', 'success')
+        return redirect(url_for('main.notifications_settings'))
+    except Exception as exc:
+        flash(f'خطأ أثناء تنفيذ الطلب: {exc}', 'danger')
+        return redirect(url_for('main.notifications_settings'))
 
 @main_bp.route('/notifications', methods=['GET', 'POST'])
 def notifications_settings():
@@ -1161,9 +1230,11 @@ def notifications_settings():
         return redirect(url_for('main.notifications_settings'))
     rules = load_notification_rules(settings)
     recent_notifications = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(30).all()
+    notification_preview = session.pop('notification_preview', None)
     return render_template(
         'notifications.html', settings=settings, rules=rules,
         recent_notifications=recent_notifications,
+        notification_preview=notification_preview,
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
 
@@ -1198,105 +1269,77 @@ def notifications_test_send():
 
 @main_bp.route('/notifications/test-section', methods=['POST'])
 def notifications_test_section():
-    """Route مركزي لاختبار الإشعارات — POST عادي + redirect + flash فقط."""
     try:
-        section = request.form.get('section', '').strip().lower()
-        settings = load_settings()
+        section = request.form.get('section', 'periodic').strip().lower()
+        settings = apply_form_settings_overrides(load_settings(), request.form)
         latest = Reading.query.order_by(Reading.created_at.desc()).first()
         weather = get_weather_for_latest(latest)
         now_ts = int(datetime.now(UTC).timestamp())
+        sent_message = ''
+        sent_title = ''
+        sent_channel = 'telegram'
 
-        SECTIONS = {
-            'periodic_day': lambda: _test_section_periodic_day(settings, latest, weather, now_ts),
-            'periodic':     lambda: _test_section_periodic_day(settings, latest, weather, now_ts),
-            'periodic_night': lambda: _test_section_periodic_night(settings, latest, weather, now_ts),
-            'night':        lambda: _test_section_periodic_night(settings, latest, weather, now_ts),
-            'sunset':       lambda: _test_section_sunset(settings, latest, weather, now_ts),
-            'discharge':    lambda: _test_section_discharge(settings, latest, weather, now_ts),
-            'load':         lambda: _test_section_load(settings, latest, weather, now_ts),
-            'weather':      lambda: _test_section_weather(settings, latest, weather, now_ts),
-            'charge':       lambda: _test_section_battery(settings, latest, weather, now_ts),
-            'battery':      lambda: _test_section_battery(settings, latest, weather, now_ts),
-            'daily_report': lambda: _test_section_daily_report(settings, latest, now_ts),
-        }
-
-        handler = SECTIONS.get(section)
-        if not handler:
-            flash(f'قسم الاختبار غير معروف: {section}', 'warning')
+        if section in ('periodic', 'periodic_day'):
+            sent_title, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+            sent_channel = settings.get('periodic_day_channel', 'telegram')
+            dispatch_notification(settings, f'test-periodic-day-{now_ts}', 'اختبار دوري نهاري', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار التحديث الدوري النهاري'
+        elif section in ('periodic_night', 'night'):
+            sent_title, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
+            sent_channel = settings.get('periodic_night_channel', 'telegram')
+            dispatch_notification(settings, f'test-periodic-night-{now_ts}', 'اختبار دوري ليلي', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار التحديث الدوري الليلي'
+        elif section in ('charge', 'battery'):
+            sent_title = '🧪 اختبار حالة البطارية'
+            sent_channel = settings.get('battery_test_channel', 'telegram')
+            _sent_title2, base_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
+            sent_message = base_message
+            dispatch_notification(settings, f'test-battery-{now_ts}', 'اختبار البطارية', sent_title, sent_message, sent_channel, 'warning', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار حالة البطارية'
+        elif section == 'weather':
+            from ..blueprints.notifications import _format_weather_check
+            sent_title = '☁️ اختبار تنبيه الطقس'
+            sent_message = _format_weather_check(latest, weather, settings=settings)
+            sent_channel = settings.get('weather_test_channel', 'telegram')
+            dispatch_notification(settings, f'test-weather-{now_ts}', 'اختبار الطقس', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار تنبيه الطقس'
+        elif section == 'sunset':
+            sent_title, sent_message, level = build_pre_sunset_message(latest, weather, settings=settings)
+            sent_channel = settings.get('pre_sunset_channel', 'telegram')
+            dispatch_notification(settings, f'test-sunset-{now_ts}', 'اختبار الغروب', sent_title, sent_message, sent_channel, level, dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار تحليل الغروب'
+        elif section == 'daily_report':
+            sent_title, sent_message = build_daily_morning_report_message(latest, settings=settings)
+            sent_channel = settings.get('daily_report_channel', 'telegram')
+            dispatch_notification(settings, f'test-daily-report-{now_ts}', 'اختبار تقرير الصباح', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
+            result_message = 'تم إرسال تقرير الصباح التجريبي'
+        elif section == 'discharge':
+            sent_title = '🌙 تنبيه التفريغ الليلي'
+            _sent_title2, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
+            sent_channel = settings.get('night_discharge_channel', 'telegram')
+            dispatch_notification(settings, f'test-discharge-{now_ts}', 'اختبار التفريغ', sent_title, sent_message, sent_channel, 'warning', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار التفريغ الليلي'
+        elif section == 'load':
+            sent_title = '⚡ إشعار الأحمال القابلة للتشغيل والممنوعة'
+            sent_message = build_telegram_quick_reply('loads', latest, weather, settings=settings)
+            sent_channel = settings.get('load_alert_channel', 'telegram')
+            dispatch_notification(settings, f'test-load-{now_ts}', 'اختبار الأحمال', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
+            result_message = 'تم إرسال اختبار إشعار الأحمال'
+        else:
+            if _is_ajax_request():
+                return _json_response(False, 'قسم الاختبار غير معروف'), 400
+            flash('قسم الاختبار غير معروف', 'warning')
             return redirect(url_for('main.notifications_settings'))
 
-        result_message = handler()
+        if _is_ajax_request():
+            return _json_response(True, result_message, title=sent_title, preview=sent_message, channel=sent_channel)
         flash(result_message, 'success')
         return redirect(url_for('main.notifications_settings'))
-
     except Exception as exc:
-        flash(f'خطأ أثناء اختبار الإشعار: {exc}', 'danger')
+        if _is_ajax_request():
+            return _json_response(False, f'خطأ أثناء اختبار القسم: {exc}'), 500
+        flash(f'خطأ أثناء اختبار القسم: {exc}', 'danger')
         return redirect(url_for('main.notifications_settings'))
-
-
-# ── helpers لكل قسم ────────────────────────────────────────────────────────────
-
-def _test_section_periodic_day(settings, latest, weather, now_ts):
-    title, msg = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
-    channel = settings.get('periodic_day_channel', 'telegram')
-    dispatch_notification(settings, f'test-periodic-day-{now_ts}', 'اختبار دوري نهاري', title, msg, channel, 'info', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار التحديث الدوري النهاري'
-
-
-def _test_section_periodic_night(settings, latest, weather, now_ts):
-    title, msg = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
-    channel = settings.get('periodic_night_channel', 'telegram')
-    dispatch_notification(settings, f'test-periodic-night-{now_ts}', 'اختبار دوري ليلي', title, msg, channel, 'info', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار التحديث الدوري الليلي'
-
-
-def _test_section_sunset(settings, latest, weather, now_ts):
-    title, msg, level = build_pre_sunset_message(latest, weather, settings=settings)
-    channel = settings.get('pre_sunset_channel', 'telegram')
-    dispatch_notification(settings, f'test-sunset-{now_ts}', 'اختبار الغروب', title, msg, channel, level, dedupe_minutes=0)
-    return '✅ تم إرسال اختبار تحليل الغروب'
-
-
-def _test_section_discharge(settings, latest, weather, now_ts):
-    title = '🌙 تنبيه التفريغ الليلي'
-    _, msg = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
-    channel = settings.get('night_discharge_channel', 'telegram')
-    dispatch_notification(settings, f'test-discharge-{now_ts}', 'اختبار التفريغ', title, msg, channel, 'warning', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار التفريغ الليلي'
-
-
-def _test_section_load(settings, latest, weather, now_ts):
-    title = '⚡ إشعار الأحمال القابلة للتشغيل والممنوعة'
-    msg = build_telegram_quick_reply('loads', latest, weather, settings=settings)
-    channel = settings.get('load_alert_channel', 'telegram')
-    dispatch_notification(settings, f'test-load-{now_ts}', 'اختبار الأحمال', title, msg, channel, 'info', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار إشعار الأحمال'
-
-
-def _test_section_weather(settings, latest, weather, now_ts):
-    from ..blueprints.notifications import _format_weather_check
-    title = '☁️ اختبار تنبيه الطقس'
-    msg = _format_weather_check(latest, weather, settings=settings)
-    channel = settings.get('weather_test_channel', 'telegram')
-    dispatch_notification(settings, f'test-weather-{now_ts}', 'اختبار الطقس', title, msg, channel, 'info', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار تنبيه الطقس'
-
-
-def _test_section_battery(settings, latest, weather, now_ts):
-    title = '🧪 اختبار حالة البطارية'
-    _, msg = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
-    channel = settings.get('battery_test_channel', 'telegram')
-    dispatch_notification(settings, f'test-battery-{now_ts}', 'اختبار البطارية', title, msg, channel, 'warning', dedupe_minutes=0)
-    return '✅ تم إرسال اختبار حالة البطارية'
-
-
-def _test_section_daily_report(settings, latest, now_ts):
-    title, msg = build_daily_morning_report_message(latest, settings=settings)
-    channel = settings.get('daily_report_channel', 'telegram')
-    dispatch_notification(settings, f'test-daily-report-{now_ts}', 'اختبار تقرير الصباح', title, msg, channel, 'info', dedupe_minutes=0)
-    return '✅ تم إرسال تقرير الصباح التجريبي'
-
-
 
 
 @main_bp.route('/telegram/menu/send', methods=['POST'])
