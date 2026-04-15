@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTranslations();
   body.classList.remove('theme-minimal', 'theme-glow');
   body.classList.add('theme-saas');
-  body.dataset.dir = document.documentElement.dir || (currentLang() === 'en' ? 'ltr' : 'rtl');
 
   const clock = document.getElementById('liveClock');
   const fmt = () => new Intl.DateTimeFormat(currentLang() === 'en' ? 'en-GB' : 'ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });

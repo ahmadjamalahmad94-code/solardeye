@@ -28,7 +28,7 @@ WEATHER_CODE_MAP = {
     99: ('عاصفة وبرد', 'storm'),
 }
 
-DAY_ICON_MAP = {
+ICON_MAP = {
     'sunny': '☀️',
     'partly_cloudy': '⛅',
     'cloudy': '☁️',
@@ -37,28 +37,6 @@ DAY_ICON_MAP = {
     'snow': '❄️',
     'storm': '⛈️',
     'unknown': '🌤️',
-}
-
-NIGHT_ICON_MAP = {
-    'sunny': '🌙',
-    'partly_cloudy': '🌙☁️',
-    'cloudy': '☁️',
-    'rain': '🌧️',
-    'fog': '🌫️',
-    'snow': '❄️',
-    'storm': '⛈️',
-    'unknown': '🌙',
-}
-
-NIGHT_LABEL_MAP = {
-    'sunny': 'سماء صافية ليلًا',
-    'partly_cloudy': 'غائم جزئيًا ليلًا',
-    'cloudy': 'غائم ليلًا',
-    'rain': 'أمطار ليلًا',
-    'fog': 'ضباب ليلًا',
-    'snow': 'ثلوج ليلًا',
-    'storm': 'عاصفة ليلًا',
-    'unknown': 'حالة ليلية',
 }
 
 @dataclass
@@ -72,7 +50,6 @@ class WeatherSnapshot:
     category: str
     icon: str
     current_time: str | None
-    is_day: bool | None
     morning: dict
     noon: dict
     afternoon: dict
@@ -82,17 +59,21 @@ class WeatherSnapshot:
     timeline: list[dict] = field(default_factory=list)
 
 
-def decode_weather(code: int | None, is_day: bool | None = True):
+def decode_weather(code: int | None, is_day: int | bool | None = None):
     if code is None:
-        category = 'unknown'
-        return ('غير معروف', category, (DAY_ICON_MAP if is_day is not False else NIGHT_ICON_MAP).get(category, '🌤️'))
+        return ('غير معروف', 'unknown', ICON_MAP['unknown'])
     label, category = WEATHER_CODE_MAP.get(int(code), ('غير معروف', 'unknown'))
-    if is_day is False:
-        label = NIGHT_LABEL_MAP.get(category, label)
-        icon = NIGHT_ICON_MAP.get(category, NIGHT_ICON_MAP['unknown'])
-    else:
-        icon = DAY_ICON_MAP.get(category, DAY_ICON_MAP['unknown'])
-    return label, category, icon
+    if is_day in (0, False):
+        night_labels = {
+            0: 'سماء صافية ليلًا',
+            1: 'صحو جزئي ليلًا',
+            2: 'غيوم متفرقة ليلًا',
+            3: 'غائم ليلًا',
+            45: 'ضباب ليلًا',
+            48: 'ضباب ليلًا',
+        }
+        label = night_labels.get(int(code), f'{label} ليلًا' if label != 'غير معروف' else label)
+    return label, category, ICON_MAP.get(category, ICON_MAP['unknown'])
 
 
 def solar_rating_from_cloud(cloud_cover: float | None) -> str:
@@ -106,9 +87,9 @@ def solar_rating_from_cloud(cloud_cover: float | None) -> str:
     return 'إنتاج منخفض جدًا'
 
 
-def advice_from_cloud(cloud_cover: float | None, is_day: bool | None = True) -> str:
-    if is_day is False:
-        return 'الآن ليل؛ اعتمد على البطارية وحدّ الأحمال غير الضرورية.'
+def advice_from_cloud(cloud_cover: float | None, is_day: int | bool | None = True) -> str:
+    if is_day in (0, False):
+        return 'الفترة ليلية؛ اعتمد على حالة البطارية والاستهلاك وليس على الإنتاج الشمسي.'
     cloud = float(cloud_cover or 0)
     if cloud < 20:
         return 'وقت ممتاز لتشغيل الأجهزة الثقيلة.'
@@ -119,15 +100,15 @@ def advice_from_cloud(cloud_cover: float | None, is_day: bool | None = True) -> 
     return 'تجنب تشغيل الأجهزة الثقيلة حتى يتحسن الشحن.'
 
 
-def _slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, hour_selector: int):
+def _slot_from_hourly(times, temps, codes, clouds, pops, is_days, hour_selector: int):
     for idx, t in enumerate(times):
         try:
             dt = datetime.fromisoformat(t)
         except Exception:
             continue
         if dt.hour == hour_selector:
-            slot_is_day = bool(is_day_values[idx]) if idx < len(is_day_values) else True
-            label, category, icon = decode_weather(codes[idx] if idx < len(codes) else None, slot_is_day)
+            is_day = is_days[idx] if idx < len(is_days) else None
+            label, category, icon = decode_weather(codes[idx] if idx < len(codes) else None, is_day)
             cloud = clouds[idx] if idx < len(clouds) else None
             return {
                 'time': t,
@@ -137,15 +118,15 @@ def _slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, hour_sel
                 'condition_ar': label,
                 'category': category,
                 'icon': icon,
-                'is_day': slot_is_day,
-                'solar_rating': 'غير متاح ليلًا' if not slot_is_day else solar_rating_from_cloud(cloud),
-                'advice': advice_from_cloud(cloud, slot_is_day),
+                'solar_rating': solar_rating_from_cloud(cloud),
+                'advice': advice_from_cloud(cloud, is_day),
+                'is_day': is_day,
             }
     return {
         'time': None, 'temperature': None, 'cloud_cover': None,
         'precipitation_probability': None, 'condition_ar': 'غير متاح',
-        'category': 'unknown', 'icon': DAY_ICON_MAP['unknown'], 'is_day': None,
-        'solar_rating': 'غير متاح', 'advice': 'لا تتوفر بيانات كافية.'
+        'category': 'unknown', 'icon': ICON_MAP['unknown'],
+        'solar_rating': 'غير متاح', 'advice': 'لا تتوفر بيانات كافية.', 'is_day': None
     }
 
 
@@ -171,13 +152,9 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
     codes = hourly.get('weather_code', []) or []
     clouds = hourly.get('cloud_cover', []) or []
     pops = hourly.get('precipitation_probability', []) or []
-    is_day_values = hourly.get('is_day', []) or []
+    is_days = hourly.get('is_day', []) or []
 
-    current_is_day = current.get('is_day')
-    if current_is_day is not None:
-        current_is_day = bool(current_is_day)
-
-    condition_ar, category, icon = decode_weather(current.get('weather_code'), current_is_day)
+    condition_ar, category, icon = decode_weather(current.get('weather_code'), current.get('is_day'))
     now = datetime.fromisoformat(current['time']) if current.get('time') else datetime.now(UTC)
 
     daily = data.get('daily', {}) or {}
@@ -194,17 +171,17 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
 
     next_hour = None
     timeline = []
-    selected_hours = [8, 10, 12, 14, 16, 18, 20, 22]
+    selected_hours = [8, 10, 12, 14, 16, 18]
     for idx, t in enumerate(times):
         try:
             dt = datetime.fromisoformat(t)
         except Exception:
             continue
-        slot_is_day = bool(is_day_values[idx]) if idx < len(is_day_values) else True
         if next_hour is None and dt > now:
-            next_hour = _slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, dt.hour)
+            next_hour = _slot_from_hourly(times, temps, codes, clouds, pops, is_days, dt.hour)
         if dt.date() == now.date() and dt.hour in selected_hours:
-            label, cat, ic = decode_weather(codes[idx] if idx < len(codes) else None, slot_is_day)
+            is_day = is_days[idx] if idx < len(is_days) else None
+            label, cat, ic = decode_weather(codes[idx] if idx < len(codes) else None, is_day)
             cloud = clouds[idx] if idx < len(clouds) else None
             timeline.append({
                 'time_label': dt.strftime('%I:%M').lstrip('0') + (' ص' if dt.hour < 12 else ' م'),
@@ -214,12 +191,12 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
                 'condition_ar': label,
                 'category': cat,
                 'icon': ic,
-                'is_day': slot_is_day,
-                'solar_rating': 'غير متاح ليلًا' if not slot_is_day else solar_rating_from_cloud(cloud),
-                'advice': advice_from_cloud(cloud, slot_is_day),
+                'solar_rating': solar_rating_from_cloud(cloud),
+                'advice': advice_from_cloud(cloud, is_day),
+                'is_day': is_day,
             })
     if next_hour is None:
-        next_hour = {'time': None, 'temperature': None, 'cloud_cover': None, 'precipitation_probability': None, 'condition_ar': 'غير متاح', 'category': 'unknown', 'icon': DAY_ICON_MAP['unknown'], 'is_day': None, 'solar_rating': 'غير متاح', 'advice': 'لا توجد بيانات.'}
+        next_hour = {'time': None, 'temperature': None, 'cloud_cover': None, 'precipitation_probability': None, 'condition_ar': 'غير متاح', 'category': 'unknown', 'icon': ICON_MAP['unknown'], 'solar_rating': 'غير متاح', 'advice': 'لا توجد بيانات.'}
 
     return WeatherSnapshot(
         temperature=current.get('temperature_2m'),
@@ -231,10 +208,9 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         category=category,
         icon=icon,
         current_time=current.get('time'),
-        is_day=current_is_day,
-        morning=_slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, 9),
-        noon=_slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, 12),
-        afternoon=_slot_from_hourly(times, temps, codes, clouds, pops, is_day_values, 15),
+        morning=_slot_from_hourly(times, temps, codes, clouds, pops, is_days, 9),
+        noon=_slot_from_hourly(times, temps, codes, clouds, pops, is_days, 12),
+        afternoon=_slot_from_hourly(times, temps, codes, clouds, pops, is_days, 15),
         next_hour=next_hour,
         sunset_time=sunset_time,
         effective_sunset_time=effective_sunset_time,

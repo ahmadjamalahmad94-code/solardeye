@@ -11,17 +11,17 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="theme-saas" data-lang="{{ ui_lang or 'ar' }}" data-dir="{{ 'ltr' if (ui_lang or 'ar') == 'en' else 'rtl' }}">
-  <div class="global-utility-bar">
+  <header class="global-utility-bar">
     <div class="utility-group utility-left">
       <div class="utility-chip utility-accent">
         <span>☀️</span>
-        <strong>{{ 'Solar SaaS Dashboard' if (ui_lang or 'ar') == 'en' else 'لوحة الطاقة - SaaS' }}</strong>
+        <strong>{{ 'Solar Platform' if (ui_lang or 'ar') == 'en' else 'منصة الطاقة الشمسية' }}</strong>
       </div>
     </div>
     <div class="utility-group utility-right">
       <button type="button" class="lang-btn" id="langToggle">{{ 'English' if (ui_lang or 'ar') == 'ar' else 'العربية' }}</button>
     </div>
-  </div>
+  </header>
   {% block body %}{% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
