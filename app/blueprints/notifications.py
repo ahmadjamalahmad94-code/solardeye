@@ -15,6 +15,7 @@ from .helpers import (
     load_settings, _to_12h_label, _upsert_setting,
 )
 from ..services.weather_service import fetch_weather
+from .helpers import load_settings
 from .smart_engine import build_smart_energy_advice
 
 
@@ -881,8 +882,8 @@ def run_advanced_notification_scheduler():
 
 def _get_weather_for_latest():
     from ..services.weather_service import fetch_weather
+from .helpers import load_settings
 from .smart_engine import build_smart_energy_advice
-    from .helpers import load_settings
     from ..services.utils import safe_float
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
     if not latest or not latest.raw_json:
