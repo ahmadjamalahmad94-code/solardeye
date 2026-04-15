@@ -24,85 +24,104 @@
       {% endif %}
     {% endwith %}
 
-    <section class="panel-card mt-3">
-      <div class="section-head">
-        <div>
-          <h3>Telegram</h3>
-          <p class="section-subtitle">قسم مخصص للربط والاختبار فقط. لا يغيّر من منطق الإشعارات الحالي.</p>
-        </div>
-        <div class="stats-pill">قناة رئيسية</div>
-      </div>
-
-      <div class="form-grid-two">
-        <div class="notify-preview-card">
-          <div class="preview-title">حالة الربط</div>
-          <div class="preview-subtext">
-            {% if settings.telegram_bot_token %}
-              تم إدخال Bot Token. يمكنك الآن تفعيل الـ webhook واختبار الربط.
-            {% else %}
-              لم يتم إدخال Bot Token بعد. اذهب إلى الإعدادات أولاً ثم ارجع لهذه الصفحة.
-            {% endif %}
+    <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+      <input type="hidden" name="lang" value="{{ ui_lang }}">
+      <section class="panel-card mt-3">
+        <div class="section-head">
+          <div>
+            <h3>Telegram</h3>
+            <p class="section-subtitle">اضبط Bot Token وChat ID وAPI URL ثم استخدم الأزرار الجاهزة للتفعيل والفحص والإرسال.</p>
           </div>
-          <ul class="smart-list mt-3">
-            <li>Token: <strong>{{ 'موجود' if settings.telegram_bot_token else 'غير موجود' }}</strong></li>
-            <li>Chat ID: <strong>{{ settings.telegram_chat_id or 'غير محدد' }}</strong></li>
-            <li>Webhook: <strong>{{ 'جاهز' if telegram_webhook_url else 'غير متاح' }}</strong></li>
-          </ul>
+          <div class="stats-pill">قناة رئيسية</div>
         </div>
 
-        <div class="notify-preview-card">
-          <div class="preview-title">رابط Webhook</div>
+        <div class="form-grid-two mt-3">
+          <div>
+            <label class="form-label">Bot Token</label>
+            <input class="form-control" type="text" name="telegram_bot_token" value="{{ settings.telegram_bot_token or '' }}" placeholder="ضع Bot Token هنا">
+          </div>
+          <div>
+            <label class="form-label">Chat ID</label>
+            <input class="form-control" type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}" placeholder="ضع Chat ID هنا">
+          </div>
+          <div>
+            <label class="form-label">Telegram API URL</label>
+            <input class="form-control" type="text" name="telegram_api_url" value="{{ settings.telegram_api_url or 'https://api.telegram.org' }}" placeholder="https://api.telegram.org">
+          </div>
+          <div class="notify-preview-card">
+            <div class="preview-title">حالة Webhook</div>
+            <ul class="smart-list mt-2">
+              <li>الحالة: <strong>{{ 'مفعل' if webhook_info.ok and webhook_info.url else 'غير مفعل أو غير متاح' }}</strong></li>
+              <li>الرابط الحالي: <strong>{{ webhook_info.url or '—' }}</strong></li>
+              <li>Pending updates: <strong>{{ webhook_info.pending_update_count if webhook_info is defined else 0 }}</strong></li>
+              <li>آخر خطأ: <strong>{{ webhook_info.last_error_message or 'لا يوجد' }}</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="notify-preview-card mt-3">
+          <div class="preview-title">رابط Webhook داخل الموقع</div>
           <pre class="server-preview-box">{{ telegram_webhook_url or 'سيظهر هنا تلقائيًا إذا كان الرابط العام متاحًا.' }}</pre>
-          <div class="preview-title mt-3">اختبار Telegram</div>
-          <div class="d-flex gap-2 flex-wrap mt-2">
-            <form method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}">
-              <button class="btn btn-outline-primary" type="submit">إرسال اختبار Telegram</button>
-            </form>
-            <form method="post" action="{{ url_for('main.notifications_action', section='telegram_menu', action='send') }}">
-              <button class="btn btn-solar" type="submit">إرسال القائمة التفاعلية</button>
-            </form>
+          <div class="tiny-note">لا تحتاج لنسخ رابط setWebhook يدويًا بعد الآن. استخدم زر "تفعيل Webhook" أسفل الحقول.</div>
+        </div>
+
+        <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات Telegram</button>
+          <button class="btn btn-solar" type="submit" name="channel_action" value="set_webhook">تفعيل Webhook</button>
+          <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="check_webhook">فحص Webhook</button>
+          <button class="btn btn-outline-danger" type="submit" name="channel_action" value="delete_webhook">إلغاء Webhook</button>
+          <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="telegram_test">إرسال اختبار Telegram</button>
+          <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة التفاعلية</button>
+        </div>
+      </section>
+
+      <section class="panel-card mt-4">
+        <div class="section-head">
+          <div>
+            <h3>SMS</h3>
+            <p class="section-subtitle">اضبط بيانات API الخاصة بخدمة الرسائل، مع رقم/أرقام المستلمين، ثم جرّب الإرسال مباشرة من نفس الصفحة.</p>
+          </div>
+          <div class="stats-pill">قيد التشغيل</div>
+        </div>
+
+        <div class="form-grid-two mt-3">
+          <div>
+            <label class="form-label">SMS API URL</label>
+            <input class="form-control" type="text" name="sms_api_url" value="{{ settings.sms_api_url or '' }}" placeholder="https://example.com/send-sms">
+          </div>
+          <div>
+            <label class="form-label">SMS API Key</label>
+            <input class="form-control" type="text" name="sms_api_key" value="{{ settings.sms_api_key or '' }}" placeholder="ضع API Key هنا">
+          </div>
+          <div>
+            <label class="form-label">اسم المرسل</label>
+            <input class="form-control" type="text" name="sms_sender" value="{{ settings.sms_sender or '' }}" placeholder="اسم المرسل">
+          </div>
+          <div>
+            <label class="form-label">المستلمون</label>
+            <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}" placeholder="0599...,0598...">
           </div>
         </div>
-      </div>
-    </section>
 
-    <section class="panel-card mt-4">
-      <div class="section-head">
-        <div>
-          <h3>SMS</h3>
-          <p class="section-subtitle">قسم تجهيز مستقل. سنربط الاختبار الفعلي في الخطوة التالية دون التأثير على الصفحة الحالية.</p>
+        <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات SMS</button>
+          <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="sms_test">إرسال اختبار SMS</button>
         </div>
-        <div class="stats-pill">قيد التجهيز</div>
-      </div>
-      <div class="notify-preview-card">
-        <div class="preview-title">الحالة الحالية</div>
-        <ul class="smart-list mt-3">
-          <li>API URL: <strong>{{ settings.sms_api_url or 'غير محدد' }}</strong></li>
-          <li>المستلمون: <strong>{{ settings.sms_recipients or 'غير محددين' }}</strong></li>
-          <li>الحالة: <strong>{{ 'مهيأ' if settings.sms_api_url and settings.sms_recipients else 'غير مكتمل' }}</strong></li>
-        </ul>
-      </div>
-    </section>
+      </section>
+    </form>
   </main>
 </div>
 
 <style>
+.channels-page .tiny-note{
+  margin-top:6px;
+  font-size:.82rem;
+  color:#7b8aa0;
+  line-height:1.55;
+}
 .channels-page .server-preview-box{
   white-space:pre-wrap;
   word-break:break-word;
-  margin:0;
-  background:rgba(8,20,56,.04);
-  border:1px solid rgba(59,130,246,.14);
-  border-radius:18px;
-  padding:16px;
-}
-.channels-page .smart-list{
-  margin:0;
-  padding-right:18px;
-}
-.channels-page .smart-list li{
-  margin:8px 0;
-  color:#334155;
 }
 </style>
 {% endblock %}

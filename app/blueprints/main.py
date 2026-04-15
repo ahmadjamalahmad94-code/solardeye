@@ -1139,6 +1139,66 @@ def alerts():
 
 
 
+
+
+def _telegram_webhook_target_url():
+    try:
+        root = (request.url_root or '').rstrip('/')
+        if not root:
+            return None
+        return f"{root}/telegram/webhook"
+    except Exception:
+        return None
+
+
+def _telegram_webhook_info(settings: dict):
+    token = (settings.get('telegram_bot_token') or '').strip()
+    base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
+    if not token:
+        return {'ok': False, 'description': 'Bot Token غير موجود'}
+    try:
+        r = requests.get(f"{base}/bot{token}/getWebhookInfo", timeout=20)
+        data = r.json()
+        result = data.get('result') or {}
+        return {
+            'ok': bool(data.get('ok')),
+            'url': result.get('url', ''),
+            'pending_update_count': result.get('pending_update_count', 0),
+            'last_error_message': result.get('last_error_message', ''),
+            'raw': data,
+        }
+    except Exception as exc:
+        return {'ok': False, 'description': str(exc), 'url': '', 'pending_update_count': 0, 'last_error_message': ''}
+
+
+def _telegram_set_webhook(settings: dict):
+    token = (settings.get('telegram_bot_token') or '').strip()
+    base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
+    target = _telegram_webhook_target_url()
+    if not token:
+        return False, 'Bot Token غير موجود'
+    if not target:
+        return False, 'تعذر تحديد رابط الـ webhook'
+    try:
+        r = requests.get(f"{base}/bot{token}/setWebhook", params={'url': target}, timeout=20)
+        data = r.json()
+        return bool(data.get('ok')), data.get('description') or r.text[:500]
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _telegram_delete_webhook(settings: dict):
+    token = (settings.get('telegram_bot_token') or '').strip()
+    base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
+    if not token:
+        return False, 'Bot Token غير موجود'
+    try:
+        r = requests.get(f"{base}/bot{token}/deleteWebhook", timeout=20)
+        data = r.json()
+        return bool(data.get('ok')), data.get('description') or r.text[:500]
+    except Exception as exc:
+        return False, str(exc)
+
 def _is_ajax_request():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
@@ -1221,18 +1281,59 @@ def notifications_action():
         return redirect(url_for('main.notifications_settings'))
 
 
-@main_bp.route('/channels')
+@main_bp.route('/channels', methods=['GET', 'POST'])
 def channels():
+    if request.method == 'POST':
+        save_notification_settings_from_form(request.form)
+        settings = load_settings()
+        action = (request.form.get('channel_action') or '').strip().lower()
+
+        if action == 'save_channels':
+            flash('تم حفظ إعدادات Telegram وSMS بنجاح', 'success')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'set_webhook':
+            ok, msg = _telegram_set_webhook(settings)
+            flash(('تم تفعيل Webhook بنجاح' if ok else f'فشل تفعيل Webhook: {msg}'), 'success' if ok else 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'check_webhook':
+            info = _telegram_webhook_info(settings)
+            if info.get('ok'):
+                extra = info.get('url') or 'لا يوجد رابط'
+                flash(f"حالة Webhook سليمة. الرابط الحالي: {extra}", 'info')
+            else:
+                flash(f"فشل فحص Webhook: {info.get('description') or info.get('last_error_message') or 'خطأ غير معروف'}", 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'delete_webhook':
+            ok, msg = _telegram_delete_webhook(settings)
+            flash(('تم إلغاء Webhook بنجاح' if ok else f'فشل إلغاء Webhook: {msg}'), 'success' if ok else 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'telegram_test':
+            ok, msg = send_telegram_message(settings, 'اختبار Telegram', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
+            flash(('تم إرسال اختبار Telegram بنجاح' if ok else f'فشل إرسال اختبار Telegram: {msg}'), 'success' if ok else 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'telegram_menu':
+            ok, msg = send_telegram_menu(settings)
+            flash(('تم إرسال القائمة التفاعلية بنجاح' if ok else f'فشل إرسال القائمة التفاعلية: {msg}'), 'success' if ok else 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        if action == 'sms_test':
+            ok, msg = send_sms_message(settings, 'اختبار SMS', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
+            flash(('تم إرسال اختبار SMS بنجاح' if ok else f'فشل إرسال اختبار SMS: {msg}'), 'success' if ok else 'danger')
+            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
+        flash('الإجراء المطلوب غير معروف', 'warning')
+        return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
     settings = load_settings()
     weather = get_weather_for_latest(latest) if latest else None
-    telegram_webhook_url = None
-    try:
-        root = (request.url_root or '').rstrip('/')
-        if root:
-            telegram_webhook_url = f"{root}/telegram/webhook"
-    except Exception:
-        telegram_webhook_url = None
+    telegram_webhook_url = _telegram_webhook_target_url()
+    webhook_info = _telegram_webhook_info(settings)
 
     return render_template(
         'channels.html',
@@ -1241,8 +1342,8 @@ def channels():
         settings=settings,
         weather=weather,
         telegram_webhook_url=telegram_webhook_url,
+        webhook_info=webhook_info,
     )
-
 @main_bp.route('/notifications', methods=['GET', 'POST'])
 def notifications_settings():
     settings = load_settings()
