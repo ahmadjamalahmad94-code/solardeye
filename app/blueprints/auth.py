@@ -28,7 +28,7 @@ def logout():
 
 @auth_bp.before_app_request
 def protect_routes():
-    public_endpoints = {'auth.login', 'static'}
+    public_endpoints = {'auth.login', 'static', 'main.telegram_webhook', 'main.telegram_multilink_webhook'}
     ep = request.endpoint or ''
     if ep in public_endpoints or ep.startswith('static'):
         return
@@ -36,6 +36,8 @@ def protect_routes():
         wants_json = (
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or request.accept_mimetypes.best == 'application/json'
+            or request.path.startswith('/telegram/webhook')
+            or request.path.startswith('/telegram/multilink-webhook')
         )
         if wants_json:
             return jsonify({

@@ -1484,7 +1484,7 @@ def telegram_send_menu_route():
         return redirect(request.referrer or url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/webhook', methods=['GET', 'POST'])
+@main_bp.route('/telegram/webhook', methods=['GET', 'POST'], strict_slashes=False)
 def telegram_webhook():
     if request.method == 'GET':
         return jsonify({'ok': True, 'message': 'Telegram webhook is ready'})
