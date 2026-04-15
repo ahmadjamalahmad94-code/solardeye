@@ -1493,13 +1493,13 @@ def telegram_webhook():
     if not data:
         return jsonify({'ok': True, 'message': 'No update payload'})
 
+    settings = load_settings()
     try:
-        process_telegram_update(data)
+        ok, resp = process_telegram_update(settings, data)
+        return jsonify({'ok': bool(ok), 'message': str(resp)})
     except Exception as exc:
         current_app.logger.exception('Telegram webhook processing failed')
         return jsonify({'ok': False, 'error': str(exc)}), 500
-
-    return jsonify({'ok': True})
 @main_bp.route('/plant-info')
 def plant_info():
     latest = Reading.query.order_by(Reading.created_at.desc()).first()

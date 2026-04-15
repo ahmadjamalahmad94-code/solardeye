@@ -428,6 +428,25 @@ def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=
         return _format_battery_eta(latest)
     if action == 'surplus':
         return _format_solar_surplus(latest)
+    if action == 'decision':
+        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
+        return "\n".join([
+            "🎯 القرار الآن",
+            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
+            f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}",
+        ])
+    if action == 'smart':
+        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
+        lines = [
+            "💡 النصيحة الذكية",
+            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
+        ]
+        if advice.get('smart_warning'):
+            lines.append(f"⚠️ {advice.get('smart_warning')}")
+        if advice.get('smart_recommendation'):
+            lines.append(f"💡 {advice.get('smart_recommendation')}")
+        lines.append(f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}")
+        return "\n".join(lines)
     return 'اختر زرًا من القائمة لعرض البيانات.'
 
 
@@ -444,7 +463,7 @@ def process_telegram_update(settings: dict, update: dict):
         data = str(callback.get('data') or '')
         action = data.split(':', 1)[1] if ':' in data else data
         if callback_id:
-            _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback_id})
+            _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback_id, 'text': 'تم الاستلام ✅', 'show_alert': False})
         if action == 'menu':
             return send_telegram_menu(settings, chat_id=chat_id)
         text = build_telegram_quick_reply(action, settings=settings)
@@ -465,6 +484,8 @@ def process_telegram_update(settings: dict, update: dict):
         'الغيوم': 'clouds', '/clouds': 'clouds',
         'الشحن': 'battery_eta', 'مدة الشحن': 'battery_eta', '/battery': 'battery_eta',
         'الفائض': 'surplus', 'الفائض الشمسي': 'surplus', '/surplus': 'surplus',
+        'القرار الآن': 'decision', '/decision': 'decision', 'قرار': 'decision',
+        'نصيحة': 'smart', 'النصيحة الذكية': 'smart', '/smart': 'smart',
     }
     action = mapping.get(txt, 'menu')
     if action == 'menu':
