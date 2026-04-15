@@ -1459,30 +1459,6 @@ def telegram_link_menu():
     return redirect(url_for('main.notifications_settings'))
 
 
-
-@main_bp.route('/telegram/link/send-menu', methods=['POST'])
-def telegram_link_send_menu():
-    try:
-        settings = load_settings()
-        owner_key = None
-        try:
-            owner_key = get_owner_key()
-        except Exception:
-            owner_key = 'default'
-        link = None
-        try:
-            link = get_link_by_owner(owner_key)
-        except Exception:
-            link = None
-        if not link or not getattr(link, 'telegram_chat_id', None):
-            flash('لا يوجد ربط Telegram نشط لإرسال القائمة.', 'warning')
-            return redirect(url_for('main.channels'))
-        ok, resp = send_telegram_menu(settings, chat_id=str(link.telegram_chat_id))
-        flash('تم إرسال القائمة بنجاح.' if ok else f'فشل إرسال القائمة: {resp}', 'success' if ok else 'danger')
-    except Exception as exc:
-        flash(f'خطأ أثناء إرسال القائمة: {exc}', 'danger')
-    return redirect(url_for('main.channels'))
-
 @main_bp.route('/telegram/multilink-webhook/<secret>', methods=['POST'])
 def telegram_multilink_webhook(secret):
     settings = load_settings()
