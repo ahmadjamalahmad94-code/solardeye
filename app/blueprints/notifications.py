@@ -17,7 +17,6 @@ from .helpers import (
 from ..services.weather_service import fetch_weather
 from ..services.utils import utc_to_local
 from ..services.utils import safe_float
-from .helpers import load_settings
 from .smart_engine import build_smart_energy_advice
 
 
@@ -883,8 +882,6 @@ def run_advanced_notification_scheduler():
                 _send_scheduled_notification('daily_report', title, message, settings.get('daily_report_channel', 'telegram'), 'info')
 
 def _get_weather_for_latest():
-from .helpers import load_settings
-from .smart_engine import build_smart_energy_advice
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
     if not latest or not latest.raw_json:
         return latest, None
