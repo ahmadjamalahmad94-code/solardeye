@@ -1487,19 +1487,35 @@ def telegram_send_menu_route():
 @main_bp.route('/telegram/webhook', methods=['GET', 'POST'], strict_slashes=False)
 def telegram_webhook():
     if request.method == 'GET':
-        return jsonify({'ok': True, 'message': 'Telegram webhook is ready'})
+        return Response(
+            json.dumps({'ok': True, 'message': 'Telegram webhook is ready'}, ensure_ascii=False),
+            status=200,
+            mimetype='application/json'
+        )
 
     data = request.get_json(silent=True) or {}
     if not data:
-        return jsonify({'ok': True, 'message': 'No update payload'})
+        return Response(
+            json.dumps({'ok': True, 'message': 'No update payload'}, ensure_ascii=False),
+            status=200,
+            mimetype='application/json'
+        )
 
     settings = load_settings()
     try:
         ok, resp = process_telegram_update(settings, data)
-        return jsonify({'ok': bool(ok), 'message': str(resp)})
+        return Response(
+            json.dumps({'ok': bool(ok), 'message': str(resp)}, ensure_ascii=False),
+            status=200,
+            mimetype='application/json'
+        )
     except Exception as exc:
         current_app.logger.exception('Telegram webhook processing failed')
-        return jsonify({'ok': False, 'error': str(exc)}), 200
+        return Response(
+            json.dumps({'ok': False, 'error': str(exc)}, ensure_ascii=False),
+            status=200,
+            mimetype='application/json'
+        )
 @main_bp.route('/plant-info')
 def plant_info():
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
