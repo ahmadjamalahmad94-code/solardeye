@@ -17,6 +17,7 @@
       <a class="{% if request.endpoint == 'main.live_data' %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}" data-ar="📡 البيانات الحية" data-en="📡 Live Data">📡 البيانات الحية</a>
       <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}" data-ar="💡 أحمالك" data-en="💡 Your Loads">💡 أحمالك</a>
       <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}" data-ar="📲 مركز الإشعارات" data-en="📲 Notifications">📲 مركز الإشعارات</a>
+      <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}" data-ar="🔗 ربط Telegram وSMS" data-en="🔗 Telegram & SMS">🔗 ربط Telegram وSMS</a>
       <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}" data-ar="🚨 السجل والتنبيهات" data-en="🚨 Alerts Log">🚨 السجل والتنبيهات</a>
       <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}" data-ar="📍 معلومات المحطة" data-en="📍 Plant Info">📍 معلومات المحطة</a>
       <a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>
