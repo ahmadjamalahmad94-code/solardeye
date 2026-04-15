@@ -93,6 +93,67 @@
         </div>
       </section>
 
+      <section class="panel-card mt-4 notify-channel-shell">
+        <div class="section-head">
+          <div>
+            <h3>ملف Smart Engine</h3>
+            <p class="section-subtitle">ضبط لطيف ومرن لسلوك النصائح الذكية الحالية، ومجهز لاحقًا ليتحول إلى إعدادات مستقلة لكل مستخدم.</p>
+          </div>
+        </div>
+        <div class="notify-grid-v2">
+          <div class="notify-card-v2 general full-span smart-profile-card">
+            <div class="notify-card-head"><h4>إعدادات القرار الذكي</h4><span class="stats-pill">UI + Backend</span></div>
+            <div class="helper-box mb-3">هذه القيم تتحكم فعليًا في متى يعتبر الليل مريحًا، ومتى يسمح النظام بحمل متوسط، وكيف تتغير نبرة الرسائل تلقائيًا حسب صعوبة الموقف.</div>
+            <div class="form-grid-two">
+              <div>
+                <label class="form-label">نسبة الراحة الليلية %</label>
+                <input class="form-control" type="number" min="20" max="95" name="smart_night_comfort_battery" value="{{ settings.smart_night_comfort_battery or '60' }}">
+                <div class="tiny-note">إذا كانت البطارية عند هذه النسبة أو أعلى، يعتبر الوضع الليلي مريحًا نسبيًا.</div>
+              </div>
+              <div>
+                <label class="form-label">حد الحمل المتوسط W</label>
+                <input class="form-control" type="number" min="150" max="3000" step="10" name="smart_medium_load_threshold_w" value="{{ settings.smart_medium_load_threshold_w or '500' }}">
+                <div class="tiny-note">عند وصول الفائض الآمن لهذه القيمة، يمكن أن يقترح النظام تشغيل حمل متوسط.</div>
+              </div>
+              <div>
+                <label class="form-label">نمط ما قبل الغروب</label>
+                <select class="form-select" name="smart_sunset_mode">
+                  <option value="strict" {% if settings.smart_sunset_mode == 'strict' %}selected{% endif %}>متحفظ</option>
+                  <option value="balanced" {% if settings.smart_sunset_mode != 'strict' and settings.smart_sunset_mode != 'relaxed' %}selected{% endif %}>متوازن</option>
+                  <option value="relaxed" {% if settings.smart_sunset_mode == 'relaxed' %}selected{% endif %}>مرن قليلًا</option>
+                </select>
+                <div class="tiny-note">الوضع المتوازن هو الأنسب حاليًا، ويمكن تغييره لاحقًا لكل مستخدم على حدة.</div>
+              </div>
+              <div>
+                <label class="form-label">نبرة الرسائل</label>
+                <select class="form-select" name="smart_tone_mode">
+                  <option value="adaptive" {% if settings.smart_tone_mode != 'friendly' and settings.smart_tone_mode != 'balanced' and settings.smart_tone_mode != 'strict' %}selected{% endif %}>تكيّف تلقائي حسب الخطر</option>
+                  <option value="friendly" {% if settings.smart_tone_mode == 'friendly' %}selected{% endif %}>ودية دائمًا</option>
+                  <option value="balanced" {% if settings.smart_tone_mode == 'balanced' %}selected{% endif %}>متوازنة دائمًا</option>
+                  <option value="strict" {% if settings.smart_tone_mode == 'strict' %}selected{% endif %}>حازمة دائمًا</option>
+                </select>
+                <div class="tiny-note">في الوضع التلقائي: يكون النص وديًا حين يكون الوضع آمنًا، ويصبح أكثر جدية كلما اقترب من الخطر.</div>
+              </div>
+              <div>
+                <label class="form-label">هامش الأمان للذكاء W</label>
+                <input class="form-control" type="number" min="0" max="1000" step="10" name="smart_safety_margin_w" value="{{ settings.smart_safety_margin_w or '100' }}">
+                <div class="tiny-note">يخصم هذا الهامش من الفائض قبل أن يعطي النظام أي توصية إيجابية.</div>
+              </div>
+              <div class="smart-profile-preview-box">
+                <div class="preview-title">ملخص سريع</div>
+                <ul class="smart-profile-list">
+                  <li>ليل مريح من: <strong>{{ settings.smart_night_comfort_battery or '60' }}%</strong></li>
+                  <li>حمل متوسط من: <strong>{{ settings.smart_medium_load_threshold_w or '500' }}W</strong></li>
+                  <li>سلوك الغروب: <strong>{{ 'متوازن' if (settings.smart_sunset_mode or 'balanced') == 'balanced' else ('متحفظ' if settings.smart_sunset_mode == 'strict' else 'مرن قليلًا') }}</strong></li>
+                  <li>النبرة: <strong>{{ 'تكيّف تلقائي' if (settings.smart_tone_mode or 'adaptive') == 'adaptive' else settings.smart_tone_mode }}</strong></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
       <section class="panel-card mt-4 notification-builder-card">
         <div class="section-head">
           <div>
@@ -394,3 +455,10 @@
   </main>
 </div>
 {% endblock %}
+
+<style>
+.smart-profile-card .tiny-note{margin-top:6px;font-size:.82rem;color:#7b8aa0;line-height:1.55}
+.smart-profile-preview-box{background:linear-gradient(180deg, rgba(37,99,235,.06), rgba(16,185,129,.05));border:1px solid rgba(59,130,246,.14);border-radius:20px;padding:16px 18px}
+.smart-profile-list{margin:10px 0 0;padding:0 18px 0 0}
+.smart-profile-list li{margin:7px 0;color:#334155}
+</style>

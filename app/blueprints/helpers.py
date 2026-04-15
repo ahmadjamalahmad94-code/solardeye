@@ -155,6 +155,11 @@ def load_settings() -> dict:
         'daily_report_include_yesterday': 'true',
         'daily_report_include_device': 'true',
         'charge_step_percent': '10',
+        'smart_safety_margin_w': '100',
+        'smart_night_comfort_battery': '60',
+        'smart_medium_load_threshold_w': '500',
+        'smart_sunset_mode': 'balanced',
+        'smart_tone_mode': 'adaptive',
     }
     for key, value in defaults.items():
         settings.setdefault(key, value)

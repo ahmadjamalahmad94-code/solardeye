@@ -69,6 +69,8 @@ def save_notification_settings_from_form(form):
         'weather_test_schedule_mode', 'weather_test_interval_value', 'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
         'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit', 'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
         'daily_report_time', 'daily_report_channel', 'charge_step_percent',
+        'smart_safety_margin_w', 'smart_night_comfort_battery',
+        'smart_medium_load_threshold_w', 'smart_sunset_mode', 'smart_tone_mode',
     ]
     for field in text_fields:
         _upsert_setting(field, (form.get(field, '') or '').strip())
