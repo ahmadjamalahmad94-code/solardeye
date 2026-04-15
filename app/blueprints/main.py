@@ -1154,6 +1154,26 @@ def alerts():
 
 
 
+
+def _telegram_multilink_secret():
+    return current_app.config.get('TELEGRAM_WEBHOOK_SECRET') or 'multilink'
+
+def _build_telegram_multilink_context():
+    link = None
+    try:
+        from ..services.telegram_link_service import get_current_owner_link
+        link = get_current_owner_link()
+    except Exception:
+        link = None
+    webhook_url = None
+    try:
+        root = (request.url_root or '').rstrip('/')
+        if root:
+            webhook_url = f"{root}{url_for('main.telegram_multilink_webhook', secret=_telegram_multilink_secret())}"
+    except Exception:
+        webhook_url = None
+    return link, webhook_url
+
 def _is_ajax_request():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
@@ -1365,6 +1385,37 @@ def notifications_test_section():
 
 
 
+
+@main_bp.route('/channels', methods=['GET'])
+def channels():
+    telegram_link, telegram_webhook_url = _build_telegram_multilink_context()
+
+    sms_settings = {}
+    try:
+        from .helpers import load_settings
+        settings = load_settings()
+        sms_settings = {
+            'provider': settings.get('sms_provider', ''),
+            'sender_name': settings.get('sms_sender_name', ''),
+            'test_phone': settings.get('sms_test_phone', ''),
+            'enabled': str(settings.get('sms_enabled', 'false')).lower() == 'true',
+        }
+    except Exception:
+        sms_settings = {
+            'provider': '',
+            'sender_name': '',
+            'test_phone': '',
+            'enabled': False,
+        }
+
+    return render_template(
+        'channels.html',
+        telegram_link=telegram_link,
+        telegram_webhook_url=telegram_webhook_url,
+        sms_settings=sms_settings,
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+    )
+
 @main_bp.route('/telegram/link/create', methods=['POST'])
 def telegram_link_create():
     settings = load_settings()
@@ -1409,7 +1460,7 @@ def telegram_link_menu():
 
 
 @main_bp.route('/telegram/multilink-webhook/<secret>', methods=['POST'])
-def telegram_webhook(secret):
+def telegram_multilink_webhook(secret):
     settings = load_settings()
     expected = (settings.get('telegram_webhook_secret') or current_app.config['SECRET_KEY'][:24]).strip()
     if not expected or secret != expected:
