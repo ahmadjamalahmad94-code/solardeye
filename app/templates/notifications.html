@@ -181,21 +181,25 @@
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_summary" data-preview-toggle="summary" {% if settings.periodic_night_include_summary != 'false' %}checked{% endif %}><span>ملخص اليوم</span></label>
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_device" data-preview-toggle="device" {% if settings.periodic_night_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز</span></label>
                     <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" data-preview-toggle="loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاد</span></label>
+                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" data-preview-toggle="eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاد</span></label>
                   </div>
                   <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
                 </div>
-                <div class="notify-preview-card"><div class="preview-title">النص المعتمد</div><pre>🔔 التحديث الدوري للطاقة - ليلًا
-███████░░░ 71%
-🔋 الحالة: يتم التفريغ من البطارية
-🌙 الآن ليلًا ولا يوجد دخل شمسي
-🏠 استهلاك المنزل ...
-⏳ الوقت المتوقع للتفريغ الكامل ...
-
-📅 ملخص اليوم ...
-🔧 حالة الجهاز ...
-☀️| المتاح 350 حتى تصل للحد المختار ...
-⚡ اقتراح الأحمال الآن ...</pre></div>
+                <div class="notify-preview-card" data-preview-card>
+                  <div class="preview-title">المعاينة الحية</div>
+                  <div class="preview-message" data-preview-root>
+                    <div class="preview-line preview-title-line">🔔 التحديث الدوري للطاقة - ليلًا</div>
+                    <div class="preview-line" data-preview-key="progress">███████░░░ 71%</div>
+                    <div class="preview-line">🔋 الحالة: يتم التفريغ من البطارية</div>
+                    <div class="preview-line">🌙 الآن ليلًا ولا يوجد دخل شمسي</div>
+                    <div class="preview-line">🏠 استهلاك المنزل ...</div>
+                    <div class="preview-line" data-preview-key="eta">⏳ الوقت المتوقع للتفريغ الكامل ...</div>
+                    <div class="preview-line spacer" data-preview-key="summary"></div>
+                    <div class="preview-line" data-preview-key="summary">📅 ملخص اليوم ...</div>
+                    <div class="preview-line" data-preview-key="device">🔧 حالة الجهاز ...</div>
+                    <div class="preview-line" data-preview-key="loads">⚡ اقتراح الأحمال الآن ...</div>
+                  </div>
+                </div>
               </div>
             </section>
 

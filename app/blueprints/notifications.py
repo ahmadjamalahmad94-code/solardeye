@@ -392,7 +392,7 @@ def _format_load_suggestions_telegram(latest, settings=None):
         available = max(solar - home, 0.0)
         mode = '☀️ نهارًا: الاقتراح حسب الفائض الشمسي'
     else:
-        night_cap = safe_float(load_settings().get('night_max_allowed_w', '500'), 500)
+        night_cap = safe_float((settings or load_settings()).get('night_max_load_w') or load_settings().get('night_max_allowed_w', '500'), 500)
         available = max(night_cap - home, 0.0)
         mode = f'🌙 ليلًا: الحد المسموح {int(round(night_cap))}W'
     fit = [x for x in loads if float(x.power_w or 0) <= available + 1e-9]
@@ -478,7 +478,7 @@ def process_telegram_update(settings: dict, update: dict):
     return ok, resp_text
 
 
-def _periodic_load_suggestion(latest, phase_override=None):
+def _periodic_load_suggestion(latest, phase_override=None, settings=None):
     loads = UserLoad.query.filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     if not latest or not loads:
         return None
@@ -493,7 +493,7 @@ def _periodic_load_suggestion(latest, phase_override=None):
         available = max(solar - home, 0.0)
         prefix = '☀️ الأحمال نهارًا'
     else:
-        night_cap = safe_float(load_settings().get('night_max_allowed_w', '500'), 500)
+        night_cap = safe_float((settings or load_settings()).get('night_max_load_w') or load_settings().get('night_max_allowed_w', '500'), 500)
         available = max(night_cap - home, 0.0)
         prefix = '🌙 الأحمال ليلًا'
     available = max(0.0, available)
@@ -532,7 +532,7 @@ def build_pre_sunset_message(latest, weather=None, settings=None):
 def build_periodic_status_message(latest, weather=None, settings=None, phase_override=None):
     if not latest:
         return '🔔 التحديث الدوري للطاقة', 'لا توجد قراءة محفوظة حاليًا.'
-    settings = load_settings()
+    settings = settings or load_settings()
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
     battery = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
     system_state = build_system_state(latest, battery)
@@ -577,10 +577,12 @@ def build_periodic_status_message(latest, weather=None, settings=None, phase_ove
         lines.insert(3, "🌙 ليلًا الآن")
 
     mode = battery.get('mode_label')
-    if mode == 'يتم الشحن':
-        lines.append(f"⏳ وقت الامتلاء: {battery.get('charge_eta', 'غير متاح')}")
-    elif mode == 'يتم التفريغ':
-        lines.append(f"⏳ وقت النفاد: {battery.get('discharge_eta', 'غير متاح')}")
+    include_eta = _flag(settings, 'periodic_day_include_eta' if is_day else 'periodic_night_include_eta', True)
+    if include_eta:
+        if mode == 'يتم الشحن':
+            lines.append(f"⏳ وقت الامتلاء: {battery.get('charge_eta', 'غير متاح')}")
+        elif mode == 'يتم التفريغ':
+            lines.append(f"⏳ وقت النفاد: {battery.get('discharge_eta', 'غير متاح')}")
 
     # بيانات إضافية من device/latest
     extras = []
@@ -622,13 +624,13 @@ def build_periodic_status_message(latest, weather=None, settings=None, phase_ove
         if solar_prediction.get('weather_advice') and _weather_day_window(now_local, weather, start_hour=7):
             lines.append(f"🌤️ {solar_prediction.get('weather_advice')}")
 
-    if weather and _flag(settings, 'periodic_day_include_weather' if is_day else 'periodic_status_include_weather', True):
+    if weather and _flag(settings, 'periodic_day_include_weather' if is_day else 'periodic_night_include_weather', True):
         weather_line = _short_weather_line(now_local, weather)
         if weather_line:
             lines += ['', f"🌤️ الطقس: {weather_line}"]
             if _weather_day_window(now_local, weather, start_hour=7):
                 lines.append(f"☁️ الغيوم: {weather.cloud_cover if weather.cloud_cover is not None else '--'}%")
-    load_line = _periodic_load_suggestion(latest) if _flag(settings, 'periodic_day_include_loads' if is_day else 'periodic_night_include_loads', True) else None
+    load_line = _periodic_load_suggestion(latest, phase_override=('day' if is_day else 'night'), settings=settings) if _flag(settings, 'periodic_day_include_loads' if is_day else 'periodic_night_include_loads', True) else None
     if load_line:
         lines += ['', load_line]
     return '🔔 التحديث الدوري للطاقة', "\n".join(lines)

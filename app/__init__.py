@@ -135,7 +135,7 @@ def _ensure_default_settings():
         'weather_change_alerts_channel': 'telegram', 'weather_cloud_threshold': '60',
         'periodic_status_enabled': 'true', 'periodic_status_interval_minutes': '30',
         'periodic_status_channel': 'telegram', 'periodic_status_include_weather': 'true',
-        'periodic_status_last_sent_at': '', 'night_max_allowed_w': '500',
+        'periodic_status_last_sent_at': '', 'night_max_load_w': '500', 'night_max_allowed_w': '500',
     }
     for key, value in defaults.items():
         if not Setting.query.filter_by(key=key).first():

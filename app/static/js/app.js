@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const body = document.body;
+  const themeButtons = Array.from(document.querySelectorAll('.theme-btn'));
   const langToggle = document.getElementById('langToggle');
 
   const currentLang = () => body.dataset.lang === 'en' ? 'en' : 'ar';
@@ -21,8 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   applyTranslations();
-  body.classList.remove('theme-minimal', 'theme-glow');
-  body.classList.add('theme-saas');
+  const applyTheme = (theme) => {
+    body.classList.remove('theme-minimal', 'theme-saas', 'theme-glow');
+    body.classList.add(theme);
+    localStorage.setItem('ui_theme', theme);
+    themeButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.theme === theme));
+  };
+  applyTheme(localStorage.getItem('ui_theme') || 'theme-saas');
+  themeButtons.forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
 
   const clock = document.getElementById('liveClock');
   const fmt = () => new Intl.DateTimeFormat(currentLang() === 'en' ? 'en-GB' : 'ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
