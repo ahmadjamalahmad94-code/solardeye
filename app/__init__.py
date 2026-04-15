@@ -3,7 +3,7 @@ from flask import Flask, request, session
 from apscheduler.schedulers.background import BackgroundScheduler
 from .config import Config
 from .extensions import db
-from .models import Setting, Reading, TelegramLink
+from .models import Setting, Reading
 
 
 def create_app():

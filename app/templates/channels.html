@@ -1,18 +1,18 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block body %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area channels-page-shell">
+  <main class="content-area channels-page">
     <header class="topbar notifications-hero">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
         <div>
           <h1>ربط Telegram و SMS</h1>
-          <p class="mb-0">صفحة مستقلة لإدارة الربط، اختبار الاتصال، وحالة القنوات بعيدًا عن مركز الإشعارات.</p>
+          <p class="mb-0">صفحة مستقلة لإعدادات الربط واختبار الاتصال، بعيدًا عن مركز الإشعارات.</p>
         </div>
       </div>
       <div class="topbar-actions d-flex gap-2 flex-wrap">
-        <a class="btn btn-outline-secondary" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">العودة إلى الإشعارات</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">العودة إلى الإشعارات</a>
       </div>
     </header>
 
@@ -27,151 +27,82 @@
     <section class="panel-card mt-3">
       <div class="section-head">
         <div>
-          <h3>القنوات وربط الاتصال</h3>
-          <p class="section-subtitle">هنا تضبط الربط وتختبر Telegram وSMS بدون مزاحمة إعدادات الرسائل والجدولة.</p>
+          <h3>Telegram</h3>
+          <p class="section-subtitle">قسم مخصص للربط والاختبار فقط. لا يغيّر من منطق الإشعارات الحالي.</p>
         </div>
-        <div class="stats-pill">مستقل وثابت</div>
+        <div class="stats-pill">قناة رئيسية</div>
       </div>
 
-      <div class="notify-grid-v2">
-        <div class="notify-card-v2 general full-span telegram-link-card">
-          <div class="notify-card-head">
-            <h4>Telegram</h4>
-            <span class="stats-pill">القناة الرئيسية</span>
+      <div class="form-grid-two">
+        <div class="notify-preview-card">
+          <div class="preview-title">حالة الربط</div>
+          <div class="preview-subtext">
+            {% if settings.telegram_bot_token %}
+              تم إدخال Bot Token. يمكنك الآن تفعيل الـ webhook واختبار الربط.
+            {% else %}
+              لم يتم إدخال Bot Token بعد. اذهب إلى الإعدادات أولاً ثم ارجع لهذه الصفحة.
+            {% endif %}
           </div>
+          <ul class="smart-list mt-3">
+            <li>Token: <strong>{{ 'موجود' if settings.telegram_bot_token else 'غير موجود' }}</strong></li>
+            <li>Chat ID: <strong>{{ settings.telegram_chat_id or 'غير محدد' }}</strong></li>
+            <li>Webhook: <strong>{{ 'جاهز' if telegram_webhook_url else 'غير متاح' }}</strong></li>
+          </ul>
+        </div>
 
-          <div class="helper-box mb-3">
-            اربط البوت عبر محادثة خاصة، ثم اختبر الإرسال والقائمة التفاعلية من هنا. هذا القسم مخصص للاتصال فقط.
-          </div>
-
-          <div class="form-grid-two">
-            <div>
-              <div class="form-label">حالة الربط</div>
-              {% if telegram_link is defined and telegram_link and telegram_link.link_status == 'linked' and telegram_link.is_active %}
-                <div class="alert alert-success mt-2 mb-2">✅ مربوط بنجاح</div>
-              {% elif telegram_link is defined and telegram_link and telegram_link.link_status == 'pending' %}
-                <div class="alert alert-warning mt-2 mb-2">⏳ بانتظار إكمال الربط من Telegram</div>
-              {% else %}
-                <div class="alert alert-secondary mt-2 mb-2">غير مربوط بعد</div>
-              {% endif %}
-
-              <div class="tiny-note">كل مستخدم يمكن ربطه لاحقًا بشكل مستقل، ولن يرى رسائل غيره عند اكتمال نظام تعدد المستخدمين.</div>
-
-              {% if telegram_link is defined and telegram_link %}
-                <ul class="smart-profile-list mt-3">
-                  <li>الحالة: <strong>{{ telegram_link.link_status or '—' }}</strong></li>
-                  <li>الاسم: <strong>{{ telegram_link.owner_label or 'المالك الحالي' }}</strong></li>
-                  <li>آخر ظهور: <strong>{{ format_local(telegram_link.last_seen_at) if (format_local is defined and telegram_link.last_seen_at) else '—' }}</strong></li>
-                  <li>مرتبط منذ: <strong>{{ format_local(telegram_link.linked_at) if (format_local is defined and telegram_link.linked_at) else '—' }}</strong></li>
-                </ul>
-              {% endif %}
-            </div>
-
-            <div class="smart-profile-preview-box">
-              <div class="preview-title">أمر الربط</div>
-              {% if telegram_link is defined and telegram_link and telegram_link.link_token and telegram_link.link_status == 'pending' %}
-                <pre class="server-preview-box" style="margin-top:10px;">/start {{ telegram_link.link_token }}</pre>
-                <div class="tiny-note">أرسل الأمر للبوت في محادثة خاصة، ثم حدّث الصفحة.</div>
-              {% else %}
-                <div class="tiny-note">اضغط "إنشاء رمز ربط" ليظهر لك أمر الربط هنا.</div>
-              {% endif %}
-
-              <div class="preview-title" style="margin-top:14px;">رابط Webhook</div>
-              <pre class="server-preview-box" style="margin-top:10px;">{{ telegram_webhook_url if telegram_webhook_url is defined and telegram_webhook_url else 'سيظهر هنا بعد تحميل الصفحة بشكل طبيعي.' }}</pre>
-            </div>
-          </div>
-
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-            <form method="post" action="{{ url_for('main.telegram_link_create') }}">
-              <button class="btn btn-outline-primary" type="submit">إنشاء رمز ربط</button>
+        <div class="notify-preview-card">
+          <div class="preview-title">رابط Webhook</div>
+          <pre class="server-preview-box">{{ telegram_webhook_url or 'سيظهر هنا تلقائيًا إذا كان الرابط العام متاحًا.' }}</pre>
+          <div class="preview-title mt-3">اختبار Telegram</div>
+          <div class="d-flex gap-2 flex-wrap mt-2">
+            <form method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}">
+              <button class="btn btn-outline-primary" type="submit">إرسال اختبار Telegram</button>
             </form>
-            <form method="post" action="{{ url_for('main.telegram_link_test') }}">
-              <button class="btn btn-outline-secondary" type="submit">إرسال اختبار</button>
-            </form>
-            <form method="post" action="{{ url_for('main.telegram_link_send_menu') }}">
-              <button class="btn btn-solar" type="submit">إرسال القائمة</button>
-            </form>
-            <form method="post" action="{{ url_for('main.telegram_link_revoke') }}">
-              <button class="btn btn-outline-danger" type="submit">إلغاء الربط</button>
+            <form method="post" action="{{ url_for('main.notifications_action', section='telegram_menu', action='send') }}">
+              <button class="btn btn-solar" type="submit">إرسال القائمة التفاعلية</button>
             </form>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="notify-card-v2 general full-span sms-link-card">
-          <div class="notify-card-head">
-            <h4>SMS</h4>
-            <span class="stats-pill">اختبار وتجهيز</span>
-          </div>
-
-          <div class="helper-box mb-3">
-            هذا القسم مخصص لإعدادات قناة SMS واختبارها لاحقًا. أبقيناه جاهزًا من الآن حتى تصبح صفحة الربط هي المركز الكامل لكل القنوات.
-          </div>
-
-          <div class="form-grid-two">
-            <div>
-              <label class="form-label">الحالة</label>
-              {% if sms_settings.enabled %}
-                <div class="alert alert-success mt-2 mb-2">✅ SMS مفعّل</div>
-              {% else %}
-                <div class="alert alert-secondary mt-2 mb-2">غير مفعّل بعد</div>
-              {% endif %}
-
-              <ul class="smart-profile-list mt-3">
-                <li>المزوّد: <strong>{{ sms_settings.provider or 'غير محدد' }}</strong></li>
-                <li>اسم المرسل: <strong>{{ sms_settings.sender_name or 'غير محدد' }}</strong></li>
-                <li>رقم الاختبار: <strong>{{ sms_settings.test_phone or 'غير محدد' }}</strong></li>
-              </ul>
-            </div>
-
-            <div class="smart-profile-preview-box">
-              <div class="preview-title">ملاحظة</div>
-              <div class="tiny-note" style="margin-top:10px;">
-                في هذه المرحلة أبقينا SMS كقسم تجهيز منظم داخل صفحة مستقلة. لاحقًا يمكن إضافة API Key، اختبار الرسالة، وسجل آخر نتيجة اتصال.
-              </div>
-            </div>
-          </div>
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <div>
+          <h3>SMS</h3>
+          <p class="section-subtitle">قسم تجهيز مستقل. سنربط الاختبار الفعلي في الخطوة التالية دون التأثير على الصفحة الحالية.</p>
         </div>
-
-        <div class="notify-card-v2 general full-span connection-status-card">
-          <div class="notify-card-head">
-            <h4>اختبار الاتصال</h4>
-            <span class="stats-pill">سريع وواضح</span>
-          </div>
-
-          <div class="form-grid-two">
-            <div class="smart-profile-preview-box">
-              <div class="preview-title">Telegram</div>
-              <ul class="smart-profile-list">
-                <li>جرّب أولًا: <strong>إنشاء رمز ربط</strong></li>
-                <li>ثم: <strong>إرسال /start link_xxx</strong></li>
-                <li>ثم: <strong>إرسال اختبار</strong></li>
-              </ul>
-            </div>
-            <div class="smart-profile-preview-box">
-              <div class="preview-title">SMS</div>
-              <ul class="smart-profile-list">
-                <li>سيُستكمل في الخطوة التالية</li>
-                <li>الصفحة الآن جاهزة للترتيب والفصل فقط</li>
-                <li>بدون أي تضارب مع مركز الإشعارات</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+        <div class="stats-pill">قيد التجهيز</div>
+      </div>
+      <div class="notify-preview-card">
+        <div class="preview-title">الحالة الحالية</div>
+        <ul class="smart-list mt-3">
+          <li>API URL: <strong>{{ settings.sms_api_url or 'غير محدد' }}</strong></li>
+          <li>المستلمون: <strong>{{ settings.sms_recipients or 'غير محددين' }}</strong></li>
+          <li>الحالة: <strong>{{ 'مهيأ' if settings.sms_api_url and settings.sms_recipients else 'غير مكتمل' }}</strong></li>
+        </ul>
       </div>
     </section>
   </main>
 </div>
 
 <style>
-.channels-page-shell .tiny-note{
-  margin-top:6px;
-  font-size:.82rem;
-  color:#7b8aa0;
-  line-height:1.55;
-}
-.channels-page-shell pre.server-preview-box{
+.channels-page .server-preview-box{
   white-space:pre-wrap;
   word-break:break-word;
+  margin:0;
+  background:rgba(8,20,56,.04);
+  border:1px solid rgba(59,130,246,.14);
+  border-radius:18px;
+  padding:16px;
+}
+.channels-page .smart-list{
+  margin:0;
+  padding-right:18px;
+}
+.channels-page .smart-list li{
+  margin:8px 0;
+  color:#334155;
 }
 </style>
 {% endblock %}
