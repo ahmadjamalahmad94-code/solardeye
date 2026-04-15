@@ -1499,7 +1499,7 @@ def telegram_webhook():
         return jsonify({'ok': bool(ok), 'message': str(resp)})
     except Exception as exc:
         current_app.logger.exception('Telegram webhook processing failed')
-        return jsonify({'ok': False, 'error': str(exc)}), 500
+        return jsonify({'ok': False, 'error': str(exc)}), 200
 @main_bp.route('/plant-info')
 def plant_info():
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
