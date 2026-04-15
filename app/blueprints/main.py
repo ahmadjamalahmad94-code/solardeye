@@ -1408,7 +1408,7 @@ def telegram_link_menu():
     return redirect(url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/webhook/<secret>', methods=['POST'])
+@main_bp.route('/telegram/multilink-webhook/<secret>', methods=['POST'])
 def telegram_webhook(secret):
     settings = load_settings()
     expected = (settings.get('telegram_webhook_secret') or current_app.config['SECRET_KEY'][:24]).strip()
@@ -1472,7 +1472,7 @@ def telegram_send_menu_route():
         return redirect(request.referrer or url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/webhook', methods=['GET', 'POST'])
+@main_bp.route('/telegram/multilink-webhook', methods=['GET', 'POST'])
 def telegram_webhook():
     if request.method == 'GET':
         return {'ok': True, 'message': 'Telegram webhook is ready'}
