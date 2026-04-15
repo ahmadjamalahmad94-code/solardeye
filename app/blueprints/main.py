@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
-from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -20,14 +20,13 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import NotificationLog, Reading, Setting, SyncLog, UserLoad, TelegramLink
+from ..models import NotificationLog, Reading, Setting, SyncLog, UserLoad
 from ..services.deye_client import DeyeClient
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
     safe_power_w, to_json, utc_to_local,
 )
 from ..services.weather_service import fetch_weather
-from ..services.telegram_link_service import create_link_token, get_link_by_owner, get_owner_key, revoke_link, consume_link_token, touch_link_by_chat_id
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
@@ -46,20 +45,6 @@ from .notifications import (
 )
 
 main_bp = Blueprint('main', __name__)
-
-
-def _current_owner_key() -> str:
-    return get_owner_key(session.get('username'))
-
-
-def _current_owner_label() -> str:
-    return (session.get('username') or current_app.config.get('ADMIN_USERNAME') or 'admin').strip() or 'admin'
-
-
-def _telegram_link_command(link: TelegramLink | None) -> str:
-    if not link or not link.link_token:
-        return ''
-    return f"/start {link.link_token}"
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -1154,26 +1139,6 @@ def alerts():
 
 
 
-
-def _telegram_multilink_secret():
-    return current_app.config.get('TELEGRAM_WEBHOOK_SECRET') or 'multilink'
-
-def _build_telegram_multilink_context():
-    link = None
-    try:
-        from ..services.telegram_link_service import get_current_owner_link
-        link = get_current_owner_link()
-    except Exception:
-        link = None
-    webhook_url = None
-    try:
-        root = (request.url_root or '').rstrip('/')
-        if root:
-            webhook_url = f"{root}{url_for('main.telegram_multilink_webhook', secret=_telegram_multilink_secret())}"
-    except Exception:
-        webhook_url = None
-    return link, webhook_url
-
 def _is_ajax_request():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
@@ -1255,6 +1220,29 @@ def notifications_action():
         flash(f'خطأ أثناء تنفيذ الطلب: {exc}', 'danger')
         return redirect(url_for('main.notifications_settings'))
 
+
+@main_bp.route('/channels')
+def channels():
+    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    settings = load_settings()
+    weather = get_weather_for_latest(latest) if latest else None
+    telegram_webhook_url = None
+    try:
+        root = (request.url_root or '').rstrip('/')
+        if root:
+            telegram_webhook_url = f"{root}/telegram/webhook"
+    except Exception:
+        telegram_webhook_url = None
+
+    return render_template(
+        'channels.html',
+        title='ربط Telegram و SMS',
+        latest=latest,
+        settings=settings,
+        weather=weather,
+        telegram_webhook_url=telegram_webhook_url,
+    )
+
 @main_bp.route('/notifications', methods=['GET', 'POST'])
 def notifications_settings():
     settings = load_settings()
@@ -1267,15 +1255,10 @@ def notifications_settings():
     rules = load_notification_rules(settings)
     recent_notifications = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(30).all()
     notification_preview = session.pop('notification_preview', None)
-    telegram_link = get_link_by_owner(_current_owner_key())
-    webhook_url = url_for('main.telegram_webhook', secret=(settings.get('telegram_webhook_secret') or current_app.config['SECRET_KEY'][:24]), _external=True)
     return render_template(
         'notifications.html', settings=settings, rules=rules,
         recent_notifications=recent_notifications,
         notification_preview=notification_preview,
-        telegram_link=telegram_link,
-        telegram_link_command=_telegram_link_command(telegram_link),
-        telegram_webhook_url=webhook_url,
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
 
@@ -1383,163 +1366,6 @@ def notifications_test_section():
         return redirect(url_for('main.notifications_settings'))
 
 
-
-
-
-@main_bp.route('/channels', methods=['GET'])
-def channels():
-    telegram_link, telegram_webhook_url = _build_telegram_multilink_context()
-
-    sms_settings = {}
-    try:
-        from .helpers import load_settings
-        settings = load_settings()
-        sms_settings = {
-            'provider': settings.get('sms_provider', ''),
-            'sender_name': settings.get('sms_sender_name', ''),
-            'test_phone': settings.get('sms_test_phone', ''),
-            'enabled': str(settings.get('sms_enabled', 'false')).lower() == 'true',
-        }
-    except Exception:
-        sms_settings = {
-            'provider': '',
-            'sender_name': '',
-            'test_phone': '',
-            'enabled': False,
-        }
-
-    return render_template(
-        'channels.html',
-        telegram_link=telegram_link,
-        telegram_webhook_url=telegram_webhook_url,
-        sms_settings=sms_settings,
-        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
-    )
-
-@main_bp.route('/telegram/link/create', methods=['POST'])
-def telegram_link_create():
-    settings = load_settings()
-    if not (settings.get('telegram_bot_token') or '').strip():
-        flash('أدخل أولًا Bot Token الخاص بـ Telegram ثم احفظ الإعدادات.', 'warning')
-        return redirect(url_for('main.notifications_settings'))
-    expiry_minutes = int(safe_float(settings.get('telegram_link_expiry_minutes', '10'), 10) or 10)
-    link = create_link_token(_current_owner_key(), _current_owner_label(), expiry_minutes=expiry_minutes)
-    flash('تم إنشاء رمز ربط جديد. انسخ الأمر وأرسله إلى البوت في المحادثة الخاصة.', 'success')
-    return redirect(url_for('main.notifications_settings'))
-
-
-@main_bp.route('/telegram/link/revoke', methods=['POST'])
-def telegram_link_revoke():
-    ok, message = revoke_link(_current_owner_key())
-    flash(message, 'success' if ok else 'warning')
-    return redirect(url_for('main.notifications_settings'))
-
-
-@main_bp.route('/telegram/link/test', methods=['POST'])
-def telegram_link_test():
-    settings = load_settings()
-    link = get_link_by_owner(_current_owner_key())
-    if not link or not link.telegram_chat_id or link.link_status != 'linked':
-        flash('اربط حساب Telegram أولًا قبل إرسال الاختبار.', 'warning')
-        return redirect(url_for('main.notifications_settings'))
-    ok, resp = send_telegram_message(settings, 'اختبار Telegram', 'تمت رسالة الاختبار من داخل المنصة بنجاح ✅', chat_id=link.telegram_chat_id)
-    flash('تم إرسال رسالة الاختبار إلى Telegram.' if ok else f'فشل إرسال الاختبار: {resp}', 'success' if ok else 'danger')
-    return redirect(url_for('main.notifications_settings'))
-
-
-@main_bp.route('/telegram/link/menu', methods=['POST'])
-def telegram_link_menu():
-    settings = load_settings()
-    link = get_link_by_owner(_current_owner_key())
-    if not link or not link.telegram_chat_id or link.link_status != 'linked':
-        flash('اربط حساب Telegram أولًا قبل إرسال القائمة التفاعلية.', 'warning')
-        return redirect(url_for('main.notifications_settings'))
-    ok, resp = send_telegram_menu(settings, chat_id=link.telegram_chat_id, intro='تم إرسال القائمة التفاعلية الخاصة بحسابك ✅')
-    flash('تم إرسال القائمة التفاعلية إلى Telegram.' if ok else f'فشل إرسال القائمة: {resp}', 'success' if ok else 'danger')
-    return redirect(url_for('main.notifications_settings'))
-
-
-
-@main_bp.route('/telegram/link/send-menu', methods=['POST'])
-def telegram_link_send_menu():
-    try:
-        settings = load_settings()
-        owner_key = None
-        try:
-            owner_key = get_owner_key()
-        except Exception:
-            owner_key = 'default'
-        link = None
-        try:
-            link = get_link_by_owner(owner_key)
-        except Exception:
-            link = None
-        if not link or not getattr(link, 'telegram_chat_id', None):
-            flash('لا يوجد ربط Telegram نشط لإرسال القائمة.', 'warning')
-            return redirect(url_for('main.channels'))
-        ok, resp = send_telegram_menu(settings, chat_id=str(link.telegram_chat_id))
-        flash('تم إرسال القائمة بنجاح.' if ok else f'فشل إرسال القائمة: {resp}', 'success' if ok else 'danger')
-    except Exception as exc:
-        flash(f'خطأ أثناء إرسال القائمة: {exc}', 'danger')
-    return redirect(url_for('main.channels'))
-
-@main_bp.route('/telegram/multilink-webhook/<secret>', methods=['POST'])
-def telegram_multilink_webhook(secret):
-    settings = load_settings()
-    expected = (settings.get('telegram_webhook_secret') or current_app.config['SECRET_KEY'][:24]).strip()
-    if not expected or secret != expected:
-        return jsonify({'ok': False, 'message': 'invalid secret'}), 403
-
-    update = request.get_json(silent=True) or {}
-    callback = update.get('callback_query') or {}
-    message = update.get('message') or callback.get('message') or {}
-    chat = message.get('chat') or {}
-    user = message.get('from') or callback.get('from') or {}
-
-    chat_type = str(chat.get('type') or '').strip().lower()
-    chat_id = str(chat.get('id') or '').strip()
-    text = str(message.get('text') or '').strip()
-
-    # ربط المحادثة الخاصة فقط
-    if chat_type and chat_type != 'private':
-        if callback.get('id'):
-            try:
-                _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback.get('id'), 'text': 'استخدم المحادثة الخاصة مع البوت للربط.'})
-            except Exception:
-                pass
-        return jsonify({'ok': True, 'message': 'ignored-non-private'})
-
-    if text.startswith('/start link_'):
-        token = text.split(maxsplit=1)[1].strip() if ' ' in text else ''
-        ok, reply, _link = consume_link_token(token, {
-            'telegram_user_id': str(user.get('id') or '').strip(),
-            'telegram_chat_id': chat_id,
-            'telegram_username': user.get('username') or '',
-            'telegram_first_name': user.get('first_name') or '',
-            'telegram_last_name': user.get('last_name') or '',
-        })
-        send_telegram_message(settings, 'ربط Telegram', reply, chat_id=chat_id)
-        return jsonify({'ok': ok, 'message': reply})
-
-    link = touch_link_by_chat_id(chat_id)
-    if not link:
-        if chat_id:
-            send_telegram_message(settings, 'ربط Telegram', 'هذه المحادثة غير مربوطة بعد. أنشئ رمز ربط من داخل المنصة ثم أرسل أمر /start المخصص.', chat_id=chat_id)
-        return jsonify({'ok': True, 'message': 'unlinked-chat'})
-
-    ok, resp = process_telegram_update(settings, update)
-    return jsonify({'ok': ok, 'message': resp})
-
-
-@main_bp.route('/telegram/webhook', methods=['GET', 'POST'])
-def telegram_webhook():
-    if request.method == 'GET':
-        return {'ok': True, 'message': 'Telegram webhook is ready'}
-    settings = load_settings()
-    payload = request.get_json(silent=True) or {}
-    ok, resp = process_telegram_update(settings, payload)
-    return {'ok': ok, 'message': resp[:200] if isinstance(resp, str) else 'processed'}
-
 @main_bp.route('/telegram/menu/send', methods=['POST'])
 def telegram_send_menu_route():
     try:
@@ -1557,16 +1383,22 @@ def telegram_send_menu_route():
         return redirect(request.referrer or url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/multilink-webhook', methods=['GET', 'POST'])
-def telegram_multilink_webhook_2():
+@main_bp.route('/telegram/webhook', methods=['GET', 'POST'])
+def telegram_webhook():
     if request.method == 'GET':
-        return {'ok': True, 'message': 'Telegram webhook is ready'}
-    settings = load_settings()
-    payload = request.get_json(silent=True) or {}
-    ok, resp = process_telegram_update(settings, payload)
-    return {'ok': ok, 'message': resp[:200] if isinstance(resp, str) else 'processed'}
+        return jsonify({'ok': True, 'message': 'Telegram webhook is ready'})
 
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({'ok': True, 'message': 'No update payload'})
 
+    try:
+        process_telegram_update(data)
+    except Exception as exc:
+        current_app.logger.exception('Telegram webhook processing failed')
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+    return jsonify({'ok': True})
 @main_bp.route('/plant-info')
 def plant_info():
     latest = Reading.query.order_by(Reading.created_at.desc()).first()

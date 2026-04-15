@@ -48,8 +48,6 @@ def load_settings() -> dict:
         'telegram_bot_token': '',
         'telegram_chat_id': '',
         'telegram_api_url': 'https://api.telegram.org',
-        'telegram_webhook_secret': cfg['SECRET_KEY'][:24],
-        'telegram_link_expiry_minutes': '10',
         'sms_api_url': '',
         'sms_api_key': '',
         'sms_sender': '',
@@ -157,11 +155,6 @@ def load_settings() -> dict:
         'daily_report_include_yesterday': 'true',
         'daily_report_include_device': 'true',
         'charge_step_percent': '10',
-        'smart_safety_margin_w': '100',
-        'smart_night_comfort_battery': '60',
-        'smart_medium_load_threshold_w': '500',
-        'smart_sunset_mode': 'balanced',
-        'smart_tone_mode': 'adaptive',
     }
     for key, value in defaults.items():
         settings.setdefault(key, value)

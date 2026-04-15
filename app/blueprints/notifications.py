@@ -15,9 +15,6 @@ from .helpers import (
     load_settings, _to_12h_label, _upsert_setting,
 )
 from ..services.weather_service import fetch_weather
-from ..services.utils import utc_to_local
-from ..services.utils import safe_float
-from .smart_engine import build_smart_energy_advice
 
 
 # ── Notification rules ────────────────────────────────────────────────────────
@@ -69,8 +66,6 @@ def save_notification_settings_from_form(form):
         'weather_test_schedule_mode', 'weather_test_interval_value', 'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
         'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit', 'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
         'daily_report_time', 'daily_report_channel', 'charge_step_percent',
-        'smart_safety_margin_w', 'smart_night_comfort_battery',
-        'smart_medium_load_threshold_w', 'smart_sunset_mode', 'smart_tone_mode',
     ]
     for field in text_fields:
         _upsert_setting(field, (form.get(field, '') or '').strip())
@@ -152,9 +147,9 @@ def _flag(settings: dict | None, key: str, default: bool = True) -> bool:
 
 # ── Sending ───────────────────────────────────────────────────────────────────
 
-def send_telegram_message(settings: dict, title: str, message: str, chat_id: str | None = None):
+def send_telegram_message(settings: dict, title: str, message: str):
     token = (settings.get('telegram_bot_token') or '').strip()
-    chat_id = (chat_id or settings.get('telegram_chat_id') or '').strip()
+    chat_id = (settings.get('telegram_chat_id') or '').strip()
     base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
     if not token or not chat_id:
         return False, 'بيانات Telegram غير مكتملة'
@@ -299,10 +294,6 @@ def _telegram_menu_markup():
                 {'text': '☀️ الفائض الشمسي', 'callback_data': 'tg:surplus'},
             ],
             [
-                {'text': '🎯 القرار الآن', 'callback_data': 'tg:decision'},
-                {'text': '💡 نصيحة ذكية', 'callback_data': 'tg:smart'},
-            ],
-            [
                 {'text': '📋 القائمة', 'callback_data': 'tg:menu'},
             ],
         ]
@@ -418,15 +409,6 @@ def _format_load_suggestions_telegram(latest, settings=None):
             lines += ['', '⚠️ لا ينصح:']
             for row in blocked[:4]:
                 lines.append(f"✖ {row.name} — {int(round(float(row.power_w or 0)))}W")
-
-    advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='load_alert')
-    lines += ['', f"📊 تقييم الحالة: {advice.get('status_label', '—')}"]
-    if advice.get('smart_warning'):
-        lines.append(f"⚠️ {advice.get('smart_warning')}")
-    if advice.get('smart_recommendation'):
-        lines.append(f"💡 {advice.get('smart_recommendation')}")
-    if advice.get('decision_now'):
-        lines.append(f"🎯 {advice.get('decision_now')}")
     return "\n".join(lines)
 
 
@@ -446,25 +428,6 @@ def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=
         return _format_battery_eta(latest)
     if action == 'surplus':
         return _format_solar_surplus(latest)
-    if action == 'decision':
-        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
-        return "\n".join([
-            '🎯 القرار الآن',
-            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
-            f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}",
-        ])
-    if action == 'smart':
-        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
-        lines = [
-            '💡 النصيحة الذكية',
-            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
-        ]
-        if advice.get('smart_warning'):
-            lines.append(f"⚠️ {advice.get('smart_warning')}")
-        if advice.get('smart_recommendation'):
-            lines.append(f"💡 {advice.get('smart_recommendation')}")
-        lines.append(f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}")
-        return "\n".join(lines)
     return 'اختر زرًا من القائمة لعرض البيانات.'
 
 
@@ -481,7 +444,7 @@ def process_telegram_update(settings: dict, update: dict):
         data = str(callback.get('data') or '')
         action = data.split(':', 1)[1] if ':' in data else data
         if callback_id:
-            _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback_id, 'text': 'جاري المعالجة'})
+            _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback_id})
         if action == 'menu':
             return send_telegram_menu(settings, chat_id=chat_id)
         text = build_telegram_quick_reply(action, settings=settings)
@@ -502,8 +465,6 @@ def process_telegram_update(settings: dict, update: dict):
         'الغيوم': 'clouds', '/clouds': 'clouds',
         'الشحن': 'battery_eta', 'مدة الشحن': 'battery_eta', '/battery': 'battery_eta',
         'الفائض': 'surplus', 'الفائض الشمسي': 'surplus', '/surplus': 'surplus',
-        'القرار': 'decision', 'القرار الآن': 'decision', '/decision': 'decision',
-        'نصيحة': 'smart', 'النصيحة الذكية': 'smart', '/smart': 'smart',
     }
     action = mapping.get(txt, 'menu')
     if action == 'menu':
@@ -565,15 +526,6 @@ def build_pre_sunset_message(latest, weather=None, settings=None):
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
     if prediction.get('weather_advice') and _weather_day_window(now_local, weather, start_hour=7):
         lines += ['', f"🌤️ الطقس: {prediction.get('weather_advice')}"]
-
-    advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='pre_sunset')
-    lines += ['', f"📊 تقييم الحالة: {advice.get('status_label', '—')}"]
-    if advice.get('smart_warning'):
-        lines.append(f"⚠️ التحذير الذكي: {advice.get('smart_warning')}")
-    if advice.get('smart_recommendation'):
-        lines.append(f"💡 التوصية الذكية: {advice.get('smart_recommendation')}")
-    if advice.get('decision_now'):
-        lines.append(f"🎯 القرار الآن: {advice.get('decision_now')}")
     return '🌇 تحليل ما قبل الغروب', "\n".join(lines), prediction.get('level', 'warning')
 
 
@@ -681,20 +633,6 @@ def build_periodic_status_message(latest, weather=None, settings=None, phase_ove
     load_line = _periodic_load_suggestion(latest, phase_override=('day' if is_day else 'night'), settings=settings) if _flag(settings, 'periodic_day_include_loads' if is_day else 'periodic_night_include_loads', True) else None
     if load_line:
         lines += ['', load_line]
-
-    advice = build_smart_energy_advice(
-        latest,
-        weather=weather,
-        settings=settings,
-        context='periodic_day' if is_day else 'periodic_night',
-    )
-    lines += ['', f"📊 تقييم الحالة: {advice.get('status_label', '—')}"]
-    if advice.get('smart_warning'):
-        lines.append(f"⚠️ التحذير الذكي: {advice.get('smart_warning')}")
-    if advice.get('smart_recommendation'):
-        lines.append(f"💡 التوصية الذكية: {advice.get('smart_recommendation')}")
-    if advice.get('decision_now'):
-        lines.append(f"🎯 القرار الآن: {advice.get('decision_now')}")
     return '🔔 التحديث الدوري للطاقة', "\n".join(lines)
 
 
@@ -884,6 +822,9 @@ def run_advanced_notification_scheduler():
                 _send_scheduled_notification('daily_report', title, message, settings.get('daily_report_channel', 'telegram'), 'info')
 
 def _get_weather_for_latest():
+    from ..services.weather_service import fetch_weather
+    from .helpers import load_settings
+    from ..services.utils import safe_float
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
     if not latest or not latest.raw_json:
         return latest, None
@@ -1158,9 +1099,11 @@ def process_notifications(current: Reading, previous: Reading | None):
     try:
         send_periodic_status_update()
     except Exception as exc:
+        from .helpers import log_event
         log_event('warning', f'تعذر التحديث الدوري: {exc}')
 
     try:
         send_pre_sunset_update()
     except Exception as exc:
+        from .helpers import log_event
         log_event('warning', f'تعذر تحليل الغروب: {exc}')

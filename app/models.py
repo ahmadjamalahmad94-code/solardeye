@@ -64,25 +64,3 @@ class UserLoad(db.Model):
     priority = db.Column(db.Integer, nullable=False, default=1)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-
-class TelegramLink(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    owner_key = db.Column(db.String(190), nullable=False, unique=True, index=True)
-    owner_label = db.Column(db.String(190), nullable=True)
-    telegram_user_id = db.Column(db.String(64), nullable=True, index=True)
-    telegram_chat_id = db.Column(db.String(64), nullable=True, index=True)
-    telegram_username = db.Column(db.String(128), nullable=True)
-    telegram_first_name = db.Column(db.String(128), nullable=True)
-    telegram_last_name = db.Column(db.String(128), nullable=True)
-    link_token = db.Column(db.String(128), nullable=True, unique=True, index=True)
-    link_token_expires_at = db.Column(db.DateTime, nullable=True)
-    link_status = db.Column(db.String(32), nullable=False, default='pending')  # pending/linked/revoked
-    linked_at = db.Column(db.DateTime, nullable=True)
-    last_seen_at = db.Column(db.DateTime, nullable=True)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
-    notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
-    menu_enabled = db.Column(db.Boolean, nullable=False, default=True)
-    commands_enabled = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
