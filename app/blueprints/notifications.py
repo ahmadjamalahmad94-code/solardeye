@@ -152,9 +152,9 @@ def _flag(settings: dict | None, key: str, default: bool = True) -> bool:
 
 # ── Sending ───────────────────────────────────────────────────────────────────
 
-def send_telegram_message(settings: dict, title: str, message: str):
+def send_telegram_message(settings: dict, title: str, message: str, chat_id: str | None = None):
     token = (settings.get('telegram_bot_token') or '').strip()
-    chat_id = (settings.get('telegram_chat_id') or '').strip()
+    chat_id = (chat_id or settings.get('telegram_chat_id') or '').strip()
     base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
     if not token or not chat_id:
         return False, 'بيانات Telegram غير مكتملة'

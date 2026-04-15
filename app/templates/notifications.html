@@ -42,6 +42,50 @@
           <pre class="server-preview-box">{{ notification_preview.message }}</pre>
         </div>
       </section>
+
+<section class="panel-card mt-3 telegram-link-panel">
+  <div class="section-head">
+    <div>
+      <h3>ربط Telegram متعدد المستخدمين</h3>
+      <p class="section-subtitle">ربط نظيف وقابل للتوسعة: كل مستخدم يربط محادثته الخاصة مع البوت ويستقبل رسائله هو فقط.</p>
+    </div>
+    <div class="stats-pill">{{ 'مربوط' if telegram_link and telegram_link.link_status == 'linked' and telegram_link.telegram_chat_id else 'غير مربوط' }}</div>
+  </div>
+  <div class="notify-grid-v2">
+    <div class="notify-card-v2 general">
+      <div class="notify-card-head"><h4>حالة الربط</h4><span class="stats-pill">{{ telegram_link.link_status if telegram_link else 'revoked' }}</span></div>
+      <div class="helper-box mb-3">
+        {% if telegram_link and telegram_link.link_status == 'linked' and telegram_link.telegram_chat_id %}
+          تم ربط Telegram بنجاح مع هذه الجلسة الإدارية. يمكن لاحقًا استبدال owner_key بمستخدم حقيقي عندما يتحول المشروع لمنصة متعددة المستخدمين.
+        {% else %}
+          لم يتم ربط Telegram بعد لهذه الجلسة. أنشئ رمز ربط ثم أرسله إلى البوت داخل المحادثة الخاصة.
+        {% endif %}
+      </div>
+      <div class="form-grid-two">
+        <div><div class="preview-title">اسم البوت</div><div class="tiny-note">{{ '@' ~ settings.telegram_bot_token[:0] if settings.telegram_bot_token else 'أدخل Bot Token أولًا' }}</div></div>
+        <div><div class="preview-title">آخر ظهور</div><div class="tiny-note">{{ format_local(telegram_link.last_seen_at) if telegram_link and telegram_link.last_seen_at else '—' }}</div></div>
+        <div><div class="preview-title">المستخدم المرتبط</div><div class="tiny-note">{% if telegram_link and telegram_link.telegram_username %}@{{ telegram_link.telegram_username }}{% elif telegram_link and telegram_link.telegram_first_name %}{{ telegram_link.telegram_first_name }} {{ telegram_link.telegram_last_name or '' }}{% else %}—{% endif %}</div></div>
+        <div><div class="preview-title">معرّف المحادثة</div><div class="tiny-note">{% if telegram_link and telegram_link.telegram_chat_id %}•••{{ telegram_link.telegram_chat_id[-5:] }}{% else %}—{% endif %}</div></div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <form method="post" action="{{ url_for('main.telegram_link_create') }}"><button class="btn btn-outline-primary">إنشاء رمز ربط</button></form>
+        <form method="post" action="{{ url_for('main.telegram_link_test') }}"><button class="btn btn-outline-success">إرسال اختبار</button></form>
+        <form method="post" action="{{ url_for('main.telegram_link_menu') }}"><button class="btn btn-outline-secondary">إرسال القائمة</button></form>
+        <form method="post" action="{{ url_for('main.telegram_link_revoke') }}"><button class="btn btn-outline-danger">إلغاء الربط</button></form>
+      </div>
+    </div>
+
+    <div class="notify-card-v2 general">
+      <div class="notify-card-head"><h4>خطوات الربط</h4><span class="stats-pill">Webhook</span></div>
+      <div class="helper-box mb-3">لا تحتاج أي موقع خارجي للويب هوك. رابط webhook هو داخل موقعك نفسه على Render.</div>
+      <div class="preview-title">أمر الربط الذي ترسله للبوت</div>
+      <pre class="server-preview-box">{{ telegram_link_command or 'اضغط "إنشاء رمز ربط" أولًا' }}</pre>
+      <div class="preview-title mt-3">رابط Webhook الذي تضبطه مرة واحدة</div>
+      <pre class="server-preview-box">{{ telegram_webhook_url }}</pre>
+      <div class="tiny-note mt-2">بعد إنشاء رمز الربط: افتح البوت، وأرسل الأمر أعلاه في محادثة خاصة مع البوت، وسيتم الربط تلقائيًا.</div>
+    </div>
+  </div>
+</section>
     {% endif %}
 
     <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2" id="notificationsSettingsForm">
@@ -461,4 +505,9 @@
 .smart-profile-preview-box{background:linear-gradient(180deg, rgba(37,99,235,.06), rgba(16,185,129,.05));border:1px solid rgba(59,130,246,.14);border-radius:20px;padding:16px 18px}
 .smart-profile-list{margin:10px 0 0;padding:0 18px 0 0}
 .smart-profile-list li{margin:7px 0;color:#334155}
+</style>
+
+<style>
+.telegram-link-panel .tiny-note{font-size:.86rem;color:#64748b;line-height:1.7}
+.telegram-link-panel .server-preview-box{white-space:pre-wrap;word-break:break-word}
 </style>

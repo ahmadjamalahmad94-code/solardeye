@@ -48,6 +48,8 @@ def load_settings() -> dict:
         'telegram_bot_token': '',
         'telegram_chat_id': '',
         'telegram_api_url': 'https://api.telegram.org',
+        'telegram_webhook_secret': cfg['SECRET_KEY'][:24],
+        'telegram_link_expiry_minutes': '10',
         'sms_api_url': '',
         'sms_api_key': '',
         'sms_sender': '',

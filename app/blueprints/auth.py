@@ -28,7 +28,7 @@ def logout():
 
 @auth_bp.before_app_request
 def protect_routes():
-    public_endpoints = {'auth.login', 'static'}
+    public_endpoints = {'auth.login', 'static', 'main.telegram_webhook'}
     ep = request.endpoint or ''
     if ep in public_endpoints or ep.startswith('static'):
         return
