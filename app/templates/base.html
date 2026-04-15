@@ -10,14 +10,17 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="theme-saas" data-lang="{{ ui_lang or 'ar' }}">
-  <div class="floating-ui-panel">
-    <div class="theme-switcher" aria-label="theme switcher">
-      <button type="button" class="theme-btn" data-theme="theme-minimal">Minimal</button>
-      <button type="button" class="theme-btn" data-theme="theme-saas">SaaS</button>
-      <button type="button" class="theme-btn" data-theme="theme-glow">Glow</button>
+<body class="theme-saas" data-lang="{{ ui_lang or 'ar' }}" data-dir="{{ 'ltr' if (ui_lang or 'ar') == 'en' else 'rtl' }}">
+  <div class="global-utility-bar">
+    <div class="utility-group utility-left">
+      <div class="utility-chip utility-accent">
+        <span>☀️</span>
+        <strong>{{ 'Solar SaaS Dashboard' if (ui_lang or 'ar') == 'en' else 'لوحة الطاقة - SaaS' }}</strong>
+      </div>
     </div>
-    <button type="button" class="lang-btn" id="langToggle">{{ 'English' if (ui_lang or 'ar') == 'ar' else 'العربية' }}</button>
+    <div class="utility-group utility-right">
+      <button type="button" class="lang-btn" id="langToggle">{{ 'English' if (ui_lang or 'ar') == 'ar' else 'العربية' }}</button>
+    </div>
   </div>
   {% block body %}{% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
