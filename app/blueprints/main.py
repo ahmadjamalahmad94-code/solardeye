@@ -1473,7 +1473,7 @@ def telegram_send_menu_route():
 
 
 @main_bp.route('/telegram/multilink-webhook', methods=['GET', 'POST'])
-def telegram_webhook():
+def telegram_multilink_webhook_2():
     if request.method == 'GET':
         return {'ok': True, 'message': 'Telegram webhook is ready'}
     settings = load_settings()
