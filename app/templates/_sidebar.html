@@ -7,13 +7,10 @@
         <small data-ar="V17 المطورة" data-en="V17 Enhanced">V17 المطورة</small>
       </div>
     </div>
-<div class="sidebar-lang-box mt-4">
-      <div class="sidebar-section-title" data-ar="اللغة" data-en="Language">اللغة</div>
-      <div class="sidebar-lang-actions">
-        <a class="sidebar-lang-btn {% if (ui_lang or 'ar') == 'ar' %}active{% endif %}"
-           href="{{ request.path }}?lang=ar">العربية</a>
-        <a class="sidebar-lang-btn {% if (ui_lang or 'ar') == 'en' %}active{% endif %}"
-           href="{{ request.path }}?lang=en">English</a>
+<div class="sidebar-lang-box">
+      <div class="sidebar-lang-inline">
+        <a class="sidebar-lang-btn compact {% if (ui_lang or 'ar') == 'ar' %}active{% endif %}" href="{{ request.path }}?lang=ar">عربي</a>
+        <a class="sidebar-lang-btn compact {% if (ui_lang or 'ar') == 'en' %}active{% endif %}" href="{{ request.path }}?lang=en">English</a>
       </div>
     </div>
 <nav class="nav-menu mt-4">
