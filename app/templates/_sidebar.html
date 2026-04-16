@@ -25,6 +25,17 @@
       <a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>
     </nav>
   </div>
+
+    <div class="sidebar-lang-box mt-4">
+      <div class="sidebar-section-title" data-ar="اللغة" data-en="Language">اللغة</div>
+      <div class="sidebar-lang-actions">
+        <a class="sidebar-lang-btn {% if (ui_lang or 'ar') == 'ar' %}active{% endif %}"
+           href="{{ request.path }}?lang=ar">العربية</a>
+        <a class="sidebar-lang-btn {% if (ui_lang or 'ar') == 'en' %}active{% endif %}"
+           href="{{ request.path }}?lang=en">English</a>
+      </div>
+    </div>
+
   <div class="sidebar-footer">
     <form method="post" action="{{ url_for('auth.logout') }}">
       <button class="btn btn-outline-light w-100" data-ar="تسجيل الخروج" data-en="Sign out">تسجيل الخروج</button>
