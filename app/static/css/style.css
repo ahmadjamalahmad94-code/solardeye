@@ -1099,3 +1099,96 @@ body.saas-only .lang-btn {
     margin-top: 12px;
   }
 }
+
+
+@media (max-width: 900px){
+  }
+
+
+/* SaaS only mode */
+body.saas-only .floating-ui-panel,
+body.saas-only .theme-switcher,
+body.saas-only .theme-btn,
+body.saas-only #langToggle,
+body.saas-only .lang-btn {
+  display: none !important;
+}
+
+/* Sidebar language picker */
+.sidebar-lang-box{
+  margin-top: 12px;
+  margin-bottom: 6px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-section-title{
+  color:#dbe6f5;
+  font-weight:800;
+  margin-bottom:10px;
+  font-size:.95rem;
+}
+.sidebar-lang-actions{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
+.sidebar-lang-btn{
+  text-decoration:none;
+  text-align:center;
+  padding:12px 14px;
+  border-radius:14px;
+  color:#d9e2f1;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  font-weight:800;
+}
+.sidebar-lang-btn:hover,
+.sidebar-lang-btn.active{
+  color:#111827;
+  background:linear-gradient(135deg,#ffd666,#ffb300);
+  border-color:transparent;
+}
+
+/* Keep sidebar stable without stealing page layout */
+.sidebar{
+  min-height: 100vh;
+}
+
+/* Channels page: no fake header spacing */
+.channels-page{
+  padding-top: 26px;
+}
+.channels-page .topbar.notifications-hero{
+  margin: 0 0 16px 0;
+  min-height: 0;
+}
+.channels-page .topbar.notifications-hero .topbar-main{
+  align-items: center;
+}
+
+/* KPI strip */
+.top-scroll-cards{
+  display:flex;
+  gap:16px;
+  overflow-x:auto;
+  padding:4px 2px 8px;
+  scroll-snap-type:x proximity;
+}
+.top-scroll-cards::-webkit-scrollbar{ height:8px; }
+.top-scroll-cards::-webkit-scrollbar-thumb{ background:#d7e2f0; border-radius:999px; }
+.top-scroll-cards .hero-card{ flex:1 1 0; min-width:220px; scroll-snap-align:start; }
+.top-kpis-row .hero-kpi{ min-height:170px; border-radius:26px; box-shadow:0 14px 34px rgba(15,23,42,.08); }
+.top-kpis-row .hero-kpi strong{ font-size:2.3rem; line-height:1.05; }
+.top-kpis-row .hero-kpi small{ font-size:.98rem; color:#64748b; }
+.top-kpis-row .hero-kpi.navy{ color:#fff; background:linear-gradient(135deg,#0f172a,#1e3358); }
+.top-kpis-row .hero-kpi.navy small,
+.top-kpis-row .hero-kpi.navy span{ color:rgba(255,255,255,.84); }
+
+@media (min-width: 1350px){
+  .top-scroll-cards .hero-card{ min-width:0; }
+}
+@media (max-width: 1100px){
+  .top-scroll-cards .hero-card{ min-width:250px; }
+}

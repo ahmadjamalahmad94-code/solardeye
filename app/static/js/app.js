@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', () => {
   const body = document.body;
   const langToggle = document.getElementById('langToggle');
@@ -21,10 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   applyTranslations();
-  };
 
   const clock = document.getElementById('liveClock');
-  const fmt = () => new Intl.DateTimeFormat(currentLang() === 'en' ? 'en-GB' : 'ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const fmt = () => new Intl.DateTimeFormat(
+    currentLang() === 'en' ? 'en-GB' : 'ar-EG',
+    { hour: '2-digit', minute: '2-digit', second: '2-digit' }
+  );
   const tick = () => { if (clock) clock.textContent = fmt().format(new Date()); };
   tick();
   setInterval(tick, 1000);
@@ -40,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const baseOptions = {
+const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
