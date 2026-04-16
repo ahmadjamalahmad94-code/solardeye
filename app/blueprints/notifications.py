@@ -490,6 +490,45 @@ def _format_last_sync_telegram(latest):
     ])
 
 
+def _safe_decision_telegram(latest, weather=None, settings=None):
+    try:
+        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
+        return "\\n".join([
+            "🎯 القرار الآن",
+            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
+            f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}",
+        ])
+    except Exception:
+        return '🎯 تعذر توليد القرار الآن حاليًا.'
+
+def _safe_smart_telegram(latest, weather=None, settings=None):
+    try:
+        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
+        lines = [
+            "💡 النصيحة الذكية",
+            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
+        ]
+        if advice.get('smart_warning'):
+            lines.append(f"⚠️ {advice.get('smart_warning')}")
+        if advice.get('smart_recommendation'):
+            lines.append(f"💡 {advice.get('smart_recommendation')}")
+        lines.append(f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}")
+        return "\\n".join(lines)
+    except Exception:
+        return '💡 تعذر توليد النصيحة الذكية حاليًا.'
+
+def _safe_night_risk_telegram(latest, weather=None, settings=None):
+    try:
+        return _format_night_risk_telegram(latest, weather=weather, settings=settings)
+    except Exception:
+        return '🌙 تعذر تقييم خطر الليلة حاليًا.'
+
+def _safe_last_sync_telegram(latest):
+    try:
+        return _format_last_sync_telegram(latest)
+    except Exception:
+        return '🔄 تعذر قراءة وقت آخر مزامنة الآن.'
+
 def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=None):
     action = (action or '').strip().lower()
     if latest is None:
@@ -509,28 +548,13 @@ def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=
     if action == 'sunset':
         return _format_pre_sunset_telegram(latest, weather=weather, settings=settings)
     if action == 'night_risk':
-        return _format_night_risk_telegram(latest, weather=weather, settings=settings)
+        return _safe_night_risk_telegram(latest, weather=weather, settings=settings)
     if action == 'last_sync':
-        return _format_last_sync_telegram(latest)
+        return _safe_last_sync_telegram(latest)
     if action == 'decision':
-        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
-        return "\n".join([
-            "🎯 القرار الآن",
-            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
-            f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}",
-        ])
+        return _safe_decision_telegram(latest, weather=weather, settings=settings)
     if action == 'smart':
-        advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
-        lines = [
-            "💡 النصيحة الذكية",
-            f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
-        ]
-        if advice.get('smart_warning'):
-            lines.append(f"⚠️ {advice.get('smart_warning')}")
-        if advice.get('smart_recommendation'):
-            lines.append(f"💡 {advice.get('smart_recommendation')}")
-        lines.append(f"🎯 {advice.get('decision_now', 'لا توجد توصية حالياً.')}")
-        return "\n".join(lines)
+        return _safe_smart_telegram(latest, weather=weather, settings=settings)
     return 'اختر زرًا من القائمة لعرض البيانات.'
 
 
@@ -551,6 +575,8 @@ def process_telegram_update(settings: dict, update: dict):
         if action == 'menu':
             return send_telegram_menu(settings, chat_id=chat_id)
         text = build_telegram_quick_reply(action, settings=settings)
+        if not text or not str(text).strip():
+            text = 'تعذر تجهيز الرد الآن.'
         ok, resp_text, _ = _telegram_api_call(settings, 'sendMessage', {
             'chat_id': chat_id or settings.get('telegram_chat_id'),
             'text': text,
