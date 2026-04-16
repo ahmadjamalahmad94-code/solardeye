@@ -54,44 +54,8 @@
         </div>
       </section>
 
-      <section class="panel-card mt-4 notify-channel-shell">
-        <div class="section-head">
-          <div>
-            <h3>قنوات الإرسال والضبط العام</h3>
-            <p class="section-subtitle">أدخل بيانات Telegram وSMS، ثم اضبط الاحتياطي والحدود المشتركة للنظام كله.</p>
-          </div>
-        </div>
-        <div class="notify-grid-v2">
-          <div class="notify-card-v2 telegram">
-            <div class="notify-card-head"><h4>Telegram</h4><span class="stats-pill">أساسي</span></div>
-            <div class="form-grid-two">
-              <div><label class="form-label">Bot Token</label><input class="form-control" name="telegram_bot_token" value="{{ settings.telegram_bot_token }}"></div>
-              <div><label class="form-label">Chat ID</label><input class="form-control" name="telegram_chat_id" value="{{ settings.telegram_chat_id }}"></div>
-              <div class="full"><label class="form-label">رابط API</label><input class="form-control" name="telegram_api_url" value="{{ settings.telegram_api_url or 'https://api.telegram.org' }}"></div>
-            </div>
-            <div class="helper-box">تستخدم جميع الرسائل هذه القناة ما لم تختر SMS أو الاثنين معًا.</div>
-          </div>
-          <div class="notify-card-v2 sms">
-            <div class="notify-card-head"><h4>SMS</h4><span class="stats-pill">اختياري</span></div>
-            <div class="form-grid-two">
-              <div class="full"><label class="form-label">رابط API</label><input class="form-control" name="sms_api_url" value="{{ settings.sms_api_url }}"></div>
-              <div><label class="form-label">API Key</label><input class="form-control" name="sms_api_key" value="{{ settings.sms_api_key }}"></div>
-              <div><label class="form-label">اسم المرسل</label><input class="form-control" name="sms_sender" value="{{ settings.sms_sender }}"></div>
-              <div class="full"><label class="form-label">أرقام المستلمين</label><input class="form-control" name="sms_recipients" value="{{ settings.sms_recipients }}"></div>
-            </div>
-            <div class="helper-box">يمكنك تركها فارغة الآن والاعتماد على Telegram فقط.</div>
-          </div>
-          <div class="notify-card-v2 general full-span">
-            <div class="notify-card-head"><h4>إعدادات عامة مشتركة</h4><span class="stats-pill">منظومة الإشعارات</span></div>
-            <div class="settings-inline-row wrap-compact">
-              <label class="switch-row large"><input type="checkbox" name="notifications_enabled" {% if settings.notifications_enabled != 'false' %}checked{% endif %}> <span>تفعيل الإشعارات بالكامل</span></label>
-              <div class="inline-field"><label class="form-label">الحد الأدنى للشمس نهارًا</label><input class="form-control" type="number" name="daytime_solar_min_w" value="{{ settings.daytime_solar_min_w or '50' }}"></div>
-              <div class="inline-field"><label class="form-label">احتياطي البطارية %</label><input class="form-control" type="number" name="battery_reserve_percent" value="{{ settings.battery_reserve_percent or '20' }}"></div>
-              <div class="inline-field"><label class="form-label">الحد الليلي للحمل W</label><input class="form-control" type="number" name="night_max_load_w" value="{{ settings.night_max_load_w or '500' }}"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      
+
 
       <section class="panel-card mt-4 notification-builder-card">
         <div class="section-head">
