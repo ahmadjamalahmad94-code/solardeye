@@ -78,6 +78,40 @@
       <section class="panel-card mt-4">
         <div class="section-head">
           <div>
+            <h3>محتوى أزرار Telegram</h3>
+            <p class="section-subtitle">فعّل أو عطّل الأزرار التي تريدها فقط، وعند إرسال القائمة التفاعلية سيتحدث شكلها تلقائيًا حسب اختيارك.</p>
+          </div>
+          <div class="stats-pill">قابل للتخصيص</div>
+        </div>
+
+        <div class="switch-grid mt-3">
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_status" {% if settings.tg_btn_status != 'false' %}checked{% endif %}><span>📊 الحالة</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_loads" {% if settings.tg_btn_loads != 'false' %}checked{% endif %}><span>⚡ الأحمال</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_weather" {% if settings.tg_btn_weather != 'false' %}checked{% endif %}><span>🌤️ الطقس</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_clouds" {% if settings.tg_btn_clouds != 'false' %}checked{% endif %}><span>☁️ الغيوم</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_battery_eta" {% if settings.tg_btn_battery_eta != 'false' %}checked{% endif %}><span>🔋 وقت الشحن / النفاذ</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_surplus" {% if settings.tg_btn_surplus != 'false' %}checked{% endif %}><span>☀️ الفائض الشمسي</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_decision" {% if settings.tg_btn_decision != 'false' %}checked{% endif %}><span>🎯 القرار الآن</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_smart" {% if settings.tg_btn_smart != 'false' %}checked{% endif %}><span>💡 النصيحة الذكية</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_sunset" {% if settings.tg_btn_sunset != 'false' %}checked{% endif %}><span>🌇 قبل الغروب</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_night_risk" {% if settings.tg_btn_night_risk != 'false' %}checked{% endif %}><span>🌙 خطر الليلة</span></label>
+          <label class="switch-pill"><input type="checkbox" name="tg_btn_last_sync" {% if settings.tg_btn_last_sync != 'false' %}checked{% endif %}><span>🔄 آخر مزامنة</span></label>
+        </div>
+
+        <div class="notify-preview-card mt-3">
+          <div class="preview-title">كيف تعمل؟</div>
+          <div class="tiny-note">بعد حفظ الإعدادات، اضغط "إرسال القائمة التفاعلية" وستصل القوائم الجديدة بنفس ترتيب الأزرار المفعلة فقط.</div>
+        </div>
+
+        <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات الأزرار</button>
+          <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة التفاعلية</button>
+        </div>
+      </section>
+
+      <section class="panel-card mt-4">
+        <div class="section-head">
+          <div>
             <h3>SMS</h3>
             <p class="section-subtitle">اضبط بيانات API الخاصة بخدمة الرسائل، مع رقم/أرقام المستلمين، ثم جرّب الإرسال مباشرة من نفس الصفحة.</p>
           </div>
@@ -122,6 +156,12 @@
 .channels-page .server-preview-box{
   white-space:pre-wrap;
   word-break:break-word;
+}
+
+.switch-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
 }
 </style>
 {% endblock %}

@@ -83,6 +83,8 @@ def save_notification_settings_from_form(form):
         'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
         'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset', 'battery_test_include_loads',
         'daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device',
+        'tg_btn_status', 'tg_btn_loads', 'tg_btn_weather', 'tg_btn_clouds', 'tg_btn_battery_eta', 'tg_btn_surplus',
+        'tg_btn_decision', 'tg_btn_smart', 'tg_btn_sunset', 'tg_btn_night_risk', 'tg_btn_last_sync',
     ]
     for key in checkbox_fields:
         _upsert_setting(key, 'true' if form.get(key) == 'on' else 'false')
@@ -278,26 +280,61 @@ def _telegram_api_call(settings: dict, method: str, payload: dict):
         return False, str(exc), {}
 
 
-def _telegram_menu_markup():
-    return {
-        'inline_keyboard': [
-            [
-                {'text': '📊 الحالة', 'callback_data': 'tg:status'},
-                {'text': '⚡ الأحمال', 'callback_data': 'tg:loads'},
-            ],
-            [
-                {'text': '🌤️ الطقس', 'callback_data': 'tg:weather'},
-                {'text': '☁️ الغيوم', 'callback_data': 'tg:clouds'},
-            ],
-            [
-                {'text': '🔋 مدة الشحن/النفاد', 'callback_data': 'tg:battery_eta'},
-                {'text': '☀️ الفائض الشمسي', 'callback_data': 'tg:surplus'},
-            ],
-            [
-                {'text': '📋 القائمة', 'callback_data': 'tg:menu'},
-            ],
-        ]
-    }
+def _telegram_menu_markup(settings: dict | None = None):
+    settings = settings or load_settings()
+    rows = []
+
+    def on(key: str, default: bool = True):
+        raw = str(settings.get(key, 'true' if default else 'false')).strip().lower()
+        return raw != 'false'
+
+    row1 = []
+    if on('tg_btn_status'):
+        row1.append({'text': '📊 الحالة', 'callback_data': 'tg:status'})
+    if on('tg_btn_loads'):
+        row1.append({'text': '⚡ الأحمال', 'callback_data': 'tg:loads'})
+    if row1:
+        rows.append(row1)
+
+    row2 = []
+    if on('tg_btn_weather'):
+        row2.append({'text': '🌤️ الطقس', 'callback_data': 'tg:weather'})
+    if on('tg_btn_clouds'):
+        row2.append({'text': '☁️ الغيوم', 'callback_data': 'tg:clouds'})
+    if row2:
+        rows.append(row2)
+
+    row3 = []
+    if on('tg_btn_battery_eta'):
+        row3.append({'text': '🔋 وقت الشحن / النفاذ', 'callback_data': 'tg:battery_eta'})
+    if on('tg_btn_surplus'):
+        row3.append({'text': '☀️ الفائض الشمسي', 'callback_data': 'tg:surplus'})
+    if row3:
+        rows.append(row3)
+
+    row4 = []
+    if on('tg_btn_decision'):
+        row4.append({'text': '🎯 القرار الآن', 'callback_data': 'tg:decision'})
+    if on('tg_btn_smart'):
+        row4.append({'text': '💡 النصيحة الذكية', 'callback_data': 'tg:smart'})
+    if row4:
+        rows.append(row4)
+
+    row5 = []
+    if on('tg_btn_sunset'):
+        row5.append({'text': '🌇 قبل الغروب', 'callback_data': 'tg:sunset'})
+    if on('tg_btn_night_risk'):
+        row5.append({'text': '🌙 خطر الليلة', 'callback_data': 'tg:night_risk'})
+    if row5:
+        rows.append(row5)
+
+    row6 = []
+    if on('tg_btn_last_sync'):
+        row6.append({'text': '🔄 آخر مزامنة', 'callback_data': 'tg:last_sync'})
+    row6.append({'text': '📋 القائمة', 'callback_data': 'tg:menu'})
+    rows.append(row6)
+
+    return {'inline_keyboard': rows}
 
 
 def send_telegram_menu(settings: dict, chat_id: str | None = None, intro: str | None = None):
@@ -308,7 +345,7 @@ def send_telegram_menu(settings: dict, chat_id: str | None = None, intro: str | 
     ok, resp, _ = _telegram_api_call(settings, 'sendMessage', {
         'chat_id': chat_id,
         'text': text,
-        'reply_markup': _telegram_menu_markup(),
+        'reply_markup': _telegram_menu_markup(settings),
     })
     return ok, resp
 
@@ -341,7 +378,7 @@ def _format_cloud_check(weather=None):
     return f"☁️ الغيوم الآن: {cloud}%\n🔜 الغيوم بعد ساعة: {next_cloud}%"
 
 
-def _format_battery_eta(latest):
+def _format_battery_eta(latest, settings=None):
     if not latest:
         return '🔋 لا توجد قراءة بطارية متاحة.'
     settings = settings or load_settings()
@@ -354,7 +391,13 @@ def _format_battery_eta(latest):
     if mode == 'يتم التفريغ':
         eta = battery.get('discharge_eta', 'غير متاح')
         return f"🌙 البطارية في وضع السحب\n⏳ وقت النفاد: {eta}"
-    return f"🔋 حالة البطارية: {mode}"
+    charge_eta = battery.get('charge_eta', 'غير متاح')
+    discharge_eta = battery.get('discharge_eta', 'غير متاح')
+    return "\n".join([
+        f"🔋 حالة البطارية: {mode}",
+        f"⏳ وقت الامتلاء: {charge_eta}",
+        f"⏳ وقت النفاد: {discharge_eta}",
+    ])
 
 
 def _format_solar_surplus(latest):
@@ -412,6 +455,41 @@ def _format_load_suggestions_telegram(latest, settings=None):
     return "\n".join(lines)
 
 
+def _format_pre_sunset_telegram(latest, weather=None, settings=None):
+    title, message, _level = build_pre_sunset_message(latest, weather, settings=settings)
+    return f"{title}\n\n{message}"
+
+
+def _format_night_risk_telegram(latest, weather=None, settings=None):
+    settings = settings or load_settings()
+    if not latest:
+        return '🌙 لا توجد قراءة متاحة لتقييم الليلة.'
+    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
+    battery = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
+    advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_night')
+    lines = [
+        '🌙 خطر الليلة',
+        f"🔋 البطارية الآن: {round(float(latest.battery_soc or 0), 1)}%",
+        f"📊 تقييم الحالة: {advice.get('status_label', '—')}",
+    ]
+    if battery.get('discharge_eta'):
+        lines.append(f"⏳ وقت النفاد المتوقع: {battery.get('discharge_eta')}")
+    if advice.get('smart_warning'):
+        lines.append(f"⚠️ {advice.get('smart_warning')}")
+    if advice.get('decision_now'):
+        lines.append(f"🎯 {advice.get('decision_now')}")
+    return "\n".join(lines)
+
+
+def _format_last_sync_telegram(latest):
+    if not latest:
+        return '🔄 لا توجد أي مزامنة محفوظة حتى الآن.'
+    return "\n".join([
+        '🔄 آخر مزامنة',
+        f"🕒 آخر تحديث: {format_local_datetime(latest.created_at, current_app.config['LOCAL_TIMEZONE'])}",
+    ])
+
+
 def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=None):
     action = (action or '').strip().lower()
     if latest is None:
@@ -425,9 +503,15 @@ def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=
     if action == 'clouds':
         return _format_cloud_check(weather)
     if action == 'battery_eta':
-        return _format_battery_eta(latest)
+        return _format_battery_eta(latest, settings=settings)
     if action == 'surplus':
         return _format_solar_surplus(latest)
+    if action == 'sunset':
+        return _format_pre_sunset_telegram(latest, weather=weather, settings=settings)
+    if action == 'night_risk':
+        return _format_night_risk_telegram(latest, weather=weather, settings=settings)
+    if action == 'last_sync':
+        return _format_last_sync_telegram(latest)
     if action == 'decision':
         advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context='periodic_day')
         return "\n".join([
@@ -470,7 +554,7 @@ def process_telegram_update(settings: dict, update: dict):
         ok, resp_text, _ = _telegram_api_call(settings, 'sendMessage', {
             'chat_id': chat_id or settings.get('telegram_chat_id'),
             'text': text,
-            'reply_markup': _telegram_menu_markup(),
+            'reply_markup': _telegram_menu_markup(settings),
         })
         return ok, resp_text
 
@@ -486,6 +570,9 @@ def process_telegram_update(settings: dict, update: dict):
         'الفائض': 'surplus', 'الفائض الشمسي': 'surplus', '/surplus': 'surplus',
         'القرار الآن': 'decision', '/decision': 'decision', 'قرار': 'decision',
         'نصيحة': 'smart', 'النصيحة الذكية': 'smart', '/smart': 'smart',
+        'قبل الغروب': 'sunset', '/sunset': 'sunset',
+        'خطر الليلة': 'night_risk', '/night': 'night_risk',
+        'آخر مزامنة': 'last_sync', '/sync': 'last_sync',
     }
     action = mapping.get(txt, 'menu')
     if action == 'menu':
@@ -494,7 +581,7 @@ def process_telegram_update(settings: dict, update: dict):
     ok, resp_text, _ = _telegram_api_call(settings, 'sendMessage', {
         'chat_id': chat_id or settings.get('telegram_chat_id'),
         'text': text,
-        'reply_markup': _telegram_menu_markup(),
+        'reply_markup': _telegram_menu_markup(settings),
     })
     return ok, resp_text
 
