@@ -8,13 +8,14 @@ from flask import current_app, request, url_for
 
 from ..extensions import db
 from ..models import NotificationLog, Reading, Setting, UserLoad
-from ..services.utils import human_duration_hours, safe_float, safe_power_w, utc_to_local
+from ..services.utils import format_local_datetime, human_duration_hours, safe_float, safe_power_w, utc_to_local
 from .helpers import (
     battery_percent_bar, build_battery_insights, build_pre_sunset_prediction,
     build_system_state, format_energy, format_power, get_runtime_battery_settings,
     load_settings, _to_12h_label, _upsert_setting,
 )
 from ..services.weather_service import fetch_weather
+from .smart_engine import build_smart_energy_advice
 
 
 # ── Notification rules ────────────────────────────────────────────────────────

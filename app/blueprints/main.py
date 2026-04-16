@@ -1199,6 +1199,32 @@ def _telegram_delete_webhook(settings: dict):
     except Exception as exc:
         return False, str(exc)
 
+
+def _upsert_channel_setting(key: str, value: str):
+    row = Setting.query.filter_by(key=key).first()
+    if row:
+        row.value = value
+    else:
+        db.session.add(Setting(key=key, value=value))
+
+
+def _save_channels_settings_from_form(form):
+    text_fields = [
+        'telegram_bot_token', 'telegram_chat_id', 'telegram_api_url',
+        'sms_api_url', 'sms_api_key', 'sms_sender', 'sms_recipients',
+    ]
+    checkbox_fields = [
+        'tg_btn_status', 'tg_btn_loads', 'tg_btn_weather', 'tg_btn_clouds',
+        'tg_btn_battery_eta', 'tg_btn_surplus', 'tg_btn_decision', 'tg_btn_smart',
+        'tg_btn_sunset', 'tg_btn_night_risk', 'tg_btn_last_sync',
+    ]
+    for field in text_fields:
+        _upsert_channel_setting(field, (form.get(field, '') or '').strip())
+    for key in checkbox_fields:
+        _upsert_channel_setting(key, 'true' if form.get(key) == 'on' else 'false')
+    db.session.commit()
+
+
 def _is_ajax_request():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
@@ -1284,7 +1310,7 @@ def notifications_action():
 @main_bp.route('/channels', methods=['GET', 'POST'])
 def channels():
     if request.method == 'POST':
-        save_notification_settings_from_form(request.form)
+        _save_channels_settings_from_form(request.form)
         settings = load_settings()
         action = (request.form.get('channel_action') or '').strip().lower()
 
