@@ -4,40 +4,38 @@
   {% include '_sidebar.html' %}
   <main class="content-area">
     
-
 <header class="topbar dashboard-topbar clean-header">
   <div class="header-row">
-    <div class="header-meta-actions">
-      <div class="dashboard-meta-bar compact-meta-bar">
-        <div class="meta-pill">
-          <span>🕒 الساعة الآن</span>
-          <strong id="liveClock">--:--:--</strong>
-        </div>
-        <div class="meta-pill">
-          <span>🔄 آخر تحديث</span>
-          <strong>{{ format_local(latest.created_at) if latest else '—' }}</strong>
-        </div>
-      </div>
-
-      <div class="topbar-actions unified-actions">
-        <form method="post" action="{{ url_for('main.sync_now') }}">
-          <button class="btn-ui btn-ui-primary" type="submit">✔️ اعتمد</button>
-        </form>
-        <a href="{{ url_for('main.deye_settings') }}" class="btn-ui btn-ui-outline">⚙️ إعدادات الربط</a>
-      </div>
-    </div>
-
     <div class="header-title-block">
       <div class="topbar-main">
         <div>
           <h1>{{ latest.plant_name if latest else settings.deye_plant_name or 'منصة الطاقة الشمسية' }}</h1>
+          <p class="mb-0">{{ system_status.description if latest else 'نفّذ مزامنة أولًا لعرض البيانات.' }}</p>
         </div>
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
       </div>
     </div>
+
+    <div class="header-meta-actions">
+      <div class="dashboard-meta-bar compact-meta-bar">
+        <div class="meta-pill">
+          <span data-ar="🕒 الساعة الآن" data-en="🕒 Current time">🕒 الساعة الآن</span>
+          <strong id="liveClock">--:--:--</strong>
+        </div>
+        <div class="meta-pill">
+          <span data-ar="🔄 آخر تحديث" data-en="🔄 Last update">🔄 آخر تحديث</span>
+          <strong>{{ format_local(latest.created_at) if latest else '—' }}</strong>
+        </div>
+      </div>
+      <div class="topbar-actions unified-actions">
+        <a href="{{ url_for('main.deye_settings') }}" class="btn-ui btn-ui-outline">الإعدادات</a>
+        <form method="post" action="{{ url_for('main.sync_now') }}">
+          <button class="btn-ui btn-ui-primary" type="submit">⟳ مزامنة الآن</button>
+        </form>
+      </div>
+    </div>
   </div>
 </header>
-
 
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -56,17 +54,17 @@
         <small>kWh</small>
       </div>
       <div class="hero-card hero-kpi week">
-        <span>إنتاج الأسبوع</span>
+        <span>إنتاج هذا الأسبوع</span>
         <strong>{{ (production_summary.week_kwh if production_summary else 0)|round(2) }}</strong>
         <small>السبت ← اليوم</small>
       </div>
       <div class="hero-card hero-kpi solar">
-        <span>إنتاج الشهر</span>
+        <span>إنتاج هذا الشهر</span>
         <strong>{{ (production_summary.month_kwh if production_summary else 0)|round(2) }}</strong>
         <small>kWh</small>
       </div>
       <div class="hero-card hero-kpi yellow">
-        <span>الإنتاج الكلي</span>
+        <span>الإنتاج العام</span>
         <strong>{{ format_energy(production_summary.total_kwh) if production_summary else '0.00 kWh' }}</strong>
         <small>منذ بداية التشغيل</small>
       </div>
