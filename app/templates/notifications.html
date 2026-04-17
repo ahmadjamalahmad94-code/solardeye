@@ -73,8 +73,27 @@
       <form id="quick-telegram-form" method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send', lang=ui_lang) }}"></form>
     </section>
 
-    <div class="notify-cards-grid mt-4">
-      <section class="panel-card notify-section-card">
+    <section class="notify-studio-shell mt-4">
+      <div class="notify-studio-grid">
+        <aside class="notify-studio-preview panel-card">
+          <div class="studio-card-title">المعاينة الحية</div>
+          <div class="studio-preview-body">
+            <div class="studio-preview-heading">🔔 التحديث الدوري للطاقة - نهارًا</div>
+            <div class="studio-preview-line">{{ notification_preview.message if notification_preview and notification_preview.section == 'periodic_day' else ('71% ███████░░░
+
+🔋 الحالة: يتم شحن البطارية
+☀️ الشمس الآن: 1228.0 واط
+🏠 استهلاك المنزل: 152.0 واط
+🔋 الداخل للبطارية الآن: 950 واط
+⏳ الوقت المتوقع للامتلاء: 1 ساعة و27 دقيقة
+🧾 ملخص اليوم: إنتاج / استهلاك / شحن / تفريغ
+🔧 حالة الجهاز: حالة الانفرتر + البطارية + الجهد
+🌆 الغروب: 07:10 مساءً | الفعلي: 06:10 مساءً
+🧠 التحليل: سيتم شحن البطارية قبل الغروب') }}</div>
+          </div>
+        </aside>
+
+        <section class="notify-studio-main panel-card notify-section-card" id="section-periodic-day">
         <div class="section-head"><div><h3>التحديث الدوري النهاري</h3><p class="section-subtitle">يرسل فقط أثناء النهار.</p></div><div class="stats-pill">periodic_day</div></div>
         <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
           <input type="hidden" name="settings_section" value="periodic_day">
@@ -102,9 +121,23 @@
             <button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button>
           </div>
         </form>
-      </section>
+        </section>
 
-      <section class="panel-card notify-section-card">
+        <aside class="notify-studio-nav">
+          <a class="studio-nav-item active" href="#section-periodic-day"><span class="studio-nav-toggle">ON</span><strong>🔔 دوري نهاري</strong></a>
+          <a class="studio-nav-item" href="#section-periodic-night"><span class="studio-nav-toggle">ON</span><strong>🌙 دوري ليلي</strong></a>
+          <a class="studio-nav-item" href="#section-sunset"><span class="studio-nav-toggle">ON</span><strong>🌆 قبل الغروب</strong></a>
+          <a class="studio-nav-item" href="#section-periodic-night"><span class="studio-nav-toggle">ON</span><strong>🔋 تفريغ ليلي</strong></a>
+          <a class="studio-nav-item" href="#section-load"><span class="studio-nav-toggle">ON</span><strong>⚡ الأحمال</strong></a>
+          <a class="studio-nav-item" href="#section-weather"><span class="studio-nav-toggle">ON</span><strong>☁️ الطقس</strong></a>
+          <a class="studio-nav-item" href="#section-battery"><span class="studio-nav-toggle">ON</span><strong>🪫 البطارية</strong></a>
+          <a class="studio-nav-item" href="#section-daily-report"><span class="studio-nav-toggle">ON</span><strong>🌤️ تقرير الصباح</strong></a>
+        </aside>
+      </div>
+    </section>
+
+    <div class="notify-cards-grid mt-4">
+      <section class="panel-card notify-section-card" id="section-periodic-night">
         <div class="section-head"><div><h3>التحديث الدوري الليلي</h3><p class="section-subtitle">يرسل فقط بعد خروج النظام من فترة النهار.</p></div><div class="stats-pill">periodic_night</div></div>
         <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
           <input type="hidden" name="settings_section" value="periodic_night">
@@ -129,7 +162,7 @@
         </form>
       </section>
 
-      <section class="panel-card notify-section-card">
+      <section class="panel-card notify-section-card" id="section-sunset">
         <div class="section-head"><div><h3>قبل الغروب</h3><p class="section-subtitle">تحليل ما قبل الغروب مع نصيحة سريعة.</p></div><div class="stats-pill">sunset</div></div>
         <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
           <input type="hidden" name="settings_section" value="sunset">
@@ -153,7 +186,7 @@
         </form>
       </section>
 
-      <section class="panel-card notify-section-card">
+      <section class="panel-card notify-section-card" id="section-load">
         <div class="section-head"><div><h3>الأحمال</h3><p class="section-subtitle">يعتمد على الفائض الفعلي نهارًا والحد الليلي ليلًا.</p></div><div class="stats-pill">load</div></div>
         <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
           <input type="hidden" name="settings_section" value="load">
@@ -172,7 +205,7 @@
         </form>
       </section>
 
-      <section class="panel-card notify-section-card">
+      <section class="panel-card notify-section-card" id="section-battery">
         <div class="section-head"><div><h3>البطارية والطقس والتقرير الصباحي</h3><p class="section-subtitle">أقسام مستقلة باختبار وحفظ منفصل.</p></div><div class="stats-pill">extra</div></div>
         <div class="stacked-mini-sections mt-3">
           <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
@@ -186,7 +219,7 @@
             <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
           </form>
 
-          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
+          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form" id="section-weather">
             <input type="hidden" name="settings_section" value="weather">
             <div class="mini-title">تنبيه الطقس</div>
             <div class="form-grid-two mt-2">
@@ -197,7 +230,7 @@
             <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
           </form>
 
-          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
+          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form" id="section-daily-report">
             <input type="hidden" name="settings_section" value="daily_report">
             <div class="mini-title">تقرير الصباح</div>
             <div class="form-grid-two mt-2">
