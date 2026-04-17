@@ -1237,21 +1237,37 @@ def _upsert_channel_setting(key: str, value: str):
         db.session.add(Setting(key=key, value=value))
 
 
-def _save_channels_settings_from_form(form):
-    text_fields = [
-        'telegram_bot_token', 'telegram_chat_id', 'telegram_api_url',
-        'sms_api_url', 'sms_api_key', 'sms_sender', 'sms_recipients',
-    ]
-    checkbox_fields = [
-        'tg_btn_status', 'tg_btn_loads', 'tg_btn_weather', 'tg_btn_clouds',
-        'tg_btn_battery_eta', 'tg_btn_surplus', 'tg_btn_decision', 'tg_btn_smart',
-        'tg_btn_sunset', 'tg_btn_night_risk', 'tg_btn_last_sync',
-    ]
-    for field in text_fields:
+CHANNEL_FORM_FIELDS = {
+    'telegram': {
+        'text': ['telegram_bot_token', 'telegram_chat_id', 'telegram_api_url'],
+        'checkbox': [],
+    },
+    'telegram_buttons': {
+        'text': [],
+        'checkbox': [
+            'tg_btn_status', 'tg_btn_loads', 'tg_btn_weather', 'tg_btn_clouds',
+            'tg_btn_battery_eta', 'tg_btn_surplus', 'tg_btn_decision', 'tg_btn_smart',
+            'tg_btn_sunset', 'tg_btn_night_risk', 'tg_btn_last_sync',
+        ],
+    },
+    'sms': {
+        'text': ['sms_api_url', 'sms_api_key', 'sms_sender', 'sms_recipients'],
+        'checkbox': [],
+    },
+}
+
+
+def _save_channels_settings_from_form(form, section: str | None = None):
+    section = (section or '').strip().lower()
+    config = CHANNEL_FORM_FIELDS.get(section)
+    if not config:
+        return False
+    for field in config.get('text', []):
         _upsert_channel_setting(field, (form.get(field, '') or '').strip())
-    for key in checkbox_fields:
+    for key in config.get('checkbox', []):
         _upsert_channel_setting(key, 'true' if form.get(key) == 'on' else 'false')
     db.session.commit()
+    return True
 
 
 def _is_ajax_request():
@@ -1338,19 +1354,32 @@ def notifications_action():
 
 @main_bp.route('/channels', methods=['GET', 'POST'])
 def channels():
+    lang = request.args.get('lang') or request.form.get('lang')
     if request.method == 'POST':
-        _save_channels_settings_from_form(request.form)
-        settings = load_settings()
         action = (request.form.get('channel_action') or '').strip().lower()
+        section = (request.form.get('channel_section') or '').strip().lower()
+        if action.startswith('save_'):
+            section = action.removeprefix('save_')
+        if section in CHANNEL_FORM_FIELDS:
+            _save_channels_settings_from_form(request.form, section=section)
+        settings = load_settings()
 
-        if action == 'save_channels':
-            flash('تم حفظ إعدادات Telegram وSMS بنجاح', 'success')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+        if action == 'save_telegram':
+            flash('تم حفظ إعدادات Telegram بنجاح', 'success')
+            return redirect(url_for('main.channels', lang=lang))
+
+        if action == 'save_telegram_buttons':
+            flash('تم حفظ أزرار Telegram بنجاح', 'success')
+            return redirect(url_for('main.channels', lang=lang))
+
+        if action == 'save_sms':
+            flash('تم حفظ إعدادات SMS بنجاح', 'success')
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'set_webhook':
             ok, msg = _telegram_set_webhook(settings)
             flash(('تم تفعيل Webhook بنجاح' if ok else f'فشل تفعيل Webhook: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'check_webhook':
             info = _telegram_webhook_info(settings)
@@ -1359,30 +1388,30 @@ def channels():
                 flash(f"حالة Webhook سليمة. الرابط الحالي: {extra}", 'info')
             else:
                 flash(f"فشل فحص Webhook: {info.get('description') or info.get('last_error_message') or 'خطأ غير معروف'}", 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'delete_webhook':
             ok, msg = _telegram_delete_webhook(settings)
             flash(('تم إلغاء Webhook بنجاح' if ok else f'فشل إلغاء Webhook: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'telegram_test':
             ok, msg = send_telegram_message(settings, 'اختبار Telegram', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
             flash(('تم إرسال اختبار Telegram بنجاح' if ok else f'فشل إرسال اختبار Telegram: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'telegram_menu':
             ok, msg = send_telegram_menu(settings)
             flash(('تم إرسال القائمة التفاعلية بنجاح' if ok else f'فشل إرسال القائمة التفاعلية: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         if action == 'sms_test':
             ok, msg = send_sms_message(settings, 'اختبار SMS', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
             flash(('تم إرسال اختبار SMS بنجاح' if ok else f'فشل إرسال اختبار SMS: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+            return redirect(url_for('main.channels', lang=lang))
 
         flash('الإجراء المطلوب غير معروف', 'warning')
-        return redirect(url_for('main.channels', lang=request.args.get('lang') or request.form.get('lang')))
+        return redirect(url_for('main.channels', lang=lang))
 
     latest = Reading.query.order_by(Reading.created_at.desc()).first()
     settings = load_settings()

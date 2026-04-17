@@ -8,7 +8,7 @@
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
         <div>
           <h1>ربط Telegram و SMS</h1>
-          <p class="mb-0">صفحة مستقلة لإعدادات الربط واختبار الاتصال، بعيدًا عن مركز الإشعارات.</p>
+          <p class="mb-0">كل قناة الآن مستقلة تمامًا: حفظ مستقل، اختبار مستقل، وبدون لمس أي إعدادات أخرى.</p>
         </div>
       </div>
       <div class="topbar-actions d-flex gap-2 flex-wrap">
@@ -24,16 +24,18 @@
       {% endif %}
     {% endwith %}
 
-    <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
-      <input type="hidden" name="lang" value="{{ ui_lang }}">
-      <section class="panel-card mt-3">
-        <div class="section-head">
-          <div>
-            <h3>Telegram</h3>
-            <p class="section-subtitle">اضبط Bot Token وChat ID وAPI URL ثم استخدم الأزرار الجاهزة للتفعيل والفحص والإرسال.</p>
-          </div>
-          <div class="stats-pill">قناة رئيسية</div>
+    <section class="panel-card mt-3">
+      <div class="section-head">
+        <div>
+          <h3>Telegram</h3>
+          <p class="section-subtitle">Bot Token و Chat ID و API URL و Webhook في قسم مستقل بالكامل.</p>
         </div>
+        <div class="stats-pill">مستقل</div>
+      </div>
+
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+        <input type="hidden" name="lang" value="{{ ui_lang }}">
+        <input type="hidden" name="channel_section" value="telegram">
 
         <div class="form-grid-two mt-3">
           <div>
@@ -62,27 +64,31 @@
         <div class="notify-preview-card mt-3">
           <div class="preview-title">رابط Webhook داخل الموقع</div>
           <pre class="server-preview-box">{{ telegram_webhook_url or 'سيظهر هنا تلقائيًا إذا كان الرابط العام متاحًا.' }}</pre>
-          <div class="tiny-note">لا تحتاج لنسخ رابط setWebhook يدويًا بعد الآن. استخدم زر "تفعيل Webhook" أسفل الحقول.</div>
+          <div class="tiny-note">هذا القسم يحفظ بيانات Telegram فقط. لن يلمس SMS أو أزرار البوت.</div>
         </div>
 
         <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات Telegram</button>
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram">حفظ إعدادات Telegram</button>
           <button class="btn btn-solar" type="submit" name="channel_action" value="set_webhook">تفعيل Webhook</button>
           <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="check_webhook">فحص Webhook</button>
           <button class="btn btn-outline-danger" type="submit" name="channel_action" value="delete_webhook">إلغاء Webhook</button>
           <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="telegram_test">إرسال اختبار Telegram</button>
-          <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة التفاعلية</button>
         </div>
-      </section>
+      </form>
+    </section>
 
-      <section class="panel-card mt-4">
-        <div class="section-head">
-          <div>
-            <h3>محتوى أزرار Telegram</h3>
-            <p class="section-subtitle">فعّل أو عطّل الأزرار التي تريدها فقط، وعند إرسال القائمة التفاعلية سيتحدث شكلها تلقائيًا حسب اختيارك.</p>
-          </div>
-          <div class="stats-pill">قابل للتخصيص</div>
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <div>
+          <h3>أزرار Telegram التفاعلية</h3>
+          <p class="section-subtitle">هذا القسم مستقل عن بيانات الربط. يحفظ الأزرار فقط ويرسل القائمة التفاعلية فقط.</p>
         </div>
+        <div class="stats-pill">أزرار فقط</div>
+      </div>
+
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+        <input type="hidden" name="lang" value="{{ ui_lang }}">
+        <input type="hidden" name="channel_section" value="telegram_buttons">
 
         <div class="switch-grid mt-3">
           <label class="switch-pill"><input type="checkbox" name="tg_btn_status" {% if settings.tg_btn_status != 'false' %}checked{% endif %}><span>📊 الحالة</span></label>
@@ -99,24 +105,29 @@
         </div>
 
         <div class="notify-preview-card mt-3">
-          <div class="preview-title">كيف تعمل؟</div>
-          <div class="tiny-note">بعد حفظ الإعدادات، اضغط "إرسال القائمة التفاعلية" وستصل القوائم الجديدة بنفس ترتيب الأزرار المفعلة فقط.</div>
+          <div class="preview-title">مهم</div>
+          <div class="tiny-note">حفظ هذا القسم لن يغير Bot Token ولا Chat ID ولا SMS.</div>
         </div>
 
         <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات الأزرار</button>
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram_buttons">حفظ أزرار Telegram</button>
           <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة التفاعلية</button>
         </div>
-      </section>
+      </form>
+    </section>
 
-      <section class="panel-card mt-4">
-        <div class="section-head">
-          <div>
-            <h3>SMS</h3>
-            <p class="section-subtitle">اضبط بيانات API الخاصة بخدمة الرسائل، مع رقم/أرقام المستلمين، ثم جرّب الإرسال مباشرة من نفس الصفحة.</p>
-          </div>
-          <div class="stats-pill">قيد التشغيل</div>
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <div>
+          <h3>SMS</h3>
+          <p class="section-subtitle">قسم مستقل لحفظ بيانات بوابة الرسائل واختبارها بدون لمس Telegram.</p>
         </div>
+        <div class="stats-pill">مستقل</div>
+      </div>
+
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+        <input type="hidden" name="lang" value="{{ ui_lang }}">
+        <input type="hidden" name="channel_section" value="sms">
 
         <div class="form-grid-two mt-3">
           <div>
@@ -137,12 +148,17 @@
           </div>
         </div>
 
+        <div class="notify-preview-card mt-3">
+          <div class="preview-title">مهم</div>
+          <div class="tiny-note">هذا القسم يحفظ بيانات SMS فقط ولن يلمس Telegram ولا أزرار البوت.</div>
+        </div>
+
         <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_channels">حفظ إعدادات SMS</button>
+          <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_sms">حفظ إعدادات SMS</button>
           <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="sms_test">إرسال اختبار SMS</button>
         </div>
-      </section>
-    </form>
+      </form>
+    </section>
   </main>
 </div>
 

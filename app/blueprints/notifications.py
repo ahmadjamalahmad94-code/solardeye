@@ -963,28 +963,47 @@ def _is_within_schedule_window(now_local, start_token, end_token, weather=None):
 
 def _schedule_matches(prefix, settings, now_local, weather=None):
     mode = (settings.get(f'{prefix}_schedule_mode', 'manual') or 'manual').strip().lower()
-    if mode == 'manual':
-        return False
-
-    if not _is_within_schedule_window(
-        now_local,
-        settings.get(f'{prefix}_time_start', ''),
-        settings.get(f'{prefix}_time_end', ''),
-        weather,
-    ):
-        return False
-
-    last_sent = _parse_iso_utc(settings.get(f'{prefix}_last_sent_at', ''))
+    start_token = settings.get(f'{prefix}_time_start', '')
+    end_token = settings.get(f'{prefix}_time_end', '')
+    last_sent_raw = settings.get(f'{prefix}_last_sent_at', '')
+    last_sent = _parse_iso_utc(last_sent_raw)
     now_utc = datetime.now(UTC)
+
+    current_app.logger.info(
+        'schedule check: prefix=%s mode=%s enabled=%s now_local=%s start=%s end=%s last_sent=%s',
+        prefix,
+        mode,
+        settings.get(f'{prefix}_enabled', ''),
+        now_local.isoformat(),
+        start_token or '-',
+        end_token or '-',
+        last_sent_raw or '-',
+    )
+
+    if mode == 'manual':
+        current_app.logger.info('schedule skip: prefix=%s reason=manual_mode', prefix)
+        return False
+
+    within_window = _is_within_schedule_window(now_local, start_token, end_token, weather)
+    if not within_window:
+        current_app.logger.info('schedule skip: prefix=%s reason=outside_window current=%s start=%s end=%s', prefix, now_local.strftime('%H:%M'), start_token or '-', end_token or '-')
+        return False
 
     if mode == 'interval':
         interval_minutes = _schedule_interval_minutes(
             settings.get(f'{prefix}_interval_value', '1'),
             settings.get(f'{prefix}_interval_unit', 'hours'),
         )
-        if last_sent and (now_utc - last_sent).total_seconds() < interval_minutes * 60:
-            return False
-        return True
+        elapsed_seconds = (now_utc - last_sent).total_seconds() if last_sent else None
+        due = (last_sent is None) or (elapsed_seconds >= interval_minutes * 60)
+        current_app.logger.info(
+            'schedule interval: prefix=%s interval_minutes=%s elapsed_seconds=%s due=%s',
+            prefix,
+            interval_minutes,
+            elapsed_seconds if elapsed_seconds is not None else '-',
+            due,
+        )
+        return due
 
     if mode in ('specific', 'specific_hours'):
         allowed = []
@@ -994,22 +1013,29 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
                 allowed.append(item)
         current_hm = now_local.strftime('%H:%M')
         if current_hm not in allowed:
+            current_app.logger.info('schedule skip: prefix=%s reason=specific_hour_not_matched current=%s allowed=%s', prefix, current_hm, ','.join(allowed) or '-')
             return False
-        if last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M'):
-            return False
-        return True
+        same_minute = bool(last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M'))
+        current_app.logger.info('schedule specific: prefix=%s current=%s same_minute=%s', prefix, current_hm, same_minute)
+        return not same_minute
 
     if mode == 'threshold':
-        # هذا النمط يعتمد غالبًا على process_notifications للأحداث الحقيقية
-        # لكن نسمح برسالة دورية احتياطية كل فترة لو تم تحديد interval
         interval_minutes = _schedule_interval_minutes(
             settings.get(f'{prefix}_interval_value', '60'),
             settings.get(f'{prefix}_interval_unit', 'hours'),
         )
-        if last_sent and (now_utc - last_sent).total_seconds() < interval_minutes * 60:
-            return False
-        return True
+        elapsed_seconds = (now_utc - last_sent).total_seconds() if last_sent else None
+        due = (last_sent is None) or (elapsed_seconds >= interval_minutes * 60)
+        current_app.logger.info(
+            'schedule threshold: prefix=%s interval_minutes=%s elapsed_seconds=%s due=%s',
+            prefix,
+            interval_minutes,
+            elapsed_seconds if elapsed_seconds is not None else '-',
+            due,
+        )
+        return due
 
+    current_app.logger.info('schedule skip: prefix=%s reason=unknown_mode mode=%s', prefix, mode)
     return False
 
 
@@ -1045,21 +1071,36 @@ def run_advanced_notification_scheduler():
         return
 
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
-    current_app.logger.info('advanced scheduler tick at %s', now_local.isoformat())
+    is_day = _weather_day_window(now_local, weather, start_hour=9)
+    current_app.logger.info('advanced scheduler tick at %s is_day=%s weather_available=%s', now_local.isoformat(), is_day, bool(weather))
 
     # 1) التحديث الدوري النهاري
-    if str(settings.get('periodic_day_enabled', 'true')).lower() == 'true':
-        is_day = _weather_day_window(now_local, weather, start_hour=9)
-        if is_day and _schedule_matches('periodic_day', settings, now_local, weather):
+    periodic_day_enabled = str(settings.get('periodic_day_enabled', 'true')).lower() == 'true'
+    current_app.logger.info('periodic_day state: enabled=%s channel=%s mode=%s', periodic_day_enabled, settings.get('periodic_day_channel', 'telegram'), settings.get('periodic_day_schedule_mode', 'manual'))
+    if periodic_day_enabled:
+        due_day = is_day and _schedule_matches('periodic_day', settings, now_local, weather)
+        current_app.logger.info('periodic_day decision: is_day=%s due=%s', is_day, due_day)
+        if due_day:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
             _send_scheduled_notification('periodic_day', title, message, settings.get('periodic_day_channel', 'telegram'), 'info')
+        else:
+            current_app.logger.info('periodic_day skipped after checks')
+    else:
+        current_app.logger.info('periodic_day skipped: disabled')
 
     # 2) التحديث الدوري الليلي
-    if str(settings.get('periodic_night_enabled', 'true')).lower() == 'true':
-        is_day = _weather_day_window(now_local, weather, start_hour=9)
-        if (not is_day) and _schedule_matches('periodic_night', settings, now_local, weather):
+    periodic_night_enabled = str(settings.get('periodic_night_enabled', 'true')).lower() == 'true'
+    current_app.logger.info('periodic_night state: enabled=%s channel=%s mode=%s', periodic_night_enabled, settings.get('periodic_night_channel', 'telegram'), settings.get('periodic_night_schedule_mode', 'manual'))
+    if periodic_night_enabled:
+        due_night = (not is_day) and _schedule_matches('periodic_night', settings, now_local, weather)
+        current_app.logger.info('periodic_night decision: is_day=%s due=%s', is_day, due_night)
+        if due_night:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
             _send_scheduled_notification('periodic_night', title, message, settings.get('periodic_night_channel', 'telegram'), 'info')
+        else:
+            current_app.logger.info('periodic_night skipped after checks')
+    else:
+        current_app.logger.info('periodic_night skipped: disabled')
 
     # 3) تحليل ما قبل الغروب
     if str(settings.get('pre_sunset_enabled', 'false')).lower() == 'true':
