@@ -1403,10 +1403,14 @@ def channels():
 def notifications_settings():
     settings = load_settings()
     if request.method == 'POST':
-        save_notification_settings_from_form(request.form)
+        section = (request.args.get('section') or request.form.get('settings_section') or '').strip().lower()
+        save_notification_settings_from_form(request.form, section=section)
+        success_message = 'تم حفظ إعدادات الإشعارات بنجاح' if not section else 'تم حفظ إعدادات هذا القسم بنجاح'
         if _is_ajax_request():
-            return _json_response(True, 'تم حفظ إعدادات الإشعارات بنجاح')
-        flash('تم حفظ إعدادات الإشعارات بنجاح', 'success')
+            return _json_response(True, success_message, saved_section=section or 'all')
+        flash(success_message, 'success')
+        if section:
+            return redirect(url_for('main.notifications_settings', tab=section))
         return redirect(url_for('main.notifications_settings'))
     rules = load_notification_rules(settings)
     recent_notifications = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(30).all()

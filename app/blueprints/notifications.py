@@ -50,46 +50,122 @@ def load_notification_rules(settings: dict | None = None) -> dict:
     return rules
 
 
-def save_notification_settings_from_form(form):
-    text_fields = [
-        'telegram_bot_token', 'telegram_chat_id', 'telegram_api_url',
-        'sms_api_url', 'sms_api_key', 'sms_sender', 'sms_recipients',
-        'daytime_solar_min_w', 'weather_cloud_threshold', 'battery_reserve_percent',
-        'periodic_status_interval_minutes', 'periodic_status_channel',
-        'weather_daily_summary_channel', 'weather_change_alerts_channel',
-        'pre_sunset_interval_minutes', 'pre_sunset_channel',
-        'night_max_load_w',
-        'periodic_day_interval_value', 'periodic_day_interval_unit', 'periodic_day_schedule_mode', 'periodic_day_specific_hours', 'periodic_day_time_start', 'periodic_day_time_end', 'periodic_day_channel',
-        'periodic_night_interval_value', 'periodic_night_interval_unit', 'periodic_night_schedule_mode', 'periodic_night_specific_hours', 'periodic_night_time_start', 'periodic_night_time_end', 'periodic_night_channel',
-        'pre_sunset_schedule_mode', 'pre_sunset_specific_hours', 'pre_sunset_time_start', 'pre_sunset_time_end',
-        'night_discharge_schedule_mode', 'night_discharge_interval_value', 'night_discharge_interval_unit', 'night_discharge_time_start', 'night_discharge_time_end', 'night_discharge_channel', 'night_discharge_percent_step',
-        'load_alert_schedule_mode', 'load_alert_interval_value', 'load_alert_interval_unit', 'load_alert_specific_hours', 'load_alert_time_start', 'load_alert_time_end', 'load_alert_channel', 'load_alert_max_items',
-        'weather_test_schedule_mode', 'weather_test_interval_value', 'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
-        'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit', 'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
-        'daily_report_time', 'daily_report_channel', 'charge_step_percent',
-    ]
-    for field in text_fields:
-        _upsert_setting(field, (form.get(field, '') or '').strip())
+NOTIFICATION_SECTION_FIELDS = {
+    'periodic_day': {
+        'text': [
+            'periodic_day_schedule_mode', 'periodic_day_interval_value', 'periodic_day_interval_unit',
+            'periodic_day_specific_hours', 'periodic_day_time_start', 'periodic_day_time_end', 'periodic_day_channel',
+        ],
+        'checkbox': [
+            'periodic_day_enabled', 'periodic_day_include_progress', 'periodic_day_include_summary',
+            'periodic_day_include_device', 'periodic_day_include_weather', 'periodic_day_include_loads',
+            'periodic_day_include_sunset',
+        ],
+    },
+    'periodic_night': {
+        'text': [
+            'periodic_night_schedule_mode', 'periodic_night_interval_value', 'periodic_night_interval_unit',
+            'periodic_night_specific_hours', 'periodic_night_time_start', 'periodic_night_time_end', 'periodic_night_channel',
+        ],
+        'checkbox': [
+            'periodic_night_enabled', 'periodic_night_include_progress', 'periodic_night_include_summary',
+            'periodic_night_include_device', 'periodic_night_include_loads', 'periodic_night_include_eta',
+        ],
+    },
+    'sunset': {
+        'text': [
+            'pre_sunset_schedule_mode', 'pre_sunset_interval_minutes', 'pre_sunset_channel',
+            'pre_sunset_specific_hours', 'pre_sunset_time_start', 'pre_sunset_time_end', 'charge_step_percent',
+        ],
+        'checkbox': [
+            'pre_sunset_enabled', 'pre_sunset_include_soc', 'pre_sunset_include_charge_power',
+            'pre_sunset_include_eta', 'pre_sunset_include_advice', 'pre_sunset_subtract_hour',
+            'pre_sunset_only_if_not_full',
+        ],
+    },
+    'discharge': {
+        'text': [
+            'night_discharge_schedule_mode', 'night_discharge_interval_value', 'night_discharge_interval_unit',
+            'night_discharge_time_start', 'night_discharge_time_end', 'night_discharge_channel',
+            'night_discharge_percent_step',
+        ],
+        'checkbox': [
+            'night_discharge_enabled', 'night_discharge_include_device', 'night_discharge_include_energy',
+        ],
+    },
+    'load': {
+        'text': [
+            'night_max_load_w', 'load_alert_schedule_mode', 'load_alert_interval_value', 'load_alert_interval_unit',
+            'load_alert_specific_hours', 'load_alert_time_start', 'load_alert_time_end', 'load_alert_channel',
+            'load_alert_max_items',
+        ],
+        'checkbox': [
+            'load_alert_enabled', 'load_alert_include_allowed', 'load_alert_include_blocked',
+        ],
+    },
+    'weather': {
+        'text': [
+            'weather_cloud_threshold', 'weather_test_schedule_mode', 'weather_test_interval_value',
+            'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
+        ],
+        'checkbox': [
+            'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
+        ],
+    },
+    'battery': {
+        'text': [
+            'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit',
+            'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
+        ],
+        'checkbox': [
+            'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset',
+            'battery_test_include_loads',
+        ],
+    },
+    'daily_report': {
+        'text': ['daily_report_time', 'daily_report_channel'],
+        'checkbox': ['daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device'],
+    },
+    'rules': {
+        'text': ['charge_step_percent', 'night_discharge_percent_step', 'day_deficit_channel'],
+        'checkbox': ['day_deficit_enabled'],
+        'special': 'rules',
+    },
+}
 
-    checkbox_fields = [
-        'notifications_enabled', 'weather_enabled', 'weather_daily_summary_enabled',
-        'weather_change_alerts_enabled', 'periodic_status_enabled',
-        'periodic_status_include_weather', 'pre_sunset_enabled',
-        'pre_sunset_subtract_hour', 'pre_sunset_only_if_not_full',
-        'periodic_day_enabled', 'periodic_day_include_progress', 'periodic_day_include_summary', 'periodic_day_include_device', 'periodic_day_include_weather', 'periodic_day_include_loads', 'periodic_day_include_sunset',
-        'periodic_night_enabled', 'periodic_night_include_progress', 'periodic_night_include_summary', 'periodic_night_include_device', 'periodic_night_include_loads', 'periodic_night_include_eta',
-        'pre_sunset_include_soc', 'pre_sunset_include_charge_power', 'pre_sunset_include_eta', 'pre_sunset_include_advice',
-        'night_discharge_enabled', 'night_discharge_include_device', 'night_discharge_include_energy',
-        'load_alert_enabled', 'load_alert_include_allowed', 'load_alert_include_blocked',
-        'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
-        'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset', 'battery_test_include_loads',
-        'daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device',
-        'tg_btn_status', 'tg_btn_loads', 'tg_btn_weather', 'tg_btn_clouds', 'tg_btn_battery_eta', 'tg_btn_surplus',
-        'tg_btn_decision', 'tg_btn_smart', 'tg_btn_sunset', 'tg_btn_night_risk', 'tg_btn_last_sync',
-    ]
-    for key in checkbox_fields:
-        _upsert_setting(key, 'true' if form.get(key) == 'on' else 'false')
+ALL_NOTIFICATION_TEXT_FIELDS = [
+    'daytime_solar_min_w', 'weather_cloud_threshold', 'battery_reserve_percent',
+    'periodic_status_interval_minutes', 'periodic_status_channel',
+    'weather_daily_summary_channel', 'weather_change_alerts_channel',
+    'pre_sunset_interval_minutes', 'pre_sunset_channel',
+    'night_max_load_w',
+    'periodic_day_interval_value', 'periodic_day_interval_unit', 'periodic_day_schedule_mode', 'periodic_day_specific_hours', 'periodic_day_time_start', 'periodic_day_time_end', 'periodic_day_channel',
+    'periodic_night_interval_value', 'periodic_night_interval_unit', 'periodic_night_schedule_mode', 'periodic_night_specific_hours', 'periodic_night_time_start', 'periodic_night_time_end', 'periodic_night_channel',
+    'pre_sunset_schedule_mode', 'pre_sunset_specific_hours', 'pre_sunset_time_start', 'pre_sunset_time_end',
+    'night_discharge_schedule_mode', 'night_discharge_interval_value', 'night_discharge_interval_unit', 'night_discharge_time_start', 'night_discharge_time_end', 'night_discharge_channel', 'night_discharge_percent_step',
+    'load_alert_schedule_mode', 'load_alert_interval_value', 'load_alert_interval_unit', 'load_alert_specific_hours', 'load_alert_time_start', 'load_alert_time_end', 'load_alert_channel', 'load_alert_max_items',
+    'weather_test_schedule_mode', 'weather_test_interval_value', 'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
+    'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit', 'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
+    'daily_report_time', 'daily_report_channel', 'charge_step_percent',
+]
 
+ALL_NOTIFICATION_CHECKBOX_FIELDS = [
+    'notifications_enabled', 'weather_enabled', 'weather_daily_summary_enabled',
+    'weather_change_alerts_enabled', 'periodic_status_enabled',
+    'periodic_status_include_weather', 'pre_sunset_enabled',
+    'pre_sunset_subtract_hour', 'pre_sunset_only_if_not_full',
+    'periodic_day_enabled', 'periodic_day_include_progress', 'periodic_day_include_summary', 'periodic_day_include_device', 'periodic_day_include_weather', 'periodic_day_include_loads', 'periodic_day_include_sunset',
+    'periodic_night_enabled', 'periodic_night_include_progress', 'periodic_night_include_summary', 'periodic_night_include_device', 'periodic_night_include_loads', 'periodic_night_include_eta',
+    'pre_sunset_include_soc', 'pre_sunset_include_charge_power', 'pre_sunset_include_eta', 'pre_sunset_include_advice',
+    'night_discharge_enabled', 'night_discharge_include_device', 'night_discharge_include_energy',
+    'load_alert_enabled', 'load_alert_include_allowed', 'load_alert_include_blocked',
+    'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
+    'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset', 'battery_test_include_loads',
+    'daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device',
+]
+
+
+def _save_notification_rules_from_form(form):
     rules: dict = {'charge': {}, 'discharge': {}, 'day_deficit': {}, 'night_thresholds': {}}
     charge_step = max(int(safe_float(form.get('charge_step_percent'), 10) or 10), 1)
     discharge_step = max(int(safe_float(form.get('night_discharge_percent_step'), 5) or 5), 1)
@@ -104,6 +180,27 @@ def save_notification_settings_from_form(form):
     for level in [300, 400, 500]:
         rules['night_thresholds'][str(level)] = form.get(f'night_{level}', 'none')
     _upsert_setting('notification_rules_json', json.dumps(rules, ensure_ascii=False))
+
+
+def save_notification_settings_from_form(form, section: str | None = None):
+    section = (section or '').strip().lower()
+    if section and section in NOTIFICATION_SECTION_FIELDS:
+        config = NOTIFICATION_SECTION_FIELDS[section]
+        text_fields = config.get('text', [])
+        checkbox_fields = config.get('checkbox', [])
+    else:
+        text_fields = ALL_NOTIFICATION_TEXT_FIELDS
+        checkbox_fields = ALL_NOTIFICATION_CHECKBOX_FIELDS
+
+    for field in text_fields:
+        _upsert_setting(field, (form.get(field, '') or '').strip())
+
+    for key in checkbox_fields:
+        _upsert_setting(key, 'true' if form.get(key) == 'on' else 'false')
+
+    if (section == 'rules') or (not section):
+        _save_notification_rules_from_form(form)
+
     db.session.commit()
 
 
