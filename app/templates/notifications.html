@@ -24,89 +24,33 @@
       {% endif %}
     {% endwith %}
 
-    <section class="panel-card mt-3">
-      <div class="section-head">
+    <section class="panel-card mt-3 notify-summary-card">
+      <div class="notify-card-head">
         <div>
-          <h3>ربط القنوات</h3>
-          <p class="section-subtitle">كل قسم هنا مستقل تمامًا: Telegram، أزرار Telegram، وSMS.</p>
+          <h4>الربط والقنوات</h4>
+          <div class="message-preview">بيانات Telegram وSMS والأزرار التفاعلية أصبحت في صفحة مستقلة واحدة حتى لا تتكرر ولا تتداخل مع الإشعارات.</div>
         </div>
-        <div class="stats-pill">مستقل</div>
+        <a class="btn btn-solar" href="{{ url_for('main.channels', lang=ui_lang) }}">فتح قسم الربط الكامل</a>
       </div>
-
-      <div class="channel-grid mt-3">
-        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
-          <input type="hidden" name="lang" value="{{ ui_lang }}">
-          <input type="hidden" name="channel_section" value="telegram">
+      <div class="form-grid-two mt-3">
+        <div class="notify-config-card">
           <div class="preview-title">Telegram</div>
-          <div class="form-stack mt-2">
-            <div>
-              <label class="form-label">Bot Token</label>
-              <input class="form-control" type="text" name="telegram_bot_token" value="{{ settings.telegram_bot_token or '' }}">
-            </div>
-            <div>
-              <label class="form-label">Chat ID</label>
-              <input class="form-control" type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}">
-            </div>
-            <div>
-              <label class="form-label">Telegram API URL</label>
-              <input class="form-control" type="text" name="telegram_api_url" value="{{ settings.telegram_api_url or 'https://api.telegram.org' }}">
-            </div>
+          <div class="tiny-note">التوكن وChat ID والـ Webhook محفوظة في قسم مستقل.</div>
+          <ul class="smart-list mt-3">
+            <li>الحالة: <strong>{{ 'جاهز' if settings.telegram_bot_token and settings.telegram_chat_id else 'ينقصه ربط' }}</strong></li>
+            <li>Webhook: <strong>{{ webhook_info.url or 'غير مفعل' }}</strong></li>
+            <li>الأزرار التفاعلية: <strong>منفصلة في صفحة الربط</strong></li>
+          </ul>
+        </div>
+        <div class="notify-preview-card">
+          <div class="preview-title">شكل العمل الحالي</div>
+          <div class="preview-message" style="min-height:unset">
+            <div class="preview-line preview-title-line">مركز الإشعارات</div>
+            <div class="preview-line">🔗 الربط في الأعلى لكن في صفحة مستقلة</div>
+            <div class="preview-line">🎨 بطاقات الإشعارات بنفس الروح القديمة ومعاينات أوضح</div>
+            <div class="preview-line">📲 كل رسالة Telegram — حتى التلقائية — يظهر تحتها أزرار التفاعل</div>
           </div>
-          <div class="tiny-note mt-2">Webhook: <strong>{{ webhook_info.url or 'غير مفعل' }}</strong></div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram">حفظ Telegram</button>
-            <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="telegram_test">اختبار Telegram</button>
-          </div>
-        </form>
-
-        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
-          <input type="hidden" name="lang" value="{{ ui_lang }}">
-          <input type="hidden" name="channel_section" value="telegram_buttons">
-          <div class="preview-title">قائمة Telegram التفاعلية</div>
-          <div class="switch-grid mt-2 small-switches">
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_status" {% if settings.tg_btn_status != 'false' %}checked{% endif %}><span>الحالة</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_loads" {% if settings.tg_btn_loads != 'false' %}checked{% endif %}><span>الأحمال</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_weather" {% if settings.tg_btn_weather != 'false' %}checked{% endif %}><span>الطقس</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_surplus" {% if settings.tg_btn_surplus != 'false' %}checked{% endif %}><span>الفائض</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_decision" {% if settings.tg_btn_decision != 'false' %}checked{% endif %}><span>القرار</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_smart" {% if settings.tg_btn_smart != 'false' %}checked{% endif %}><span>النصيحة</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_sunset" {% if settings.tg_btn_sunset != 'false' %}checked{% endif %}><span>الغروب</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_night_risk" {% if settings.tg_btn_night_risk != 'false' %}checked{% endif %}><span>خطر الليلة</span></label>
-            <label class="switch-pill"><input type="checkbox" name="tg_btn_last_sync" {% if settings.tg_btn_last_sync != 'false' %}checked{% endif %}><span>آخر مزامنة</span></label>
-          </div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram_buttons">حفظ الأزرار</button>
-            <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة</button>
-          </div>
-        </form>
-
-        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
-          <input type="hidden" name="lang" value="{{ ui_lang }}">
-          <input type="hidden" name="channel_section" value="sms">
-          <div class="preview-title">SMS</div>
-          <div class="form-stack mt-2">
-            <div>
-              <label class="form-label">SMS API URL</label>
-              <input class="form-control" type="text" name="sms_api_url" value="{{ settings.sms_api_url or '' }}">
-            </div>
-            <div>
-              <label class="form-label">API Key</label>
-              <input class="form-control" type="text" name="sms_api_key" value="{{ settings.sms_api_key or '' }}">
-            </div>
-            <div>
-              <label class="form-label">Sender</label>
-              <input class="form-control" type="text" name="sms_sender" value="{{ settings.sms_sender or '' }}">
-            </div>
-            <div>
-              <label class="form-label">Recipients</label>
-              <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}">
-            </div>
-          </div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
-            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_sms">حفظ SMS</button>
-            <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="sms_test">اختبار SMS</button>
-          </div>
-        </form>
+        </div>
       </div>
     </section>
 
@@ -154,6 +98,7 @@
           </div>
           <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
             <button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button>
+            <button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button>
             <button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button>
           </div>
         </form>
@@ -180,7 +125,7 @@
             <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>الأحمال</span></label>
             <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاذ/الشحن</span></label>
           </div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
         </form>
       </section>
 
@@ -204,7 +149,7 @@
             <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_advice" {% if settings.pre_sunset_include_advice != 'false' %}checked{% endif %}><span>النصيحة</span></label>
             <label class="switch-pill"><input type="checkbox" name="pre_sunset_only_if_not_full" {% if settings.pre_sunset_only_if_not_full == 'true' %}checked{% endif %}><span>فقط إذا لم تمتلئ البطارية</span></label>
           </div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
         </form>
       </section>
 
@@ -223,7 +168,7 @@
             <label class="switch-pill"><input type="checkbox" name="load_alert_include_allowed" {% if settings.load_alert_include_allowed != 'false' %}checked{% endif %}><span>المسموح</span></label>
             <label class="switch-pill"><input type="checkbox" name="load_alert_include_blocked" {% if settings.load_alert_include_blocked != 'false' %}checked{% endif %}><span>الممنوع</span></label>
           </div>
-          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
         </form>
       </section>
 
@@ -238,7 +183,7 @@
               <div><label class="form-label">كل كم دقيقة</label><input class="form-control" type="number" min="1" name="battery_test_interval_value" value="{{ settings.battery_test_interval_value or '60' }}"></div>
             </div>
             <label class="switch-pill mt-2"><input type="checkbox" name="battery_test_enabled" {% if settings.battery_test_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
-            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
           </form>
 
           <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
@@ -249,7 +194,7 @@
               <div><label class="form-label">نسبة الغيوم الحرجة %</label><input class="form-control" type="number" min="0" max="100" name="weather_cloud_threshold" value="{{ settings.weather_cloud_threshold or '60' }}"></div>
             </div>
             <label class="switch-pill mt-2"><input type="checkbox" name="weather_test_enabled" {% if settings.weather_test_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
-            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
           </form>
 
           <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
@@ -260,18 +205,40 @@
               <div><label class="form-label">وقت التقرير</label><input class="form-control" type="time" name="daily_report_time" value="{{ settings.daily_report_time or '07:00' }}"></div>
             </div>
             <label class="switch-pill mt-2"><input type="checkbox" name="daily_report_enabled" {% if settings.daily_report_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
-            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='preview', lang=ui_lang) }}" formmethod="post">معاينة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
           </form>
         </div>
       </section>
     </div>
 
     {% if notification_preview %}
-    <section class="panel-card mt-4">
-      <div class="section-head"><div><h3>آخر معاينة</h3></div><div class="stats-pill">{{ notification_preview.channel or 'telegram' }}</div></div>
+    <section class="panel-card mt-4 live-preview-shell">
+      <div class="notify-card-head">
+        <div>
+          <h4>آخر معاينة</h4>
+          <div class="message-preview">هذه المعاينة تساعدك ترجع للشكل القديم الجميل: عنوان واضح، رسالة مريحة، ومساحة نظيفة قبل الإرسال.</div>
+        </div>
+        <div class="stats-pill">{{ notification_preview.channel or 'telegram' }}</div>
+      </div>
       <div class="notify-preview-card mt-3">
         <div class="preview-title">{{ notification_preview.title }}</div>
-        <pre class="server-preview-box">{{ notification_preview.message }}</pre>
+        <div class="preview-message telegram-demo-message">
+          <div class="preview-line preview-title-line">{{ notification_preview.title }}</div>
+          {% for line in (notification_preview.message or '').split('\n') %}
+            {% if line.strip() %}
+            <div class="preview-line">{{ line }}</div>
+            {% else %}
+            <div class="preview-line spacer"></div>
+            {% endif %}
+          {% endfor %}
+          <div class="telegram-demo-actions">
+            <span>📊 الحالة</span>
+            <span>⚡ الأحمال</span>
+            <span>🌤️ الطقس</span>
+            <span>🎯 القرار الآن</span>
+            <span>📋 القائمة</span>
+          </div>
+        </div>
       </div>
     </section>
     {% endif %}
@@ -303,29 +270,56 @@
 </div>
 
 <style>
-.notifications-page-clean .channel-grid,
 .notifications-page-clean .notify-cards-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-  gap:16px;
+  grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+  gap:18px;
 }
-.notifications-page-clean .notify-block,
-.notifications-page-clean .notify-section-card{height:100%;}
-.notifications-page-clean .compact-block{padding:16px;border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(255,255,255,.02);}
+.notifications-page-clean .notify-section-card{height:100%; position:relative; overflow:hidden;}
+.notifications-page-clean .notify-section-card::before,
+.notifications-page-clean .notify-summary-card::before,
+.notifications-page-clean .live-preview-shell::before{
+  content:'';
+  position:absolute;
+  inset:0 auto auto 0;
+  width:100%;
+  height:4px;
+  background:linear-gradient(90deg,#f59e0b,#22c55e,#3b82f6);
+}
+.notifications-page-clean .notify-summary-card,
+.notifications-page-clean .live-preview-shell{
+  position:relative;
+  overflow:hidden;
+}
 .notifications-page-clean .form-stack{display:grid;gap:10px;}
 .notifications-page-clean .full-span{grid-column:1/-1;}
 .notifications-page-clean .big-switch{display:flex;width:fit-content;}
-.notifications-page-clean .small-switches{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
 .notifications-page-clean .stacked-mini-sections{display:grid;gap:14px;}
-.notifications-page-clean .mini-section-form{padding:14px;border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.02);}
-.notifications-page-clean .mini-title{font-weight:700;margin-bottom:6px;}
-.notifications-page-clean .tiny-note{font-size:.82rem;color:#8f9db2;line-height:1.6;}
-.notifications-page-clean .server-preview-box{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.18);border-radius:14px;padding:14px;}
-.notifications-page-clean .stats-pill.off{background:rgba(220,53,69,.16);color:#ffb8c0;}
-.notifications-page-clean .stats-pill.ok{background:rgba(25,135,84,.16);color:#b7f4cd;}
+.notifications-page-clean .mini-section-form,
+.notifications-page-clean .notify-config-card,
+.notifications-page-clean .notify-preview-card{
+  padding:18px;
+  border:1px solid var(--border);
+  border-radius:24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(247,250,255,.95));
+  box-shadow:var(--shadow);
+}
+.notifications-page-clean .mini-title{font-weight:800;margin-bottom:8px;color:#0f172a;}
+.notifications-page-clean .tiny-note{font-size:.84rem;color:#64748b;line-height:1.7;}
+.notifications-page-clean .server-preview-box{white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border-radius:18px;padding:16px;min-height:160px;}
+.notifications-page-clean .stats-pill.off{background:rgba(220,53,69,.16);color:#b91c1c;}
+.notifications-page-clean .stats-pill.ok{background:rgba(25,135,84,.16);color:#166534;}
+.notifications-page-clean .message-preview{color:#64748b;line-height:1.8;}
+.notifications-page-clean .telegram-demo-message{min-height:unset;}
+.notifications-page-clean .telegram-demo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px dashed rgba(148,163,184,.35);}
+.notifications-page-clean .telegram-demo-actions span{background:#e2e8f0;color:#0f172a;padding:8px 12px;border-radius:999px;font-weight:800;font-size:.84rem;}
+.notifications-page-clean .test-actions .btn{min-width:110px;}
+.notifications-page-clean .section-subtitle{color:#64748b;line-height:1.75;}
+.notifications-page-clean .notify-card-head h4{margin:0;font-weight:900;}
+.notifications-page-clean .notify-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 @media (max-width: 768px){
-  .notifications-page-clean .channel-grid,
   .notifications-page-clean .notify-cards-grid{grid-template-columns:1fr;}
+  .notifications-page-clean .notify-card-head{align-items:flex-start;flex-direction:column;}
 }
 </style>
 {% endblock %}

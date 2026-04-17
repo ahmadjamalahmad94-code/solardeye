@@ -297,6 +297,7 @@ def send_telegram_message(settings: dict, title: str, message: str):
         'chat_id': chat_id,
         'text': (clean_title + "\n\n" + clean_message).strip(),
         'disable_web_page_preview': True,
+        'reply_markup': _telegram_menu_markup(settings),
     }
     try:
         r = requests.post(url, json=payload, timeout=20)
