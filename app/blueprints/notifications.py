@@ -11,7 +11,7 @@ from ..models import NotificationLog, Reading, Setting, UserLoad
 from ..services.utils import format_local_datetime, human_duration_hours, safe_float, safe_power_w, utc_to_local
 from .helpers import (
     battery_percent_bar, build_battery_insights, build_pre_sunset_prediction,
-    build_system_state, format_energy, format_power, get_runtime_battery_settings,
+    build_system_state, compute_actual_solar_surplus, format_energy, format_power, get_runtime_battery_settings,
     load_settings, _to_12h_label, _upsert_setting,
 )
 from ..services.weather_service import fetch_weather
@@ -149,6 +149,17 @@ ALL_NOTIFICATION_TEXT_FIELDS = [
     'daily_report_time', 'daily_report_channel', 'charge_step_percent',
 ]
 
+SECTION_LAST_SENT_KEYS = {
+    'periodic_day': ['periodic_day_last_sent_at'],
+    'periodic_night': ['periodic_night_last_sent_at'],
+    'sunset': ['pre_sunset_last_sent_at'],
+    'discharge': ['night_discharge_last_sent_at'],
+    'load': ['load_alert_last_sent_at'],
+    'weather': ['weather_test_last_sent_at'],
+    'battery': ['battery_test_last_sent_at'],
+    'daily_report': ['daily_report_last_sent_at'],
+}
+
 ALL_NOTIFICATION_CHECKBOX_FIELDS = [
     'notifications_enabled', 'weather_enabled', 'weather_daily_summary_enabled',
     'weather_change_alerts_enabled', 'periodic_status_enabled',
@@ -200,6 +211,9 @@ def save_notification_settings_from_form(form, section: str | None = None):
 
     if (section == 'rules') or (not section):
         _save_notification_rules_from_form(form)
+
+    for key in SECTION_LAST_SENT_KEYS.get(section, []):
+        _upsert_setting(key, '')
 
     db.session.commit()
 
@@ -498,17 +512,30 @@ def _format_battery_eta(latest, settings=None):
     ])
 
 
-def _format_solar_surplus(latest):
+def _format_solar_surplus(latest, weather=None, settings=None):
     if not latest:
         return '☀️ لا توجد قراءة طاقة متاحة.'
+    settings = settings or load_settings()
+    surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     solar = max(float(latest.solar_power or 0), 0.0)
     home = max(float(latest.home_load or 0), 0.0)
-    surplus = solar - home
-    return "\n".join([
+    raw_surplus = float(surplus_data.get('raw_surplus_w', 0) or 0)
+    battery_need = float(surplus_data.get('battery_charge_need_w', 0) or 0)
+    actual_surplus = float(surplus_data.get('actual_surplus_w', 0) or 0)
+    is_day = bool(surplus_data.get('is_day'))
+    lines = [
         f"☀️ الإنتاج الآن: {format_power(solar)} واط",
         f"🏠 الحمل الحالي: {format_power(home)} واط",
-        f"⚡ الفائض الشمسي: {format_power(max(surplus,0))} واط" if surplus >= 0 else f"⚠️ العجز الحالي: {format_power(abs(surplus))} واط",
-    ])
+    ]
+    if is_day:
+        lines += [
+            f"⚡ الفائض الخام: {format_power(max(raw_surplus, 0))} واط" if raw_surplus >= 0 else f"⚠️ العجز الحالي: {format_power(abs(raw_surplus))} واط",
+            f"🔋 احتياج الشحن قبل الغروب: {format_power(max(battery_need, 0))} واط",
+            f"✅ الفائض الفعلي المتاح: {format_power(max(actual_surplus, 0))} واط",
+        ]
+    else:
+        lines.append('🌙 ليلًا: لا يوجد فائض شمسي، ويعتمد القرار على البطارية والحد الليلي.')
+    return "\n".join(lines)
 
 
 def _format_load_suggestions_telegram(latest, settings=None):
@@ -530,8 +557,11 @@ def _format_load_suggestions_telegram(latest, settings=None):
     soc = float(latest.battery_soc or 0)
     battery_power = float(latest.battery_power or 0)
     if is_day:
-        available = max(solar - home, 0.0)
-        mode = '☀️ نهارًا: الاقتراح حسب الفائض الشمسي'
+        surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=(settings or load_settings()))
+        available = max(float(surplus_data.get('actual_surplus_w', 0) or 0), 0.0)
+        raw_surplus = max(float(surplus_data.get('raw_surplus_w', 0) or 0), 0.0)
+        battery_need = max(float(surplus_data.get('battery_charge_need_w', 0) or 0), 0.0)
+        mode = f"☀️ نهارًا: الفائض الفعلي {int(round(available))}W (خام {int(round(raw_surplus))}W • للبطارية {int(round(battery_need))}W)"
     else:
         night_cap = safe_float((settings or load_settings()).get('night_max_load_w') or load_settings().get('night_max_allowed_w', '500'), 500)
         available = max(night_cap - home, 0.0)
@@ -642,7 +672,7 @@ def build_telegram_quick_reply(action: str, latest=None, weather=None, settings=
     if action == 'battery_eta':
         return _format_battery_eta(latest, settings=settings)
     if action == 'surplus':
-        return _format_solar_surplus(latest)
+        return _format_solar_surplus(latest, weather=weather, settings=settings)
     if action == 'sunset':
         return _format_pre_sunset_telegram(latest, weather=weather, settings=settings)
     if action == 'night_risk':
@@ -722,8 +752,11 @@ def _periodic_load_suggestion(latest, phase_override=None, settings=None):
     battery_soc = float(latest.battery_soc or 0)
     battery_power = float(latest.battery_power or 0)
     if is_day:
-        available = max(solar - home, 0.0)
-        prefix = '☀️ الأحمال نهارًا'
+        surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=(settings or load_settings()))
+        available = max(float(surplus_data.get('actual_surplus_w', 0) or 0), 0.0)
+        raw_surplus = max(float(surplus_data.get('raw_surplus_w', 0) or 0), 0.0)
+        battery_need = max(float(surplus_data.get('battery_charge_need_w', 0) or 0), 0.0)
+        prefix = f"☀️ الأحمال نهارًا (فعلي {int(round(available))}W من خام {int(round(raw_surplus))}W بعد خصم {int(round(battery_need))}W للبطارية)"
     else:
         night_cap = safe_float((settings or load_settings()).get('night_max_load_w') or load_settings().get('night_max_allowed_w', '500'), 500)
         available = max(night_cap - home, 0.0)
@@ -975,6 +1008,7 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
 def _send_scheduled_notification(prefix, title, message, channel, level='info'):
     settings = load_settings()
     now = datetime.now(UTC)
+    current_app.logger.info('scheduled notification send: %s via %s', prefix, channel or 'telegram')
     dispatch_notification(
         settings,
         f'{prefix}-{int(now.timestamp())}',
@@ -992,13 +1026,16 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
 def run_advanced_notification_scheduler():
     settings = load_settings()
     if str(settings.get('notifications_enabled', 'true')).lower() != 'true':
+        current_app.logger.info('advanced scheduler skipped: notifications disabled')
         return
 
     latest, weather = _get_weather_for_latest()
     if not latest:
+        current_app.logger.info('advanced scheduler skipped: no latest reading')
         return
 
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
+    current_app.logger.info('advanced scheduler tick at %s', now_local.isoformat())
 
     # 1) التحديث الدوري النهاري
     if str(settings.get('periodic_day_enabled', 'true')).lower() == 'true':

@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, request, session
 from apscheduler.schedulers.background import BackgroundScheduler
 from .config import Config
@@ -107,7 +108,7 @@ def _start_scheduler(app):
                 try:
                     getattr(mod, fn_name)()
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).exception('Scheduled job failed: %s', fn_path)
         return _inner
 
     sync_minutes = max(int(app.config.get('AUTO_SYNC_MINUTES', 5)), 1)
@@ -119,6 +120,7 @@ def _start_scheduler(app):
     scheduler.add_job(_job('app.blueprints.notifications.run_advanced_notification_scheduler'), 'interval', minutes=1, id='advanced_notifications_check', replace_existing=True, max_instances=1)
 
     scheduler.start()
+    logging.getLogger(__name__).info('Scheduler started with jobs: %s', [job.id for job in scheduler.get_jobs()])
     app._scheduler_started = True
     app.scheduler = scheduler
 
