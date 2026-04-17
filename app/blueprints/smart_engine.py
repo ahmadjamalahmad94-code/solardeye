@@ -139,65 +139,154 @@ def find_similar_snapshots(current_snapshot: SmartSnapshot | None, lookback_days
     return query.order_by(SmartSnapshot.created_at.desc()).limit(max(int(limit or 60), 1)).all()
 
 
-def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_days: int = 45) -> dict:
-    similar = find_similar_snapshots(current_snapshot, lookback_days=lookback_days)
-    if not current_snapshot:
+def _confidence_profile(matched_count: int) -> dict:
+    matched_count = int(matched_count or 0)
+    if matched_count <= 2:
         return {
-            'matched_count': 0,
-            'confidence_score': 0.0,
-            'confidence_label_ar': 'لا توجد بيانات',
-            'historical_hint_ar': '',
-            'predicted_next_hour_solar': None,
-            'predicted_next_hour_surplus': None,
-            'predicted_risk_level': 'unknown',
+            'confidence_score': 0.18 if matched_count else 0.08,
+            'confidence_band': 'low',
+            'confidence_label_ar': 'ثقة ضعيفة',
+            'confidence_message_ar': 'لا يعتمد',
+            'use_historical_for_decision': False,
         }
-    if not similar:
+    if matched_count <= 5:
         return {
-            'matched_count': 0,
-            'confidence_score': 0.12,
-            'confidence_label_ar': 'ثقة منخفضة',
-            'historical_hint_ar': 'لا توجد بعد حالات مشابهة كفاية في الأرشيف.',
-            'predicted_next_hour_solar': None,
-            'predicted_next_hour_surplus': None,
-            'predicted_risk_level': 'unknown',
+            'confidence_score': 0.56,
+            'confidence_band': 'medium',
+            'confidence_label_ar': 'ثقة متوسطة',
+            'confidence_message_ar': 'بحذر',
+            'use_historical_for_decision': True,
+        }
+    return {
+        'confidence_score': 0.82,
+        'confidence_band': 'high',
+        'confidence_label_ar': 'ثقة عالية',
+        'confidence_message_ar': 'يعتمد',
+        'use_historical_for_decision': True,
+    }
+
+
+def _scenario_from_history(current_snapshot: SmartSnapshot, avg_solar: float, avg_surplus: float, risk_code: str, matched_count: int) -> dict:
+    current_solar = _safe_float(getattr(current_snapshot, 'solar_power', 0), 0)
+    current_surplus = _safe_float(getattr(current_snapshot, 'actual_surplus_w', 0), 0)
+    solar_delta = round(avg_solar - current_solar, 1)
+    surplus_delta = round(avg_surplus - current_surplus, 1)
+
+    if matched_count <= 2:
+        return {
+            'scenario_title_ar': 'السيناريو القادم',
+            'scenario_summary_ar': 'الأرشيف ما زال قليلًا، لذلك نعرض القراءة الحالية فقط دون اعتماد تاريخي.',
+            'scenario_detail_ar': 'يلزم مزيد من الحالات المشابهة قبل اعتبار التوقع التاريخي مرجعًا.',
         }
 
+    if risk_code == 'high':
+        title = 'سيناريو هبوط قريب'
+        summary = 'خلال 30–60 دقيقة قد ينخفض الفائض عن الوضع الحالي.'
+    elif risk_code == 'medium':
+        title = 'سيناريو مراقبة'
+        summary = 'خلال الساعة القادمة قد يظهر تراجع جزئي ويستحسن عدم التوسع بالأحمال.'
+    else:
+        title = 'سيناريو مستقر'
+        summary = 'خلال الساعة القادمة يبدو السلوك قريبًا من الاستقرار مقارنة بالأرشيف.'
+
+    solar_phrase = 'أقل' if solar_delta < -80 else ('أعلى' if solar_delta > 80 else 'قريب من الحالي')
+    if solar_phrase == 'قريب من الحالي':
+        detail = f'الإنتاج المتوقع يقارب {avg_solar:.1f} واط، والفائض المتوقع يقارب {avg_surplus:.1f} واط.'
+    else:
+        detail = f'الإنتاج المتوقع {avg_solar:.1f} واط، وهو {solar_phrase} من القراءة الحالية، والفائض المتوقع {avg_surplus:.1f} واط.'
+
+    if surplus_delta < -150:
+        detail += ' يفضل عدم تشغيل حمل إضافي طويل الآن.'
+    elif surplus_delta > 200:
+        detail += ' قد تكون هناك مساحة محدودة لأحمال خفيفة إذا استمرت الظروف.'
+
+    return {
+        'scenario_title_ar': title,
+        'scenario_summary_ar': summary,
+        'scenario_detail_ar': detail,
+    }
+
+
+def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_days: int = 45) -> dict:
+    empty_result = {
+        'matched_count': 0,
+        'confidence_score': 0.0,
+        'confidence_band': 'low',
+        'confidence_label_ar': 'ثقة ضعيفة',
+        'confidence_message_ar': 'لا يعتمد',
+        'use_historical_for_decision': False,
+        'historical_hint_ar': '',
+        'predicted_next_hour_solar': None,
+        'predicted_next_hour_surplus': None,
+        'predicted_risk_level': 'unknown',
+        'predicted_risk_label_ar': 'غير معروف',
+        'scenario_title_ar': 'السيناريو القادم',
+        'scenario_summary_ar': 'لا توجد بيانات كافية بعد.',
+        'scenario_detail_ar': 'انتظر تكوّن الأرشيف الذكي عبر مزامَنات أكثر.',
+    }
+    if not current_snapshot:
+        return empty_result
+
+    similar = find_similar_snapshots(current_snapshot, lookback_days=lookback_days)
     matched_count = len(similar)
+    confidence = _confidence_profile(matched_count)
+
+    if not similar:
+        result = dict(empty_result)
+        result.update(confidence)
+        result.update({
+            'historical_hint_ar': '⚠️ البيانات غير كافية: لا توجد بعد حالات مشابهة في الأرشيف.',
+            'predicted_risk_level': 'insufficient',
+            'predicted_risk_label_ar': 'بيانات غير كافية',
+        })
+        return result
+
     avg_solar = round(sum(_safe_float(x.solar_power, 0) for x in similar) / matched_count, 1)
     avg_surplus = round(sum(_safe_float(x.actual_surplus_w, 0) for x in similar) / matched_count, 1)
-    drop_cases = sum(1 for x in similar if _safe_float(x.actual_surplus_w, 0) <= max(_safe_float(current_snapshot.actual_surplus_w, 0) - 150, 0))
+    current_surplus = _safe_float(getattr(current_snapshot, 'actual_surplus_w', 0), 0)
+
+    drop_cases = sum(1 for x in similar if _safe_float(x.actual_surplus_w, 0) <= max(current_surplus - 150, 0))
     drop_ratio = drop_cases / matched_count if matched_count else 0.0
 
-    if matched_count >= 7:
-        confidence = 0.82
-        confidence_label_ar = 'ثقة جيدة'
-    elif matched_count >= 3:
-        confidence = 0.58
-        confidence_label_ar = 'ثقة متوسطة'
+    if matched_count <= 2:
+        risk_code = 'insufficient'
+        risk_label = 'بيانات غير كافية'
+        if matched_count == 1:
+            hint = '⚠️ البيانات غير كافية (حالة واحدة فقط)، لذلك لا نعتمد هذا التوقع التاريخي بعد.'
+        else:
+            hint = '⚠️ البيانات غير كافية (حالَتان فقط)، لذلك يبقى القرار الحالي هو المرجع الأساسي.'
     else:
-        confidence = 0.28
-        confidence_label_ar = 'ثقة منخفضة'
+        if drop_ratio >= 0.6:
+            risk_code = 'high'
+            risk_label = 'مرتفعة'
+            hint = f'بناءً على {matched_count} حالات مشابهة، يوجد نمط متكرر يشير إلى احتمال مرتفع لانخفاض الفائض قريبًا.'
+        elif drop_ratio >= 0.35:
+            risk_code = 'medium'
+            risk_label = 'متوسطة'
+            hint = f'بناءً على {matched_count} حالات مشابهة، يوجد احتمال متوسط لتراجع الفائض خلال الساعة القادمة.'
+        else:
+            risk_code = 'low'
+            risk_label = 'منخفضة'
+            hint = f'بناءً على {matched_count} حالات مشابهة، السلوك التاريخي يميل إلى الاستقرار خلال الساعة القادمة.'
 
-    if drop_ratio >= 0.6:
-        risk = 'high'
-        hint = f'بناءً على {matched_count} حالات مشابهة، هناك احتمال مرتفع لانخفاض الفائض خلال الفترة القادمة.'
-    elif drop_ratio >= 0.35:
-        risk = 'medium'
-        hint = f'بناءً على {matched_count} حالات مشابهة، الإنتاج قد يتراجع خلال الساعة القادمة.'
-    else:
-        risk = 'low'
-        hint = f'بناءً على {matched_count} حالات مشابهة، الوضع يميل إلى الاستقرار القريب.'
+    scenario = _scenario_from_history(current_snapshot, avg_solar, avg_surplus, risk_code, matched_count)
 
     return {
         'matched_count': matched_count,
-        'confidence_score': round(confidence, 2),
-        'confidence_label_ar': confidence_label_ar,
+        'confidence_score': round(confidence['confidence_score'], 2),
+        'confidence_band': confidence['confidence_band'],
+        'confidence_label_ar': confidence['confidence_label_ar'],
+        'confidence_message_ar': confidence['confidence_message_ar'],
+        'use_historical_for_decision': confidence['use_historical_for_decision'],
         'historical_hint_ar': hint,
         'predicted_next_hour_solar': avg_solar,
         'predicted_next_hour_surplus': avg_surplus,
-        'predicted_risk_level': risk,
+        'predicted_risk_level': risk_code,
+        'predicted_risk_label_ar': risk_label,
+        'scenario_title_ar': scenario['scenario_title_ar'],
+        'scenario_summary_ar': scenario['scenario_summary_ar'],
+        'scenario_detail_ar': scenario['scenario_detail_ar'],
     }
-
 
 def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, analysis: dict):
     if not snapshot:
@@ -218,104 +307,6 @@ def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, 
     return row
 
 
-
-
-def get_latest_historical_overview(latest, weather=None, settings=None, context='periodic_day'):
-    if not latest:
-        return {
-            'status_label': '⚪ لا توجد بيانات',
-            'smart_warning': 'لا توجد قراءة حديثة كافية للتحليل.',
-            'smart_recommendation': 'انتظر أول مزامنة.',
-            'decision_now': 'لا توجد توصية حالياً.',
-            'historical_hint': 'لم يبدأ الأرشيف الذكي بعد.',
-            'confidence_label': 'لا توجد بيانات',
-            'matched_count': 0,
-            'predicted_next_hour_solar': None,
-            'predicted_next_hour_surplus': None,
-            'predicted_risk_level': 'unknown',
-            'archive_ready': False,
-        }
-
-    settings = settings or {}
-    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
-    battery = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
-    soc = float(latest.battery_soc or 0)
-    home = float(latest.home_load or 0)
-
-    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else {}
-    minutes_to_sunset = prediction.get('minutes_to_sunset')
-
-    if str(context).lower() == 'periodic_night':
-        if soc <= max(float(battery_reserve_percent), 20):
-            advice = {
-                'status_label': '🔴 حرج',
-                'smart_warning': 'نسبة البطارية منخفضة مقارنة بهامش الأمان الليلي.',
-                'smart_recommendation': 'قلّل الأحمال غير الضرورية قدر الإمكان.',
-                'decision_now': 'يفضل تأجيل أي حمل إضافي الآن.',
-            }
-        elif home > 0 and battery.get('discharge_eta_hours') is not None and battery.get('discharge_eta_hours', 0) < 6:
-            advice = {
-                'status_label': '🟡 تشغيل محدود بحذر',
-                'smart_warning': 'الطاقة المتبقية قد لا تكون مريحة لبقية الليل.',
-                'smart_recommendation': 'حافظ على البطارية حتى الصباح.',
-                'decision_now': 'تشغيل بسيط فقط عند الضرورة.',
-            }
-        else:
-            advice = {
-                'status_label': '🟢 مطمئن',
-                'smart_warning': '',
-                'smart_recommendation': 'يمكن تشغيل الأحمال الخفيفة باعتدال.',
-                'decision_now': 'الوضع الليلي مستقر حالياً.',
-            }
-    elif minutes_to_sunset is not None and minutes_to_sunset <= 90:
-        advice = {
-            'status_label': '🟡 تشغيل محدود بحذر',
-            'smart_warning': 'الوقت المتبقي قبل الغروب قصير.',
-            'smart_recommendation': 'يفضل تجنب تشغيل حمل طويل الآن.',
-            'decision_now': 'تشغيل صغير فقط إذا كان ضروريًا.',
-        }
-    elif soc <= max(float(battery_reserve_percent), 20):
-        advice = {
-            'status_label': '🟠 حافظ على الشحن',
-            'smart_warning': 'البطارية ما زالت بحاجة إلى دعم أكبر قبل المساء.',
-            'smart_recommendation': 'أعطِ أولوية لشحن البطارية.',
-            'decision_now': 'يفضل تخفيف الأحمال حاليًا.',
-        }
-    else:
-        advice = {
-            'status_label': '🟢 مناسب بحذر',
-            'smart_warning': '',
-            'smart_recommendation': 'الوضع جيد حاليًا مع الاستمرار بالمراقبة.',
-            'decision_now': 'يمكن تشغيل أحمال خفيفة إلى متوسطة حسب الفائض.',
-        }
-
-    snapshot = SmartSnapshot.query.filter_by(reading_id=getattr(latest, 'id', None)).order_by(SmartSnapshot.created_at.desc()).first()
-    if snapshot is None:
-        snapshot = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
-
-    if snapshot is None:
-        advice.update({
-            'historical_hint': 'الأرشيف الذكي بدأ لكنه لم يجمع بيانات كافية بعد.',
-            'confidence_label': 'قيد البناء',
-            'matched_count': 0,
-            'predicted_next_hour_solar': None,
-            'predicted_next_hour_surplus': None,
-            'predicted_risk_level': 'unknown',
-            'archive_ready': False,
-        })
-        return advice
-
-    analysis = analyze_historical_pattern(snapshot)
-    advice.update({
-        'historical_hint': analysis.get('historical_hint_ar', ''),
-        'confidence_label': analysis.get('confidence_label_ar', 'لا توجد بيانات'),
-        'matched_count': int(analysis.get('matched_count', 0) or 0),
-        'predicted_next_hour_solar': analysis.get('predicted_next_hour_solar'),
-        'predicted_next_hour_surplus': analysis.get('predicted_next_hour_surplus'),
-        'predicted_risk_level': analysis.get('predicted_risk_level', 'unknown'),
-        'archive_ready': True,
-    })
-    return advice
 def build_smart_energy_advice(latest, weather=None, settings=None, context='periodic_day'):
     if not latest:
         return {
@@ -324,8 +315,16 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
             'smart_recommendation': 'انتظر أول مزامنة.',
             'decision_now': 'لا توجد توصية حالياً.',
             'historical_hint': '',
-            'confidence_label': 'لا توجد بيانات',
+            'confidence_label': 'ثقة ضعيفة',
+            'confidence_message': 'لا يعتمد',
+            'confidence_band': 'low',
             'matched_count': 0,
+            'predicted_risk_level': 'غير معروف',
+            'predicted_risk_code': 'unknown',
+            'scenario_title': 'السيناريو القادم',
+            'scenario_summary': 'لا توجد بيانات كافية بعد.',
+            'scenario_detail': 'انتظر تكوّن الأرشيف الذكي عبر مزامَنات أكثر.',
+            'historical_is_actionable': False,
         }
 
     settings = settings or {}
@@ -384,11 +383,21 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
     snapshot = save_smart_snapshot_from_reading(latest, weather=weather, settings=settings, source='smart_advice')
     analysis = analyze_historical_pattern(snapshot)
     advice['historical_hint'] = analysis.get('historical_hint_ar', '')
-    advice['confidence_label'] = analysis.get('confidence_label_ar', 'لا توجد بيانات')
+    advice['confidence_label'] = analysis.get('confidence_label_ar', 'ثقة ضعيفة')
+    advice['confidence_message'] = analysis.get('confidence_message_ar', 'لا يعتمد')
+    advice['confidence_band'] = analysis.get('confidence_band', 'low')
     advice['matched_count'] = int(analysis.get('matched_count', 0) or 0)
     advice['predicted_next_hour_solar'] = analysis.get('predicted_next_hour_solar')
     advice['predicted_next_hour_surplus'] = analysis.get('predicted_next_hour_surplus')
-    advice['predicted_risk_level'] = analysis.get('predicted_risk_level', 'unknown')
+    advice['predicted_risk_code'] = analysis.get('predicted_risk_level', 'unknown')
+    advice['predicted_risk_level'] = analysis.get('predicted_risk_label_ar', 'غير معروف')
+    advice['scenario_title'] = analysis.get('scenario_title_ar', 'السيناريو القادم')
+    advice['scenario_summary'] = analysis.get('scenario_summary_ar', '')
+    advice['scenario_detail'] = analysis.get('scenario_detail_ar', '')
+    advice['historical_is_actionable'] = bool(analysis.get('use_historical_for_decision'))
+
+    if not advice['historical_is_actionable']:
+        advice['decision_now'] = f"{advice['decision_now']} (المرجع الحالي هو القراءة اللحظية فقط)"
 
     try:
         log_historical_recommendation(snapshot, advice, analysis)
