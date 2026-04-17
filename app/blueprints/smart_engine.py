@@ -218,6 +218,104 @@ def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, 
     return row
 
 
+
+
+def get_latest_historical_overview(latest, weather=None, settings=None, context='periodic_day'):
+    if not latest:
+        return {
+            'status_label': '⚪ لا توجد بيانات',
+            'smart_warning': 'لا توجد قراءة حديثة كافية للتحليل.',
+            'smart_recommendation': 'انتظر أول مزامنة.',
+            'decision_now': 'لا توجد توصية حالياً.',
+            'historical_hint': 'لم يبدأ الأرشيف الذكي بعد.',
+            'confidence_label': 'لا توجد بيانات',
+            'matched_count': 0,
+            'predicted_next_hour_solar': None,
+            'predicted_next_hour_surplus': None,
+            'predicted_risk_level': 'unknown',
+            'archive_ready': False,
+        }
+
+    settings = settings or {}
+    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
+    battery = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
+    soc = float(latest.battery_soc or 0)
+    home = float(latest.home_load or 0)
+
+    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else {}
+    minutes_to_sunset = prediction.get('minutes_to_sunset')
+
+    if str(context).lower() == 'periodic_night':
+        if soc <= max(float(battery_reserve_percent), 20):
+            advice = {
+                'status_label': '🔴 حرج',
+                'smart_warning': 'نسبة البطارية منخفضة مقارنة بهامش الأمان الليلي.',
+                'smart_recommendation': 'قلّل الأحمال غير الضرورية قدر الإمكان.',
+                'decision_now': 'يفضل تأجيل أي حمل إضافي الآن.',
+            }
+        elif home > 0 and battery.get('discharge_eta_hours') is not None and battery.get('discharge_eta_hours', 0) < 6:
+            advice = {
+                'status_label': '🟡 تشغيل محدود بحذر',
+                'smart_warning': 'الطاقة المتبقية قد لا تكون مريحة لبقية الليل.',
+                'smart_recommendation': 'حافظ على البطارية حتى الصباح.',
+                'decision_now': 'تشغيل بسيط فقط عند الضرورة.',
+            }
+        else:
+            advice = {
+                'status_label': '🟢 مطمئن',
+                'smart_warning': '',
+                'smart_recommendation': 'يمكن تشغيل الأحمال الخفيفة باعتدال.',
+                'decision_now': 'الوضع الليلي مستقر حالياً.',
+            }
+    elif minutes_to_sunset is not None and minutes_to_sunset <= 90:
+        advice = {
+            'status_label': '🟡 تشغيل محدود بحذر',
+            'smart_warning': 'الوقت المتبقي قبل الغروب قصير.',
+            'smart_recommendation': 'يفضل تجنب تشغيل حمل طويل الآن.',
+            'decision_now': 'تشغيل صغير فقط إذا كان ضروريًا.',
+        }
+    elif soc <= max(float(battery_reserve_percent), 20):
+        advice = {
+            'status_label': '🟠 حافظ على الشحن',
+            'smart_warning': 'البطارية ما زالت بحاجة إلى دعم أكبر قبل المساء.',
+            'smart_recommendation': 'أعطِ أولوية لشحن البطارية.',
+            'decision_now': 'يفضل تخفيف الأحمال حاليًا.',
+        }
+    else:
+        advice = {
+            'status_label': '🟢 مناسب بحذر',
+            'smart_warning': '',
+            'smart_recommendation': 'الوضع جيد حاليًا مع الاستمرار بالمراقبة.',
+            'decision_now': 'يمكن تشغيل أحمال خفيفة إلى متوسطة حسب الفائض.',
+        }
+
+    snapshot = SmartSnapshot.query.filter_by(reading_id=getattr(latest, 'id', None)).order_by(SmartSnapshot.created_at.desc()).first()
+    if snapshot is None:
+        snapshot = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
+
+    if snapshot is None:
+        advice.update({
+            'historical_hint': 'الأرشيف الذكي بدأ لكنه لم يجمع بيانات كافية بعد.',
+            'confidence_label': 'قيد البناء',
+            'matched_count': 0,
+            'predicted_next_hour_solar': None,
+            'predicted_next_hour_surplus': None,
+            'predicted_risk_level': 'unknown',
+            'archive_ready': False,
+        })
+        return advice
+
+    analysis = analyze_historical_pattern(snapshot)
+    advice.update({
+        'historical_hint': analysis.get('historical_hint_ar', ''),
+        'confidence_label': analysis.get('confidence_label_ar', 'لا توجد بيانات'),
+        'matched_count': int(analysis.get('matched_count', 0) or 0),
+        'predicted_next_hour_solar': analysis.get('predicted_next_hour_solar'),
+        'predicted_next_hour_surplus': analysis.get('predicted_next_hour_surplus'),
+        'predicted_risk_level': analysis.get('predicted_risk_level', 'unknown'),
+        'archive_ready': True,
+    })
+    return advice
 def build_smart_energy_advice(latest, weather=None, settings=None, context='periodic_day'):
     if not latest:
         return {

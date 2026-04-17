@@ -317,6 +317,7 @@ def dashboard():
     smart_loads = _smart_load_suggestions(latest)
     actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     recent_events = get_recent_event_logs(8)
+    smart_archive = get_latest_historical_overview(latest, weather=weather, settings=settings, context='periodic_day')
 
     return render_template(
         'dashboard.html',
@@ -329,7 +330,7 @@ def dashboard():
         battery_details=battery_details, battery_capacity_kwh=battery_capacity_kwh,
         battery_reserve_percent=battery_reserve_percent, system_state=system_state, system_status=system_status,
         weather=weather, weather_insight=weather_insight, solar_prediction=solar_prediction,
-        production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events,
+        production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events, smart_archive=smart_archive,
         human_duration_hours=human_duration_hours, format_energy=format_energy,
         format_power=format_power, _to_12h_label=_to_12h_label,
         format_local=lambda dt: format_local_datetime(dt, tz_name),
@@ -350,6 +351,7 @@ def api_live():
     system_state = system_status['title']
     solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
     actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
+    smart_archive = get_latest_historical_overview(latest, weather=weather, settings=settings, context='periodic_night' if latest and (latest.solar_power or 0) <= 50 else 'periodic_day')
     tz_name = current_app.config['LOCAL_TIMEZONE']
     return {
         'ok': True,
@@ -376,6 +378,7 @@ def api_live():
             'sunset_time': weather.sunset_time, 'effective_sunset_time': weather.effective_sunset_time,
         },
         'actual_surplus': actual_surplus,
+        'smart_archive': smart_archive,
         'solar_prediction': None if not solar_prediction else {
             'sunset_time': _to_12h_label(solar_prediction.get('sunset_time')),
             'effective_sunset_time': _to_12h_label(solar_prediction.get('effective_sunset_time')),
@@ -1160,8 +1163,9 @@ def loads_page():
 
     loads = _serialize_loads()
     smart_loads = _smart_load_suggestions(latest, settings=settings)
+    smart_archive = get_latest_historical_overview(latest, weather=weather, settings=settings, context='periodic_night' if latest and (latest.solar_power or 0) <= 50 else 'periodic_day')
     return render_template('loads.html', latest=latest, loads=loads, smart_loads=smart_loads, simulation=simulation,
-                           saved_night_max_w=saved_night_max_w,
+                           saved_night_max_w=saved_night_max_w, smart_archive=smart_archive,
                            format_power=format_power, format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
