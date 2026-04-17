@@ -20,7 +20,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog, UserLoad
+from ..models import EventLog, NotificationLog, Reading, Setting, SmartSnapshot, SyncLog, UserLoad
 from ..services.deye_client import DeyeClient
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
@@ -885,8 +885,14 @@ def sync_now_internal(trigger='manual'):
     db.session.add(reading)
     db.session.commit()
     weather = get_weather_for_latest(reading)
+    settings = load_settings()
     try:
-        maybe_log_energy_events(reading, previous, weather=weather, settings=load_settings())
+        save_smart_snapshot_from_reading(reading, weather=weather, settings=settings, source=trigger)
+    except Exception as smart_exc:
+        db.session.rollback()
+        log_event('warning', f'تعذر حفظ snapshot الذكي: {smart_exc}')
+    try:
+        maybe_log_energy_events(reading, previous, weather=weather, settings=settings)
     except Exception as event_exc:
         log_event('warning', f'تعذر تسجيل الأحداث الذكية: {event_exc}')
     try:
