@@ -39,7 +39,7 @@ from .notifications import (
     apply_form_settings_overrides, build_daily_morning_report_message,
     build_periodic_status_message, build_pre_sunset_message,
     dispatch_notification, load_notification_rules, log_notification,
-    process_notifications, run_weather_checks, save_notification_settings_from_form,
+    process_notifications, run_weather_checks, save_all_notification_settings_from_form, save_notification_settings_from_form,
     send_daily_weather_summary, send_periodic_status_update, send_pre_sunset_update,
     send_sms_message, send_telegram_message, send_telegram_menu, process_telegram_update, build_telegram_quick_reply,
 )
@@ -1434,16 +1434,20 @@ def notifications_settings():
     if request.method == 'POST':
         section = (request.args.get('section') or request.form.get('settings_section') or '').strip().lower()
         try:
-            save_notification_settings_from_form(request.form, section=section)
+            if section:
+                save_notification_settings_from_form(request.form, section=section)
+                success_message = 'تم حفظ هذا القسم بنجاح'
+            else:
+                save_all_notification_settings_from_form(request.form)
+                success_message = 'تم حفظ جميع إعدادات الإشعارات بنجاح'
         except Exception as exc:
             if _is_ajax_request():
                 return _json_response(False, f'فشل حفظ الإعدادات: {exc}'), 400
             flash(f'فشل حفظ الإعدادات: {exc}', 'danger')
             return redirect(url_for('main.notifications_settings', tab=section or 'general'))
 
-        success_message = 'تم حفظ هذا القسم بنجاح'
         if _is_ajax_request():
-            return _json_response(True, success_message, saved_section=section)
+            return _json_response(True, success_message, saved_section=section or 'all')
         flash(success_message, 'success')
         return redirect(url_for('main.notifications_settings', tab=section or 'general'))
 

@@ -198,7 +198,7 @@ def _save_notification_rules_from_form(form):
     _upsert_setting('notification_rules_json', json.dumps(rules, ensure_ascii=False))
 
 
-def save_notification_settings_from_form(form, section: str | None = None):
+def save_notification_settings_from_form(form, section: str | None = None, *, commit: bool = True):
     section = (section or '').strip().lower()
     if not section or section not in NOTIFICATION_SECTION_FIELDS:
         raise ValueError('قسم الحفظ غير صالح أو غير محدد')
@@ -219,6 +219,25 @@ def save_notification_settings_from_form(form, section: str | None = None):
     for key in SECTION_LAST_SENT_KEYS.get(section, []):
         _upsert_setting(key, '')
 
+    if commit:
+        db.session.commit()
+
+
+def save_all_notification_settings_from_form(form):
+    # Supports the classic single-save notifications UI by persisting all sections at once.
+    ordered_sections = [
+        'periodic_day',
+        'periodic_night',
+        'sunset',
+        'discharge',
+        'load',
+        'weather',
+        'battery',
+        'daily_report',
+        'rules',
+    ]
+    for section_name in ordered_sections:
+        save_notification_settings_from_form(form, section=section_name, commit=False)
     db.session.commit()
 
 
