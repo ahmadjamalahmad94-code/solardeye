@@ -132,7 +132,7 @@
         <div class="form-grid-two mt-3">
           <div>
             <label class="form-label">SMS API URL</label>
-            <input class="form-control" type="text" name="sms_api_url" value="{{ settings.sms_api_url or '' }}" placeholder="https://example.com/send-sms">
+            <input class="form-control" type="text" name="sms_api_url" value="{{ settings.sms_api_url or '' }}" placeholder="https://tweetsms.ps/api.php">
           </div>
           <div>
             <label class="form-label">SMS API Key</label>
@@ -140,22 +140,43 @@
           </div>
           <div>
             <label class="form-label">اسم المرسل</label>
-            <input class="form-control" type="text" name="sms_sender" value="{{ settings.sms_sender or '' }}" placeholder="اسم المرسل">
+            <input class="form-control" type="text" name="sms_sender" value="{{ settings.sms_sender or '' }}" placeholder="مثال: TweetTEST">
           </div>
           <div>
             <label class="form-label">المستلمون</label>
-            <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}" placeholder="0599...,0598...">
+            <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}" placeholder="972599043337,9725XXXXXXXX">
           </div>
         </div>
 
         <div class="notify-preview-card mt-3">
-          <div class="preview-title">مهم</div>
-          <div class="tiny-note">هذا القسم يحفظ بيانات SMS فقط ولن يلمس Telegram ولا أزرار البوت.</div>
+          <div class="preview-title">المطلوب تعبئته</div>
+          <div class="tiny-note">
+            1) SMS API URL = <code>https://tweetsms.ps/api.php</code><br>
+            2) SMS API Key = المفتاح الذي وصلك من الشركة<br>
+            3) اسم المرسل = مثل <code>TweetTEST</code><br>
+            4) المستلمون = بصيغة دولية مثل <code>972599043337</code>
+          </div>
+        </div>
+
+        <div class="notify-preview-card mt-3">
+          <div class="preview-title">أكواد الأخطاء الشائعة</div>
+          <div class="tiny-note sms-codes-grid">
+            <div><strong>1</strong> = تم الإرسال بنجاح</div>
+            <div><strong>-2</strong> = الرقم غير صالح أو الدولة غير مدعومة</div>
+            <div><strong>-999</strong> = فشل الإرسال من مزود الخدمة</div>
+            <div><strong>u</strong> = حالة الرسالة غير معروفة</div>
+            <div><strong>-100</strong> = بيانات ناقصة</div>
+            <div><strong>-110</strong> = API Key غير صحيح</div>
+            <div><strong>-113</strong> = الرصيد غير كافٍ</div>
+            <div><strong>-115</strong> = اسم المرسل غير متاح</div>
+            <div><strong>-116</strong> = اسم المرسل غير صالح</div>
+          </div>
         </div>
 
         <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
           <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_sms">حفظ إعدادات SMS</button>
           <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="sms_test">إرسال اختبار SMS</button>
+          <button class="btn btn-solar" type="submit" name="channel_action" value="sms_balance">فحص رصيد الرسائل</button>
         </div>
       </form>
     </section>
@@ -179,5 +200,18 @@
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:12px;
 }
+
+.channels-page .sms-codes-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:8px 14px;
+}
+.channels-page code{
+  background:#f4f7fb;
+  padding:2px 6px;
+  border-radius:8px;
+  color:#234;
+}
+
 </style>
 {% endblock %}

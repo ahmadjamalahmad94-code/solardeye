@@ -338,18 +338,151 @@ def send_telegram_message(settings: dict, title: str, message: str):
         return False, str(exc)
 
 
+SMS_PROVIDER_ERRORS = {
+    '-100': 'بيانات ناقصة: يلزم api_key أو to أو message أو sender.',
+    '-110': 'API Key غير صحيح أو غير مقبول.',
+    '-113': 'الرصيد غير كافٍ.',
+    '-115': 'اسم المرسل غير متاح لهذا الحساب.',
+    '-116': 'اسم المرسل غير صالح.',
+    '-2': 'الرقم غير صالح أو الدولة غير مدعومة.',
+    '-999': 'فشل الإرسال من مزود SMS.',
+    'u': 'حالة الرسالة غير معروفة من المزود.',
+    '1': 'تم الإرسال بنجاح.',
+}
+
+
+def _normalize_sms_recipients(raw_value: str):
+    items = []
+    for value in (raw_value or '').replace(';', ',').split(','):
+        phone = ''.join(ch for ch in value.strip() if ch.isdigit() or ch == '+')
+        if not phone:
+            continue
+        if phone.startswith('+'):
+            phone = phone[1:]
+        items.append(phone)
+    return items
+
+
+def _interpret_sms_provider_response(body: str):
+    raw = (body or '').strip()
+    if not raw:
+        return False, 'رد فارغ من مزود SMS', {'raw': raw, 'code': ''}
+
+    first_line = raw.splitlines()[0].strip()
+    parts = [p.strip() for p in first_line.split(':')]
+    code = parts[0] if parts else raw
+    meaning = SMS_PROVIDER_ERRORS.get(code, '')
+
+    if code == '1':
+        sms_id = parts[1] if len(parts) > 1 else ''
+        phone = parts[2] if len(parts) > 2 else ''
+        detail = 'تم الإرسال بنجاح'
+        if sms_id:
+            detail += f' | SMS_ID={sms_id}'
+        if phone:
+            detail += f' | TO={phone}'
+        return True, detail, {'raw': raw, 'code': code, 'sms_id': sms_id, 'phone': phone}
+
+    if code in ('-999', '-2', '-100', '-110', '-113', '-115', '-116', 'u'):
+        detail = meaning or f'فشل الإرسال ({code})'
+        if len(parts) > 1:
+            detail += f" | التفاصيل: {' : '.join(parts[1:])}"
+        return False, detail, {'raw': raw, 'code': code}
+
+    if first_line.startswith('Result:'):
+        payload = first_line.split('Result:', 1)[1].strip()
+        subparts = [p.strip() for p in payload.split(':') if p.strip()]
+        code = subparts[0] if subparts else payload
+        meaning = SMS_PROVIDER_ERRORS.get(code, f'رد غير معروف: {payload}')
+        ok = code == '1'
+        detail = meaning
+        if ok and len(subparts) >= 3:
+            detail += f' | SMS_ID={subparts[1]} | TO={subparts[2]}'
+        return ok, detail, {'raw': raw, 'code': code}
+
+    return False, f'رد غير معروف من مزود SMS: {raw[:250]}', {'raw': raw, 'code': code}
+
+
+def get_sms_balance(settings: dict):
+    api_url = (settings.get('sms_api_url') or '').strip()
+    api_key = (settings.get('sms_api_key') or '').strip()
+    if not api_url or not api_key:
+        return False, 'بيانات فحص الرصيد غير مكتملة', None
+
+    balance_url = api_url
+    if 'api.php' not in balance_url:
+        balance_url = balance_url.rstrip('/') + '/api.php'
+
+    try:
+        r = requests.get(balance_url, params={'comm': 'chk_balance', 'api_key': api_key}, timeout=20)
+        body = (r.text or '').strip()
+        if not r.ok:
+            _diag('sms balance failed: status=%s body=%s', r.status_code, body[:300])
+            return False, f'فشل فحص الرصيد: HTTP {r.status_code}', body
+
+        _diag('sms balance ok: body=%s', body[:300])
+        return True, f'الرصيد الحالي: {body}', body
+    except Exception as exc:
+        _diag('sms balance exception: %s', exc)
+        return False, f'تعذر فحص الرصيد: {exc}', None
+
+
 def send_sms_message(settings: dict, title: str, message: str):
+    from urllib.parse import quote
+
     api_url = (settings.get('sms_api_url') or '').strip()
     api_key = (settings.get('sms_api_key') or '').strip()
     sender = (settings.get('sms_sender') or '').strip()
-    recipients = [x.strip() for x in (settings.get('sms_recipients') or '').replace(';', ',').split(',') if x.strip()]
-    if not api_url or not recipients:
-        return False, 'بيانات SMS غير مكتملة'
-    try:
-        r = requests.post(api_url, json={'api_key': api_key, 'sender': sender, 'to': recipients, 'message': f"{title} - {message}"}, timeout=20)
-        return r.ok, r.text[:500]
-    except Exception as exc:
-        return False, str(exc)
+    recipients = _normalize_sms_recipients(settings.get('sms_recipients') or '')
+
+    missing = []
+    if not api_url:
+        missing.append('SMS API URL')
+    if not api_key:
+        missing.append('SMS API Key')
+    if not sender:
+        missing.append('اسم المرسل')
+    if not recipients:
+        missing.append('رقم مستلم واحد على الأقل')
+    if missing:
+        return False, 'بيانات SMS غير مكتملة: ' + '، '.join(missing)
+
+    base_url = api_url
+    if 'api.php' not in base_url:
+        base_url = base_url.rstrip('/') + '/api.php'
+
+    full_message = f"{title}\n{message}".strip()
+    encoded_message = quote(full_message)
+    encoded_sender = quote(sender)
+
+    all_ok = True
+    results = []
+
+    for phone in recipients:
+        url = (
+            f"{base_url}"
+            f"?comm=sendsms"
+            f"&api_key={quote(api_key)}"
+            f"&to={quote(phone)}"
+            f"&message={encoded_message}"
+            f"&sender={encoded_sender}"
+        )
+        try:
+            r = requests.get(url, timeout=20)
+            body = (r.text or '').strip()
+            ok, detail, meta = _interpret_sms_provider_response(body)
+            if not ok:
+                all_ok = False
+                _diag('sms send failed: phone=%s status=%s body=%s detail=%s', phone, r.status_code, body[:300], detail)
+            else:
+                _diag('sms send ok: phone=%s body=%s', phone, body[:300])
+            results.append(f'{phone}: {detail}')
+        except Exception as exc:
+            all_ok = False
+            _diag('sms send exception: phone=%s error=%s', phone, exc)
+            results.append(f'{phone}: خطأ داخلي أثناء الإرسال: {exc}')
+
+    return all_ok, ' | '.join(results)
 
 
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
