@@ -1,6 +1,7 @@
 """Notification sending, rules, and processing logic."""
 from __future__ import annotations
 import json
+import html
 from datetime import UTC, datetime, timedelta
 
 import requests
@@ -265,6 +266,18 @@ def _normalize_telegram_text(value: str | None) -> str:
     return text.strip()
 
 
+def _diag(fmt: str, *args):
+    try:
+        msg = fmt % args if args else fmt
+    except Exception:
+        msg = str(fmt)
+    try:
+        current_app.logger.info(msg)
+    except Exception:
+        pass
+    print(msg, flush=True)
+
+
 # ── Sending ───────────────────────────────────────────────────────────────────
 
 def send_telegram_message(settings: dict, title: str, message: str):
@@ -272,21 +285,34 @@ def send_telegram_message(settings: dict, title: str, message: str):
     chat_id = (settings.get('telegram_chat_id') or '').strip()
     base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
     if not token or not chat_id:
+        _diag('telegram send skipped: missing token/chat_id token=%s chat_id=%s', bool(token), bool(chat_id))
         return False, 'بيانات Telegram غير مكتملة'
     url = f"{base}/bot{token}/sendMessage"
-    clean_title = _normalize_telegram_text(title)
-    clean_message = _normalize_telegram_text(message)
+    clean_title = html.escape(_normalize_telegram_text(title))
+    clean_message = html.escape(_normalize_telegram_text(message)).replace(chr(10), '<br>')
     payload = {
         'chat_id': chat_id,
-        'text': f"*{clean_title}*\n\n{clean_message}",
-        'parse_mode': 'Markdown',
+        'text': f"<b>{clean_title}</b>\n\n{clean_message}",
+        'parse_mode': 'HTML',
         'disable_web_page_preview': True,
     }
     try:
         r = requests.post(url, json=payload, timeout=20)
-        ok = r.ok and r.json().get('ok', True)
-        return ok, r.text[:500]
+        body = r.text[:800]
+        ok = False
+        try:
+            data = r.json()
+            ok = bool(r.ok and data.get('ok', False))
+            if not ok:
+                _diag('telegram send failed: status=%s body=%s', r.status_code, body)
+            else:
+                _diag('telegram send ok: status=%s', r.status_code)
+        except Exception:
+            ok = bool(r.ok)
+            _diag('telegram send json-parse=%s status=%s body=%s', ok, r.status_code, body)
+        return ok, body
     except Exception as exc:
+        _diag('telegram send exception: %s', exc)
         return False, str(exc)
 
 
@@ -969,7 +995,7 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
     last_sent = _parse_iso_utc(last_sent_raw)
     now_utc = datetime.now(UTC)
 
-    current_app.logger.info(
+    _diag(
         'schedule check: prefix=%s mode=%s enabled=%s now_local=%s start=%s end=%s last_sent=%s',
         prefix,
         mode,
@@ -981,12 +1007,12 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
     )
 
     if mode == 'manual':
-        current_app.logger.info('schedule skip: prefix=%s reason=manual_mode', prefix)
+        _diag('schedule skip: prefix=%s reason=manual_mode', prefix)
         return False
 
     within_window = _is_within_schedule_window(now_local, start_token, end_token, weather)
     if not within_window:
-        current_app.logger.info('schedule skip: prefix=%s reason=outside_window current=%s start=%s end=%s', prefix, now_local.strftime('%H:%M'), start_token or '-', end_token or '-')
+        _diag('schedule skip: prefix=%s reason=outside_window current=%s start=%s end=%s', prefix, now_local.strftime('%H:%M'), start_token or '-', end_token or '-')
         return False
 
     if mode == 'interval':
@@ -996,7 +1022,7 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
         )
         elapsed_seconds = (now_utc - last_sent).total_seconds() if last_sent else None
         due = (last_sent is None) or (elapsed_seconds >= interval_minutes * 60)
-        current_app.logger.info(
+        _diag(
             'schedule interval: prefix=%s interval_minutes=%s elapsed_seconds=%s due=%s',
             prefix,
             interval_minutes,
@@ -1013,10 +1039,10 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
                 allowed.append(item)
         current_hm = now_local.strftime('%H:%M')
         if current_hm not in allowed:
-            current_app.logger.info('schedule skip: prefix=%s reason=specific_hour_not_matched current=%s allowed=%s', prefix, current_hm, ','.join(allowed) or '-')
+            _diag('schedule skip: prefix=%s reason=specific_hour_not_matched current=%s allowed=%s', prefix, current_hm, ','.join(allowed) or '-')
             return False
         same_minute = bool(last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M'))
-        current_app.logger.info('schedule specific: prefix=%s current=%s same_minute=%s', prefix, current_hm, same_minute)
+        _diag('schedule specific: prefix=%s current=%s same_minute=%s', prefix, current_hm, same_minute)
         return not same_minute
 
     if mode == 'threshold':
@@ -1026,7 +1052,7 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
         )
         elapsed_seconds = (now_utc - last_sent).total_seconds() if last_sent else None
         due = (last_sent is None) or (elapsed_seconds >= interval_minutes * 60)
-        current_app.logger.info(
+        _diag(
             'schedule threshold: prefix=%s interval_minutes=%s elapsed_seconds=%s due=%s',
             prefix,
             interval_minutes,
@@ -1035,7 +1061,7 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
         )
         return due
 
-    current_app.logger.info('schedule skip: prefix=%s reason=unknown_mode mode=%s', prefix, mode)
+    _diag('schedule skip: prefix=%s reason=unknown_mode mode=%s', prefix, mode)
     return False
 
 
@@ -1044,63 +1070,74 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
     now = datetime.now(UTC)
     clean_title = _normalize_telegram_text(title)
     clean_message = _normalize_telegram_text(message)
-    current_app.logger.info('scheduled notification send: %s via %s', prefix, channel or 'telegram')
-    dispatch_notification(
-        settings,
-        f'{prefix}-{int(now.timestamp())}',
-        prefix,
-        clean_title,
-        clean_message,
-        channel or 'telegram',
-        level,
-        dedupe_minutes=0,
-    )
-    _upsert_setting(f'{prefix}_last_sent_at', now.isoformat())
-    db.session.commit()
+    _diag('scheduled notification send: %s via %s', prefix, channel or 'telegram')
+    channel_pref = (channel or 'telegram').lower()
+    sent_any = False
+    responses = []
+    for ch in (['telegram', 'sms'] if channel_pref == 'both' else [channel_pref]):
+        if ch == 'telegram':
+            ok, resp = send_telegram_message(settings, clean_title, clean_message)
+        elif ch == 'sms':
+            ok, resp = send_sms_message(settings, clean_title, clean_message)
+        else:
+            continue
+        responses.append(f'{ch}:{"ok" if ok else "fail"}')
+        log_notification(f'{prefix}-{int(now.timestamp())}:{ch}', prefix, clean_title, clean_message, ch, 'success' if ok else 'danger', resp, force=True)
+        if ok:
+            sent_any = True
+        else:
+            _diag('scheduled notification channel failed: prefix=%s channel=%s resp=%s', prefix, ch, str(resp)[:300])
+    if sent_any:
+        _upsert_setting(f'{prefix}_last_sent_at', now.isoformat())
+        db.session.commit()
+        _diag('scheduled notification marked sent: %s result=%s', prefix, ','.join(responses) or '-')
+    else:
+        _diag('scheduled notification NOT marked sent: %s result=%s', prefix, ','.join(responses) or '-')
+
 
 
 def run_advanced_notification_scheduler():
     settings = load_settings()
     if str(settings.get('notifications_enabled', 'true')).lower() != 'true':
-        current_app.logger.info('advanced scheduler skipped: notifications disabled')
+        _diag('advanced scheduler skipped: notifications disabled')
         return
 
     latest, weather = _get_weather_for_latest()
     if not latest:
-        current_app.logger.info('advanced scheduler skipped: no latest reading')
+        _diag('advanced scheduler skipped: no latest reading')
         return
 
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
     is_day = _weather_day_window(now_local, weather, start_hour=9)
-    current_app.logger.info('advanced scheduler tick at %s is_day=%s weather_available=%s', now_local.isoformat(), is_day, bool(weather))
+    _diag('advanced scheduler tick at %s is_day=%s weather_available=%s', now_local.isoformat(), is_day, bool(weather))
 
     # 1) التحديث الدوري النهاري
     periodic_day_enabled = str(settings.get('periodic_day_enabled', 'true')).lower() == 'true'
-    current_app.logger.info('periodic_day state: enabled=%s channel=%s mode=%s', periodic_day_enabled, settings.get('periodic_day_channel', 'telegram'), settings.get('periodic_day_schedule_mode', 'manual'))
+    _diag('periodic_day state: enabled=%s channel=%s mode=%s', periodic_day_enabled, settings.get('periodic_day_channel', 'telegram'), settings.get('periodic_day_schedule_mode', 'manual'))
     if periodic_day_enabled:
         due_day = is_day and _schedule_matches('periodic_day', settings, now_local, weather)
-        current_app.logger.info('periodic_day decision: is_day=%s due=%s', is_day, due_day)
+        _diag('periodic_day decision: is_day=%s due=%s', is_day, due_day)
         if due_day:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
             _send_scheduled_notification('periodic_day', title, message, settings.get('periodic_day_channel', 'telegram'), 'info')
         else:
-            current_app.logger.info('periodic_day skipped after checks')
+            _diag('periodic_day skipped after checks')
     else:
-        current_app.logger.info('periodic_day skipped: disabled')
+        _diag('periodic_day skipped: disabled')
 
     # 2) التحديث الدوري الليلي
     periodic_night_enabled = str(settings.get('periodic_night_enabled', 'true')).lower() == 'true'
-    current_app.logger.info('periodic_night state: enabled=%s channel=%s mode=%s', periodic_night_enabled, settings.get('periodic_night_channel', 'telegram'), settings.get('periodic_night_schedule_mode', 'manual'))
+    _diag('periodic_night state: enabled=%s channel=%s mode=%s', periodic_night_enabled, settings.get('periodic_night_channel', 'telegram'), settings.get('periodic_night_schedule_mode', 'manual'))
     if periodic_night_enabled:
         due_night = (not is_day) and _schedule_matches('periodic_night', settings, now_local, weather)
-        current_app.logger.info('periodic_night decision: is_day=%s due=%s', is_day, due_night)
+        _diag('periodic_night decision: is_day=%s due=%s', is_day, due_night)
         if due_night:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
             _send_scheduled_notification('periodic_night', title, message, settings.get('periodic_night_channel', 'telegram'), 'info')
         else:
-            current_app.logger.info('periodic_night skipped after checks')
+            _diag('periodic_night skipped after checks')
     else:
-        current_app.logger.info('periodic_night skipped: disabled')
+        _diag('periodic_night skipped: disabled')
 
     # 3) تحليل ما قبل الغروب
     if str(settings.get('pre_sunset_enabled', 'false')).lower() == 'true':

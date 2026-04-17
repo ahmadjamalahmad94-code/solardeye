@@ -1,1 +1,1 @@
-web: gunicorn --workers 1 --threads 2 --bind 0.0.0.0:$PORT wsgi:app
+web: gunicorn -c gunicorn.conf.py --bind 0.0.0.0:$PORT wsgi:app
