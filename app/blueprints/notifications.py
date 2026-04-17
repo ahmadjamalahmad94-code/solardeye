@@ -458,6 +458,31 @@ def send_sms_message(settings: dict, title: str, message: str):
     return all_ok, ' | '.join(details)
 
 
+
+
+def get_sms_balance(settings: dict):
+    from urllib.parse import quote
+
+    api_url = (settings.get('sms_api_url') or '').strip()
+    api_key = (settings.get('sms_api_key') or '').strip()
+    if not api_url or not api_key:
+        _diag('sms balance skipped: incomplete settings url=%s key=%s', bool(api_url), bool(api_key))
+        return False, 'بيانات SMS غير مكتملة', None
+
+    url = f"{api_url}?comm=chk_balance&api_key={quote(api_key)}"
+    try:
+        r = requests.get(url, timeout=20)
+        body = (r.text or '').strip()[:500]
+        _diag('sms balance response: status=%s body=%s', r.status_code, body)
+        if not r.ok:
+            return False, f'HTTP {r.status_code}: {body}', None
+        # Some providers return just a number/string balance
+        bal = body.strip()
+        return True, bal, bal
+    except Exception as exc:
+        _diag('sms balance exception: %s', exc)
+        return False, str(exc), None
+
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
     since = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
     return NotificationLog.query.filter(
