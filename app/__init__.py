@@ -2,6 +2,9 @@ import os
 import logging
 from flask import Flask, request, session
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from datetime import datetime, timedelta, UTC
 from .config import Config
 from .extensions import db
 from .models import Setting, Reading
@@ -97,27 +100,71 @@ def _start_scheduler(app):
     if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         return
 
-    scheduler = BackgroundScheduler(timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'))
+    scheduler = BackgroundScheduler(
+        timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'),
+        job_defaults={
+            'coalesce': True,
+            'max_instances': 1,
+            'misfire_grace_time': 120,
+        },
+    )
 
     def _job(fn_path):
         def _inner():
             with app.app_context():
                 module_path, fn_name = fn_path.rsplit('.', 1)
                 import importlib
+                logger = logging.getLogger(__name__)
+                logger.info('Scheduler job started: %s', fn_path)
                 mod = importlib.import_module(module_path)
                 try:
                     getattr(mod, fn_name)()
+                    logger.info('Scheduler job finished: %s', fn_path)
                 except Exception:
-                    logging.getLogger(__name__).exception('Scheduled job failed: %s', fn_path)
+                    logger.exception('Scheduled job failed: %s', fn_path)
         return _inner
 
+    now_utc = datetime.now(UTC)
     sync_minutes = max(int(app.config.get('AUTO_SYNC_MINUTES', 5)), 1)
-    scheduler.add_job(_job('app.blueprints.main.sync_now_internal'), 'interval', minutes=sync_minutes, id='deye_auto_sync', replace_existing=True, max_instances=1)
-    scheduler.add_job(_job('app.blueprints.notifications.run_weather_checks'), 'interval', minutes=10, id='weather_change_check', replace_existing=True, max_instances=1)
-    scheduler.add_job(_job('app.blueprints.notifications.send_daily_weather_summary'), 'cron', hour=7, minute=0, id='weather_daily_summary', replace_existing=True, max_instances=1)
-    scheduler.add_job(_job('app.blueprints.notifications.send_daily_morning_report'), 'cron', hour=9, minute=5, id='daily_morning_report', replace_existing=True, max_instances=1)
-    scheduler.add_job(_job('app.blueprints.notifications.send_periodic_status_update'), 'interval', minutes=5, id='periodic_status_check', replace_existing=True, max_instances=1)
-    scheduler.add_job(_job('app.blueprints.notifications.run_advanced_notification_scheduler'), 'interval', minutes=1, id='advanced_notifications_check', replace_existing=True, max_instances=1)
+    job_specs = [
+        {
+            'id': 'deye_auto_sync',
+            'func': _job('app.blueprints.main.sync_now_internal'),
+            'trigger': IntervalTrigger(minutes=sync_minutes, timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')),
+            'next_run_time': now_utc + timedelta(seconds=10),
+        },
+        {
+            'id': 'weather_change_check',
+            'func': _job('app.blueprints.notifications.run_weather_checks'),
+            'trigger': IntervalTrigger(minutes=10, timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')),
+            'next_run_time': now_utc + timedelta(seconds=20),
+        },
+        {
+            'id': 'advanced_notifications_check',
+            'func': _job('app.blueprints.notifications.run_advanced_notification_scheduler'),
+            'trigger': IntervalTrigger(seconds=30, timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')),
+            'next_run_time': now_utc + timedelta(seconds=15),
+        },
+        {
+            'id': 'weather_daily_summary',
+            'func': _job('app.blueprints.notifications.send_daily_weather_summary'),
+            'trigger': CronTrigger(hour=7, minute=0, timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')),
+        },
+        {
+            'id': 'daily_morning_report',
+            'func': _job('app.blueprints.notifications.send_daily_morning_report'),
+            'trigger': CronTrigger(hour=9, minute=5, timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')),
+        },
+    ]
+
+    for spec in job_specs:
+        scheduler.add_job(
+            spec['func'],
+            trigger=spec['trigger'],
+            id=spec['id'],
+            replace_existing=True,
+            next_run_time=spec.get('next_run_time'),
+        )
 
     scheduler.start()
     logging.getLogger(__name__).info('Scheduler started with jobs: %s', [job.id for job in scheduler.get_jobs()])

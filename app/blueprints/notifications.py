@@ -259,6 +259,12 @@ def _flag(settings: dict | None, key: str, default: bool = True) -> bool:
     return str(value).lower() == 'true'
 
 
+def _normalize_telegram_text(value: str | None) -> str:
+    text = str(value or '')
+    text = text.replace('\r\n', '\n').replace('\\n', '\n').replace('\\t', '\t')
+    return text.strip()
+
+
 # ── Sending ───────────────────────────────────────────────────────────────────
 
 def send_telegram_message(settings: dict, title: str, message: str):
@@ -268,9 +274,11 @@ def send_telegram_message(settings: dict, title: str, message: str):
     if not token or not chat_id:
         return False, 'بيانات Telegram غير مكتملة'
     url = f"{base}/bot{token}/sendMessage"
+    clean_title = _normalize_telegram_text(title)
+    clean_message = _normalize_telegram_text(message)
     payload = {
         'chat_id': chat_id,
-        'text': f"*{title}*\n\n{message}",
+        'text': f"*{clean_title}*\n\n{clean_message}",
         'parse_mode': 'Markdown',
         'disable_web_page_preview': True,
     }
@@ -702,7 +710,7 @@ def process_telegram_update(settings: dict, update: dict):
             _telegram_api_call(settings, 'answerCallbackQuery', {'callback_query_id': callback_id, 'text': 'تم الاستلام ✅', 'show_alert': False})
         if action == 'menu':
             return send_telegram_menu(settings, chat_id=chat_id)
-        text = build_telegram_quick_reply(action, settings=settings)
+        text = _normalize_telegram_text(build_telegram_quick_reply(action, settings=settings))
         if not text or not str(text).strip():
             text = 'تعذر تجهيز الرد الآن.'
         ok, resp_text, _ = _telegram_api_call(settings, 'sendMessage', {
@@ -731,7 +739,7 @@ def process_telegram_update(settings: dict, update: dict):
     action = mapping.get(txt, 'menu')
     if action == 'menu':
         return send_telegram_menu(settings, chat_id=chat_id)
-    text = build_telegram_quick_reply(action, settings=settings)
+    text = _normalize_telegram_text(build_telegram_quick_reply(action, settings=settings))
     ok, resp_text, _ = _telegram_api_call(settings, 'sendMessage', {
         'chat_id': chat_id or settings.get('telegram_chat_id'),
         'text': text,
@@ -1008,13 +1016,15 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
 def _send_scheduled_notification(prefix, title, message, channel, level='info'):
     settings = load_settings()
     now = datetime.now(UTC)
+    clean_title = _normalize_telegram_text(title)
+    clean_message = _normalize_telegram_text(message)
     current_app.logger.info('scheduled notification send: %s via %s', prefix, channel or 'telegram')
     dispatch_notification(
         settings,
         f'{prefix}-{int(now.timestamp())}',
         prefix,
-        title,
-        message,
+        clean_title,
+        clean_message,
         channel or 'telegram',
         level,
         dedupe_minutes=0,
