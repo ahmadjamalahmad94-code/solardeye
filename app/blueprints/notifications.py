@@ -52,6 +52,10 @@ def load_notification_rules(settings: dict | None = None) -> dict:
 
 
 NOTIFICATION_SECTION_FIELDS = {
+    'general': {
+        'text': [],
+        'checkbox': ['notifications_enabled'],
+    },
     'periodic_day': {
         'text': [
             'periodic_day_schedule_mode', 'periodic_day_interval_value', 'periodic_day_interval_unit',
@@ -196,13 +200,12 @@ def _save_notification_rules_from_form(form):
 
 def save_notification_settings_from_form(form, section: str | None = None):
     section = (section or '').strip().lower()
-    if section and section in NOTIFICATION_SECTION_FIELDS:
-        config = NOTIFICATION_SECTION_FIELDS[section]
-        text_fields = config.get('text', [])
-        checkbox_fields = config.get('checkbox', [])
-    else:
-        text_fields = ALL_NOTIFICATION_TEXT_FIELDS
-        checkbox_fields = ALL_NOTIFICATION_CHECKBOX_FIELDS
+    if not section or section not in NOTIFICATION_SECTION_FIELDS:
+        raise ValueError('قسم الحفظ غير صالح أو غير محدد')
+
+    config = NOTIFICATION_SECTION_FIELDS[section]
+    text_fields = config.get('text', [])
+    checkbox_fields = config.get('checkbox', [])
 
     for field in text_fields:
         _upsert_setting(field, (form.get(field, '') or '').strip())
@@ -210,7 +213,7 @@ def save_notification_settings_from_form(form, section: str | None = None):
     for key in checkbox_fields:
         _upsert_setting(key, 'true' if form.get(key) == 'on' else 'false')
 
-    if (section == 'rules') or (not section):
+    if section == 'rules':
         _save_notification_rules_from_form(form)
 
     for key in SECTION_LAST_SENT_KEYS.get(section, []):
@@ -288,12 +291,11 @@ def send_telegram_message(settings: dict, title: str, message: str):
         _diag('telegram send skipped: missing token/chat_id token=%s chat_id=%s', bool(token), bool(chat_id))
         return False, 'بيانات Telegram غير مكتملة'
     url = f"{base}/bot{token}/sendMessage"
-    clean_title = html.escape(_normalize_telegram_text(title))
-    clean_message = html.escape(_normalize_telegram_text(message)).replace(chr(10), '<br>')
+    clean_title = _normalize_telegram_text(title)
+    clean_message = _normalize_telegram_text(message)
     payload = {
         'chat_id': chat_id,
-        'text': f"<b>{clean_title}</b>\n\n{clean_message}",
-        'parse_mode': 'HTML',
+        'text': (clean_title + "\n\n" + clean_message).strip(),
         'disable_web_page_preview': True,
     }
     try:

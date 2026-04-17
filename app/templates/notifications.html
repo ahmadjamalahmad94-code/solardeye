@@ -2,362 +2,330 @@
 {% block body %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area notifications-page">
+  <main class="content-area notifications-page-clean">
     <header class="topbar notifications-hero">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
         <div>
-          <h1>مركز الإشعارات الذكي</h1>
-          <p class="mb-0">تحكم كامل بكل نوع رسالة: القناة، وقت الإرسال، البنود الظاهرة، ونص المعاينة لكل إشعار.</p>
+          <h1>مركز الإشعارات</h1>
+          <p class="mb-0">قسم ربط مستقل فوق الصفحة، وتحته بطاقات الإشعارات بنفس الروح الحالية لكن بمنطق حفظ واختبار جديد وواضح.</p>
         </div>
       </div>
-      <div class="topbar-actions d-flex gap-2">
-        <form method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}">
-          <button class="btn btn-outline-primary">اختبار Telegram</button>
-        </form>
-        <form method="post" action="{{ url_for('main.notifications_action', section='quick_both', action='send') }}">
-          <button class="btn btn-solar">اختبار القناتين</button>
-        </form>
+      <div class="topbar-actions d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.channels', lang=ui_lang) }}">صفحة الربط المستقلة</a>
       </div>
     </header>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
           <div class="alert alert-{{ category }} mt-2">{{ message }}</div>
         {% endfor %}
       {% endif %}
     {% endwith %}
-    {% if notification_preview %}
-      <section class="panel-card mt-3">
-        <div class="section-head">
-          <div>
-            <h3>المعاينة المبنية من السيرفر</h3>
-            <p class="section-subtitle">هذه هي الرسالة الفعلية التي تم تجهيزها حسب إعداداتك الحالية قبل الإرسال.</p>
-          </div>
-          <div class="stats-pill">{{ notification_preview.channel or 'telegram' }}</div>
+
+    <section class="panel-card mt-3">
+      <div class="section-head">
+        <div>
+          <h3>ربط القنوات</h3>
+          <p class="section-subtitle">كل قسم هنا مستقل تمامًا: Telegram، أزرار Telegram، وSMS.</p>
         </div>
-        <div class="notify-preview-card active-preview-box">
-          <div class="preview-title">{{ notification_preview.title }}</div>
-          <pre class="server-preview-box">{{ notification_preview.message }}</pre>
+        <div class="stats-pill">مستقل</div>
+      </div>
+
+      <div class="channel-grid mt-3">
+        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
+          <input type="hidden" name="lang" value="{{ ui_lang }}">
+          <input type="hidden" name="channel_section" value="telegram">
+          <div class="preview-title">Telegram</div>
+          <div class="form-stack mt-2">
+            <div>
+              <label class="form-label">Bot Token</label>
+              <input class="form-control" type="text" name="telegram_bot_token" value="{{ settings.telegram_bot_token or '' }}">
+            </div>
+            <div>
+              <label class="form-label">Chat ID</label>
+              <input class="form-control" type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}">
+            </div>
+            <div>
+              <label class="form-label">Telegram API URL</label>
+              <input class="form-control" type="text" name="telegram_api_url" value="{{ settings.telegram_api_url or 'https://api.telegram.org' }}">
+            </div>
+          </div>
+          <div class="tiny-note mt-2">Webhook: <strong>{{ webhook_info.url or 'غير مفعل' }}</strong></div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram">حفظ Telegram</button>
+            <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="telegram_test">اختبار Telegram</button>
+          </div>
+        </form>
+
+        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
+          <input type="hidden" name="lang" value="{{ ui_lang }}">
+          <input type="hidden" name="channel_section" value="telegram_buttons">
+          <div class="preview-title">قائمة Telegram التفاعلية</div>
+          <div class="switch-grid mt-2 small-switches">
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_status" {% if settings.tg_btn_status != 'false' %}checked{% endif %}><span>الحالة</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_loads" {% if settings.tg_btn_loads != 'false' %}checked{% endif %}><span>الأحمال</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_weather" {% if settings.tg_btn_weather != 'false' %}checked{% endif %}><span>الطقس</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_surplus" {% if settings.tg_btn_surplus != 'false' %}checked{% endif %}><span>الفائض</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_decision" {% if settings.tg_btn_decision != 'false' %}checked{% endif %}><span>القرار</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_smart" {% if settings.tg_btn_smart != 'false' %}checked{% endif %}><span>النصيحة</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_sunset" {% if settings.tg_btn_sunset != 'false' %}checked{% endif %}><span>الغروب</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_night_risk" {% if settings.tg_btn_night_risk != 'false' %}checked{% endif %}><span>خطر الليلة</span></label>
+            <label class="switch-pill"><input type="checkbox" name="tg_btn_last_sync" {% if settings.tg_btn_last_sync != 'false' %}checked{% endif %}><span>آخر مزامنة</span></label>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_telegram_buttons">حفظ الأزرار</button>
+            <button class="btn btn-solar" type="submit" name="channel_action" value="telegram_menu">إرسال القائمة</button>
+          </div>
+        </form>
+
+        <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}" class="notify-block compact-block">
+          <input type="hidden" name="lang" value="{{ ui_lang }}">
+          <input type="hidden" name="channel_section" value="sms">
+          <div class="preview-title">SMS</div>
+          <div class="form-stack mt-2">
+            <div>
+              <label class="form-label">SMS API URL</label>
+              <input class="form-control" type="text" name="sms_api_url" value="{{ settings.sms_api_url or '' }}">
+            </div>
+            <div>
+              <label class="form-label">API Key</label>
+              <input class="form-control" type="text" name="sms_api_key" value="{{ settings.sms_api_key or '' }}">
+            </div>
+            <div>
+              <label class="form-label">Sender</label>
+              <input class="form-control" type="text" name="sms_sender" value="{{ settings.sms_sender or '' }}">
+            </div>
+            <div>
+              <label class="form-label">Recipients</label>
+              <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}">
+            </div>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" type="submit" name="channel_action" value="save_sms">حفظ SMS</button>
+            <button class="btn btn-outline-secondary" type="submit" name="channel_action" value="sms_test">اختبار SMS</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <div>
+          <h3>الإعداد العام</h3>
+          <p class="section-subtitle">هذا المفتاح هو الذي يسمح للمجدول بإرسال الإشعارات تلقائيًا.</p>
+        </div>
+        <div class="stats-pill {{ 'ok' if settings.notifications_enabled != 'false' else 'off' }}">{{ 'مفعّل' if settings.notifications_enabled != 'false' else 'متوقف' }}</div>
+      </div>
+      <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
+        <input type="hidden" name="settings_section" value="general">
+        <label class="switch-pill big-switch"><input type="checkbox" name="notifications_enabled" {% if settings.notifications_enabled != 'false' %}checked{% endif %}><span>تفعيل الإشعارات العامة</span></label>
+        <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('main.notifications_action', section='quick_telegram', action='send', lang=ui_lang) }}" onclick="event.preventDefault(); document.getElementById('quick-telegram-form').submit();">اختبار سريع Telegram</a>
+        </div>
+      </form>
+      <form id="quick-telegram-form" method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send', lang=ui_lang) }}"></form>
+    </section>
+
+    <div class="notify-cards-grid mt-4">
+      <section class="panel-card notify-section-card">
+        <div class="section-head"><div><h3>التحديث الدوري النهاري</h3><p class="section-subtitle">يرسل فقط أثناء النهار.</p></div><div class="stats-pill">periodic_day</div></div>
+        <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
+          <input type="hidden" name="settings_section" value="periodic_day">
+          <label class="switch-pill big-switch"><input type="checkbox" name="periodic_day_enabled" {% if settings.periodic_day_enabled != 'false' %}checked{% endif %}><span>تفعيل التحديث الدوري النهاري</span></label>
+          <div class="form-grid-two mt-3">
+            <div><label class="form-label">القناة</label><select class="form-select" name="periodic_day_channel"><option value="telegram" {% if settings.periodic_day_channel != 'sms' and settings.periodic_day_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.periodic_day_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.periodic_day_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+            <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="periodic_day_schedule_mode"><option value="interval" {% if settings.periodic_day_schedule_mode != 'specific' and settings.periodic_day_schedule_mode != 'manual' %}selected{% endif %}>كل فترة</option><option value="specific" {% if settings.periodic_day_schedule_mode == 'specific' %}selected{% endif %}>أوقات محددة</option><option value="manual" {% if settings.periodic_day_schedule_mode == 'manual' %}selected{% endif %}>يدوي</option></select></div>
+            <div><label class="form-label">القيمة</label><input class="form-control" type="number" min="1" name="periodic_day_interval_value" value="{{ settings.periodic_day_interval_value or '30' }}"></div>
+            <div><label class="form-label">الوحدة</label><select class="form-select" name="periodic_day_interval_unit"><option value="minutes" {% if settings.periodic_day_interval_unit == 'minutes' %}selected{% endif %}>دقائق</option><option value="hours" {% if settings.periodic_day_interval_unit != 'minutes' %}selected{% endif %}>ساعات</option></select></div>
+            <div><label class="form-label">من</label><input class="form-control" type="time" name="periodic_day_time_start" value="{{ settings.periodic_day_time_start or '09:00' }}"></div>
+            <div><label class="form-label">إلى</label><input class="form-control" type="time" name="periodic_day_time_end" value="{{ settings.periodic_day_time_end or '18:00' }}"></div>
+            <div class="full-span"><label class="form-label">أوقات محددة (مثال: 09:00,12:00,15:00)</label><input class="form-control" type="text" name="periodic_day_specific_hours" value="{{ settings.periodic_day_specific_hours or '' }}"></div>
+          </div>
+          <div class="switch-grid mt-3 small-switches">
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_progress" {% if settings.periodic_day_include_progress != 'false' %}checked{% endif %}><span>شريط البطارية</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_summary" {% if settings.periodic_day_include_summary != 'false' %}checked{% endif %}><span>ملخص اليوم</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_device" {% if settings.periodic_day_include_device != 'false' %}checked{% endif %}><span>الجهاز</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_weather" {% if settings.periodic_day_include_weather != 'false' %}checked{% endif %}><span>الطقس</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_loads" {% if settings.periodic_day_include_loads != 'false' %}checked{% endif %}><span>الأحمال</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_day_include_sunset" {% if settings.periodic_day_include_sunset != 'false' %}checked{% endif %}><span>تحليل الغروب</span></label>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button>
+            <button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel-card notify-section-card">
+        <div class="section-head"><div><h3>التحديث الدوري الليلي</h3><p class="section-subtitle">يرسل فقط بعد خروج النظام من فترة النهار.</p></div><div class="stats-pill">periodic_night</div></div>
+        <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
+          <input type="hidden" name="settings_section" value="periodic_night">
+          <label class="switch-pill big-switch"><input type="checkbox" name="periodic_night_enabled" {% if settings.periodic_night_enabled != 'false' %}checked{% endif %}><span>تفعيل التحديث الدوري الليلي</span></label>
+          <div class="form-grid-two mt-3">
+            <div><label class="form-label">القناة</label><select class="form-select" name="periodic_night_channel"><option value="telegram" {% if settings.periodic_night_channel != 'sms' and settings.periodic_night_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.periodic_night_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.periodic_night_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+            <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="periodic_night_schedule_mode"><option value="interval" {% if settings.periodic_night_schedule_mode != 'specific' and settings.periodic_night_schedule_mode != 'manual' %}selected{% endif %}>كل فترة</option><option value="specific" {% if settings.periodic_night_schedule_mode == 'specific' %}selected{% endif %}>أوقات محددة</option><option value="manual" {% if settings.periodic_night_schedule_mode == 'manual' %}selected{% endif %}>يدوي</option></select></div>
+            <div><label class="form-label">القيمة</label><input class="form-control" type="number" min="1" name="periodic_night_interval_value" value="{{ settings.periodic_night_interval_value or '30' }}"></div>
+            <div><label class="form-label">الوحدة</label><select class="form-select" name="periodic_night_interval_unit"><option value="minutes" {% if settings.periodic_night_interval_unit == 'minutes' %}selected{% endif %}>دقائق</option><option value="hours" {% if settings.periodic_night_interval_unit != 'minutes' %}selected{% endif %}>ساعات</option></select></div>
+            <div><label class="form-label">من</label><input class="form-control" type="time" name="periodic_night_time_start" value="{{ settings.periodic_night_time_start or '18:00' }}"></div>
+            <div><label class="form-label">إلى</label><input class="form-control" type="time" name="periodic_night_time_end" value="{{ settings.periodic_night_time_end or '08:00' }}"></div>
+            <div class="full-span"><label class="form-label">أوقات محددة</label><input class="form-control" type="text" name="periodic_night_specific_hours" value="{{ settings.periodic_night_specific_hours or '' }}"></div>
+          </div>
+          <div class="switch-grid mt-3 small-switches">
+            <label class="switch-pill"><input type="checkbox" name="periodic_night_include_progress" {% if settings.periodic_night_include_progress != 'false' %}checked{% endif %}><span>شريط البطارية</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_night_include_summary" {% if settings.periodic_night_include_summary != 'false' %}checked{% endif %}><span>ملخص</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_night_include_device" {% if settings.periodic_night_include_device != 'false' %}checked{% endif %}><span>الجهاز</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>الأحمال</span></label>
+            <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاذ/الشحن</span></label>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+        </form>
+      </section>
+
+      <section class="panel-card notify-section-card">
+        <div class="section-head"><div><h3>قبل الغروب</h3><p class="section-subtitle">تحليل ما قبل الغروب مع نصيحة سريعة.</p></div><div class="stats-pill">sunset</div></div>
+        <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
+          <input type="hidden" name="settings_section" value="sunset">
+          <label class="switch-pill big-switch"><input type="checkbox" name="pre_sunset_enabled" {% if settings.pre_sunset_enabled == 'true' %}checked{% endif %}><span>تفعيل تنبيه ما قبل الغروب</span></label>
+          <div class="form-grid-two mt-3">
+            <div><label class="form-label">القناة</label><select class="form-select" name="pre_sunset_channel"><option value="telegram" {% if settings.pre_sunset_channel != 'sms' and settings.pre_sunset_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.pre_sunset_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.pre_sunset_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+            <div><label class="form-label">النمط</label><select class="form-select" name="pre_sunset_schedule_mode"><option value="interval" {% if settings.pre_sunset_schedule_mode != 'specific' and settings.pre_sunset_schedule_mode != 'manual' %}selected{% endif %}>كل فترة</option><option value="specific" {% if settings.pre_sunset_schedule_mode == 'specific' %}selected{% endif %}>أوقات محددة</option><option value="manual" {% if settings.pre_sunset_schedule_mode == 'manual' %}selected{% endif %}>يدوي</option></select></div>
+            <div><label class="form-label">كل كم دقيقة</label><input class="form-control" type="number" min="1" name="pre_sunset_interval_minutes" value="{{ settings.pre_sunset_interval_minutes or '30' }}"></div>
+            <div><label class="form-label">نقص ساعة قبل الغروب</label><div class="pt-2"><label class="switch-pill"><input type="checkbox" name="pre_sunset_subtract_hour" {% if settings.pre_sunset_subtract_hour == 'true' %}checked{% endif %}><span>فعّل</span></label></div></div>
+            <div><label class="form-label">من</label><input class="form-control" type="time" name="pre_sunset_time_start" value="{{ settings.pre_sunset_time_start or '12:00' }}"></div>
+            <div><label class="form-label">إلى</label><input class="form-control" type="text" name="pre_sunset_time_end" value="{{ settings.pre_sunset_time_end or 'sunset' }}" placeholder="sunset أو 18:00"></div>
+          </div>
+          <div class="switch-grid mt-3 small-switches">
+            <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_soc" {% if settings.pre_sunset_include_soc != 'false' %}checked{% endif %}><span>نسبة البطارية</span></label>
+            <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_charge_power" {% if settings.pre_sunset_include_charge_power != 'false' %}checked{% endif %}><span>قدرة الشحن</span></label>
+            <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_eta" {% if settings.pre_sunset_include_eta != 'false' %}checked{% endif %}><span>وقت الامتلاء</span></label>
+            <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_advice" {% if settings.pre_sunset_include_advice != 'false' %}checked{% endif %}><span>النصيحة</span></label>
+            <label class="switch-pill"><input type="checkbox" name="pre_sunset_only_if_not_full" {% if settings.pre_sunset_only_if_not_full == 'true' %}checked{% endif %}><span>فقط إذا لم تمتلئ البطارية</span></label>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+        </form>
+      </section>
+
+      <section class="panel-card notify-section-card">
+        <div class="section-head"><div><h3>الأحمال</h3><p class="section-subtitle">يعتمد على الفائض الفعلي نهارًا والحد الليلي ليلًا.</p></div><div class="stats-pill">load</div></div>
+        <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mt-3">
+          <input type="hidden" name="settings_section" value="load">
+          <label class="switch-pill big-switch"><input type="checkbox" name="load_alert_enabled" {% if settings.load_alert_enabled != 'false' %}checked{% endif %}><span>تفعيل إشعار الأحمال</span></label>
+          <div class="form-grid-two mt-3">
+            <div><label class="form-label">القناة</label><select class="form-select" name="load_alert_channel"><option value="telegram" {% if settings.load_alert_channel != 'sms' and settings.load_alert_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.load_alert_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.load_alert_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+            <div><label class="form-label">الحد الليلي (واط)</label><input class="form-control" type="number" min="0" name="night_max_load_w" value="{{ settings.night_max_load_w or '500' }}"></div>
+            <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="load_alert_schedule_mode"><option value="interval" {% if settings.load_alert_schedule_mode != 'specific' and settings.load_alert_schedule_mode != 'manual' %}selected{% endif %}>كل فترة</option><option value="specific" {% if settings.load_alert_schedule_mode == 'specific' %}selected{% endif %}>أوقات محددة</option><option value="manual" {% if settings.load_alert_schedule_mode == 'manual' %}selected{% endif %}>يدوي</option></select></div>
+            <div><label class="form-label">القيمة</label><input class="form-control" type="number" min="1" name="load_alert_interval_value" value="{{ settings.load_alert_interval_value or '30' }}"></div>
+          </div>
+          <div class="switch-grid mt-3 small-switches">
+            <label class="switch-pill"><input type="checkbox" name="load_alert_include_allowed" {% if settings.load_alert_include_allowed != 'false' %}checked{% endif %}><span>المسموح</span></label>
+            <label class="switch-pill"><input type="checkbox" name="load_alert_include_blocked" {% if settings.load_alert_include_blocked != 'false' %}checked{% endif %}><span>الممنوع</span></label>
+          </div>
+          <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='send', lang=ui_lang) }}" formmethod="post">إرسال اختبار</button></div>
+        </form>
+      </section>
+
+      <section class="panel-card notify-section-card">
+        <div class="section-head"><div><h3>البطارية والطقس والتقرير الصباحي</h3><p class="section-subtitle">أقسام مستقلة باختبار وحفظ منفصل.</p></div><div class="stats-pill">extra</div></div>
+        <div class="stacked-mini-sections mt-3">
+          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
+            <input type="hidden" name="settings_section" value="battery">
+            <div class="mini-title">اختبار البطارية</div>
+            <div class="form-grid-two mt-2">
+              <div><label class="form-label">القناة</label><select class="form-select" name="battery_test_channel"><option value="telegram" {% if settings.battery_test_channel != 'sms' and settings.battery_test_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.battery_test_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.battery_test_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+              <div><label class="form-label">كل كم دقيقة</label><input class="form-control" type="number" min="1" name="battery_test_interval_value" value="{{ settings.battery_test_interval_value or '60' }}"></div>
+            </div>
+            <label class="switch-pill mt-2"><input type="checkbox" name="battery_test_enabled" {% if settings.battery_test_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='battery', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+          </form>
+
+          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
+            <input type="hidden" name="settings_section" value="weather">
+            <div class="mini-title">تنبيه الطقس</div>
+            <div class="form-grid-two mt-2">
+              <div><label class="form-label">القناة</label><select class="form-select" name="weather_test_channel"><option value="telegram" {% if settings.weather_test_channel != 'sms' and settings.weather_test_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.weather_test_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.weather_test_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+              <div><label class="form-label">نسبة الغيوم الحرجة %</label><input class="form-control" type="number" min="0" max="100" name="weather_cloud_threshold" value="{{ settings.weather_cloud_threshold or '60' }}"></div>
+            </div>
+            <label class="switch-pill mt-2"><input type="checkbox" name="weather_test_enabled" {% if settings.weather_test_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+          </form>
+
+          <form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang) }}" class="mini-section-form">
+            <input type="hidden" name="settings_section" value="daily_report">
+            <div class="mini-title">تقرير الصباح</div>
+            <div class="form-grid-two mt-2">
+              <div><label class="form-label">القناة</label><select class="form-select" name="daily_report_channel"><option value="telegram" {% if settings.daily_report_channel != 'sms' and settings.daily_report_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.daily_report_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.daily_report_channel == 'both' %}selected{% endif %}>الاثنان</option></select></div>
+              <div><label class="form-label">وقت التقرير</label><input class="form-control" type="time" name="daily_report_time" value="{{ settings.daily_report_time or '07:00' }}"></div>
+            </div>
+            <label class="switch-pill mt-2"><input type="checkbox" name="daily_report_enabled" {% if settings.daily_report_enabled != 'false' %}checked{% endif %}><span>تفعيل</span></label>
+            <div class="test-actions mt-2 d-flex gap-2 flex-wrap"><button class="btn btn-outline-primary" type="submit">حفظ</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='send', lang=ui_lang) }}" formmethod="post">اختبار</button></div>
+          </form>
         </div>
       </section>
+    </div>
+
+    {% if notification_preview %}
+    <section class="panel-card mt-4">
+      <div class="section-head"><div><h3>آخر معاينة</h3></div><div class="stats-pill">{{ notification_preview.channel or 'telegram' }}</div></div>
+      <div class="notify-preview-card mt-3">
+        <div class="preview-title">{{ notification_preview.title }}</div>
+        <pre class="server-preview-box">{{ notification_preview.message }}</pre>
+      </div>
+    </section>
     {% endif %}
 
-    <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2" id="notificationsSettingsForm">
-      <section class="panel-card notification-overview-card">
-        <div class="notify-overview-grid">
-          <div class="overview-metric-card metric-telegram"><span>Telegram</span><strong>{{ 'مفعل' if settings.telegram_bot_token and settings.telegram_chat_id else 'غير مكتمل' }}</strong><small>Bot + Chat + API</small></div>
-          <div class="overview-metric-card metric-sms"><span>SMS</span><strong>{{ 'مفعل' if settings.sms_api_url and settings.sms_recipients else 'غير مكتمل' }}</strong><small>API + Recipients</small></div>
-          <div class="overview-metric-card metric-rules"><span>الرسائل المفعلة</span><strong id="enabledSectionsCount">0</strong><small>تخصيص كامل لكل قسم</small></div>
-          <div class="overview-metric-card metric-sync"><span>آخر فحص</span><strong>{{ format_local(recent_notifications[0].created_at) if recent_notifications else '—' }}</strong><small>يعتمد على سجل الإشعارات</small></div><div class="overview-metric-card metric-sync"><span>الرسائل المعطلة</span><strong id="disabledSectionsCount">0</strong><small>يتحدث من حالة التفعيل في الأسفل</small></div>
-        </div>
-      </section>
-
-      
-
-
-      <section class="panel-card mt-4 notification-builder-card">
-        <div class="section-head">
-          <div>
-            <h3>مصمم الرسائل المتقدم</h3>
-            <p class="section-subtitle">كل قسم أدناه له تفعيل مستقل، جدولة مستقلة، ومحتوى يمكن إظهاره أو إخفاؤه في الرسالة.</p>
-          </div>
-          <div class="test-actions compact-inline">
-            <button class="btn btn-solar" type="submit">💾 حفظ كل الإعدادات</button>
-            <button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}" formmethod="post">📤 اختبار سريع Telegram</button>
-          </div>
-        </div>
-
-        <div class="notify-tabs" data-tabs="notifications-tabs">
-          <div class="notify-tabs-nav">
-            <button type="button" class="notify-tab-btn active" data-target="tab-day"><span>🔔 دوري نهاري</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-night"><span>🌙 دوري ليلي</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-sunset"><span>🌇 قبل الغروب</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-discharge"><span>🔋 تفريغ ليلي</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-loads"><span>⚡ الأحمال</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-weather"><span>☁️ الطقس</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-battery"><span>🧪 البطارية</span><em class="tab-live-badge">ON</em></button>
-            <button type="button" class="notify-tab-btn" data-target="tab-morning"><span>☀️ تقرير الصباح</span><em class="tab-live-badge">ON</em></button>
-          </div>
-
-          <div class="notify-tabs-body">
-            <section data-panel-name="tab-day" class="notify-tab-panel active" id="tab-day">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>التحديث الدوري النهاري</h4><label class="switch-row"><input type="checkbox" name="periodic_day_enabled" data-section-toggle {% if settings.periodic_day_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="periodic_day_schedule_mode"><option value="interval" {% if settings.periodic_day_schedule_mode != 'specific' %}selected{% endif %}>دوري</option><option value="specific" {% if settings.periodic_day_schedule_mode == 'specific' %}selected{% endif %}>ساعات محددة</option></select></div>
-                    <div><label class="form-label">كل</label><input class="form-control" name="periodic_day_interval_value" value="{{ settings.periodic_day_interval_value or '1' }}"></div>
-                    <div><label class="form-label">الوحدة</label><select class="form-select" name="periodic_day_interval_unit"><option value="hours" {% if settings.periodic_day_interval_unit != 'minutes' %}selected{% endif %}>ساعة</option><option value="minutes" {% if settings.periodic_day_interval_unit == 'minutes' %}selected{% endif %}>دقيقة</option></select></div>
-                    <div class="span-3"><label class="form-label">ساعات محددة</label><input class="form-control" name="periodic_day_specific_hours" value="{{ settings.periodic_day_specific_hours or '08:00,10:00,12:00,14:00,16:00' }}"></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="periodic_day_time_start" value="{{ settings.periodic_day_time_start or '08:00' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="periodic_day_time_end" value="{{ settings.periodic_day_time_end or 'sunset' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="periodic_day_channel"><option value="telegram" {% if settings.periodic_day_channel != 'sms' and settings.periodic_day_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.periodic_day_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.periodic_day_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_progress" data-preview-toggle="progress" {% if settings.periodic_day_include_progress != 'false' %}checked{% endif %}><span>شريط البطارية</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_summary" data-preview-toggle="summary" {% if settings.periodic_day_include_summary != 'false' %}checked{% endif %}><span>ملخص اليوم</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_device" data-preview-toggle="device" {% if settings.periodic_day_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_weather" data-preview-toggle="weather" {% if settings.periodic_day_include_weather != 'false' %}checked{% endif %}><span>الطقس</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_loads" data-preview-toggle="loads" {% if settings.periodic_day_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_day_include_sunset" data-preview-toggle="sunset" {% if settings.periodic_day_include_sunset != 'false' %}checked{% endif %}><span>تحليل الغروب</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='periodic_day') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_day', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card>
-                  <div class="preview-title">المعاينة الحية</div>
-                  <div class="preview-message" data-preview-root>
-                    <div class="preview-line preview-title-line">🔔 التحديث الدوري للطاقة - نهارًا</div>
-                    <div class="preview-line" data-preview-key="progress">███████░░░ 71%</div>
-                    <div class="preview-line">🔋 الحالة: يتم شحن البطارية</div>
-                    <div class="preview-line">☀️ الشمس الآن: 1,228.0 واط</div>
-                    <div class="preview-line">🏠 استهلاك المنزل: 152.0 واط</div>
-                    <div class="preview-line">🔋 الداخل للبطارية الآن: 950 واط</div>
-                    <div class="preview-line">⏳ الوقت المتوقع للامتلاء: 1 ساعة و 27 دقيقة</div>
-                    <div class="preview-line spacer" data-preview-key="summary"></div>
-                    <div class="preview-line" data-preview-key="summary">📅 ملخص اليوم: إنتاج / استهلاك / شحن / تفريغ</div>
-                    <div class="preview-line" data-preview-key="device">🔧 حالة الجهاز: حرارة الانفيرتر + البطارية + الجهد</div>
-                    <div class="preview-line" data-preview-key="sunset">🌇 الغروب: 07:10 مساءً | الفعلي: 06:10 مساءً</div>
-                    <div class="preview-line" data-preview-key="sunset">🔮 التحليل: سيتم شحن البطارية قبل الغروب</div>
-                    <div class="preview-line" data-preview-key="weather">🌤️ الطقس: مشمس.</div>
-                    <div class="preview-line" data-preview-key="loads">☀️ الأحمال نهارًا: الحمل الحالي 152W | المتاح 715W</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-night" class="notify-tab-panel" id="tab-night">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>التحديث الدوري الليلي</h4><label class="switch-row"><input type="checkbox" name="periodic_night_enabled" data-section-toggle {% if settings.periodic_night_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="periodic_night_schedule_mode"><option value="interval" {% if settings.periodic_night_schedule_mode != 'specific' %}selected{% endif %}>دوري</option><option value="specific" {% if settings.periodic_night_schedule_mode == 'specific' %}selected{% endif %}>ساعات محددة</option></select></div>
-                    <div><label class="form-label">كل</label><input class="form-control" name="periodic_night_interval_value" value="{{ settings.periodic_night_interval_value or '1' }}"></div>
-                    <div><label class="form-label">الوحدة</label><select class="form-select" name="periodic_night_interval_unit"><option value="hours" {% if settings.periodic_night_interval_unit != 'minutes' %}selected{% endif %}>ساعة</option><option value="minutes" {% if settings.periodic_night_interval_unit == 'minutes' %}selected{% endif %}>دقيقة</option></select></div>
-                    <div class="span-3"><label class="form-label">ساعات محددة</label><input class="form-control" name="periodic_night_specific_hours" value="{{ settings.periodic_night_specific_hours or '20:00,22:00,00:00,02:00,04:00,06:00' }}"></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="periodic_night_time_start" value="{{ settings.periodic_night_time_start or 'sunset' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="periodic_night_time_end" value="{{ settings.periodic_night_time_end or '08:00' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="periodic_night_channel"><option value="telegram" {% if settings.periodic_night_channel != 'sms' and settings.periodic_night_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.periodic_night_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.periodic_night_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_progress" data-preview-toggle="progress" {% if settings.periodic_night_include_progress != 'false' %}checked{% endif %}><span>شريط البطارية</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_summary" data-preview-toggle="summary" {% if settings.periodic_night_include_summary != 'false' %}checked{% endif %}><span>ملخص اليوم</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_device" data-preview-toggle="device" {% if settings.periodic_night_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_loads" data-preview-toggle="loads" {% if settings.periodic_night_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="periodic_night_include_eta" data-preview-toggle="eta" {% if settings.periodic_night_include_eta != 'false' %}checked{% endif %}><span>وقت النفاد</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='periodic_night') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_action', section='periodic_night', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card>
-                  <div class="preview-title">المعاينة الحية</div>
-                  <div class="preview-message" data-preview-root>
-                    <div class="preview-line preview-title-line">🔔 التحديث الدوري للطاقة - ليلًا</div>
-                    <div class="preview-line" data-preview-key="progress">███████░░░ 71%</div>
-                    <div class="preview-line">🔋 الحالة: يتم التفريغ من البطارية</div>
-                    <div class="preview-line">🌙 الآن ليلًا ولا يوجد دخل شمسي</div>
-                    <div class="preview-line">🏠 استهلاك المنزل ...</div>
-                    <div class="preview-line" data-preview-key="eta">⏳ الوقت المتوقع للتفريغ الكامل ...</div>
-                    <div class="preview-line spacer" data-preview-key="summary"></div>
-                    <div class="preview-line" data-preview-key="summary">📅 ملخص اليوم ...</div>
-                    <div class="preview-line" data-preview-key="device">🔧 حالة الجهاز ...</div>
-                    <div class="preview-line" data-preview-key="loads">⚡ اقتراح الأحمال الآن ...</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-sunset" class="notify-tab-panel" id="tab-sunset">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>تنبيه الشحن نهارًا - تحليل ما قبل الغروب</h4><label class="switch-row"><input type="checkbox" name="pre_sunset_enabled" data-section-toggle {% if settings.pre_sunset_enabled == 'true' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="pre_sunset_schedule_mode"><option value="interval" {% if settings.pre_sunset_schedule_mode != 'specific' %}selected{% endif %}>دوري</option><option value="specific" {% if settings.pre_sunset_schedule_mode == 'specific' %}selected{% endif %}>ساعات محددة</option></select></div>
-                    <div><label class="form-label">كل</label><input class="form-control" name="pre_sunset_interval_minutes" value="{{ settings.pre_sunset_interval_minutes or '30' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="pre_sunset_channel"><option value="telegram" {% if settings.pre_sunset_channel != 'sms' and settings.pre_sunset_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.pre_sunset_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.pre_sunset_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                    <div class="span-3"><label class="form-label">ساعات محددة</label><input class="form-control" name="pre_sunset_specific_hours" value="{{ settings.pre_sunset_specific_hours or '13:00,14:00,15:00,16:00' }}"></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="pre_sunset_time_start" value="{{ settings.pre_sunset_time_start or '13:00' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="pre_sunset_time_end" value="{{ settings.pre_sunset_time_end or 'sunset' }}"></div>
-                    <div><label class="form-label">إشعار الشحن كل %</label><input class="form-control" name="charge_step_percent" value="{{ settings.charge_step_percent or '10' }}"></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_soc" data-preview-toggle="soc" {% if settings.pre_sunset_include_soc != 'false' %}checked{% endif %}><span>نسبة البطارية</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_charge_power" data-preview-toggle="charge_power" {% if settings.pre_sunset_include_charge_power != 'false' %}checked{% endif %}><span>الشحن الحالي</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_eta" data-preview-toggle="eta" {% if settings.pre_sunset_include_eta != 'false' %}checked{% endif %}><span>وقت الامتلاء</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_include_advice" data-preview-toggle="advice" {% if settings.pre_sunset_include_advice != 'false' %}checked{% endif %}><span>النصيحة</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_subtract_hour" {% if settings.pre_sunset_subtract_hour != 'false' %}checked{% endif %}><span>خصم ساعة من الغروب</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="pre_sunset_only_if_not_full" {% if settings.pre_sunset_only_if_not_full == 'true' %}checked{% endif %}><span>فقط إذا لم تمتلئ</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='sunset') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='sunset', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🌇 تنبيه الشحن نهارًا - تحليل ما قبل الغروب</div><div class="preview-line" data-preview-key="soc">🔋 نسبة البطارية: 71%</div><div class="preview-line" data-preview-key="charge_power">⚡ الشحن الحالي: 1001 واط</div><div class="preview-line">🕕 الغروب الفعلي للحساب: 06:10 مساءً</div><div class="preview-line">🕒 المتبقي للغروب: 7 ساعة و 41 دقيقة</div><div class="preview-line" data-preview-key="eta">⏳ وقت الامتلاء: 1 ساعة و 27 دقيقة</div><div class="preview-line">✅ النتيجة: سيتم شحن البطارية قبل الغروب</div><div class="preview-line" data-preview-key="advice">💡 نصيحة: الوضع جيد.</div></div></div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-discharge" class="notify-tab-panel" id="tab-discharge">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>تنبيه التفريغ الليلي</h4><label class="switch-row"><input type="checkbox" name="night_discharge_enabled" data-section-toggle {% if settings.night_discharge_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">كل %</label><input class="form-control" name="night_discharge_percent_step" value="{{ settings.night_discharge_percent_step or '5' }}"></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="night_discharge_time_start" value="{{ settings.night_discharge_time_start or 'sunset' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="night_discharge_time_end" value="{{ settings.night_discharge_time_end or '08:00' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="night_discharge_channel"><option value="telegram" {% if settings.night_discharge_channel != 'sms' and settings.night_discharge_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.night_discharge_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.night_discharge_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="night_discharge_include_device" data-preview-toggle="device" {% if settings.night_discharge_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="night_discharge_include_energy" data-preview-toggle="energy" {% if settings.night_discharge_include_energy != 'false' %}checked{% endif %}><span>الطاقة فوق الاحتياطي</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='discharge') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='discharge', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-warning" type="submit" formaction="{{ url_for('main.notifications_action', section='discharge', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🌙 تنبيه التفريغ الليلي</div><div class="preview-line">██████████ 97%</div><div class="preview-line">🔋 الحالة الحالية: يتم التفريغ</div><div class="preview-line" data-preview-key="device">📊 حالة المنظومة: اعتماد على البطارية</div><div class="preview-line">🔌 الداخل للبطارية: 0.0 واط</div><div class="preview-line">🔋 المسحوب من البطارية: 299.0 واط</div><div class="preview-line">🏠 المسحوب في المنزل: 321.0 واط</div><div class="preview-line" data-preview-key="energy">📦 الطاقة المتاحة فوق الاحتياطي: 3.85 kWh</div><div class="preview-line">⏳ الوقت المتوقع: 12 ساعة و 53 دقيقة</div></div></div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-loads" class="notify-tab-panel" id="tab-loads">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>إشعار الأحمال القابلة للتشغيل والممنوعة</h4><label class="switch-row"><input type="checkbox" name="load_alert_enabled" data-section-toggle {% if settings.load_alert_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="load_alert_schedule_mode"><option value="interval" {% if settings.load_alert_schedule_mode != 'specific' %}selected{% endif %}>دوري</option><option value="specific" {% if settings.load_alert_schedule_mode == 'specific' %}selected{% endif %}>ساعات محددة</option></select></div>
-                    <div><label class="form-label">كل</label><input class="form-control" name="load_alert_interval_value" value="{{ settings.load_alert_interval_value or '1' }}"></div>
-                    <div><label class="form-label">الوحدة</label><select class="form-select" name="load_alert_interval_unit"><option value="hours" {% if settings.load_alert_interval_unit != 'minutes' %}selected{% endif %}>ساعة</option><option value="minutes" {% if settings.load_alert_interval_unit == 'minutes' %}selected{% endif %}>دقيقة</option></select></div>
-                    <div class="span-3"><label class="form-label">ساعات محددة</label><input class="form-control" name="load_alert_specific_hours" value="{{ settings.load_alert_specific_hours or '09:00,11:00,13:00,15:00' }}"></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="load_alert_time_start" value="{{ settings.load_alert_time_start or '08:00' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="load_alert_time_end" value="{{ settings.load_alert_time_end or 'sunset' }}"></div>
-                    <div><label class="form-label">عدد الأجهزة المعروضة</label><input class="form-control" name="load_alert_max_items" value="{{ settings.load_alert_max_items or '4' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="load_alert_channel"><option value="telegram" {% if settings.load_alert_channel != 'sms' and settings.load_alert_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.load_alert_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.load_alert_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="load_alert_include_allowed" data-preview-toggle="allowed" {% if settings.load_alert_include_allowed != 'false' %}checked{% endif %}><span>الأجهزة المسموحة</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="load_alert_include_blocked" data-preview-toggle="blocked" {% if settings.load_alert_include_blocked != 'false' %}checked{% endif %}><span>الأجهزة الممنوعة</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='load') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-dark" type="submit" formaction="{{ url_for('main.notifications_action', section='load', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">⚡ إشعار الأحمال القابلة للتشغيل والممنوعة</div><div class="preview-line">🌙 وضع الليل</div><div class="preview-line">🔌 الحد المحدد: 500W</div><div class="preview-line">🏠 الحمل الحالي: 170W</div><div class="preview-line">⚡ المتاح: 330W</div><div class="preview-line spacer"></div><div class="preview-line" data-preview-key="allowed">يمكنك تشغيل: شاشة سامسونج، مكيف مروحة فقط، بلايستيشن</div><div class="preview-line" data-preview-key="blocked">⚠️ لا ينصح: سخان ماء</div></div></div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-weather" class="notify-tab-panel" id="tab-weather">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>اختبار / تنبيه الطقس</h4><label class="switch-row"><input type="checkbox" name="weather_test_enabled" data-section-toggle {% if settings.weather_test_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">من</label><input class="form-control" name="weather_test_time_start" value="{{ settings.weather_test_time_start or '06:00' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="weather_test_time_end" value="{{ settings.weather_test_time_end or 'sunset' }}"></div>
-                    <div><label class="form-label">قناة الإرسال</label><select class="form-select" name="weather_test_channel"><option value="telegram" {% if settings.weather_test_channel != 'sms' and settings.weather_test_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.weather_test_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.weather_test_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="weather_test_include_next_hour" data-preview-toggle="next_hour" {% if settings.weather_test_include_next_hour != 'false' %}checked{% endif %}><span>خلال ساعة</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="weather_test_include_smart_tip" data-preview-toggle="smart_tip" {% if settings.weather_test_include_smart_tip != 'false' %}checked{% endif %}><span>نصيحة ذكية</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='weather') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('main.notifications_action', section='weather', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">☁️ اختبار تنبيه الطقس</div><div class="preview-line">الآن: ☀️ مشمس • 21.1°</div><div class="preview-line" data-preview-key="next_hour">خلال ساعة: غيوم خفيفة</div><div class="preview-line" data-preview-key="smart_tip">نصيحة ذكية: الساعات القادمة مناسبة للإنتاج حتى الغروب.</div><div class="preview-line spacer"></div><div class="preview-line tiny">يعمل من الساعة 6 صباحًا حتى الغروب فقط.</div></div></div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-battery" class="notify-tab-panel" id="tab-battery">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>اختبار حالة البطارية</h4><label class="switch-row"><input type="checkbox" name="battery_test_enabled" data-section-toggle {% if settings.battery_test_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">نمط الجدولة</label><select class="form-select" name="battery_test_schedule_mode"><option value="manual" {% if settings.battery_test_schedule_mode != 'interval' %}selected{% endif %}>يدوي</option><option value="interval" {% if settings.battery_test_schedule_mode == 'interval' %}selected{% endif %}>دوري</option></select></div>
-                    <div><label class="form-label">من</label><input class="form-control" name="battery_test_time_start" value="{{ settings.battery_test_time_start or '00:00' }}"></div>
-                    <div><label class="form-label">إلى</label><input class="form-control" name="battery_test_time_end" value="{{ settings.battery_test_time_end or '23:59' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="battery_test_channel"><option value="telegram" {% if settings.battery_test_channel != 'sms' and settings.battery_test_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.battery_test_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.battery_test_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="battery_test_include_day_summary" data-preview-toggle="day_summary" {% if settings.battery_test_include_day_summary != 'false' %}checked{% endif %}><span>ملخص اليوم</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="battery_test_include_sunset" data-preview-toggle="sunset" {% if settings.battery_test_include_sunset != 'false' %}checked{% endif %}><span>الغروب</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="battery_test_include_loads" data-preview-toggle="loads" {% if settings.battery_test_include_loads != 'false' %}checked{% endif %}><span>اقتراح الأحمال</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='battery') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='charge', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-success" type="submit" formaction="{{ url_for('main.notifications_action', section='charge', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">🧪 اختبار حالة البطارية</div><div class="preview-line">███████░░░ 71%</div><div class="preview-line">🔋 الحالة: يتم شحن البطارية</div><div class="preview-line">☀️ الشمس الآن: 1,228.0 واط</div><div class="preview-line">🏠 استهلاك المنزل: 152.0 واط</div><div class="preview-line">🔋 الداخل للبطارية الآن: 950 واط</div><div class="preview-line">⏳ وقت الامتلاء: 1 ساعة و 27 دقيقة</div><div class="preview-line" data-preview-key="day_summary">📅 ملخص اليوم (من 12 منتصف الليل)</div><div class="preview-line">🔧 حالة الجهاز: حرارة الانفيرتر + البطارية + الجهد</div><div class="preview-line" data-preview-key="sunset">🌇 الغروب: 07:10 مساءً | الفعلي: 06:10 مساءً</div><div class="preview-line" data-preview-key="loads">☀️ الأحمال نهارًا: الحمل الحالي 152W | المتاح 1076W</div></div></div>
-              </div>
-            </section>
-
-            <section data-panel-name="tab-morning" class="notify-tab-panel" id="tab-morning">
-              <div class="notify-panel-grid">
-                <div class="notify-config-card">
-                  <div class="notify-section-head"><h4>تقرير الصباح اليومي</h4><label class="switch-row"><input type="checkbox" name="daily_report_enabled" data-section-toggle {% if settings.daily_report_enabled != 'false' %}checked{% endif %}><span>مفعل</span></label></div>
-                  <div class="config-grid-3">
-                    <div><label class="form-label">وقت الإرسال</label><input class="form-control" name="daily_report_time" value="{{ settings.daily_report_time or '07:00' }}"></div>
-                    <div><label class="form-label">القناة</label><select class="form-select" name="daily_report_channel"><option value="telegram" {% if settings.daily_report_channel != 'sms' and settings.daily_report_channel != 'both' %}selected{% endif %}>Telegram</option><option value="sms" {% if settings.daily_report_channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if settings.daily_report_channel == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-                  </div>
-                  <div class="notify-subgrid mt-3">
-                    <label class="switch-pill"><input type="checkbox" name="daily_report_include_totals" data-preview-toggle="totals" {% if settings.daily_report_include_totals != 'false' %}checked{% endif %}><span>الإجماليات الكلية</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="daily_report_include_yesterday" data-preview-toggle="yesterday" {% if settings.daily_report_include_yesterday != 'false' %}checked{% endif %}><span>بيانات الأمس</span></label>
-                    <label class="switch-pill"><input type="checkbox" name="daily_report_include_device" data-preview-toggle="device" {% if settings.daily_report_include_device != 'false' %}checked{% endif %}><span>حالة الجهاز الآن</span></label>
-                  </div>
-                  <div class="test-actions mt-3 d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='daily_report') }}" formmethod="post">💾 حفظ هذا القسم</button><button class="btn btn-outline-secondary" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='preview') }}" formmethod="post">👁️ معاينة الرسالة</button><button class="btn btn-outline-info" type="submit" formaction="{{ url_for('main.notifications_action', section='daily_report', action='send') }}" formmethod="post">🧪 أرسل اختبار الآن</button></div>
-                </div>
-                <div class="notify-preview-card" data-preview-card><div class="preview-title">المعاينة الحية</div><div class="preview-message" data-preview-root><div class="preview-line preview-title-line">☀️ تقرير الصباح اليومي</div><div class="preview-line">🌅 تقرير صباح يوم 2026-04-14</div><div class="preview-line" data-preview-key="totals">📊 الإجماليات الكلية منذ بدء التشغيل: إنتاج / استهلاك / شحن / تفريغ</div><div class="preview-line" data-preview-key="yesterday">📅 اليوم السابق (آخر قراءة): 1.70 kWh / 1.80 kWh</div><div class="preview-line" data-preview-key="device">🔧 حالة الجهاز الآن: نسبة البطارية + حرارة الانفيرتر + BMS</div></div></div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel-card mt-4 notification-rules-card">
-        <div class="section-head">
-          <div>
-            <h3>قواعد النسب والعتبات</h3>
-            <p class="section-subtitle">تحكم في تنبيهات كل 10% للشحن، وكل 5% للتفريغ، وحدود تنبيهات العجز الليلي.</p>
-          </div>
-          <div class="test-actions compact-inline">
-            <button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='rules') }}" formmethod="post">💾 حفظ هذا القسم</button>
-          </div>
-        </div>
-        <div class="notify-two-col">
-          <div class="panel-card soft-inset">
-            <div class="stats-panel-head compact"><div><h4>تنبيهات الشحن النهاري</h4><small>اختر القناة لكل مستوى</small></div></div>
-            <div class="threshold-grid">
-              {% set charge_step = (settings.charge_step_percent or '10')|int %}
-              {% for level in range(charge_step, 101, charge_step) %}
-                <div class="threshold-row"><label>{{ level }}%</label><select class="form-select form-select-sm" name="charge_{{ level }}"><option value="none" {% if rules.charge.get(level|string,'none') == 'none' %}selected{% endif %}>بدون</option><option value="telegram" {% if rules.charge.get(level|string) == 'telegram' %}selected{% endif %}>Telegram</option><option value="sms" {% if rules.charge.get(level|string) == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if rules.charge.get(level|string) == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-              {% endfor %}
-            </div>
-          </div>
-          <div class="panel-card soft-inset">
-            <div class="stats-panel-head compact"><div><h4>تنبيهات التفريغ الليلي</h4><small>اختر القناة لكل مستوى</small></div></div>
-            <div class="threshold-grid">
-              {% set discharge_step = (settings.night_discharge_percent_step or '5')|int %}
-              {% for level in range(100-discharge_step, 0, -discharge_step) %}
-                <div class="threshold-row"><label>{{ level }}%</label><select class="form-select form-select-sm" name="discharge_{{ level }}"><option value="none" {% if rules.discharge.get(level|string,'none') == 'none' %}selected{% endif %}>بدون</option><option value="telegram" {% if rules.discharge.get(level|string) == 'telegram' %}selected{% endif %}>Telegram</option><option value="sms" {% if rules.discharge.get(level|string) == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if rules.discharge.get(level|string) == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-              {% endfor %}
-            </div>
-            <div class="threshold-inline mt-3">
-              <label class="switch-row"><input type="checkbox" name="day_deficit_enabled" {% if rules.day_deficit.enabled %}checked{% endif %}><span>تنبيه عجز نهاري</span></label>
-              <select class="form-select" name="day_deficit_channel"><option value="telegram" {% if rules.day_deficit.channel == 'telegram' %}selected{% endif %}>Telegram</option><option value="sms" {% if rules.day_deficit.channel == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if rules.day_deficit.channel == 'both' %}selected{% endif %}>الاثنين</option></select>
-            </div>
-            <div class="threshold-grid mt-3">
-              {% for level in [300, 400, 500] %}
-                <div class="threshold-row"><label>عتبة {{ level }}W</label><select class="form-select form-select-sm" name="night_{{ level }}"><option value="none" {% if rules.night_thresholds.get(level|string,'none') == 'none' %}selected{% endif %}>بدون</option><option value="telegram" {% if rules.night_thresholds.get(level|string) == 'telegram' %}selected{% endif %}>Telegram</option><option value="sms" {% if rules.night_thresholds.get(level|string) == 'sms' %}selected{% endif %}>SMS</option><option value="both" {% if rules.night_thresholds.get(level|string) == 'both' %}selected{% endif %}>الاثنين</option></select></div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel-card mt-4">
-        <div class="section-head"><h3>آخر الإشعارات المرسلة</h3><small>آخر 30 إشعارًا لتراجع الشكل والقناة والاستجابة.</small></div>
-        <div class="log-list modern">
-          {% for row in recent_notifications %}
-            <div class="log-item {{ row.level }}">
-              <div>
-                <strong>{{ row.title }}</strong>
-                <div class="small text-muted">{{ row.rule_name }} • {{ row.channel }} • {{ format_local(row.created_at) }}</div>
-                <div class="message-preview">{{ row.message[:240] }}{% if row.message|length > 240 %}...{% endif %}</div>
-              </div>
-            </div>
-          {% else %}
-            <div class="empty-state">لا يوجد سجل إشعارات بعد.</div>
-          {% endfor %}
-        </div>
-      </section>
-    </form>
+    <section class="panel-card mt-4">
+      <div class="section-head"><div><h3>آخر عمليات الإشعارات</h3><p class="section-subtitle">آخر 30 عملية إرسال مع النتيجة.</p></div></div>
+      <div class="table-responsive mt-3">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr><th>الوقت</th><th>العنوان</th><th>القناة</th><th>الحالة</th><th>الرد</th></tr>
+          </thead>
+          <tbody>
+            {% for row in recent_notifications %}
+            <tr>
+              <td>{{ format_local(row.created_at) }}</td>
+              <td>{{ row.title }}</td>
+              <td>{{ row.channel }}</td>
+              <td>{{ row.status }}</td>
+              <td class="text-break">{{ row.response_text[:140] if row.response_text else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted">لا توجد عمليات بعد.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 </div>
+
+<style>
+.notifications-page-clean .channel-grid,
+.notifications-page-clean .notify-cards-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:16px;
+}
+.notifications-page-clean .notify-block,
+.notifications-page-clean .notify-section-card{height:100%;}
+.notifications-page-clean .compact-block{padding:16px;border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(255,255,255,.02);}
+.notifications-page-clean .form-stack{display:grid;gap:10px;}
+.notifications-page-clean .full-span{grid-column:1/-1;}
+.notifications-page-clean .big-switch{display:flex;width:fit-content;}
+.notifications-page-clean .small-switches{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
+.notifications-page-clean .stacked-mini-sections{display:grid;gap:14px;}
+.notifications-page-clean .mini-section-form{padding:14px;border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.02);}
+.notifications-page-clean .mini-title{font-weight:700;margin-bottom:6px;}
+.notifications-page-clean .tiny-note{font-size:.82rem;color:#8f9db2;line-height:1.6;}
+.notifications-page-clean .server-preview-box{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.18);border-radius:14px;padding:14px;}
+.notifications-page-clean .stats-pill.off{background:rgba(220,53,69,.16);color:#ffb8c0;}
+.notifications-page-clean .stats-pill.ok{background:rgba(25,135,84,.16);color:#b7f4cd;}
+@media (max-width: 768px){
+  .notifications-page-clean .channel-grid,
+  .notifications-page-clean .notify-cards-grid{grid-template-columns:1fr;}
+}
+</style>
 {% endblock %}
