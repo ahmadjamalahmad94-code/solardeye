@@ -43,6 +43,7 @@ from .notifications import (
     send_daily_weather_summary, send_periodic_status_update, send_pre_sunset_update,
     send_sms_message, send_telegram_message, send_telegram_menu, process_telegram_update, build_telegram_quick_reply,
 )
+from .smart_engine import get_latest_historical_overview, save_smart_snapshot_from_reading
 
 main_bp = Blueprint('main', __name__)
 
