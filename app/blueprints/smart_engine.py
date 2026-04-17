@@ -288,6 +288,55 @@ def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_
         'scenario_detail_ar': scenario['scenario_detail_ar'],
     }
 
+
+
+def get_latest_historical_overview(lookback_days: int = 45) -> dict:
+    """
+    Compatibility helper expected by main.py.
+    Returns a lightweight overview built from the latest stored SmartSnapshot.
+    Safe fallback: if there is no snapshot yet, return a non-breaking empty overview.
+    """
+    latest_snapshot = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
+    if latest_snapshot is None:
+        return {
+            'archive_ready': False,
+            'matched_count': 0,
+            'confidence_score': 0.0,
+            'confidence_label': 'ثقة ضعيفة',
+            'confidence_band': 'low',
+            'confidence_message': '⚠️ لا توجد بيانات أرشيفية كافية بعد.',
+            'historical_hint': 'الأرشيف ما زال في مرحلة التأسيس.',
+            'predicted_next_hour_solar': None,
+            'predicted_next_hour_surplus': None,
+            'predicted_risk_code': 'insufficient',
+            'predicted_risk_level': 'بيانات غير كافية',
+            'scenario_title': 'السيناريو القادم',
+            'scenario_summary': 'لا توجد حالات تاريخية كافية حتى الآن.',
+            'scenario_detail': 'سيبدأ التحليل التاريخي بعد تراكم عدد مناسب من اللقطات.',
+            'historical_is_actionable': False,
+        }
+
+    analysis = analyze_historical_pattern(latest_snapshot, lookback_days=lookback_days)
+
+    return {
+        'archive_ready': True,
+        'snapshot_id': getattr(latest_snapshot, 'id', None),
+        'matched_count': int(analysis.get('matched_count', 0) or 0),
+        'confidence_score': float(analysis.get('confidence_score', 0.0) or 0.0),
+        'confidence_label': analysis.get('confidence_label', 'ثقة ضعيفة'),
+        'confidence_band': analysis.get('confidence_band', 'low'),
+        'confidence_message': analysis.get('confidence_message', '⚠️ البيانات غير كافية بعد.'),
+        'historical_hint': analysis.get('historical_hint', ''),
+        'predicted_next_hour_solar': analysis.get('predicted_next_hour_solar'),
+        'predicted_next_hour_surplus': analysis.get('predicted_next_hour_surplus'),
+        'predicted_risk_code': analysis.get('predicted_risk_code', 'insufficient'),
+        'predicted_risk_level': analysis.get('predicted_risk_level', 'بيانات غير كافية'),
+        'scenario_title': analysis.get('scenario_title', 'السيناريو القادم'),
+        'scenario_summary': analysis.get('scenario_summary', ''),
+        'scenario_detail': analysis.get('scenario_detail', ''),
+        'historical_is_actionable': bool(analysis.get('historical_is_actionable', False)),
+    }
+
 def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, analysis: dict):
     if not snapshot:
         return None
