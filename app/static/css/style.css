@@ -1296,3 +1296,24 @@ body.saas-only {
     min-width: 250px;
   }
 }
+
+/* ===== FINAL GAP FIX ===== */
+body, .app-shell, .content-area {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.dashboard-topbar, .topbar {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  min-height: auto !important;
+}
+
+.content-area > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+body.saas-only .content-area {
+  padding-top: 0 !important;
+}
