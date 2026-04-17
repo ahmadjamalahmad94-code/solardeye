@@ -63,9 +63,6 @@ def load_settings() -> dict:
         'sms_api_key': '',
         'sms_sender': '',
         'sms_recipients': '',
-        'last_sms_type': '',
-        'last_sms_sent_at': '',
-        'last_sms_signature': '',
         'notifications_enabled': 'true',
         'notification_rules_json': '',
         'daytime_solar_min_w': '50',
@@ -198,6 +195,9 @@ def load_settings() -> dict:
         'sms_critical_morning_end': '10:00',
         'sms_critical_emergency_enabled': 'true',
         'sms_critical_emergency_battery_percent': '10',
+        'last_sms_type': '',
+        'last_sms_sent_at': '',
+        'last_sms_signature': '',
     }
     for key, value in defaults.items():
         settings.setdefault(key, value)

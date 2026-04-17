@@ -239,7 +239,7 @@ def _save_notification_rules_from_form(form):
     _upsert_setting('notification_rules_json', json.dumps(rules, ensure_ascii=False))
 
 
-def save_notification_settings_from_form(form, section: str | None = None, *, commit: bool = True):
+def save_notification_settings_from_form(form, section: str | None = None, *, commit: bool = True, preserve_missing_checkboxes: bool = False):
     section = (section or '').strip().lower()
     if not section or section not in NOTIFICATION_SECTION_FIELDS:
         raise ValueError('قسم الحفظ غير صالح أو غير محدد')
@@ -249,9 +249,12 @@ def save_notification_settings_from_form(form, section: str | None = None, *, co
     checkbox_fields = config.get('checkbox', [])
 
     for field in text_fields:
-        _upsert_setting(field, (form.get(field, '') or '').strip())
+        if field in form:
+            _upsert_setting(field, (form.get(field, '') or '').strip())
 
     for key in checkbox_fields:
+        if preserve_missing_checkboxes and key not in form:
+            continue
         _upsert_setting(key, 'true' if form.get(key) == 'on' else 'false')
 
     if section == 'rules':
@@ -266,6 +269,9 @@ def save_notification_settings_from_form(form, section: str | None = None, *, co
 
 def save_all_notification_settings_from_form(form):
     # Supports the classic single-save notifications UI by persisting all sections at once.
+    # Important: the legacy UI does not post every checkbox on every save. Missing checkboxes
+    # must be preserved instead of being forced to false, otherwise unrelated features like
+    # notifications_enabled get disabled accidentally.
     ordered_sections = [
         'general',
         'periodic_day',
@@ -280,7 +286,7 @@ def save_all_notification_settings_from_form(form):
         'sms_critical',
     ]
     for section_name in ordered_sections:
-        save_notification_settings_from_form(form, section=section_name, commit=False)
+        save_notification_settings_from_form(form, section=section_name, commit=False, preserve_missing_checkboxes=True)
     db.session.commit()
 
 
@@ -458,30 +464,84 @@ def send_sms_message(settings: dict, title: str, message: str):
     return all_ok, ' | '.join(details)
 
 
-
-
 def get_sms_balance(settings: dict):
-    from urllib.parse import quote
-
     api_url = (settings.get('sms_api_url') or '').strip()
     api_key = (settings.get('sms_api_key') or '').strip()
     if not api_url or not api_key:
-        _diag('sms balance skipped: incomplete settings url=%s key=%s', bool(api_url), bool(api_key))
         return False, 'بيانات SMS غير مكتملة', None
-
-    url = f"{api_url}?comm=chk_balance&api_key={quote(api_key)}"
+    url = f"{api_url}?comm=chk_balance&api_key={api_key}"
     try:
         r = requests.get(url, timeout=20)
-        body = (r.text or '').strip()[:500]
-        _diag('sms balance response: status=%s body=%s', r.status_code, body)
+        body = (r.text or '').strip()
+        _diag('sms balance response: status=%s body=%s', r.status_code, body[:500])
         if not r.ok:
-            return False, f'HTTP {r.status_code}: {body}', None
-        # Some providers return just a number/string balance
-        bal = body.strip()
-        return True, bal, bal
+            return False, body or 'فشل فحص الرصيد', None
+        balance = None
+        try:
+            balance = int(body)
+        except Exception:
+            try:
+                balance = float(body)
+            except Exception:
+                balance = None
+        return True, body, balance
     except Exception as exc:
         _diag('sms balance exception: %s', exc)
         return False, str(exc), None
+
+
+def _get_setting_value(key: str, default: str = '') -> str:
+    row = Setting.query.filter_by(key=key).first()
+    return row.value if row and row.value is not None else default
+
+
+def _set_setting_value(key: str, value: str):
+    row = Setting.query.filter_by(key=key).first()
+    if row:
+        row.value = value
+    else:
+        db.session.add(Setting(key=key, value=value))
+
+
+def _get_last_sms_state() -> tuple[str, datetime | None, str]:
+    sms_type = _get_setting_value('last_sms_type', '')
+    sms_sent_raw = _get_setting_value('last_sms_sent_at', '')
+    sms_signature = _get_setting_value('last_sms_signature', '')
+    sms_sent_at = None
+    if sms_sent_raw:
+        try:
+            sms_sent_at = datetime.fromisoformat(sms_sent_raw)
+        except Exception:
+            sms_sent_at = None
+    return sms_type, sms_sent_at, sms_signature
+
+
+def _save_last_sms_state(event_key: str, signature: str, when: datetime | None = None):
+    when = when or datetime.utcnow()
+    _set_setting_value('last_sms_type', event_key)
+    _set_setting_value('last_sms_sent_at', when.isoformat())
+    _set_setting_value('last_sms_signature', signature or '')
+    db.session.commit()
+
+
+def _clear_last_sms_state():
+    _set_setting_value('last_sms_type', '')
+    _set_setting_value('last_sms_sent_at', '')
+    _set_setting_value('last_sms_signature', '')
+    db.session.commit()
+
+
+def _sms_should_send(settings: dict, event_key: str, signature: str) -> bool:
+    cooldown = max(int(safe_float(settings.get('sms_critical_cooldown_minutes'), 30) or 30), 1)
+    last_type, last_sent_at, last_signature = _get_last_sms_state()
+    now = datetime.utcnow()
+    if last_type == event_key and last_signature == (signature or ''):
+        if last_sent_at is not None and (now - last_sent_at) < timedelta(minutes=cooldown):
+            _diag('sms critical skipped duplicate: type=%s signature=%s cooldown=%s', event_key, signature, cooldown)
+            return False
+    return True
+
+
 
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
     since = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
@@ -1278,9 +1338,15 @@ def _sms_short_runtime(latest, settings):
     return eta_hours, eta_text
 
 
-def _sms_compose_and_send(settings: dict, event_key: str, message: str):
-    cooldown = max(int(safe_float(settings.get('sms_critical_cooldown_minutes'), 120) or 120), 1)
-    dispatch_notification(settings, event_key, 'SMS حرج', 'تحذير', message, 'sms', 'danger', dedupe_minutes=cooldown)
+def _sms_compose_and_send(settings: dict, event_key: str, message: str, signature: str = ''):
+    signature = signature or event_key
+    if not _sms_should_send(settings, event_key, signature):
+        return False
+    ok, resp = send_sms_message(settings, 'تحذير', message)
+    log_notification(event_key + ':sms', 'SMS حرج', 'تحذير', message, 'sms', 'success' if ok else 'danger', resp, force=True)
+    if ok:
+        _save_last_sms_state(event_key, signature)
+    return ok
 
 
 def _critical_margin_w(reading, settings, weather, now_local):
@@ -1310,7 +1376,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         emergency_soc = float(settings.get('sms_critical_emergency_battery_percent') or 10)
         if current_soc <= emergency_soc:
             _diag('sms critical trigger: emergency soc=%s threshold=%s', current_soc, emergency_soc)
-            _sms_compose_and_send(settings, 'sms-critical-emergency', f'طارئ: البطارية حرجة جدًا {int(round(current_soc))}%')
+            _sms_compose_and_send(settings, 'sms-critical-emergency', f'طارئ: البطارية حرجة جدًا {int(round(current_soc))}%', signature=f'emergency:{int(round(current_soc))}')
             return
 
     # 2) وقت نفاد قصير
@@ -1319,7 +1385,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         runtime_threshold = float(settings.get('sms_critical_runtime_threshold_hours') or 2)
         if runtime_h and runtime_h <= runtime_threshold:
             _diag('sms critical trigger: runtime_low eta_h=%s threshold=%s', runtime_h, runtime_threshold)
-            _sms_compose_and_send(settings, 'sms-critical-runtime-low', f'خطر: النفاد خلال {runtime_text or f"{runtime_h:.1f} ساعة"}')
+            _sms_compose_and_send(settings, 'sms-critical-runtime-low', f'خطر: النفاد خلال {runtime_text or f"{runtime_h:.1f} ساعة"}', signature=f'runtime:{round(runtime_h,1)}')
             return
 
     # 3) توقف المزامنة
@@ -1328,7 +1394,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         age_minutes = (now_naive - latest.created_at).total_seconds() / 60.0
         if age_minutes >= stale_minutes:
             _diag('sms critical trigger: sync_stale age=%s threshold=%s', age_minutes, stale_minutes)
-            _sms_compose_and_send(settings, 'sms-critical-sync-stale', f'تنبيه: توقفت المزامنة منذ {int(round(age_minutes))} د')
+            _sms_compose_and_send(settings, 'sms-critical-sync-stale', f'تنبيه: توقفت المزامنة منذ {int(round(age_minutes))} د', signature=f'sync:{int(round(age_minutes))}')
             return
 
     # 4) انقطاع إنتاج نهاري غير طبيعي
@@ -1339,7 +1405,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         matched, rows = _rows_match_for_minutes(zero_minutes, lambda r: float(r.solar_power or 0) <= solar_threshold and float(r.home_load or 0) >= min_home)
         if matched:
             _diag('sms critical trigger: day_zero solar<=%s home>=%s minutes=%s', solar_threshold, min_home, zero_minutes)
-            _sms_compose_and_send(settings, 'sms-critical-day-zero', f'تنبيه: إنتاج النهار منخفض جدًا منذ {zero_minutes} د')
+            _sms_compose_and_send(settings, 'sms-critical-day-zero', f'تنبيه: إنتاج النهار منخفض جدًا منذ {zero_minutes} د', signature=f'dayzero:{zero_minutes}:{int(round(current_solar))}')
             return
 
     # 5) لا تشغل أي حمل
@@ -1348,7 +1414,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         matched, rows = _rows_match_for_minutes(no_load_minutes, lambda r: _critical_margin_w(r, settings, weather, now_local) <= 0)
         if matched:
             _diag('sms critical trigger: no_load minutes=%s', no_load_minutes)
-            _sms_compose_and_send(settings, 'sms-critical-no-load', 'تنبيه: لا تشغل أي حمل الآن')
+            _sms_compose_and_send(settings, 'sms-critical-no-load', 'تنبيه: لا تشغل أي حمل الآن', signature='no-load')
             return
 
     # 6) سحب مسائي مرتفع
@@ -1358,7 +1424,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         matched, rows = _rows_match_for_minutes(evening_minutes, lambda r: float(r.home_load or 0) >= evening_threshold)
         if matched:
             _diag('sms critical trigger: evening_load load>=%s minutes=%s', evening_threshold, evening_minutes)
-            _sms_compose_and_send(settings, 'sms-critical-evening-load', f'تحذير: سحب مسائي مرتفع {int(round(current_load))}W')
+            _sms_compose_and_send(settings, 'sms-critical-evening-load', f'تحذير: سحب مسائي مرتفع {int(round(current_load))}W', signature=f'evening:{int(round(current_load))}')
             return
 
     # 7) عجز صباحي
@@ -1369,7 +1435,7 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         if matched:
             current_deficit = max(current_load - current_solar, 0.0)
             _diag('sms critical trigger: morning_deficit deficit>=%s minutes=%s', deficit_w, deficit_minutes)
-            _sms_compose_and_send(settings, 'sms-critical-morning-deficit', f'تنبيه: عجز صباحي {int(round(current_deficit))}W')
+            _sms_compose_and_send(settings, 'sms-critical-morning-deficit', f'تنبيه: عجز صباحي {int(round(current_deficit))}W', signature=f'morning:{int(round(current_deficit))}')
             return
 
     # 3) بطارية منخفضة
@@ -1377,13 +1443,17 @@ def _run_sms_critical_engine(settings, latest, weather, now_local):
         threshold = float(settings.get('sms_critical_battery_threshold_percent') or 20)
         if current_soc <= threshold:
             _diag('sms critical trigger: battery_low soc=%s threshold=%s', current_soc, threshold)
-            _sms_compose_and_send(settings, 'sms-critical-battery-low', f'تحذير: البطارية {int(round(current_soc))}%')
+            _sms_compose_and_send(settings, 'sms-critical-battery-low', f'تحذير: البطارية {int(round(current_soc))}%', signature=f'battery:{int(round(current_soc))}')
             return
+
+    _clear_last_sms_state()
 
 
 def run_advanced_notification_scheduler():
     settings = load_settings()
-    if str(settings.get('notifications_enabled', 'true')).lower() != 'true':
+    notifications_enabled = str(settings.get('notifications_enabled', 'true')).lower() == 'true'
+    sms_critical_enabled = str(settings.get('sms_critical_enabled', 'true')).lower() == 'true'
+    if not notifications_enabled and not sms_critical_enabled:
         _diag('advanced scheduler skipped: notifications disabled')
         return
 

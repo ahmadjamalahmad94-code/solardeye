@@ -42,7 +42,6 @@ from .notifications import (
     process_notifications, run_weather_checks, save_all_notification_settings_from_form, save_notification_settings_from_form,
     send_daily_weather_summary, send_periodic_status_update, send_pre_sunset_update,
     send_sms_message, send_telegram_message, send_telegram_menu, process_telegram_update, build_telegram_quick_reply,
-    get_sms_balance,
 )
 
 main_bp = Blueprint('main', __name__)
@@ -1409,11 +1408,6 @@ def channels():
         if action == 'sms_test':
             ok, msg = send_sms_message(settings, 'اختبار SMS', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
             flash(('تم إرسال اختبار SMS بنجاح' if ok else f'فشل إرسال اختبار SMS: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'sms_balance':
-            ok, msg, raw_balance = get_sms_balance(settings)
-            flash(msg if ok else f'فشل فحص رصيد SMS: {msg}', 'success' if ok else 'danger')
             return redirect(url_for('main.channels', lang=lang))
 
         flash('الإجراء المطلوب غير معروف', 'warning')
