@@ -48,7 +48,7 @@
           <input type="hidden" name="action" value="simulate">
           <div>
             <label class="form-label" data-ar="أقصى حمل تريد السماح به ليلًا (واط)" data-en="Night max draw you allow (W)">أقصى حمل تريد السماح به ليلًا (واط)</label>
-            <input class="form-control" type="number" name="simulate_max_w" min="1" step="1" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}" placeholder="500">
+            <input class="form-control" id="simulateMaxInput" type="number" name="simulate_max_w" min="1" step="1" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}" placeholder="500">
           </div>
           <div class="load-form-actions align-end load-inline-actions">
             <button class="btn btn-solar" type="submit" data-ar="🧪 جرّب الاقتراح" data-en="🧪 Test suggestion">🧪 جرّب الاقتراح</button>
@@ -57,12 +57,12 @@
         <div class="load-side-actions">
           <form method="post" class="inline-mini-form">
             <input type="hidden" name="action" value="save_night_limit">
-            <input type="hidden" name="night_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
+            <input type="hidden" id="nightMaxHidden" name="night_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
             <button class="btn btn-outline-primary" type="submit" data-ar="💾 حفظ الحد الليلي" data-en="💾 Save night limit">💾 حفظ الحد الليلي</button>
           </form>
           <form method="post" class="inline-mini-form">
             <input type="hidden" name="action" value="send_telegram_loads">
-            <input type="hidden" name="simulate_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
+            <input type="hidden" id="sendSuggestHidden" name="simulate_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
             <button class="btn btn-outline-primary" type="submit" data-ar="📤 أرسل الاقتراح إلى Telegram" data-en="📤 Send suggestion to Telegram">📤 أرسل الاقتراح إلى Telegram</button>
           </form>
         </div>
@@ -175,4 +175,17 @@
     </section>
   </main>
 </div>
+<script>
+(function(){
+  const input=document.getElementById('simulateMaxInput');
+  const saveHidden=document.getElementById('nightMaxHidden');
+  const sendHidden=document.getElementById('sendSuggestHidden');
+  function sync(){
+    const val=(input && input.value) ? input.value : '';
+    if(saveHidden) saveHidden.value=val;
+    if(sendHidden) sendHidden.value=val;
+  }
+  if(input){ input.addEventListener('input', sync); input.addEventListener('change', sync); sync(); }
+})();
+</script>
 {% endblock %}

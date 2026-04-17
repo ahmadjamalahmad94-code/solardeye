@@ -136,6 +136,38 @@ NOTIFICATION_SECTION_FIELDS = {
         'checkbox': ['day_deficit_enabled'],
         'special': 'rules',
     },
+    'sms_critical': {
+        'text': [
+            'sms_critical_cooldown_minutes',
+            'sms_critical_battery_threshold_percent',
+            'sms_critical_runtime_threshold_hours',
+            'sms_critical_sync_stale_minutes',
+            'sms_critical_day_zero_threshold_w',
+            'sms_critical_day_zero_duration_minutes',
+            'sms_critical_day_zero_min_home_w',
+            'sms_critical_no_load_duration_minutes',
+            'sms_critical_evening_load_threshold_w',
+            'sms_critical_evening_load_duration_minutes',
+            'sms_critical_evening_start',
+            'sms_critical_evening_end',
+            'sms_critical_morning_deficit_threshold_w',
+            'sms_critical_morning_deficit_duration_minutes',
+            'sms_critical_morning_start',
+            'sms_critical_morning_end',
+            'sms_critical_emergency_battery_percent',
+        ],
+        'checkbox': [
+            'sms_critical_enabled',
+            'sms_critical_battery_enabled',
+            'sms_critical_runtime_enabled',
+            'sms_critical_sync_enabled',
+            'sms_critical_day_zero_enabled',
+            'sms_critical_no_load_enabled',
+            'sms_critical_evening_load_enabled',
+            'sms_critical_morning_deficit_enabled',
+            'sms_critical_emergency_enabled',
+        ],
+    },
 }
 
 ALL_NOTIFICATION_TEXT_FIELDS = [
@@ -152,6 +184,12 @@ ALL_NOTIFICATION_TEXT_FIELDS = [
     'weather_test_schedule_mode', 'weather_test_interval_value', 'weather_test_interval_unit', 'weather_test_time_start', 'weather_test_time_end', 'weather_test_channel',
     'battery_test_schedule_mode', 'battery_test_interval_value', 'battery_test_interval_unit', 'battery_test_time_start', 'battery_test_time_end', 'battery_test_channel',
     'daily_report_time', 'daily_report_channel', 'charge_step_percent',
+    'sms_critical_cooldown_minutes', 'sms_critical_battery_threshold_percent', 'sms_critical_runtime_threshold_hours',
+    'sms_critical_sync_stale_minutes', 'sms_critical_day_zero_threshold_w', 'sms_critical_day_zero_duration_minutes',
+    'sms_critical_day_zero_min_home_w', 'sms_critical_no_load_duration_minutes', 'sms_critical_evening_load_threshold_w',
+    'sms_critical_evening_load_duration_minutes', 'sms_critical_evening_start', 'sms_critical_evening_end',
+    'sms_critical_morning_deficit_threshold_w', 'sms_critical_morning_deficit_duration_minutes',
+    'sms_critical_morning_start', 'sms_critical_morning_end', 'sms_critical_emergency_battery_percent',
 ]
 
 SECTION_LAST_SENT_KEYS = {
@@ -178,6 +216,9 @@ ALL_NOTIFICATION_CHECKBOX_FIELDS = [
     'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
     'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset', 'battery_test_include_loads',
     'daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device',
+    'sms_critical_enabled', 'sms_critical_battery_enabled', 'sms_critical_runtime_enabled', 'sms_critical_sync_enabled',
+    'sms_critical_day_zero_enabled', 'sms_critical_no_load_enabled', 'sms_critical_evening_load_enabled',
+    'sms_critical_morning_deficit_enabled', 'sms_critical_emergency_enabled',
 ]
 
 
@@ -226,6 +267,7 @@ def save_notification_settings_from_form(form, section: str | None = None, *, co
 def save_all_notification_settings_from_form(form):
     # Supports the classic single-save notifications UI by persisting all sections at once.
     ordered_sections = [
+        'general',
         'periodic_day',
         'periodic_night',
         'sunset',
@@ -235,6 +277,7 @@ def save_all_notification_settings_from_form(form):
         'battery',
         'daily_report',
         'rules',
+        'sms_critical',
     ]
     for section_name in ordered_sections:
         save_notification_settings_from_form(form, section=section_name, commit=False)
@@ -254,6 +297,9 @@ CHECKBOX_SETTING_KEYS = [
     'weather_test_enabled', 'weather_test_include_next_hour', 'weather_test_include_smart_tip',
     'battery_test_enabled', 'battery_test_include_day_summary', 'battery_test_include_sunset', 'battery_test_include_loads',
     'daily_report_enabled', 'daily_report_include_totals', 'daily_report_include_yesterday', 'daily_report_include_device',
+    'sms_critical_enabled', 'sms_critical_battery_enabled', 'sms_critical_runtime_enabled', 'sms_critical_sync_enabled',
+    'sms_critical_day_zero_enabled', 'sms_critical_no_load_enabled', 'sms_critical_evening_load_enabled',
+    'sms_critical_morning_deficit_enabled', 'sms_critical_emergency_enabled',
 ]
 
 
@@ -338,93 +384,34 @@ def send_telegram_message(settings: dict, title: str, message: str):
         return False, str(exc)
 
 
-SMS_PROVIDER_ERRORS = {
-    '-100': 'بيانات ناقصة: يلزم api_key أو to أو message أو sender.',
-    '-110': 'API Key غير صحيح أو غير مقبول.',
-    '-113': 'الرصيد غير كافٍ.',
-    '-115': 'اسم المرسل غير متاح لهذا الحساب.',
-    '-116': 'اسم المرسل غير صالح.',
-    '-2': 'الرقم غير صالح أو الدولة غير مدعومة.',
-    '-999': 'فشل الإرسال من مزود SMS.',
-    'u': 'حالة الرسالة غير معروفة من المزود.',
-    '1': 'تم الإرسال بنجاح.',
-}
+def _tweet_sms_error_map():
+    return {
+        '1': 'تم الإرسال بنجاح',
+        '-2': 'رقم المستلم غير صالح أو الدولة غير مدعومة',
+        '-999': 'فشل الإرسال من مزود الخدمة',
+        'u': 'حالة غير معروفة',
+        '-100': 'معاملات ناقصة',
+        '-110': 'API Key أو بيانات الدخول غير صحيحة',
+        '-113': 'الرصيد غير كافٍ',
+        '-115': 'اسم المرسل غير متاح',
+        '-116': 'اسم المرسل غير صالح',
+    }
 
 
-def _normalize_sms_recipients(raw_value: str):
-    items = []
-    for value in (raw_value or '').replace(';', ',').split(','):
-        phone = ''.join(ch for ch in value.strip() if ch.isdigit() or ch == '+')
-        if not phone:
-            continue
-        if phone.startswith('+'):
-            phone = phone[1:]
-        items.append(phone)
-    return items
-
-
-def _interpret_sms_provider_response(body: str):
-    raw = (body or '').strip()
+def _parse_tweet_sms_response_line(line: str):
+    raw = (line or '').strip()
     if not raw:
-        return False, 'رد فارغ من مزود SMS', {'raw': raw, 'code': ''}
-
-    first_line = raw.splitlines()[0].strip()
-    parts = [p.strip() for p in first_line.split(':')]
+        return False, 'رد فارغ من مزود SMS', {'code': '', 'sms_id': '', 'mobile': ''}
+    parts = [p.strip() for p in raw.split(':') if p.strip() != '']
+    error_map = _tweet_sms_error_map()
     code = parts[0] if parts else raw
-    meaning = SMS_PROVIDER_ERRORS.get(code, '')
-
-    if code == '1':
-        sms_id = parts[1] if len(parts) > 1 else ''
-        phone = parts[2] if len(parts) > 2 else ''
-        detail = 'تم الإرسال بنجاح'
-        if sms_id:
-            detail += f' | SMS_ID={sms_id}'
-        if phone:
-            detail += f' | TO={phone}'
-        return True, detail, {'raw': raw, 'code': code, 'sms_id': sms_id, 'phone': phone}
-
-    if code in ('-999', '-2', '-100', '-110', '-113', '-115', '-116', 'u'):
-        detail = meaning or f'فشل الإرسال ({code})'
-        if len(parts) > 1:
-            detail += f" | التفاصيل: {' : '.join(parts[1:])}"
-        return False, detail, {'raw': raw, 'code': code}
-
-    if first_line.startswith('Result:'):
-        payload = first_line.split('Result:', 1)[1].strip()
-        subparts = [p.strip() for p in payload.split(':') if p.strip()]
-        code = subparts[0] if subparts else payload
-        meaning = SMS_PROVIDER_ERRORS.get(code, f'رد غير معروف: {payload}')
-        ok = code == '1'
-        detail = meaning
-        if ok and len(subparts) >= 3:
-            detail += f' | SMS_ID={subparts[1]} | TO={subparts[2]}'
-        return ok, detail, {'raw': raw, 'code': code}
-
-    return False, f'رد غير معروف من مزود SMS: {raw[:250]}', {'raw': raw, 'code': code}
-
-
-def get_sms_balance(settings: dict):
-    api_url = (settings.get('sms_api_url') or '').strip()
-    api_key = (settings.get('sms_api_key') or '').strip()
-    if not api_url or not api_key:
-        return False, 'بيانات فحص الرصيد غير مكتملة', None
-
-    balance_url = api_url
-    if 'api.php' not in balance_url:
-        balance_url = balance_url.rstrip('/') + '/api.php'
-
-    try:
-        r = requests.get(balance_url, params={'comm': 'chk_balance', 'api_key': api_key}, timeout=20)
-        body = (r.text or '').strip()
-        if not r.ok:
-            _diag('sms balance failed: status=%s body=%s', r.status_code, body[:300])
-            return False, f'فشل فحص الرصيد: HTTP {r.status_code}', body
-
-        _diag('sms balance ok: body=%s', body[:300])
-        return True, f'الرصيد الحالي: {body}', body
-    except Exception as exc:
-        _diag('sms balance exception: %s', exc)
-        return False, f'تعذر فحص الرصيد: {exc}', None
+    if code not in error_map and len(parts) >= 2 and parts[1] in error_map:
+        code = parts[1]
+    sms_id = parts[1] if len(parts) >= 2 else ''
+    mobile = parts[2] if len(parts) >= 3 else ''
+    ok = code == '1'
+    desc = error_map.get(code, raw)
+    return ok, desc, {'code': code, 'sms_id': sms_id, 'mobile': mobile}
 
 
 def send_sms_message(settings: dict, title: str, message: str):
@@ -433,56 +420,42 @@ def send_sms_message(settings: dict, title: str, message: str):
     api_url = (settings.get('sms_api_url') or '').strip()
     api_key = (settings.get('sms_api_key') or '').strip()
     sender = (settings.get('sms_sender') or '').strip()
-    recipients = _normalize_sms_recipients(settings.get('sms_recipients') or '')
+    recipients = [x.strip() for x in (settings.get('sms_recipients') or '').replace(';', ',').split(',') if x.strip()]
 
-    missing = []
-    if not api_url:
-        missing.append('SMS API URL')
-    if not api_key:
-        missing.append('SMS API Key')
-    if not sender:
-        missing.append('اسم المرسل')
-    if not recipients:
-        missing.append('رقم مستلم واحد على الأقل')
-    if missing:
-        return False, 'بيانات SMS غير مكتملة: ' + '، '.join(missing)
-
-    base_url = api_url
-    if 'api.php' not in base_url:
-        base_url = base_url.rstrip('/') + '/api.php'
-
-    full_message = f"{title}\n{message}".strip()
+    if not api_url or not api_key or not sender or not recipients:
+        _diag('sms send skipped: incomplete settings url=%s key=%s sender=%s recipients=%s', bool(api_url), bool(api_key), bool(sender), bool(recipients))
+        return False, 'بيانات SMS غير مكتملة'
+    compact_title = _normalize_telegram_text(title).replace('\n', ' ').strip()
+    compact_message = _normalize_telegram_text(message).replace('\n', ' ').strip()
+    full_message = f"{compact_title}: {compact_message}".strip(': ').strip()
     encoded_message = quote(full_message)
-    encoded_sender = quote(sender)
 
     all_ok = True
-    results = []
-
+    details = []
     for phone in recipients:
         url = (
-            f"{base_url}"
-            f"?comm=sendsms"
+            f"{api_url}?comm=sendsms"
             f"&api_key={quote(api_key)}"
             f"&to={quote(phone)}"
             f"&message={encoded_message}"
-            f"&sender={encoded_sender}"
+            f"&sender={quote(sender)}"
         )
         try:
             r = requests.get(url, timeout=20)
-            body = (r.text or '').strip()
-            ok, detail, meta = _interpret_sms_provider_response(body)
-            if not ok:
-                all_ok = False
-                _diag('sms send failed: phone=%s status=%s body=%s detail=%s', phone, r.status_code, body[:300], detail)
+            body = (r.text or '').strip()[:500]
+            ok_line, desc, info = _parse_tweet_sms_response_line(body)
+            all_ok = all_ok and ok_line
+            details.append(f"{phone}: {desc}")
+            if ok_line:
+                _diag('sms send ok: phone=%s code=%s sms_id=%s', phone, info.get('code'), info.get('sms_id'))
             else:
-                _diag('sms send ok: phone=%s body=%s', phone, body[:300])
-            results.append(f'{phone}: {detail}')
+                _diag('sms send failed: phone=%s code=%s body=%s', phone, info.get('code'), body)
         except Exception as exc:
             all_ok = False
-            _diag('sms send exception: phone=%s error=%s', phone, exc)
-            results.append(f'{phone}: خطأ داخلي أثناء الإرسال: {exc}')
+            details.append(f"{phone}: {exc}")
+            _diag('sms send exception: phone=%s err=%s', phone, exc)
 
-    return all_ok, ' | '.join(results)
+    return all_ok, ' | '.join(details)
 
 
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
@@ -1251,6 +1224,138 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
 
 
 
+def _recent_readings_covering(minutes: int):
+    minutes = max(int(float(minutes or 0)), 1)
+    since = datetime.utcnow() - timedelta(minutes=minutes + 2)
+    rows = Reading.query.filter(Reading.created_at >= since).order_by(Reading.created_at.asc()).all()
+    if not rows:
+        return []
+    span_minutes = (datetime.utcnow() - rows[0].created_at).total_seconds() / 60.0
+    if span_minutes < max(minutes - 2, 1):
+        return []
+    return rows
+
+
+def _rows_match_for_minutes(minutes: int, predicate):
+    rows = _recent_readings_covering(minutes)
+    if not rows:
+        return False, []
+    try:
+        return all(bool(predicate(r)) for r in rows), rows
+    except Exception:
+        return False, rows
+
+
+def _sms_short_runtime(latest, settings):
+    insights = build_battery_insights(latest, *get_runtime_battery_settings(settings))
+    eta_text = insights.get('discharge_eta') or insights.get('eta') or ''
+    eta_hours = float(insights.get('discharge_eta_hours') or 0)
+    return eta_hours, eta_text
+
+
+def _sms_compose_and_send(settings: dict, event_key: str, message: str):
+    cooldown = max(int(safe_float(settings.get('sms_critical_cooldown_minutes'), 120) or 120), 1)
+    dispatch_notification(settings, event_key, 'SMS حرج', 'تحذير', message, 'sms', 'danger', dedupe_minutes=cooldown)
+
+
+def _critical_margin_w(reading, settings, weather, now_local):
+    is_day = _weather_day_window(now_local, weather, start_hour=7)
+    if is_day:
+        data = compute_actual_solar_surplus(reading, weather=weather, settings=settings)
+        return float(data.get('actual_surplus_w', 0) or 0)
+    night_cap = safe_float(settings.get('night_max_load_w') or '500', 500)
+    return float(night_cap - float(reading.home_load or 0))
+
+
+def _run_sms_critical_engine(settings, latest, weather, now_local):
+    if str(settings.get('sms_critical_enabled', 'true')).lower() != 'true':
+        _diag('sms critical skipped: disabled')
+        return
+    if not (settings.get('sms_api_url') and settings.get('sms_api_key') and settings.get('sms_sender') and settings.get('sms_recipients')):
+        _diag('sms critical skipped: sms config incomplete')
+        return
+
+    current_soc = float(latest.battery_soc or 0)
+    current_load = max(float(latest.home_load or 0), 0.0)
+    current_solar = max(float(latest.solar_power or 0), 0.0)
+    now_naive = datetime.utcnow()
+
+    # 1) طارئ عام شديد
+    if _flag(settings, 'sms_critical_emergency_enabled', True):
+        emergency_soc = float(settings.get('sms_critical_emergency_battery_percent') or 10)
+        if current_soc <= emergency_soc:
+            _diag('sms critical trigger: emergency soc=%s threshold=%s', current_soc, emergency_soc)
+            _sms_compose_and_send(settings, 'sms-critical-emergency', f'طارئ: البطارية حرجة جدًا {int(round(current_soc))}%')
+            return
+
+    # 2) وقت نفاد قصير
+    if _flag(settings, 'sms_critical_runtime_enabled', True):
+        runtime_h, runtime_text = _sms_short_runtime(latest, settings)
+        runtime_threshold = float(settings.get('sms_critical_runtime_threshold_hours') or 2)
+        if runtime_h and runtime_h <= runtime_threshold:
+            _diag('sms critical trigger: runtime_low eta_h=%s threshold=%s', runtime_h, runtime_threshold)
+            _sms_compose_and_send(settings, 'sms-critical-runtime-low', f'خطر: النفاد خلال {runtime_text or f"{runtime_h:.1f} ساعة"}')
+            return
+
+    # 3) توقف المزامنة
+    if _flag(settings, 'sms_critical_sync_enabled', True):
+        stale_minutes = max(int(safe_float(settings.get('sms_critical_sync_stale_minutes'), 30) or 30), 1)
+        age_minutes = (now_naive - latest.created_at).total_seconds() / 60.0
+        if age_minutes >= stale_minutes:
+            _diag('sms critical trigger: sync_stale age=%s threshold=%s', age_minutes, stale_minutes)
+            _sms_compose_and_send(settings, 'sms-critical-sync-stale', f'تنبيه: توقفت المزامنة منذ {int(round(age_minutes))} د')
+            return
+
+    # 4) انقطاع إنتاج نهاري غير طبيعي
+    if _flag(settings, 'sms_critical_day_zero_enabled', True) and _weather_day_window(now_local, weather, start_hour=7):
+        zero_minutes = max(int(safe_float(settings.get('sms_critical_day_zero_duration_minutes'), 20) or 20), 1)
+        solar_threshold = float(settings.get('sms_critical_day_zero_threshold_w') or 50)
+        min_home = float(settings.get('sms_critical_day_zero_min_home_w') or 150)
+        matched, rows = _rows_match_for_minutes(zero_minutes, lambda r: float(r.solar_power or 0) <= solar_threshold and float(r.home_load or 0) >= min_home)
+        if matched:
+            _diag('sms critical trigger: day_zero solar<=%s home>=%s minutes=%s', solar_threshold, min_home, zero_minutes)
+            _sms_compose_and_send(settings, 'sms-critical-day-zero', f'تنبيه: إنتاج النهار منخفض جدًا منذ {zero_minutes} د')
+            return
+
+    # 5) لا تشغل أي حمل
+    if _flag(settings, 'sms_critical_no_load_enabled', True):
+        no_load_minutes = max(int(safe_float(settings.get('sms_critical_no_load_duration_minutes'), 15) or 15), 1)
+        matched, rows = _rows_match_for_minutes(no_load_minutes, lambda r: _critical_margin_w(r, settings, weather, now_local) <= 0)
+        if matched:
+            _diag('sms critical trigger: no_load minutes=%s', no_load_minutes)
+            _sms_compose_and_send(settings, 'sms-critical-no-load', 'تنبيه: لا تشغل أي حمل الآن')
+            return
+
+    # 6) سحب مسائي مرتفع
+    if _flag(settings, 'sms_critical_evening_load_enabled', True) and _is_within_schedule_window(now_local, settings.get('sms_critical_evening_start', 'sunset'), settings.get('sms_critical_evening_end', '23:59'), weather):
+        evening_threshold = float(settings.get('sms_critical_evening_load_threshold_w') or settings.get('night_max_load_w') or 500)
+        evening_minutes = max(int(safe_float(settings.get('sms_critical_evening_load_duration_minutes'), 20) or 20), 1)
+        matched, rows = _rows_match_for_minutes(evening_minutes, lambda r: float(r.home_load or 0) >= evening_threshold)
+        if matched:
+            _diag('sms critical trigger: evening_load load>=%s minutes=%s', evening_threshold, evening_minutes)
+            _sms_compose_and_send(settings, 'sms-critical-evening-load', f'تحذير: سحب مسائي مرتفع {int(round(current_load))}W')
+            return
+
+    # 7) عجز صباحي
+    if _flag(settings, 'sms_critical_morning_deficit_enabled', True) and _is_within_schedule_window(now_local, settings.get('sms_critical_morning_start', '06:00'), settings.get('sms_critical_morning_end', '10:00'), weather):
+        deficit_w = float(settings.get('sms_critical_morning_deficit_threshold_w') or 100)
+        deficit_minutes = max(int(safe_float(settings.get('sms_critical_morning_deficit_duration_minutes'), 30) or 30), 1)
+        matched, rows = _rows_match_for_minutes(deficit_minutes, lambda r: (float(r.home_load or 0) - float(r.solar_power or 0)) >= deficit_w)
+        if matched:
+            current_deficit = max(current_load - current_solar, 0.0)
+            _diag('sms critical trigger: morning_deficit deficit>=%s minutes=%s', deficit_w, deficit_minutes)
+            _sms_compose_and_send(settings, 'sms-critical-morning-deficit', f'تنبيه: عجز صباحي {int(round(current_deficit))}W')
+            return
+
+    # 3) بطارية منخفضة
+    if _flag(settings, 'sms_critical_battery_enabled', True):
+        threshold = float(settings.get('sms_critical_battery_threshold_percent') or 20)
+        if current_soc <= threshold:
+            _diag('sms critical trigger: battery_low soc=%s threshold=%s', current_soc, threshold)
+            _sms_compose_and_send(settings, 'sms-critical-battery-low', f'تحذير: البطارية {int(round(current_soc))}%')
+            return
+
+
 def run_advanced_notification_scheduler():
     settings = load_settings()
     if str(settings.get('notifications_enabled', 'true')).lower() != 'true':
@@ -1332,6 +1437,9 @@ def run_advanced_notification_scheduler():
             if not same_minute:
                 title, message = build_daily_morning_report_message(latest, settings=settings)
                 _send_scheduled_notification('daily_report', title, message, settings.get('daily_report_channel', 'telegram'), 'info')
+
+    # 7) محرك SMS للحالات الحرجة
+    _run_sms_critical_engine(settings, latest, weather, now_local)
 
 def _get_weather_for_latest():
     from ..services.weather_service import fetch_weather

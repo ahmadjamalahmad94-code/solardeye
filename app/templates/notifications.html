@@ -338,6 +338,65 @@
         </div>
       </section>
 
+
+
+      <section class="panel-card mt-4 notification-rules-card">
+        <div class="section-head">
+          <div>
+            <h3>SMS للحالات الحرجة فقط</h3>
+            <p class="section-subtitle">اجعل رسائل SMS قصيرة ومكلفة فقط عند الخطر الحقيقي. هذه القيم تؤثر على كل النظام والتنبيهات والتحليلات.</p>
+          </div>
+          <div class="test-actions compact-inline">
+            <button class="btn btn-solar" type="submit" formaction="{{ url_for('main.notifications_settings', section='sms_critical') }}" formmethod="post">💾 حفظ إعدادات SMS الحرجة</button>
+          </div>
+        </div>
+        <div class="notify-two-col">
+          <div class="panel-card soft-inset">
+            <div class="stats-panel-head compact"><div><h4>التفعيل والحدود الأساسية</h4><small>تحكم كامل بالحدود التي تشغل رسالة SMS.</small></div></div>
+            <div class="notify-subgrid">
+              <label class="switch-row"><input type="checkbox" name="sms_critical_enabled" {% if settings.sms_critical_enabled != 'false' %}checked{% endif %}><span>تفعيل SMS الحرج</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_battery_enabled" {% if settings.sms_critical_battery_enabled != 'false' %}checked{% endif %}><span>بطارية منخفضة</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_runtime_enabled" {% if settings.sms_critical_runtime_enabled != 'false' %}checked{% endif %}><span>وقت نفاد قصير</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_sync_enabled" {% if settings.sms_critical_sync_enabled != 'false' %}checked{% endif %}><span>توقف المزامنة</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_day_zero_enabled" {% if settings.sms_critical_day_zero_enabled != 'false' %}checked{% endif %}><span>انقطاع إنتاج نهاري</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_no_load_enabled" {% if settings.sms_critical_no_load_enabled != 'false' %}checked{% endif %}><span>لا تشغل أي حمل</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_evening_load_enabled" {% if settings.sms_critical_evening_load_enabled != 'false' %}checked{% endif %}><span>سحب مسائي مرتفع</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_morning_deficit_enabled" {% if settings.sms_critical_morning_deficit_enabled != 'false' %}checked{% endif %}><span>عجز صباحي</span></label>
+              <label class="switch-row"><input type="checkbox" name="sms_critical_emergency_enabled" {% if settings.sms_critical_emergency_enabled != 'false' %}checked{% endif %}><span>طارئ عام شديد</span></label>
+            </div>
+            <div class="config-grid-3 mt-3">
+              <div><label class="form-label">حد البطارية %</label><input class="form-control" name="sms_critical_battery_threshold_percent" value="{{ settings.sms_critical_battery_threshold_percent or '20' }}"></div>
+              <div><label class="form-label">حد النفاد (ساعة)</label><input class="form-control" name="sms_critical_runtime_threshold_hours" value="{{ settings.sms_critical_runtime_threshold_hours or '2' }}"></div>
+              <div><label class="form-label">تهدئة بين الرسائل (دقيقة)</label><input class="form-control" name="sms_critical_cooldown_minutes" value="{{ settings.sms_critical_cooldown_minutes or '120' }}"></div>
+              <div><label class="form-label">توقف المزامنة (دقيقة)</label><input class="form-control" name="sms_critical_sync_stale_minutes" value="{{ settings.sms_critical_sync_stale_minutes or '30' }}"></div>
+              <div><label class="form-label">بطارية طارئة جدًا %</label><input class="form-control" name="sms_critical_emergency_battery_percent" value="{{ settings.sms_critical_emergency_battery_percent or '10' }}"></div>
+              <div><label class="form-label">مدة لا تشغل أحمال (دقيقة)</label><input class="form-control" name="sms_critical_no_load_duration_minutes" value="{{ settings.sms_critical_no_load_duration_minutes or '15' }}"></div>
+            </div>
+          </div>
+          <div class="panel-card soft-inset">
+            <div class="stats-panel-head compact"><div><h4>التحميل الزائد والعجز</h4><small>اضبط الحمل والمدة حتى يرسل SMS فقط عند الضرورة.</small></div></div>
+            <div class="config-grid-3">
+              <div><label class="form-label">انقطاع إنتاج النهار ≤ واط</label><input class="form-control" name="sms_critical_day_zero_threshold_w" value="{{ settings.sms_critical_day_zero_threshold_w or '50' }}"></div>
+              <div><label class="form-label">لمدة (دقيقة)</label><input class="form-control" name="sms_critical_day_zero_duration_minutes" value="{{ settings.sms_critical_day_zero_duration_minutes or '20' }}"></div>
+              <div><label class="form-label">والحمل المنزلي ≥ واط</label><input class="form-control" name="sms_critical_day_zero_min_home_w" value="{{ settings.sms_critical_day_zero_min_home_w or '150' }}"></div>
+              <div><label class="form-label">السحب المسائي > واط</label><input class="form-control" name="sms_critical_evening_load_threshold_w" value="{{ settings.sms_critical_evening_load_threshold_w or settings.night_max_load_w or '500' }}"></div>
+              <div><label class="form-label">لمدة (دقيقة)</label><input class="form-control" name="sms_critical_evening_load_duration_minutes" value="{{ settings.sms_critical_evening_load_duration_minutes or '20' }}"></div>
+              <div><label class="form-label">نافذة المساء</label><div class="d-flex gap-2"><input class="form-control" name="sms_critical_evening_start" value="{{ settings.sms_critical_evening_start or 'sunset' }}"><input class="form-control" name="sms_critical_evening_end" value="{{ settings.sms_critical_evening_end or '23:59' }}"></div></div>
+              <div><label class="form-label">العجز الصباحي > واط</label><input class="form-control" name="sms_critical_morning_deficit_threshold_w" value="{{ settings.sms_critical_morning_deficit_threshold_w or '100' }}"></div>
+              <div><label class="form-label">لمدة (دقيقة)</label><input class="form-control" name="sms_critical_morning_deficit_duration_minutes" value="{{ settings.sms_critical_morning_deficit_duration_minutes or '30' }}"></div>
+              <div><label class="form-label">نافذة الصباح</label><div class="d-flex gap-2"><input class="form-control" name="sms_critical_morning_start" value="{{ settings.sms_critical_morning_start or '06:00' }}"><input class="form-control" name="sms_critical_morning_end" value="{{ settings.sms_critical_morning_end or '10:00' }}"></div></div>
+            </div>
+            <div class="preview-message mt-3">
+              <div class="preview-line">أمثلة الرسائل القصيرة:</div>
+              <div class="preview-line">تحذير: البطارية 18%</div>
+              <div class="preview-line">خطر: النفاد خلال 1.5 ساعة</div>
+              <div class="preview-line">تنبيه: سحب مسائي مرتفع 650W</div>
+              <div class="preview-line">تنبيه: عجز صباحي 120W</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel-card mt-4">
         <div class="section-head"><h3>آخر الإشعارات المرسلة</h3><small>آخر 30 إشعارًا لتراجع الشكل والقناة والاستجابة.</small></div>
         <div class="log-list modern">
