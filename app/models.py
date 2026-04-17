@@ -64,3 +64,17 @@ class UserLoad(db.Model):
     priority = db.Column(db.Integer, nullable=False, default=1)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+
+class EventLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    event_key = db.Column(db.String(160), index=True)
+    event_type = db.Column(db.String(60), index=True, default='system')
+    severity = db.Column(db.String(20), default='info')
+    title = db.Column(db.String(200), nullable=False)
+    details = db.Column(db.Text, default='')
+    value_before = db.Column(db.String(120), default='')
+    value_after = db.Column(db.String(120), default='')
+    raw_json = db.Column(db.Text)

@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 from flask import current_app
 
 from ..extensions import db
-from ..models import NotificationLog, Reading, Setting, SyncLog
+from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog
 from ..services.utils import (
     format_local_datetime,
     human_duration_hours,
@@ -166,6 +166,9 @@ def load_settings() -> dict:
         'daily_report_include_yesterday': 'true',
         'daily_report_include_device': 'true',
         'charge_step_percent': '10',
+        'actual_surplus_enabled': 'true',
+        'event_logging_enabled': 'true',
+        'event_log_retention_days': '60',
     }
     for key, value in defaults.items():
         settings.setdefault(key, value)
@@ -199,14 +202,232 @@ def log_event(level: str, message: str, raw=None):
     db.session.commit()
 
 
+def add_event_log(event_type: str, title: str, details: str = '', severity: str = 'info', event_key: str = '', value_before=None, value_after=None, raw=None):
+    settings = load_settings()
+    if str(settings.get('event_logging_enabled', 'true')).lower() != 'true':
+        return None
+    row = EventLog(
+        event_key=(event_key or event_type)[:160],
+        event_type=(event_type or 'system')[:60],
+        severity=(severity or 'info')[:20],
+        title=(title or 'حدث جديد')[:200],
+        details=details or '',
+        value_before='' if value_before is None else str(value_before),
+        value_after='' if value_after is None else str(value_after),
+        raw_json=to_json(raw or {}),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def get_recent_event_logs(limit: int = 10):
+    return EventLog.query.order_by(EventLog.created_at.desc()).limit(max(int(limit or 10), 1)).all()
+
+
+def _round_w(value) -> float:
+    try:
+        return round(float(value or 0), 1)
+    except Exception:
+        return 0.0
+
+
+def compute_actual_solar_surplus(latest: Reading | None, weather=None, settings: dict | None = None) -> dict:
+    settings = settings or load_settings()
+    empty = {
+        'raw_surplus_w': 0.0,
+        'battery_charge_need_w': 0.0,
+        'actual_surplus_w': 0.0,
+        'battery_priority_w': 0.0,
+        'battery_priority_active': False,
+        'battery_remaining_wh': 0.0,
+        'remaining_hours_to_sunset': None,
+        'remaining_label': 'غير متاح',
+        'phase': 'night',
+        'headline_ar': 'لا توجد بيانات كافية',
+        'headline_en': 'Not enough data',
+        'details_ar': 'بانتظار أول قراءة.',
+        'details_en': 'Waiting for the first reading.',
+    }
+    if not latest:
+        return empty
+
+    solar = float(latest.solar_power or 0)
+    home = float(latest.home_load or 0)
+    raw_surplus = max(solar - home, 0.0)
+
+    now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
+    sunset_dt = None
+    if weather and getattr(weather, 'sunset_time', None):
+        try:
+            sunset_dt = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00')
+            if now_local.tzinfo is not None and sunset_dt.tzinfo is None:
+                sunset_dt = sunset_dt.replace(tzinfo=now_local.tzinfo)
+        except Exception:
+            sunset_dt = None
+    day_start = now_local.replace(hour=6, minute=0, second=0, microsecond=0)
+    is_day = bool(sunset_dt and day_start <= now_local < sunset_dt)
+
+    battery_capacity_kwh, _reserve_percent = get_runtime_battery_settings(settings)
+    battery = build_battery_insights(latest, battery_capacity_kwh, _reserve_percent)
+    remaining_wh = max(float(battery.get('remaining_to_full_kwh', 0) or 0) * 1000.0, 0.0)
+
+    remaining_hours = None
+    battery_need_w = 0.0
+    if is_day and sunset_dt is not None:
+        remaining_hours = max((sunset_dt - now_local).total_seconds() / 3600.0, 0.0)
+        if remaining_hours > 0:
+            battery_need_w = remaining_wh / remaining_hours
+
+    actual_surplus = raw_surplus
+    battery_priority_active = False
+    if str(settings.get('actual_surplus_enabled', 'true')).lower() == 'true' and is_day and remaining_hours and remaining_hours > 0:
+        actual_surplus = max(raw_surplus - battery_need_w, 0.0)
+        battery_priority_active = battery_need_w > 0.5 and raw_surplus > 0
+
+    if not is_day:
+        phase = 'night'
+        headline_ar = 'ليلًا لا يتم احتساب فائض شمسي فعلي للأحمال'
+        headline_en = 'At night there is no actual solar surplus for loads'
+        details_ar = 'يتم إيقاف هذا المؤشر بعد الغروب ويعتمد القرار الليلي على الحد المحفوظ.'
+        details_en = 'This indicator stops after sunset and the night decision uses the saved limit.'
+    elif raw_surplus <= 0:
+        phase = 'day'
+        headline_ar = 'لا يوجد فائض شمسي خام حاليًا'
+        headline_en = 'There is no raw solar surplus right now'
+        details_ar = 'إنتاج الشمس لا يغطي سحب المنزل بالكامل حاليًا.'
+        details_en = 'Solar production is not fully covering the home load right now.'
+    elif battery_priority_active and actual_surplus < raw_surplus:
+        phase = 'day'
+        headline_ar = 'جزء من الفائض محجوز لشحن البطارية قبل الغروب'
+        headline_en = 'Part of the surplus is reserved to charge the battery before sunset'
+        details_ar = 'تم خصم احتياج شحن البطارية من الفائض الخام حتى لا نعتبر كل الفائض متاحًا للأحمال.'
+        details_en = 'Battery charging need was deducted from the raw surplus so not all surplus is treated as available for loads.'
+    else:
+        phase = 'day'
+        headline_ar = 'معظم الفائض الحالي متاح للأحمال'
+        headline_en = 'Most of the current surplus is available for loads'
+        details_ar = 'لا توجد أولوية شحن كبيرة تمنع استخدام الفائض الحالي.'
+        details_en = 'There is no major charging priority blocking the current surplus usage.'
+
+    return {
+        'raw_surplus_w': _round_w(raw_surplus),
+        'battery_charge_need_w': _round_w(battery_need_w),
+        'actual_surplus_w': _round_w(actual_surplus),
+        'battery_priority_w': _round_w(max(raw_surplus - actual_surplus, 0.0)),
+        'battery_priority_active': bool(battery_priority_active),
+        'battery_remaining_wh': _round_w(remaining_wh),
+        'remaining_hours_to_sunset': remaining_hours,
+        'remaining_label': human_duration_hours(remaining_hours) if remaining_hours is not None and remaining_hours > 0 else ('الشمس غائبة' if not is_day else 'أقل من ساعة'),
+        'phase': phase,
+        'headline_ar': headline_ar,
+        'headline_en': headline_en,
+        'details_ar': details_ar,
+        'details_en': details_en,
+    }
+
+
+def maybe_log_energy_events(current: Reading | None, previous: Reading | None, weather=None, settings: dict | None = None):
+    settings = settings or load_settings()
+    if not current:
+        return
+    current_surplus = compute_actual_solar_surplus(current, weather=weather, settings=settings)
+    previous_surplus = compute_actual_solar_surplus(previous, weather=weather, settings=settings) if previous else None
+
+    current_phase = current_surplus.get('phase', 'night')
+    previous_phase = previous_surplus.get('phase', 'night') if previous_surplus else None
+    if previous_phase and current_phase != previous_phase:
+        add_event_log(
+            event_type='phase_change',
+            event_key='phase-change',
+            severity='info',
+            title='تغير وضع النظام بين النهار والليل',
+            details=f'انتقل النظام من {previous_phase} إلى {current_phase}.',
+            value_before=previous_phase,
+            value_after=current_phase,
+            raw={'current_phase': current_phase, 'previous_phase': previous_phase},
+        )
+
+    prev_priority = bool(previous_surplus.get('battery_priority_active')) if previous_surplus else None
+    curr_priority = bool(current_surplus.get('battery_priority_active'))
+    if prev_priority is not None and prev_priority != curr_priority:
+        add_event_log(
+            event_type='battery_priority',
+            event_key='battery-priority',
+            severity='warning' if curr_priority else 'success',
+            title='تغيرت أولوية شحن البطارية قبل الغروب',
+            details=(
+                f'أصبح جزء من الفائض محجوزًا لشحن البطارية ({current_surplus.get("battery_charge_need_w", 0):.1f} واط).'
+                if curr_priority else
+                'لم تعد البطارية تحجز جزءًا مهمًا من الفائض الحالي.'
+            ),
+            value_before='مفعلة' if prev_priority else 'غير مفعلة',
+            value_after='مفعلة' if curr_priority else 'غير مفعلة',
+            raw={'current': current_surplus, 'previous': previous_surplus},
+        )
+
+    prev_actual = float(previous_surplus.get('actual_surplus_w', 0) or 0) if previous_surplus else None
+    curr_actual = float(current_surplus.get('actual_surplus_w', 0) or 0)
+    if prev_actual is not None:
+        if prev_actual <= 0 < curr_actual:
+            add_event_log(
+                event_type='actual_surplus',
+                event_key='actual-surplus-start',
+                severity='success',
+                title='بدأ توفر فائض شمسي فعلي للأحمال',
+                details=f'الفائض الفعلي الحالي {curr_actual:.1f} واط بعد خصم أولوية شحن البطارية.',
+                value_before=f'{prev_actual:.1f}',
+                value_after=f'{curr_actual:.1f}',
+                raw={'current': current_surplus, 'previous': previous_surplus},
+            )
+        elif prev_actual > 0 >= curr_actual:
+            add_event_log(
+                event_type='actual_surplus',
+                event_key='actual-surplus-end',
+                severity='warning',
+                title='انتهى الفائض الشمسي الفعلي المتاح للأحمال',
+                details='لم يعد هناك فائض فعلي متاح بعد خصم احتياج البطارية أو بسبب ارتفاع سحب المنزل.',
+                value_before=f'{prev_actual:.1f}',
+                value_after=f'{curr_actual:.1f}',
+                raw={'current': current_surplus, 'previous': previous_surplus},
+            )
+        elif abs(curr_actual - prev_actual) >= 300:
+            add_event_log(
+                event_type='actual_surplus_shift',
+                event_key='actual-surplus-shift',
+                severity='info',
+                title='تغير واضح في الفائض الشمسي الفعلي',
+                details=f'تغير الفائض الفعلي من {prev_actual:.1f} إلى {curr_actual:.1f} واط.',
+                value_before=f'{prev_actual:.1f}',
+                value_after=f'{curr_actual:.1f}',
+                raw={'current': current_surplus, 'previous': previous_surplus},
+            )
+
+    prev_status = (previous.status_text or '').strip() if previous else ''
+    curr_status = (current.status_text or '').strip()
+    if prev_status and curr_status and prev_status != curr_status:
+        add_event_log(
+            event_type='status_change',
+            event_key='status-change',
+            severity='info',
+            title='تغيرت الحالة العامة للنظام',
+            details=f'انتقلت الحالة من "{prev_status}" إلى "{curr_status}".',
+            value_before=prev_status,
+            value_after=curr_status,
+        )
+
+
 def prune_old_logs():
     """Delete old SyncLog and NotificationLog rows to keep DB size manageable."""
     cfg = current_app.config
     sync_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=cfg.get('SYNCLOG_RETENTION_DAYS', 30))
     notif_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=cfg.get('NOTIFICATIONLOG_RETENTION_DAYS', 90))
+    event_retention_days = max(int(safe_float(load_settings().get('event_log_retention_days'), 60) or 60), 7)
+    event_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=event_retention_days)
     try:
         SyncLog.query.filter(SyncLog.created_at < sync_cutoff).delete()
         NotificationLog.query.filter(NotificationLog.created_at < notif_cutoff).delete()
+        EventLog.query.filter(EventLog.created_at < event_cutoff).delete()
         db.session.commit()
     except Exception:
         db.session.rollback()

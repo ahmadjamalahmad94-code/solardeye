@@ -33,9 +33,9 @@
         <small data-ar="تدخل البطارية محسوب ضمن هامش الأمان" data-en="Battery impact is included in the safety margin">تدخل البطارية محسوب ضمن هامش الأمان</small>
       </div>
       <div class="stat-card live-hero-card loads-hero-card live-hero-blue">
-        <span data-ar="الفائض الآمن المتاح" data-en="Safe available surplus">الفائض الآمن المتاح</span>
+        <span data-ar="الفائض الشمسي الفعلي" data-en="Actual solar surplus">الفائض الشمسي الفعلي</span>
         <strong>{{ format_power(smart_loads.safe_available_w) }} واط</strong>
-        <small>{{ smart_loads.mode_en if ui_lang == 'en' else smart_loads.mode_ar }}</small>
+        <small>{{ smart_loads.surplus_note_en if ui_lang == 'en' else smart_loads.surplus_note_ar }}</small>
       </div>
     </section>
 
@@ -76,6 +76,7 @@
           <span class="stats-pill">{{ simulation.mode_en if ui_lang == 'en' else simulation.mode_ar }}</span>
           <span class="stats-pill">{{ format_power(simulation.current_load_w) }} W</span>
           <span class="stats-pill">{{ 'Available' if ui_lang == 'en' else 'المتاح' }}: {{ format_power(simulation.available_w) }} W</span>
+          <span class="stats-pill">{{ 'Battery need' if ui_lang == 'en' else 'احتياج البطارية' }}: {{ format_power(simulation.battery_charge_need_w) }} W</span>
         </div>
         <p class="mb-2">{{ simulation.reason_en if ui_lang == 'en' else simulation.reason_ar }}</p>
         <div class="smart-chip-list large">

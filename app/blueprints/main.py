@@ -20,7 +20,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import NotificationLog, Reading, Setting, SyncLog, UserLoad
+from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog, UserLoad
 from ..services.deye_client import DeyeClient
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
@@ -31,9 +31,9 @@ from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
     build_system_state, build_system_status, build_weather_insight, compute_energy_stats, filter_rows_for_view, format_energy,
-    format_power, format_time_short, get_runtime_battery_settings, get_production_summary,
-    load_settings, log_event, normalize_local_date, parse_selected_date, prune_old_logs,
-    save_settings_from_form, shift_period,
+    add_event_log, compute_actual_solar_surplus, format_power, format_time_short, get_recent_event_logs,
+    get_runtime_battery_settings, get_production_summary, load_settings, log_event, maybe_log_energy_events,
+    normalize_local_date, parse_selected_date, prune_old_logs, save_settings_from_form, shift_period,
 )
 from .notifications import (
     apply_form_settings_overrides, build_daily_morning_report_message,
@@ -118,20 +118,23 @@ def _load_suggestion_mode(now_local, weather=None):
 
 def _manual_load_planner(latest, max_allowed_w=0, weather=None, now_local=None):
     loads = [r for r in _serialize_loads() if r.is_enabled]
-    now_local = now_local or (utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC))
+    now_local = now_local or utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
     mode, sunset_dt = _load_suggestion_mode(now_local, weather)
     current_load = float(latest.home_load or 0) if latest else 0.0
-    solar = float(latest.solar_power or 0) if latest else 0.0
-    surplus = max(solar - current_load, 0.0)
+    surplus_data = compute_actual_solar_surplus(latest, weather=weather)
+    raw_surplus = float(surplus_data.get('raw_surplus_w', 0) or 0)
+    actual_surplus = float(surplus_data.get('actual_surplus_w', 0) or 0)
+    battery_need = float(surplus_data.get('battery_charge_need_w', 0) or 0)
     target_cap = max(float(max_allowed_w or 0), 0.0)
+
     if mode == 'day':
-        available = surplus
-        reason_ar = 'يعتمد الاقتراح نهارًا على الفائض الشمسي الحالي.'
-        reason_en = 'Daytime planning uses the current solar surplus.'
+        available = actual_surplus
+        reason_ar = 'في النهار نعتمد الفائض الشمسي الفعلي بعد خصم احتياج شحن البطارية قبل الغروب.'
+        reason_en = 'During the day we use the actual solar surplus after deducting the battery charging need before sunset.'
     else:
         available = max(target_cap - current_load, 0.0)
-        reason_ar = 'ليلًا يُحسب المتبقي من الحد الذي حددته بعد خصم الحمل الحالي.'
-        reason_en = 'At night the remaining margin is based on your custom max draw minus the current load.'
+        reason_ar = 'في الليل نعتمد الحد الليلي المحفوظ مطروحًا منه سحب المنزل الحالي.'
+        reason_en = 'At night we use the saved night limit minus the current home load.'
 
     fit, blocked = [], []
     for load in loads:
@@ -145,7 +148,9 @@ def _manual_load_planner(latest, max_allowed_w=0, weather=None, now_local=None):
         'mode_ar': mode_ar,
         'mode_en': mode_en,
         'current_load_w': round(current_load, 1),
-        'surplus_w': round(surplus, 1),
+        'surplus_w': round(raw_surplus, 1),
+        'actual_surplus_w': round(actual_surplus, 1),
+        'battery_charge_need_w': round(battery_need, 1),
         'max_allowed_w': round(target_cap, 1),
         'available_w': round(available, 1),
         'fit': fit,
@@ -162,26 +167,33 @@ def _smart_load_suggestions(latest, settings=None):
     loads = [r for r in _serialize_loads() if r.is_enabled]
     if not latest:
         return {
-            'available_w': 0.0, 'safe_available_w': 0.0, 'battery_soc': 0.0, 'can_run': [], 'hold': [],
+            'available_w': 0.0, 'safe_available_w': 0.0, 'actual_surplus_w': 0.0, 'raw_surplus_w': 0.0,
+            'battery_charge_need_w': 0.0, 'battery_soc': 0.0, 'can_run': [], 'hold': [],
             'headline_ar': 'بانتظار أول قراءة للنظام', 'headline_en': 'Waiting for the first system reading',
             'mode_ar': 'لا توجد بيانات', 'mode_en': 'No data yet', 'phase': 'night', 'night_max_w': night_max_w,
+            'surplus_note_ar': 'سيتم الحساب بعد وصول أول قراءة.', 'surplus_note_en': 'The calculation will appear after the first reading.',
         }
     weather = get_weather_for_latest(latest)
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
     phase, _ = _load_suggestion_mode(now_local, weather)
-    solar = float(latest.solar_power or 0)
-    home = float(latest.home_load or 0)
     battery_soc = float(latest.battery_soc or 0)
-    surplus = max(solar - home, 0.0)
+    surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
+    raw_surplus = float(surplus_data.get('raw_surplus_w', 0) or 0)
+    actual_surplus = float(surplus_data.get('actual_surplus_w', 0) or 0)
+    battery_need = float(surplus_data.get('battery_charge_need_w', 0) or 0)
 
     if phase == 'day':
-        safe_available = surplus
-        mode_ar = 'يعتمد الاقتراح الآن على الفائض الشمسي'
-        mode_en = 'Suggestions now use solar surplus'
+        safe_available = actual_surplus
+        mode_ar = 'يعتمد الاقتراح الآن على الفائض الشمسي الفعلي'
+        mode_en = 'Suggestions now use the actual solar surplus'
+        surplus_note_ar = f'خام: {int(round(raw_surplus))} واط • للبطارية: {int(round(battery_need))} واط • فعلي: {int(round(actual_surplus))} واط'
+        surplus_note_en = f'Raw: {int(round(raw_surplus))}W • Battery: {int(round(battery_need))}W • Actual: {int(round(actual_surplus))}W'
     else:
-        safe_available = max(night_max_w - home, 0.0)
+        safe_available = max(night_max_w - float(latest.home_load or 0), 0.0)
         mode_ar = f'ليلًا: الحد المعتمد {int(round(night_max_w))} واط'
         mode_en = f'Night: saved limit {int(round(night_max_w))} W'
+        surplus_note_ar = 'بعد الغروب نتوقف عن احتساب الفائض الفعلي ونعتمد الحد الليلي.'
+        surplus_note_en = 'After sunset we stop using actual surplus and rely on the night limit.'
 
     can_run = []
     hold = []
@@ -198,15 +210,18 @@ def _smart_load_suggestions(latest, settings=None):
         headline_ar = f'يمكنك الآن تشغيل: {names_ar}'
         headline_en = f'You can run now: {names_en}'
     elif safe_available > 0:
-        headline_ar = 'الفائض الحالي لا يكفي لتشغيل حمل جديد بأمان'
-        headline_en = 'The current surplus is not enough for a new load safely'
+        headline_ar = 'الفائض الفعلي الحالي لا يكفي لتشغيل حمل جديد بأمان'
+        headline_en = 'The current actual surplus is not enough for a new load safely'
     else:
         headline_ar = 'يفضل تأجيل تشغيل الأحمال الإضافية الآن'
         headline_en = 'It is better to postpone extra loads for now'
 
     return {
-        'available_w': round(surplus, 1),
+        'available_w': round(raw_surplus, 1),
         'safe_available_w': round(safe_available, 1),
+        'actual_surplus_w': round(actual_surplus, 1),
+        'raw_surplus_w': round(raw_surplus, 1),
+        'battery_charge_need_w': round(battery_need, 1),
         'battery_soc': round(battery_soc, 1),
         'can_run': can_run,
         'hold': hold,
@@ -216,7 +231,12 @@ def _smart_load_suggestions(latest, settings=None):
         'mode_en': mode_en,
         'phase': phase,
         'night_max_w': round(night_max_w, 1),
+        'surplus_note_ar': surplus_note_ar,
+        'surplus_note_en': surplus_note_en,
+        'surplus_details_ar': surplus_data.get('details_ar', ''),
+        'surplus_details_en': surplus_data.get('details_en', ''),
     }
+
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -295,6 +315,8 @@ def dashboard():
 
     production_summary = get_production_summary(tz_name)
     smart_loads = _smart_load_suggestions(latest)
+    actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
+    recent_events = get_recent_event_logs(8)
 
     return render_template(
         'dashboard.html',
@@ -307,7 +329,7 @@ def dashboard():
         battery_details=battery_details, battery_capacity_kwh=battery_capacity_kwh,
         battery_reserve_percent=battery_reserve_percent, system_state=system_state, system_status=system_status,
         weather=weather, weather_insight=weather_insight, solar_prediction=solar_prediction,
-        production_summary=production_summary, smart_loads=smart_loads,
+        production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events,
         human_duration_hours=human_duration_hours, format_energy=format_energy,
         format_power=format_power, _to_12h_label=_to_12h_label,
         format_local=lambda dt: format_local_datetime(dt, tz_name),
@@ -327,6 +349,7 @@ def api_live():
     system_status = build_system_status(latest, battery_insights)
     system_state = system_status['title']
     solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
+    actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     tz_name = current_app.config['LOCAL_TIMEZONE']
     return {
         'ok': True,
@@ -352,6 +375,7 @@ def api_live():
             'noon': weather.noon, 'afternoon': weather.afternoon, 'timeline': weather.timeline,
             'sunset_time': weather.sunset_time, 'effective_sunset_time': weather.effective_sunset_time,
         },
+        'actual_surplus': actual_surplus,
         'solar_prediction': None if not solar_prediction else {
             'sunset_time': _to_12h_label(solar_prediction.get('sunset_time')),
             'effective_sunset_time': _to_12h_label(solar_prediction.get('effective_sunset_time')),
@@ -860,6 +884,11 @@ def sync_now_internal(trigger='manual'):
     )
     db.session.add(reading)
     db.session.commit()
+    weather = get_weather_for_latest(reading)
+    try:
+        maybe_log_energy_events(reading, previous, weather=weather, settings=load_settings())
+    except Exception as event_exc:
+        log_event('warning', f'تعذر تسجيل الأحداث الذكية: {event_exc}')
     try:
         process_notifications(reading, previous)
     except Exception as notify_exc:

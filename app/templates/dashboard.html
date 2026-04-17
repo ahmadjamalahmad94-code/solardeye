@@ -230,9 +230,9 @@
       </div>
       <div class="smart-loads-grid">
         <div class="smart-summary-card">
-          <span data-ar="الفائض الشمسي الحالي" data-en="Current solar surplus">الفائض الشمسي الحالي</span>
+          <span data-ar="الفائض الشمسي الفعلي" data-en="Actual solar surplus">الفائض الشمسي الفعلي</span>
           <strong>{{ format_power(smart_loads.safe_available_w) }} واط</strong>
-          <small>{{ smart_loads.headline_en if ui_lang == 'en' else smart_loads.headline_ar }}</small>
+          <small>{{ smart_loads.surplus_note_en if ui_lang == 'en' else smart_loads.surplus_note_ar }}</small>
         </div>
         <div class="smart-summary-card alt">
           <span data-ar="حالة القرار" data-en="Decision mode">حالة القرار</span>
@@ -265,6 +265,49 @@
       </div>
     </section>
 
+
+    <section class="panel-card mt-4">
+      <div class="section-head">
+        <div>
+          <h3 data-ar="حساب الفائض الشمسي الفعلي" data-en="Actual solar surplus calculation">حساب الفائض الشمسي الفعلي</h3>
+          <p class="section-subtitle" data-ar="الفائض الخام مطروحًا منه احتياج شحن البطارية قبل الغروب" data-en="Raw surplus minus battery charging need before sunset">الفائض الخام مطروحًا منه احتياج شحن البطارية قبل الغروب</p>
+        </div>
+      </div>
+      <div class="smart-loads-grid">
+        <div class="smart-summary-card">
+          <span data-ar="الفائض الخام" data-en="Raw surplus">الفائض الخام</span>
+          <strong>{{ format_power(actual_surplus.raw_surplus_w) }} واط</strong>
+          <small data-ar="دخل شمسي - سحب المنزل" data-en="Solar input - home load">دخل شمسي - سحب المنزل</small>
+        </div>
+        <div class="smart-summary-card alt">
+          <span data-ar="احتياج شحن البطارية" data-en="Battery charging need">احتياج شحن البطارية</span>
+          <strong>{{ format_power(actual_surplus.battery_charge_need_w) }} واط</strong>
+          <small>{{ actual_surplus.remaining_label }}</small>
+        </div>
+        <div class="smart-summary-card">
+          <span data-ar="الفائض الفعلي المتاح" data-en="Actual available surplus">الفائض الفعلي المتاح</span>
+          <strong>{{ format_power(actual_surplus.actual_surplus_w) }} واط</strong>
+          <small>{{ actual_surplus.details_en if ui_lang == 'en' else actual_surplus.details_ar }}</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head"><h3 data-ar="سجل الأحداث الذكي" data-en="Smart event log">سجل الأحداث الذكي</h3></div>
+      <div class="log-list">
+        {% for event in recent_events %}
+          <div class="log-item {{ event.severity }}">
+            <div>
+              <strong>{{ event.title }}</strong>
+              <div>{{ event.details }}</div>
+              <div class="small text-muted">{{ format_local(event.created_at) }}</div>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state" data-ar="لا توجد أحداث مهمة مسجلة بعد." data-en="No important events have been logged yet.">لا توجد أحداث مهمة مسجلة بعد.</div>
+        {% endfor %}
+      </div>
+    </section>
     <section class="panel-card mt-4">
       <div class="section-head">
         <h3>الرسوم البيانية</h3>
