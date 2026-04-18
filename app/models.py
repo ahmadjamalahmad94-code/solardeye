@@ -103,6 +103,7 @@ class SmartSnapshot(db.Model):
     battery_charge_need_w = db.Column(db.Float, default=0)
     actual_surplus_w = db.Column(db.Float, default=0)
     minutes_to_sunset = db.Column(db.Float, nullable=True)
+    hours_until_sunrise = db.Column(db.Float, nullable=True)
     quality_score = db.Column(db.Float, default=1.0)
     source = db.Column(db.String(30), default='auto_sync')
 

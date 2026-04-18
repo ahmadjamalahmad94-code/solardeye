@@ -56,6 +56,8 @@ class WeatherSnapshot:
     next_hour: dict
     sunset_time: str | None
     effective_sunset_time: str | None
+    sunrise_time: str | None
+    effective_sunrise_time: str | None
     timeline: list[dict] = field(default_factory=list)
 
 
@@ -123,7 +125,7 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         'longitude': lng,
         'current': 'temperature_2m,weather_code,cloud_cover,wind_speed_10m',
         'hourly': 'temperature_2m,weather_code,cloud_cover,precipitation_probability',
-        'daily': 'sunset',
+        'daily': 'sunrise,sunset',
         'forecast_days': 2,
         'timezone': timezone,
     }
@@ -144,13 +146,23 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
 
     daily = data.get('daily', {}) or {}
     sunset_list = daily.get('sunset', []) or []
+    sunrise_list = daily.get('sunrise', []) or []
     sunset_time = None
     effective_sunset_time = None
+    sunrise_time = None
+    effective_sunrise_time = None
     if sunset_list:
         try:
             sunset_dt = datetime.fromisoformat(sunset_list[0])
             sunset_time = sunset_dt.strftime('%H:%M')
             effective_sunset_time = (sunset_dt.replace(second=0, microsecond=0) - timedelta(hours=1)).strftime('%H:%M')
+        except Exception:
+            pass
+    if sunrise_list:
+        try:
+            sunrise_dt = datetime.fromisoformat(sunrise_list[0])
+            sunrise_time = sunrise_dt.strftime('%H:%M')
+            effective_sunrise_time = sunrise_dt.replace(second=0, microsecond=0).strftime('%H:%M')
         except Exception:
             pass
 
@@ -197,5 +209,7 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         next_hour=next_hour,
         sunset_time=sunset_time,
         effective_sunset_time=effective_sunset_time,
+        sunrise_time=sunrise_time,
+        effective_sunrise_time=effective_sunrise_time,
         timeline=timeline,
     )

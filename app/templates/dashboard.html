@@ -38,6 +38,32 @@
 </header>
 
 
+
+<style>
+.smart-archive-panel{padding:22px;border-radius:28px;background:#f9fbff;border:1px solid #dde5f4}
+.smart-archive-title{font-size:2.2rem;font-weight:800;line-height:1.1;color:#17233f;margin:0 0 18px}
+.smart-archive-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.smart-archive-card{min-width:0;border-radius:26px;padding:18px 20px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;min-height:165px;overflow:hidden}
+.smart-archive-card h4{font-size:1rem;margin:0 0 8px;opacity:.95;line-height:1.3;word-break:break-word}
+.smart-archive-card .big{font-size:3rem;font-weight:800;line-height:1;margin:0 0 8px;word-break:break-word}
+.smart-archive-card p{margin:0;color:rgba(255,255,255,.9);font-size:1rem;line-height:1.45;word-break:break-word}
+.smart-card-status{background:linear-gradient(135deg,#091735,#17356b)}
+.smart-card-solar{background:linear-gradient(135deg,#44cfd1,#63b8ff)}
+.smart-card-surplus{background:linear-gradient(135deg,#f8b500,#ffd84f);color:#1f2740}.smart-card-surplus p{color:#5b5b5b}
+.smart-card-matches{background:linear-gradient(135deg,#5aa0ff,#77b8ff)}
+.smart-archive-note,.smart-archive-scenario,.smart-archive-decision{border-radius:20px;padding:18px 20px;margin-top:14px;line-height:1.7}
+.smart-archive-note{background:#dff7ff;border:1px solid #b7eaf7;color:#175d70}
+.smart-archive-scenario{background:#f7faff;border:1px solid #d9e3f5;color:#22314f}
+.smart-archive-decision{background:#f7f8fc;border:1px solid #dce3f1;color:#1b2740;font-weight:700}
+.smart-archive-badges{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.smart-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#f7f8fc;border:1px solid #dce3f1;color:#22314f;font-weight:700}
+.smart-badge.low{background:#fff7e8;border-color:#f6d37f;color:#8c5b00}
+.smart-badge.medium{background:#fff8dc;border-color:#f1dc8a;color:#7b6200}
+.smart-badge.high{background:#ebfff0;border-color:#aee0be;color:#13753b}
+@media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
+</style>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
@@ -67,42 +93,6 @@
         <span>الإنتاج العام</span>
         <strong>{{ format_energy(production_summary.total_kwh) if production_summary else '0.00 kWh' }}</strong>
         <small>منذ بداية التشغيل</small>
-      </div>
-    </section>
-
-    <section class="panel-card mt-4">
-      <div class="section-head">
-        <h3>🔮 التوقع الذكي المبني على الأرشيف</h3>
-      </div>
-      <div class="top-scroll-cards">
-        <div class="hero-card hero-kpi navy">
-          <span>الحالة الذكية</span>
-          <strong>{{ smart_archive.status_label if smart_archive else '—' }}</strong>
-          <small>{{ smart_archive.confidence_label if smart_archive else '—' }}</small>
-        </div>
-        <div class="hero-card hero-kpi blue">
-          <span>الحالات المشابهة</span>
-          <strong>{{ smart_archive.matched_count if smart_archive else 0 }}</strong>
-          <small>من الأرشيف التاريخي</small>
-        </div>
-        <div class="hero-card hero-kpi solar">
-          <span>توقع الشمس للساعة القادمة</span>
-          <strong>{{ format_power(smart_archive.predicted_next_hour_solar) if smart_archive and smart_archive.predicted_next_hour_solar is not none else '—' }}</strong>
-          <small>واط متوقع</small>
-        </div>
-        <div class="hero-card hero-kpi yellow">
-          <span>توقع الفائض القادم</span>
-          <strong>{{ format_power(smart_archive.predicted_next_hour_surplus) if smart_archive and smart_archive.predicted_next_hour_surplus is not none else '—' }}</strong>
-          <small>قبل تشغيل أحمال إضافية</small>
-        </div>
-      </div>
-      <div class="mt-3">
-        <div class="alert alert-info mb-2">{{ smart_archive.historical_hint if smart_archive else 'لم يبدأ الأرشيف الذكي بعد.' }}</div>
-        <div class="d-flex flex-wrap gap-2">
-          <span class="stats-pill">قرار الآن: {{ smart_archive.decision_now if smart_archive else '—' }}</span>
-          <span class="stats-pill">المخاطرة: {{ smart_archive.predicted_risk_level if smart_archive else 'unknown' }}</span>
-          <span class="stats-pill">جاهزية الأرشيف: {{ 'نعم' if smart_archive and smart_archive.archive_ready else 'قيد البناء' }}</span>
-        </div>
       </div>
     </section>
 
@@ -254,6 +244,58 @@
       </div>
     </section>
     {% endif %}
+
+<section class="panel-card mt-4 smart-archive-panel">
+  {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
+  <div class="section-head">
+    <div>
+      <h3 class="smart-archive-title">🔮 التوقع الذكي المبني على الأرشيف</h3>
+    </div>
+  </div>
+  <div class="smart-archive-grid">
+    <div class="smart-archive-card smart-card-status">
+      <div>
+        <h4>الحالة الذكية</h4>
+        <div class="big">{{ so.status_label or '—' }}</div>
+      </div>
+      <p>{{ so.confidence_label or 'ثقة ضعيفة' }} • {{ so.confidence_message or 'لا يعتمد' }}</p>
+    </div>
+    <div class="smart-archive-card smart-card-solar">
+      <div>
+        <h4>توقع الشمس للساعة القادمة</h4>
+        <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_solar)) if so.predicted_next_hour_solar is not none else '—' }}</div>
+      </div>
+      <p>واط متوقع</p>
+    </div>
+    <div class="smart-archive-card smart-card-surplus">
+      <div>
+        <h4>توقع الفائض القادم</h4>
+        <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_surplus)) if so.predicted_next_hour_surplus is not none else '—' }}</div>
+      </div>
+      <p>قبل تشغيل أحمال إضافية</p>
+    </div>
+    <div class="smart-archive-card smart-card-matches">
+      <div>
+        <h4>الحالات المشابهة</h4>
+        <div class="big">{{ so.matched_count or 0 }}</div>
+      </div>
+      <p>من الأرشيف التاريخي</p>
+    </div>
+  </div>
+  <div class="smart-archive-note">{{ so.historical_hint or 'لا توجد بيانات كافية بعد.' }}</div>
+  <div class="smart-archive-scenario">
+    <strong>{{ so.scenario_title or 'السيناريو القادم' }}</strong>
+    <div>{{ so.scenario_summary or '' }}</div>
+    {% if so.scenario_detail %}<div>{{ so.scenario_detail }}</div>{% endif %}
+    {% if so.sunrise_remaining_label and so.sunrise_remaining_label != 'غير متاح' %}<div>⏳ المتبقي للشروق: {{ so.sunrise_remaining_label }}</div>{% endif %}
+  </div>
+  <div class="smart-archive-decision">قرار الآن: {{ so.decision_now or 'لا توجد توصية حالياً.' }}</div>
+  <div class="smart-archive-badges">
+    <span class="smart-badge {{ so.confidence_band or 'low' }}">الثقة: {{ so.confidence_label or 'ثقة ضعيفة' }}</span>
+    <span class="smart-badge">المخاطرة: {{ so.predicted_risk_level or 'غير معروف' }}</span>
+    <span class="smart-badge">جاهزية الأرشيف: {{ 'نعم' if so.historical_is_actionable else 'لا بعد' }}</span>
+  </div>
+</section>
 
 
     <section class="panel-card mt-4 smart-loads-panel">

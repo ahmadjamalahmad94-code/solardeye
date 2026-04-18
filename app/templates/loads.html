@@ -39,25 +39,6 @@
       </div>
     </section>
 
-    <section class="panel-card mt-4">
-      <div class="section-head">
-        <h3 data-ar="التوقع الذكي قبل تشغيل الأحمال" data-en="Smart forecast before running loads">التوقع الذكي قبل تشغيل الأحمال</h3>
-      </div>
-      <div class="smart-chip-list large">
-        <div class="smart-chip large"><span>الحالة</span><strong>{{ smart_archive.status_label if smart_archive else '—' }}</strong></div>
-        <div class="smart-chip large"><span>الثقة</span><strong>{{ smart_archive.confidence_label if smart_archive else '—' }}</strong></div>
-        <div class="smart-chip large"><span>الحالات المشابهة</span><strong>{{ smart_archive.matched_count if smart_archive else 0 }}</strong></div>
-        <div class="smart-chip large"><span>توقع الفائض القادم</span><strong>{{ (format_power(smart_archive.predicted_next_hour_surplus) ~ ' W') if smart_archive and smart_archive.predicted_next_hour_surplus is not none else '—' }}</strong></div>
-      </div>
-      <div class="mt-3">
-        <p class="mb-2">{{ smart_archive.historical_hint if smart_archive else 'لم يبدأ الأرشيف الذكي بعد.' }}</p>
-        <div class="saved-night-limit-note">
-          <span class="stats-pill">{{ smart_archive.decision_now if smart_archive else 'لا توجد توصية حالياً.' }}</span>
-          <span class="stats-pill">المخاطرة: {{ smart_archive.predicted_risk_level if smart_archive else 'unknown' }}</span>
-        </div>
-      </div>
-    </section>
-
     <section class="panel-card mt-4 load-simulator-card">
       <div class="section-head">
         <h3 data-ar="تجريب اقتراح الأحمال" data-en="Test load suggestions">تجريب اقتراح الأحمال</h3>

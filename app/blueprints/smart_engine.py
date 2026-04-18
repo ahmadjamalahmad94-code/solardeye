@@ -28,6 +28,19 @@ def _minute_bucket(dt: datetime) -> int:
     return (minute // 15) * 15
 
 
+def _weather_temp(weather):
+    return getattr(weather, 'temperature', None) if weather else None
+
+
+def _weather_clouds(weather):
+    return getattr(weather, 'cloud_cover', None) if weather else None
+
+
+def _weather_code(weather):
+    code = getattr(weather, 'code', None) if weather else None
+    return None if code is None else str(code)
+
+
 def _quality_score(latest, weather=None) -> float:
     score = 1.0
     if latest is None:
@@ -41,9 +54,9 @@ def _quality_score(latest, weather=None) -> float:
     if weather is None:
         score -= 0.1
     else:
-        if getattr(weather, 'temperature_c', None) is None:
+        if _weather_temp(weather) is None:
             score -= 0.05
-        if getattr(weather, 'clouds', None) is None:
+        if _weather_clouds(weather) is None:
             score -= 0.05
     return max(round(score, 2), 0.0)
 
@@ -77,7 +90,7 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
     timezone_name = settings.get('local_timezone') or 'Asia/Hebron'
     local_dt = utc_to_local(getattr(latest, 'created_at', None), timezone_name) or utc_to_local(datetime.now(UTC), timezone_name) or datetime.now(UTC)
 
-    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else {}
+    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else build_pre_sunset_prediction(latest, weather=None, settings=settings)
     surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     minutes_to_sunset = prediction.get('minutes_to_sunset')
     is_day = bool(prediction.get('is_day')) if prediction else (_safe_float(getattr(latest, 'solar_power', 0), 0) > 50)
@@ -88,9 +101,9 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
         'local_hour': int(local_dt.hour),
         'local_minute_bucket': _minute_bucket(local_dt),
         'is_day': is_day,
-        'temperature_c': getattr(weather, 'temperature_c', None) if weather else None,
-        'clouds_percent': getattr(weather, 'clouds', None) if weather else None,
-        'weather_code': getattr(weather, 'condition_code', None) if weather else None,
+        'temperature_c': _weather_temp(weather),
+        'clouds_percent': _weather_clouds(weather),
+        'weather_code': _weather_code(weather),
         'solar_power': _safe_float(getattr(latest, 'solar_power', 0), 0),
         'home_load': _safe_float(getattr(latest, 'home_load', 0), 0),
         'battery_soc': _safe_float(getattr(latest, 'battery_soc', 0), 0),
@@ -288,55 +301,6 @@ def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_
         'scenario_detail_ar': scenario['scenario_detail_ar'],
     }
 
-
-
-def get_latest_historical_overview(lookback_days: int = 45) -> dict:
-    """
-    Compatibility helper expected by main.py.
-    Returns a lightweight overview built from the latest stored SmartSnapshot.
-    Safe fallback: if there is no snapshot yet, return a non-breaking empty overview.
-    """
-    latest_snapshot = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
-    if latest_snapshot is None:
-        return {
-            'archive_ready': False,
-            'matched_count': 0,
-            'confidence_score': 0.0,
-            'confidence_label': 'ثقة ضعيفة',
-            'confidence_band': 'low',
-            'confidence_message': '⚠️ لا توجد بيانات أرشيفية كافية بعد.',
-            'historical_hint': 'الأرشيف ما زال في مرحلة التأسيس.',
-            'predicted_next_hour_solar': None,
-            'predicted_next_hour_surplus': None,
-            'predicted_risk_code': 'insufficient',
-            'predicted_risk_level': 'بيانات غير كافية',
-            'scenario_title': 'السيناريو القادم',
-            'scenario_summary': 'لا توجد حالات تاريخية كافية حتى الآن.',
-            'scenario_detail': 'سيبدأ التحليل التاريخي بعد تراكم عدد مناسب من اللقطات.',
-            'historical_is_actionable': False,
-        }
-
-    analysis = analyze_historical_pattern(latest_snapshot, lookback_days=lookback_days)
-
-    return {
-        'archive_ready': True,
-        'snapshot_id': getattr(latest_snapshot, 'id', None),
-        'matched_count': int(analysis.get('matched_count', 0) or 0),
-        'confidence_score': float(analysis.get('confidence_score', 0.0) or 0.0),
-        'confidence_label': analysis.get('confidence_label', 'ثقة ضعيفة'),
-        'confidence_band': analysis.get('confidence_band', 'low'),
-        'confidence_message': analysis.get('confidence_message', '⚠️ البيانات غير كافية بعد.'),
-        'historical_hint': analysis.get('historical_hint', ''),
-        'predicted_next_hour_solar': analysis.get('predicted_next_hour_solar'),
-        'predicted_next_hour_surplus': analysis.get('predicted_next_hour_surplus'),
-        'predicted_risk_code': analysis.get('predicted_risk_code', 'insufficient'),
-        'predicted_risk_level': analysis.get('predicted_risk_level', 'بيانات غير كافية'),
-        'scenario_title': analysis.get('scenario_title', 'السيناريو القادم'),
-        'scenario_summary': analysis.get('scenario_summary', ''),
-        'scenario_detail': analysis.get('scenario_detail', ''),
-        'historical_is_actionable': bool(analysis.get('historical_is_actionable', False)),
-    }
-
 def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, analysis: dict):
     if not snapshot:
         return None
@@ -382,10 +346,10 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
     soc = float(latest.battery_soc or 0)
     home = float(latest.home_load or 0)
 
-    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else {}
+    prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else build_pre_sunset_prediction(latest, weather=None, settings=settings)
     minutes_to_sunset = prediction.get('minutes_to_sunset')
 
-    if str(context).lower() == 'periodic_night':
+    if not is_day or str(context).lower() == 'periodic_night':
         if soc <= max(float(battery_reserve_percent), 20):
             advice = {
                 'status_label': '🔴 حرج',
@@ -454,3 +418,29 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         db.session.rollback()
 
     return advice
+
+
+
+def get_latest_historical_overview(latest, weather=None, settings=None, context='dashboard'):
+    advice = build_smart_energy_advice(latest, weather=weather, settings=settings, context=context)
+    return {
+        'status_label': advice.get('status_label', '—'),
+        'smart_warning': advice.get('smart_warning', ''),
+        'smart_recommendation': advice.get('smart_recommendation', ''),
+        'decision_now': advice.get('decision_now', ''),
+        'historical_hint': advice.get('historical_hint', ''),
+        'confidence_label': advice.get('confidence_label', 'ثقة ضعيفة'),
+        'confidence_message': advice.get('confidence_message', 'لا يعتمد'),
+        'confidence_band': advice.get('confidence_band', 'low'),
+        'matched_count': advice.get('matched_count', 0),
+        'predicted_next_hour_solar': advice.get('predicted_next_hour_solar'),
+        'predicted_next_hour_surplus': advice.get('predicted_next_hour_surplus'),
+        'predicted_risk_level': advice.get('predicted_risk_level', 'غير معروف'),
+        'predicted_risk_code': advice.get('predicted_risk_code', 'unknown'),
+        'scenario_title': advice.get('scenario_title', 'السيناريو القادم'),
+        'scenario_summary': advice.get('scenario_summary', ''),
+        'scenario_detail': advice.get('scenario_detail', ''),
+        'historical_is_actionable': advice.get('historical_is_actionable', False),
+        'hours_until_sunrise': advice.get('hours_until_sunrise'),
+        'sunrise_remaining_label': advice.get('sunrise_remaining_label', 'غير متاح'),
+    }

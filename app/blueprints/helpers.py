@@ -1000,6 +1000,7 @@ def build_weather_insight(weather, battery_insights: dict | None = None) -> dict
 # ── Sunset prediction ─────────────────────────────────────────────────────────
 # (imported lazily to avoid circular deps with weather_service)
 
+
 def build_pre_sunset_prediction(latest, weather=None, settings=None):
     from datetime import timedelta
     from zoneinfo import ZoneInfo
@@ -1015,30 +1016,69 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
         now_local = datetime.now()
 
     sunset_label = effective_sunset_label = None
+    sunrise_label = effective_sunrise_label = None
     remaining_hours = None
+    hours_until_sunrise = None
+    is_day = False
 
     if weather and getattr(weather, 'sunset_time', None):
         sunset_label = weather.sunset_time
         try:
-            sunset_raw = datetime.fromisoformat(
-                now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00'
-            )
-            # نوحّد النوع الزمني حتى لا يحدث خلط بين aware و naive
+            sunset_raw = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00')
             if now_local.tzinfo is not None and sunset_raw.tzinfo is None:
                 sunset_raw = sunset_raw.replace(tzinfo=now_local.tzinfo)
-
             effective_raw = sunset_raw - timedelta(hours=1 if subtract_hour else 0)
             effective_sunset_label = effective_raw.strftime('%H:%M')
             remaining_hours = max((effective_raw - now_local).total_seconds() / 3600, 0.0)
         except Exception:
             remaining_hours = None
 
+    if weather and getattr(weather, 'sunrise_time', None):
+        sunrise_label = weather.sunrise_time
+        try:
+            sunrise_raw = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunrise_time + ':00')
+            if now_local.tzinfo is not None and sunrise_raw.tzinfo is None:
+                sunrise_raw = sunrise_raw.replace(tzinfo=now_local.tzinfo)
+            if now_local >= sunrise_raw:
+                sunrise_raw = sunrise_raw + timedelta(days=1)
+            effective_sunrise_raw = sunrise_raw
+            effective_sunrise_label = effective_sunrise_raw.strftime('%H:%M')
+            hours_until_sunrise = max((effective_sunrise_raw - now_local).total_seconds() / 3600, 0.0)
+        except Exception:
+            hours_until_sunrise = None
+
     if remaining_hours is None:
         fallback = now_local.replace(hour=18, minute=0, second=0, microsecond=0)
         effective = fallback - timedelta(hours=1 if subtract_hour else 0)
+        if now_local > fallback:
+            effective = effective + timedelta(days=1)
+            fallback = fallback + timedelta(days=1)
         sunset_label = fallback.strftime('%H:%M')
         effective_sunset_label = effective.strftime('%H:%M')
         remaining_hours = max((effective - now_local).total_seconds() / 3600, 0.0)
+
+    if hours_until_sunrise is None:
+        sunrise_fallback = now_local.replace(hour=6, minute=0, second=0, microsecond=0)
+        if now_local >= sunrise_fallback:
+            sunrise_fallback = sunrise_fallback + timedelta(days=1)
+        sunrise_label = sunrise_fallback.strftime('%H:%M')
+        effective_sunrise_label = sunrise_fallback.strftime('%H:%M')
+        hours_until_sunrise = max((sunrise_fallback - now_local).total_seconds() / 3600, 0.0)
+
+    if weather and getattr(weather, 'sunrise_time', None) and getattr(weather, 'sunset_time', None):
+        try:
+            sunrise_check = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunrise_time + ':00')
+            sunset_check = datetime.fromisoformat(now_local.strftime('%Y-%m-%d') + 'T' + weather.sunset_time + ':00')
+            if now_local.tzinfo is not None:
+                if sunrise_check.tzinfo is None:
+                    sunrise_check = sunrise_check.replace(tzinfo=now_local.tzinfo)
+                if sunset_check.tzinfo is None:
+                    sunset_check = sunset_check.replace(tzinfo=now_local.tzinfo)
+            is_day = sunrise_check <= now_local < sunset_check
+        except Exception:
+            is_day = bool((latest.solar_power or 0) > 50 and remaining_hours and remaining_hours > 0)
+    else:
+        is_day = bool((latest.solar_power or 0) > 50 and remaining_hours and remaining_hours > 0)
 
     charge_power_w = float(battery.get('charge_power_w', 0) or 0)
     discharge_power_w = float(battery.get('discharge_power_w', 0) or 0)
@@ -1052,8 +1092,14 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
         time_to_full_hours is not None and remaining_hours is not None and time_to_full_hours <= remaining_hours
     )
     remaining_label = 'الشمس غائبة' if (remaining_hours is not None and remaining_hours <= 0) else human_duration_hours(remaining_hours)
+    sunrise_label_human = human_duration_hours(hours_until_sunrise) if hours_until_sunrise is not None else 'غير متاح'
 
-    if soc >= 99:
+    if not is_day:
+        if hours_until_sunrise is not None and hours_until_sunrise <= 1.5:
+            verdict, advice, level = 'قرب الشروق', 'المتبقي للشروق قصير نسبيًا، يمكن التفكير بأحمال خفيفة جدًا بحذر.', 'warning'
+        else:
+            verdict, advice, level = 'فترة ليلية', 'يعتمد القرار الآن على صمود البطارية حتى الشروق.', 'danger'
+    elif soc >= 99:
         verdict, advice, level = 'البطارية ممتلئة', 'شحن مكتمل.', 'success'
     elif discharge_power_w > 0 and charge_power_w <= 0:
         verdict, advice, level = 'يتم السحب من البطارية ولا تشحن', 'يفضّل تخفيف الأحمال.', 'danger'
@@ -1082,9 +1128,12 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
 
     return {
         'sunset_time': sunset_label, 'effective_sunset_time': effective_sunset_label,
+        'sunrise_time': sunrise_label, 'effective_sunrise_time': effective_sunrise_label,
         'remaining_hours': remaining_hours, 'remaining_label': remaining_label,
+        'minutes_to_sunset': None if remaining_hours is None else round(remaining_hours * 60, 1),
+        'hours_until_sunrise': hours_until_sunrise, 'sunrise_remaining_label': sunrise_label_human,
         'time_to_full_hours': time_to_full_hours, 'will_full_before_sunset': will_full_before_sunset,
-        'verdict': verdict, 'advice': advice, 'level': level,
+        'verdict': verdict, 'advice': advice, 'level': level, 'is_day': bool(is_day),
         'weather_advice': weather_advice, 'weather_level': weather_level,
         'capacity_kwh': battery_capacity_kwh, 'reserve_percent': battery_reserve_percent,
         'charge_power_w': charge_power_w, 'discharge_power_w': discharge_power_w, 'soc': soc,
