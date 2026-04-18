@@ -287,13 +287,13 @@
     <strong>{{ so.scenario_title or 'السيناريو القادم' }}</strong>
     <div>{{ so.scenario_summary or '' }}</div>
     {% if so.scenario_detail %}<div>{{ so.scenario_detail }}</div>{% endif %}
-    {% if so.sunrise_remaining_label and so.sunrise_remaining_label != 'غير متاح' %}<div>⏳ المتبقي للشروق: {{ so.sunrise_remaining_label }}</div>{% endif %}
+    {% if so.show_sunrise_label and so.sunrise_remaining_label and so.sunrise_remaining_label != 'غير متاح' %}<div>⏳ المتبقي للشروق: {{ so.sunrise_remaining_label }}</div>{% endif %}
   </div>
   <div class="smart-archive-decision">قرار الآن: {{ so.decision_now or 'لا توجد توصية حالياً.' }}</div>
   <div class="smart-archive-badges">
     <span class="smart-badge {{ so.confidence_band or 'low' }}">الثقة: {{ so.confidence_label or 'ثقة ضعيفة' }}</span>
     <span class="smart-badge">المخاطرة: {{ so.predicted_risk_level or 'غير معروف' }}</span>
-    <span class="smart-badge">جاهزية الأرشيف: {{ 'نعم' if so.historical_is_actionable else 'لا بعد' }}</span>
+    <span class="smart-badge">جاهزية الأرشيف: {{ 'جاهز' if so.historical_is_actionable else 'قيد التعلّم' }}</span>
   </div>
 </section>
 

@@ -9,6 +9,7 @@ from .helpers import (
     build_battery_insights,
     build_pre_sunset_prediction,
     compute_actual_solar_surplus,
+    human_duration_hours,
     get_runtime_battery_settings,
     load_settings,
 )
@@ -181,28 +182,58 @@ def _confidence_profile(matched_count: int) -> dict:
     }
 
 
+
+
+def _sun_phase_guidance(is_day: bool, sunrise_remaining_label: str | None, hours_until_sunrise: float | None) -> dict:
+    sunrise_remaining_label = sunrise_remaining_label or 'غير متاح'
+    if is_day:
+        return {
+            'title': 'السيناريو القادم',
+            'summary': '☀️ الشمس الآن مشرقة، ويتم تسجيل القراءات الحالية ومزامنتها وأرشفتها لبناء التوقع الذكي.',
+            'detail': 'كل مزامنة نهارية جديدة تقوّي الأرشيف التاريخي وتُحسّن دقة المقارنات القادمة.',
+            'show_sunrise_label': False,
+        }
+
+    if hours_until_sunrise is not None and hours_until_sunrise <= 1.5:
+        return {
+            'title': 'السيناريو القادم',
+            'summary': '🌅 الشروق قريب، وما تبقى من الليل قصير نسبيًا.',
+            'detail': f'المتبقي للشروق: {sunrise_remaining_label}.',
+            'show_sunrise_label': True,
+        }
+
+    return {
+        'title': 'السيناريو القادم',
+        'summary': '🌙 الليل مستمر، ويعتمد القرار الآن على صمود البطارية حتى الشروق.',
+        'detail': f'المتبقي للشروق: {sunrise_remaining_label}.',
+        'show_sunrise_label': True,
+    }
+
 def _scenario_from_history(current_snapshot: SmartSnapshot, avg_solar: float, avg_surplus: float, risk_code: str, matched_count: int) -> dict:
     current_solar = _safe_float(getattr(current_snapshot, 'solar_power', 0), 0)
     current_surplus = _safe_float(getattr(current_snapshot, 'actual_surplus_w', 0), 0)
     solar_delta = round(avg_solar - current_solar, 1)
     surplus_delta = round(avg_surplus - current_surplus, 1)
+    sun_guidance = _sun_phase_guidance(
+        bool(getattr(current_snapshot, 'is_day', False)),
+        human_duration_hours(getattr(current_snapshot, 'hours_until_sunrise', None)) if getattr(current_snapshot, 'hours_until_sunrise', None) is not None else 'غير متاح',
+        getattr(current_snapshot, 'hours_until_sunrise', None),
+    )
 
     if matched_count <= 2:
         return {
-            'scenario_title_ar': 'السيناريو القادم',
-            'scenario_summary_ar': 'الأرشيف ما زال قليلًا، لذلك نعرض القراءة الحالية فقط دون اعتماد تاريخي.',
-            'scenario_detail_ar': 'يلزم مزيد من الحالات المشابهة قبل اعتبار التوقع التاريخي مرجعًا.',
+            'scenario_title_ar': sun_guidance['title'],
+            'scenario_summary_ar': sun_guidance['summary'],
+            'scenario_detail_ar': sun_guidance['detail'],
+            'show_sunrise_label': sun_guidance['show_sunrise_label'],
         }
 
     if risk_code == 'high':
-        title = 'سيناريو هبوط قريب'
-        summary = 'خلال 30–60 دقيقة قد ينخفض الفائض عن الوضع الحالي.'
+        history_summary = '📉 الأرشيف يشير إلى احتمال مرتفع لانخفاض الفائض خلال 30–60 دقيقة.'
     elif risk_code == 'medium':
-        title = 'سيناريو مراقبة'
-        summary = 'خلال الساعة القادمة قد يظهر تراجع جزئي ويستحسن عدم التوسع بالأحمال.'
+        history_summary = '📊 الأرشيف يشير إلى احتمال متوسط لتراجع جزئي خلال الساعة القادمة.'
     else:
-        title = 'سيناريو مستقر'
-        summary = 'خلال الساعة القادمة يبدو السلوك قريبًا من الاستقرار مقارنة بالأرشيف.'
+        history_summary = '📈 الأرشيف يميل إلى استقرار مقبول خلال الساعة القادمة إذا استمرت الظروف نفسها.'
 
     solar_phrase = 'أقل' if solar_delta < -80 else ('أعلى' if solar_delta > 80 else 'قريب من الحالي')
     if solar_phrase == 'قريب من الحالي':
@@ -215,12 +246,15 @@ def _scenario_from_history(current_snapshot: SmartSnapshot, avg_solar: float, av
     elif surplus_delta > 200:
         detail += ' قد تكون هناك مساحة محدودة لأحمال خفيفة إذا استمرت الظروف.'
 
-    return {
-        'scenario_title_ar': title,
-        'scenario_summary_ar': summary,
-        'scenario_detail_ar': detail,
-    }
+    summary = f"{sun_guidance['summary']} {history_summary}" if bool(getattr(current_snapshot, 'is_day', False)) else history_summary
+    detail = f"{detail} {sun_guidance['detail']}" if not bool(getattr(current_snapshot, 'is_day', False)) else detail
 
+    return {
+        'scenario_title_ar': sun_guidance['title'],
+        'scenario_summary_ar': summary.strip(),
+        'scenario_detail_ar': detail.strip(),
+        'show_sunrise_label': sun_guidance['show_sunrise_label'],
+    }
 
 def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_days: int = 45) -> dict:
     empty_result = {
@@ -238,6 +272,7 @@ def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_
         'scenario_title_ar': 'السيناريو القادم',
         'scenario_summary_ar': 'لا توجد بيانات كافية بعد.',
         'scenario_detail_ar': 'انتظر تكوّن الأرشيف الذكي عبر مزامَنات أكثر.',
+        'show_sunrise_label': False,
     }
     if not current_snapshot:
         return empty_result
@@ -301,6 +336,7 @@ def analyze_historical_pattern(current_snapshot: SmartSnapshot | None, lookback_
         'scenario_title_ar': scenario['scenario_title_ar'],
         'scenario_summary_ar': scenario['scenario_summary_ar'],
         'scenario_detail_ar': scenario['scenario_detail_ar'],
+        'show_sunrise_label': scenario.get('show_sunrise_label', False),
     }
 
 def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, analysis: dict):
@@ -341,6 +377,7 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         'historical_is_actionable': False,
         'hours_until_sunrise': None,
         'sunrise_remaining_label': 'غير متاح',
+        'show_sunrise_label': False,
     }
     if not latest:
         return dict(safe_empty)
@@ -357,6 +394,7 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         hours_until_sunrise = prediction.get('hours_until_sunrise') if prediction else None
         sunrise_remaining_label = prediction.get('sunrise_remaining_label', 'غير متاح') if prediction else 'غير متاح'
         is_day = bool(prediction.get('is_day')) if prediction and prediction.get('is_day') is not None else (_safe_float(getattr(latest, 'solar_power', 0), 0) > 50)
+        sun_guidance = _sun_phase_guidance(is_day, sunrise_remaining_label, hours_until_sunrise)
 
         if (not is_day) or str(context).lower() == 'periodic_night':
             if soc <= max(float(battery_reserve_percent), 20):
@@ -420,15 +458,21 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         advice['predicted_next_hour_surplus'] = analysis.get('predicted_next_hour_surplus')
         advice['predicted_risk_code'] = analysis.get('predicted_risk_level', 'unknown')
         advice['predicted_risk_level'] = analysis.get('predicted_risk_label_ar', 'غير معروف')
-        advice['scenario_title'] = analysis.get('scenario_title_ar', 'السيناريو القادم')
-        advice['scenario_summary'] = analysis.get('scenario_summary_ar', '')
-        advice['scenario_detail'] = analysis.get('scenario_detail_ar', '')
+        advice['scenario_title'] = analysis.get('scenario_title_ar', sun_guidance['title'])
+        advice['scenario_summary'] = analysis.get('scenario_summary_ar', sun_guidance['summary'])
+        advice['scenario_detail'] = analysis.get('scenario_detail_ar', sun_guidance['detail'])
         advice['historical_is_actionable'] = bool(analysis.get('use_historical_for_decision'))
         advice['hours_until_sunrise'] = hours_until_sunrise
-        advice['sunrise_remaining_label'] = sunrise_remaining_label
+        advice['show_sunrise_label'] = bool(analysis.get('show_sunrise_label', False))
+        advice['sunrise_remaining_label'] = sunrise_remaining_label if advice['show_sunrise_label'] else 'غير متاح'
 
         if not advice['historical_is_actionable']:
             advice['decision_now'] = f"{advice['decision_now']} (المرجع الحالي هو القراءة اللحظية فقط)"
+            advice['scenario_title'] = sun_guidance['title']
+            advice['scenario_summary'] = sun_guidance['summary']
+            advice['scenario_detail'] = sun_guidance['detail']
+            advice['show_sunrise_label'] = bool(sun_guidance['show_sunrise_label'])
+            advice['sunrise_remaining_label'] = sunrise_remaining_label if advice['show_sunrise_label'] else 'غير متاح'
 
         try:
             log_historical_recommendation(snapshot, advice, analysis)
@@ -472,4 +516,5 @@ def get_latest_historical_overview(latest, weather=None, settings=None, context=
         'historical_is_actionable': advice.get('historical_is_actionable', False),
         'hours_until_sunrise': advice.get('hours_until_sunrise'),
         'sunrise_remaining_label': advice.get('sunrise_remaining_label', 'غير متاح'),
+        'show_sunrise_label': advice.get('show_sunrise_label', False),
     }
