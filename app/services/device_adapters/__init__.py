@@ -1,1 +1,1 @@
-from .factory import get_device_adapter
+from .factory import get_adapter
