@@ -98,6 +98,8 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
     is_day = bool(prediction.get('is_day')) if prediction else (_safe_float(getattr(latest, 'solar_power', 0), 0) > 50)
 
     payload = {
+        'user_id': getattr(latest, 'user_id', None),
+        'device_id': getattr(latest, 'device_id', None),
         'reading_id': getattr(latest, 'id', None),
         'created_at': getattr(latest, 'created_at', None) or datetime.utcnow(),
         'local_hour': int(local_dt.hour),
@@ -121,7 +123,12 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
         'source': source,
     }
 
-    previous = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
+    previous_query = SmartSnapshot.query
+    if payload.get('device_id') is not None:
+        previous_query = previous_query.filter(SmartSnapshot.device_id == payload.get('device_id'))
+    elif payload.get('user_id') is not None:
+        previous_query = previous_query.filter(SmartSnapshot.user_id == payload.get('user_id'))
+    previous = previous_query.order_by(SmartSnapshot.created_at.desc()).first()
     if previous and getattr(previous, 'created_at', None):
         elapsed = abs((payload['created_at'] - previous.created_at).total_seconds())
         if elapsed < 15 * 60 and not _significant_snapshot_change(previous, payload):
@@ -144,6 +151,10 @@ def find_similar_snapshots(current_snapshot: SmartSnapshot | None, lookback_days
         .filter(SmartSnapshot.is_day == current_snapshot.is_day)
         .filter(SmartSnapshot.local_hour.between(max(current_snapshot.local_hour - 1, 0), min(current_snapshot.local_hour + 1, 23)))
     )
+    if getattr(current_snapshot, 'device_id', None) is not None:
+        query = query.filter(SmartSnapshot.device_id == current_snapshot.device_id)
+    elif getattr(current_snapshot, 'user_id', None) is not None:
+        query = query.filter(SmartSnapshot.user_id == current_snapshot.user_id)
 
     if current_snapshot.temperature_c is not None:
         query = query.filter(SmartSnapshot.temperature_c.between(current_snapshot.temperature_c - 4, current_snapshot.temperature_c + 4))
@@ -343,6 +354,8 @@ def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, 
     if not snapshot:
         return None
     row = SmartRecommendationLog(
+        user_id=getattr(current_snapshot, 'user_id', None),
+        device_id=getattr(current_snapshot, 'device_id', None),
         snapshot_id=snapshot.id,
         recommendation_type='historical_advice',
         status_label=str(advice.get('status_label', ''))[:100],

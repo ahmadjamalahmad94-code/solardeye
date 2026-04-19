@@ -1,15 +1,14 @@
-import os
+import json
 import logging
-from flask import Flask, request, session
-from datetime import datetime, timedelta, UTC
+from flask import Flask
+from werkzeug.security import generate_password_hash
 from .config import Config
 from .extensions import db
-from .models import Setting, Reading
-from .scheduler import start_scheduler
+from .models import Device, EventLog, NotificationLog, Reading, Setting, SmartRecommendationLog, SmartSnapshot, SyncLog, User, UserLoad
 
 
 def create_app():
-    import os as _os, pathlib as _pl
+    import pathlib as _pl
     _old_routes = _pl.Path(__file__).parent / 'routes.py'
     if _old_routes.exists():
         import warnings
@@ -24,7 +23,6 @@ def create_app():
 
     db.init_app(app)
 
-    # Register blueprints
     from .blueprints.auth import auth_bp
     from .blueprints.main import main_bp
     from .blueprints.api_probe import probe_bp
@@ -36,67 +34,55 @@ def create_app():
         db.create_all()
         _migrate_database(db)
         _ensure_default_settings()
-
+        _ensure_default_user_and_device(app)
+        _backfill_multiuser_data()
 
     return app
 
 
 def _migrate_database(db):
-    """
-    Safe startup migration: creates missing columns for existing tables without
-    requiring Alembic. Supports both SQLite and PostgreSQL.
-    """
     new_columns = [
-        # Existing app tables
-        ('reading', 'pv1_power', 'REAL'),
-        ('reading', 'pv2_power', 'REAL'),
-        ('reading', 'pv3_power', 'REAL'),
-        ('reading', 'pv4_power', 'REAL'),
-        ('reading', 'inverter_temp', 'REAL'),
-        ('reading', 'dc_temp', 'REAL'),
-        ('reading', 'grid_voltage', 'REAL'),
-        ('reading', 'grid_frequency', 'REAL'),
-        ('user_load', 'priority', 'INTEGER DEFAULT 1'),
-        ('user_load', 'is_enabled', 'BOOLEAN DEFAULT 1'),
-        ('user_load', 'created_at', 'DATETIME'),
+        ('app_user', 'preferred_device_id', 'INTEGER'),
+        ('app_user', 'default_device_type', "VARCHAR(50) DEFAULT 'deye'"),
+        ('app_user', 'updated_at', 'TIMESTAMP'),
 
-        # Smart archive foundation
-        ('smart_snapshot', 'user_id', 'INTEGER'),
-        ('smart_snapshot', 'device_id', 'INTEGER'),
-        ('smart_snapshot', 'reading_id', 'INTEGER'),
-        ('smart_snapshot', 'created_at', 'TIMESTAMP'),
-        ('smart_snapshot', 'local_hour', 'INTEGER'),
-        ('smart_snapshot', 'local_minute_bucket', 'INTEGER'),
-        ('smart_snapshot', 'is_day', 'BOOLEAN DEFAULT 1'),
-        ('smart_snapshot', 'temperature_c', 'REAL'),
-        ('smart_snapshot', 'clouds_percent', 'REAL'),
-        ('smart_snapshot', 'weather_code', 'VARCHAR(40)'),
-        ('smart_snapshot', 'solar_power', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'home_load', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'battery_soc', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'battery_power', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'grid_power', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'inverter_power', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'raw_surplus_w', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'battery_charge_need_w', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'actual_surplus_w', 'REAL DEFAULT 0'),
-        ('smart_snapshot', 'minutes_to_sunset', 'REAL'),
-        ('smart_snapshot', 'hours_until_sunrise', 'REAL'),
-        ('smart_snapshot', 'quality_score', 'REAL DEFAULT 1.0'),
-        ('smart_snapshot', 'source', "VARCHAR(30) DEFAULT 'auto_sync'"),
+        ('app_device', 'device_type', "VARCHAR(50) DEFAULT 'deye'"),
+        ('app_device', 'api_provider', "VARCHAR(50) DEFAULT 'deye'"),
+        ('app_device', 'api_base_url', 'VARCHAR(255)'),
+        ('app_device', 'external_device_id', 'VARCHAR(120)'),
+        ('app_device', 'device_uid', 'VARCHAR(120)'),
+        ('app_device', 'station_id', 'VARCHAR(120)'),
+        ('app_device', 'plant_name', 'VARCHAR(120)'),
+        ('app_device', 'timezone', "VARCHAR(64) DEFAULT 'Asia/Hebron'"),
+        ('app_device', 'auth_mode', "VARCHAR(30) DEFAULT 'credentials'"),
+        ('app_device', 'credentials_json', 'TEXT'),
+        ('app_device', 'settings_json', 'TEXT'),
+        ('app_device', 'notes', 'TEXT'),
+        ('app_device', 'updated_at', 'TIMESTAMP'),
 
-        ('smart_recommendation_log', 'user_id', 'INTEGER'),
-        ('smart_recommendation_log', 'device_id', 'INTEGER'),
-        ('smart_recommendation_log', 'created_at', 'TIMESTAMP'),
-        ('smart_recommendation_log', 'snapshot_id', 'INTEGER'),
-        ('smart_recommendation_log', 'recommendation_type', 'VARCHAR(50)'),
-        ('smart_recommendation_log', 'status_label', "VARCHAR(100) DEFAULT ''"),
-        ('smart_recommendation_log', 'message_ar', "TEXT DEFAULT ''"),
-        ('smart_recommendation_log', 'confidence_score', 'REAL DEFAULT 0'),
-        ('smart_recommendation_log', 'matched_count', 'INTEGER DEFAULT 0'),
-        ('smart_recommendation_log', 'predicted_next_hour_solar', 'REAL'),
-        ('smart_recommendation_log', 'predicted_risk_level', "VARCHAR(30) DEFAULT 'unknown'"),
-        ('smart_recommendation_log', 'raw_json', 'TEXT'),
+        ('reading', 'user_id', 'INTEGER'), ('reading', 'device_id', 'INTEGER'),
+        ('sync_log', 'user_id', 'INTEGER'), ('sync_log', 'device_id', 'INTEGER'),
+        ('notification_log', 'user_id', 'INTEGER'), ('notification_log', 'device_id', 'INTEGER'),
+        ('user_load', 'user_id', 'INTEGER'), ('user_load', 'device_id', 'INTEGER'),
+        ('event_log', 'user_id', 'INTEGER'), ('event_log', 'device_id', 'INTEGER'),
+
+        ('reading', 'pv1_power', 'REAL'), ('reading', 'pv2_power', 'REAL'), ('reading', 'pv3_power', 'REAL'), ('reading', 'pv4_power', 'REAL'),
+        ('reading', 'inverter_temp', 'REAL'), ('reading', 'dc_temp', 'REAL'), ('reading', 'grid_voltage', 'REAL'), ('reading', 'grid_frequency', 'REAL'),
+        ('user_load', 'priority', 'INTEGER DEFAULT 1'), ('user_load', 'is_enabled', 'BOOLEAN DEFAULT 1'), ('user_load', 'created_at', 'DATETIME'),
+
+        ('smart_snapshot', 'user_id', 'INTEGER'), ('smart_snapshot', 'device_id', 'INTEGER'), ('smart_snapshot', 'reading_id', 'INTEGER'),
+        ('smart_snapshot', 'created_at', 'TIMESTAMP'), ('smart_snapshot', 'local_hour', 'INTEGER'), ('smart_snapshot', 'local_minute_bucket', 'INTEGER'),
+        ('smart_snapshot', 'is_day', 'BOOLEAN DEFAULT 1'), ('smart_snapshot', 'temperature_c', 'REAL'), ('smart_snapshot', 'clouds_percent', 'REAL'),
+        ('smart_snapshot', 'weather_code', 'VARCHAR(40)'), ('smart_snapshot', 'solar_power', 'REAL DEFAULT 0'), ('smart_snapshot', 'home_load', 'REAL DEFAULT 0'),
+        ('smart_snapshot', 'battery_soc', 'REAL DEFAULT 0'), ('smart_snapshot', 'battery_power', 'REAL DEFAULT 0'), ('smart_snapshot', 'grid_power', 'REAL DEFAULT 0'),
+        ('smart_snapshot', 'inverter_power', 'REAL DEFAULT 0'), ('smart_snapshot', 'raw_surplus_w', 'REAL DEFAULT 0'), ('smart_snapshot', 'battery_charge_need_w', 'REAL DEFAULT 0'),
+        ('smart_snapshot', 'actual_surplus_w', 'REAL DEFAULT 0'), ('smart_snapshot', 'minutes_to_sunset', 'REAL'), ('smart_snapshot', 'hours_until_sunrise', 'REAL'),
+        ('smart_snapshot', 'quality_score', 'REAL DEFAULT 1.0'), ('smart_snapshot', 'source', "VARCHAR(30) DEFAULT 'auto_sync'"),
+
+        ('smart_recommendation_log', 'user_id', 'INTEGER'), ('smart_recommendation_log', 'device_id', 'INTEGER'), ('smart_recommendation_log', 'created_at', 'TIMESTAMP'),
+        ('smart_recommendation_log', 'snapshot_id', 'INTEGER'), ('smart_recommendation_log', 'recommendation_type', 'VARCHAR(50)'), ('smart_recommendation_log', 'status_label', "VARCHAR(100) DEFAULT ''"),
+        ('smart_recommendation_log', 'message_ar', "TEXT DEFAULT ''"), ('smart_recommendation_log', 'confidence_score', 'REAL DEFAULT 0'), ('smart_recommendation_log', 'matched_count', 'INTEGER DEFAULT 0'),
+        ('smart_recommendation_log', 'predicted_next_hour_solar', 'REAL'), ('smart_recommendation_log', 'predicted_risk_level', "VARCHAR(30) DEFAULT 'unknown'"), ('smart_recommendation_log', 'raw_json', 'TEXT'),
     ]
 
     conn = db.engine.raw_connection()
@@ -135,19 +121,13 @@ def _migrate_database(db):
                 added.append(f"{table}.{col}")
                 existing.setdefault(table, set()).add(col)
             except Exception as exc:
-                logging.getLogger(__name__).warning(
-                    "DB migration skipped for %s.%s: %s", table, col, exc
-                )
+                logging.getLogger(__name__).warning("DB migration skipped for %s.%s: %s", table, col, exc)
 
         conn.commit()
         if added:
             logging.getLogger(__name__).info("DB migration added columns: %s", added)
     finally:
         conn.close()
-
-
-def _start_scheduler(app):
-    return start_scheduler(app)
 
 
 def _ensure_default_settings():
@@ -168,3 +148,86 @@ def _ensure_default_settings():
         if not Setting.query.filter_by(key=key).first():
             db.session.add(Setting(key=key, value=value))
     db.session.commit()
+
+
+def _ensure_default_user_and_device(app):
+    username = (app.config.get('ADMIN_USERNAME') or 'admin').strip() or 'admin'
+    password = app.config.get('ADMIN_PASSWORD') or 'admin123'
+    default_user = User.query.filter_by(username=username).first()
+    if not default_user:
+        default_user = User(
+            username=username,
+            password_hash=generate_password_hash(password),
+            full_name='المشرف الافتراضي',
+            email='',
+            is_active=True,
+            is_admin=True,
+            default_device_type='deye',
+        )
+        db.session.add(default_user)
+        db.session.commit()
+
+    settings = {row.key: row.value for row in Setting.query.all()}
+    external_device_id = str(settings.get('deye_device_sn') or '')
+    station_id = str(settings.get('deye_plant_id') or '')
+    plant_name = str(settings.get('deye_plant_name') or '')
+
+    device = Device.query.filter_by(owner_user_id=default_user.id, name='الجهاز الافتراضي').first()
+    if not device:
+        credentials_json = json.dumps({
+            'deye_app_id': settings.get('deye_app_id', ''),
+            'deye_app_secret': settings.get('deye_app_secret', ''),
+            'deye_email': settings.get('deye_email', ''),
+            'deye_password': settings.get('deye_password', ''),
+            'deye_password_hash': settings.get('deye_password_hash', ''),
+        }, ensure_ascii=False)
+        settings_json = json.dumps({
+            'deye_plant_id': station_id,
+            'deye_device_sn': external_device_id,
+            'deye_plant_name': plant_name,
+            'deye_region': settings.get('deye_region', ''),
+        }, ensure_ascii=False)
+        device = Device(
+            owner_user_id=default_user.id,
+            name='الجهاز الافتراضي',
+            device_type='deye',
+            api_provider='deye',
+            api_base_url='',
+            external_device_id=external_device_id or None,
+            device_uid=external_device_id or None,
+            station_id=station_id or None,
+            plant_name=plant_name or None,
+            timezone=app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'),
+            auth_mode='credentials',
+            credentials_json=credentials_json,
+            settings_json=settings_json,
+            notes='أُنشئ تلقائيًا كأساس للنسخة متعددة المستخدمين وأنواع الأجهزة.',
+            is_active=True,
+        )
+        db.session.add(device)
+        db.session.commit()
+
+    if not default_user.preferred_device_id:
+        default_user.preferred_device_id = device.id
+        db.session.commit()
+
+
+def _backfill_multiuser_data():
+    default_user = User.query.filter_by(is_admin=True).order_by(User.id.asc()).first()
+    default_device = Device.query.filter_by(owner_user_id=default_user.id if default_user else None).order_by(Device.id.asc()).first() if default_user else None
+    if not default_user or not default_device:
+        return
+
+    updated = False
+    models_to_patch = [Reading, SyncLog, NotificationLog, UserLoad, EventLog, SmartSnapshot, SmartRecommendationLog]
+    for model in models_to_patch:
+        rows = model.query.filter((model.user_id.is_(None)) | (model.device_id.is_(None))).all()
+        for row in rows:
+            if getattr(row, 'user_id', None) is None:
+                row.user_id = default_user.id
+                updated = True
+            if getattr(row, 'device_id', None) is None:
+                row.device_id = default_device.id
+                updated = True
+    if updated:
+        db.session.commit()

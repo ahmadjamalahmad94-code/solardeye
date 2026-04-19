@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, g, redirect, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -20,7 +20,8 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog, UserLoad
+from ..models import Device, EventLog, NotificationLog, Reading, Setting, SyncLog, User, UserLoad
+from ..services.device_adapters import get_device_adapter
 from ..services.deye_client import DeyeClient
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
@@ -45,6 +46,39 @@ from .notifications import (
 )
 
 main_bp = Blueprint('main', __name__)
+
+
+def _current_user():
+    return getattr(g, 'current_user', None)
+
+
+def _current_device():
+    device = getattr(g, 'current_device', None)
+    if device:
+        return device
+    user_id = session.get('user_id')
+    device_id = session.get('current_device_id')
+    if user_id and device_id:
+        return Device.query.filter_by(id=device_id, owner_user_id=user_id).first()
+    if user_id:
+        return Device.query.filter_by(owner_user_id=user_id, is_active=True).order_by(Device.id.asc()).first()
+    return Device.query.order_by(Device.id.asc()).first()
+
+
+def _active_scope_ids():
+    user = _current_user()
+    device = _current_device()
+    return (user.id if user else None, device.id if device else None)
+
+
+def _latest_reading_query():
+    user_id, device_id = _active_scope_ids()
+    q = Reading.query
+    if device_id is not None:
+        q = q.filter(Reading.device_id == device_id)
+    elif user_id is not None:
+        q = q.filter(Reading.user_id == user_id)
+    return q
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -84,7 +118,13 @@ def _lang():
 
 
 def _serialize_loads():
-    rows = UserLoad.query.order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
+    user_id, device_id = _active_scope_ids()
+    q = UserLoad.query
+    if device_id is not None:
+        q = q.filter(UserLoad.device_id == device_id)
+    elif user_id is not None:
+        q = q.filter(UserLoad.user_id == user_id)
+    rows = q.order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     return rows
 
 
@@ -251,7 +291,7 @@ def dashboard():
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
     from zoneinfo import ZoneInfo
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     logs = SyncLog.query.order_by(SyncLog.created_at.desc()).limit(8).all()
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
@@ -341,7 +381,7 @@ def dashboard():
 
 @main_bp.route('/api/live')
 def api_live():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     if not latest:
         return {'ok': False}
     weather = get_weather_for_latest(latest)
@@ -455,7 +495,7 @@ def reports():
     stats = compute_energy_stats(filtered_rows)
     chart = build_period_chart(filtered_rows, tz_name, selected_view)
     table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     weather = get_weather_for_latest(latest)
 
     home = max(stats['home_consumed_kwh'], 0.01)
@@ -848,9 +888,13 @@ def test_connection():
 
 
 def sync_now_internal(trigger='manual'):
-    client = DeyeClient(load_settings())
-    snapshot = client.snapshot()
-    previous = Reading.query.order_by(Reading.created_at.desc()).first()
+    global_settings = load_settings()
+    active_user = _current_user()
+    active_device = _current_device()
+    adapter = get_device_adapter(active_device, global_settings=global_settings)
+    snapshot = adapter.fetch_snapshot()
+    previous = _latest_reading_query().order_by(Reading.created_at.desc()).first()
+    user_id, device_id = _active_scope_ids()
     # Extract device_detail metrics for direct columns
     # Pull all fields directly from device_data (flat dict from device/latest)
     _d = snapshot.raw.get('device_data') or {}
@@ -863,6 +907,7 @@ def sync_now_internal(trigger='manual'):
         except: return default
 
     reading = Reading(
+        user_id=user_id, device_id=device_id,
         plant_id=snapshot.plant_id, plant_name=snapshot.plant_name,
         solar_power=snapshot.solar_power, home_load=snapshot.home_load,
         battery_soc=snapshot.battery_soc, battery_power=snapshot.battery_power,
@@ -921,7 +966,7 @@ def sync_now():
 
 @main_bp.route('/diagnostics')
 def diagnostics():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     raw_data = {}
     raw_text = '{}'
     if latest and latest.raw_json:
@@ -939,7 +984,7 @@ def diagnostics():
 def live_data():
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     settings = load_settings()
 
@@ -1001,7 +1046,7 @@ def live_data():
 
 @main_bp.route('/devices')
 def devices():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     settings = load_settings()
     battery_details = build_battery_details(latest)
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
@@ -1022,7 +1067,7 @@ def devices():
 
 @main_bp.route('/battery-lab')
 def battery_lab():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     battery_details = build_battery_details(latest)
     settings = load_settings()
@@ -1070,7 +1115,7 @@ def battery_lab():
 
 @main_bp.route('/loads', methods=['GET', 'POST'])
 def loads_page():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     weather = get_weather_for_latest(latest)
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
@@ -1323,7 +1368,7 @@ def notifications_action():
         return redirect(url_for('main.notifications_settings'))
     try:
         settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = Reading.query.order_by(Reading.created_at.desc()).first()
+        latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
         weather = get_weather_for_latest(latest)
         if section == 'quick_telegram':
             payload = {'section':'quick_telegram','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'telegram','rule_name':'اختبار Telegram','event_key':f"test-telegram-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار Telegram بنجاح','preview_message':'هذه رسالة الاختبار السريعة لقناة Telegram'}
@@ -1415,7 +1460,7 @@ def channels():
         flash('الإجراء المطلوب غير معروف', 'warning')
         return redirect(url_for('main.channels', lang=lang))
 
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     settings = load_settings()
     weather = get_weather_for_latest(latest) if latest else None
     telegram_webhook_url = _telegram_webhook_target_url()
@@ -1457,7 +1502,7 @@ def notifications_settings():
     rules = load_notification_rules(settings)
     recent_notifications = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(30).all()
     notification_preview = session.pop('notification_preview', None)
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     weather = get_weather_for_latest(latest) if latest else None
     telegram_webhook_url = _telegram_webhook_target_url()
     webhook_info = _telegram_webhook_info(settings)
@@ -1507,7 +1552,7 @@ def notifications_test_section():
     try:
         section = request.form.get('section', 'periodic').strip().lower()
         settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = Reading.query.order_by(Reading.created_at.desc()).first()
+        latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
         weather = get_weather_for_latest(latest)
         now_ts = int(datetime.now(UTC).timestamp())
         sent_message = ''
@@ -1628,7 +1673,7 @@ def telegram_webhook():
         )
 @main_bp.route('/plant-info')
 def plant_info():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     production_summary = get_production_summary(tz_name)
@@ -1640,7 +1685,7 @@ def plant_info():
 
 @main_bp.route('/api/raw-debug')
 def api_raw_debug():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading_query().order_by(Reading.created_at.desc()).first()
     if not latest:
         return {'ok': False, 'error': 'No reading found'}
     try:
@@ -1652,14 +1697,15 @@ def api_raw_debug():
     device_list_result = []
     device_detail_test = {}
     try:
-        from ..services.deye_client import DeyeClient
         settings = load_settings()
         client = DeyeClient(settings)
         token = client.obtain_token()
         device_list_result = client.station_device_list(token)
-        # Try device_sn directly
         if client.device_sn:
-            device_detail_test = client.device_original_data(token, client.device_sn)
+            try:
+                device_detail_test = client.device_latest(token, client.device_sn)
+            except Exception:
+                device_detail_test = {}
     except Exception as e:
         device_list_result = [{'error': str(e)}]
 
