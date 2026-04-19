@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>{{ 'إنشاء مستخدم جديد' if mode == 'create' else 'تعديل المستخدم' }}</h1>
+          <p class="mb-0">واجهة منظمة لتكوين الحسابات وربط الأجهزة من البداية.</p>
+        </div>
+      </div>
+      <div><a class="btn btn-outline-primary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">↩ الرجوع</a></div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <form method="post" class="panel-card mt-4">
+      <div class="admin-form-grid">
+        <div>
+          <label class="form-label">اسم المستخدم</label>
+          <input class="form-control form-control-lg" name="username" value="{{ user_obj.username if user_obj else '' }}" required>
+        </div>
+        <div>
+          <label class="form-label">الاسم الكامل</label>
+          <input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name if user_obj else '' }}">
+        </div>
+        <div>
+          <label class="form-label">البريد الإلكتروني</label>
+          <input class="form-control form-control-lg" name="email" value="{{ user_obj.email if user_obj else '' }}">
+        </div>
+        <div>
+          <label class="form-label">كلمة المرور {{ '(اتركها فارغة للاحتفاظ الحالية)' if mode == 'edit' else '' }}</label>
+          <input type="password" class="form-control form-control-lg" name="password" {{ 'required' if mode == 'create' else '' }}>
+        </div>
+        <div>
+          <label class="form-label">الدور</label>
+          <select class="form-select form-select-lg" name="role">
+            {% set current_role = user_obj.role if user_obj else 'user' %}
+            <option value="user" {% if current_role == 'user' %}selected{% endif %}>User</option>
+            <option value="admin" {% if current_role == 'admin' %}selected{% endif %}>Admin</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">الجهاز المفضل</label>
+          <select class="form-select form-select-lg" name="preferred_device_id">
+            <option value="">-- بدون تحديد --</option>
+            {% set pref = user_obj.preferred_device_id if user_obj else None %}
+            {% for dev in devices %}
+              <option value="{{ dev.id }}" {% if pref == dev.id %}selected{% endif %}>{{ dev.name }}{% if dev.device_type %} • {{ dev.device_type }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="full">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="isActiveSwitch" name="is_active" {% if user_obj is none or user_obj.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="isActiveSwitch">الحساب مفعل</label>
+          </div>
+        </div>
+        <div class="full">
+          <label class="form-label">الأجهزة التابعة للمستخدم</label>
+          <div class="device-chip-list">
+            {% for dev in devices %}
+              <label class="device-chip">
+                <input type="checkbox" name="device_ids" value="{{ dev.id }}" {% if dev.id in selected_device_ids %}checked{% endif %}>
+                {{ dev.name }}{% if dev.device_type %} • {{ dev.device_type }}{% endif %}
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="full d-flex gap-2">
+          <button class="btn btn-solar" type="submit">{{ 'إنشاء المستخدم' if mode == 'create' else 'حفظ التعديلات' }}</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">إلغاء</a>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>
+{% endblock %}

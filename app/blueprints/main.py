@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
+from werkzeug.security import generate_password_hash
 from flask import Blueprint, Response, current_app, flash, g, redirect, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -65,6 +66,34 @@ def _admin_guard():
         flash('هذه الصفحة متاحة لمدير النظام فقط.', 'warning')
         return redirect(url_for('main.dashboard', lang=_lang()))
     return None
+
+
+def _role_badge(role: str, is_active: bool):
+    role = (role or 'user').strip().lower()
+    if not is_active:
+        return ('غير مفعل', 'danger')
+    return ('مدير' if role == 'admin' else 'مستخدم', 'success' if role == 'admin' else 'warning')
+
+
+def _available_devices_for_admin():
+    return AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
+
+
+def _assign_devices_to_user(user: AppUser, device_ids: list[int], preferred_device_id: int | None):
+    selected_ids = set(device_ids)
+    devices = AppDevice.query.order_by(AppDevice.id.asc()).all()
+    for dev in devices:
+        if dev.id in selected_ids:
+            dev.owner_user_id = user.id
+    for dev in devices:
+        if dev.owner_user_id == user.id and dev.id not in selected_ids:
+            dev.owner_user_id = None
+    if preferred_device_id and preferred_device_id in selected_ids:
+        user.preferred_device_id = preferred_device_id
+    elif selected_ids:
+        user.preferred_device_id = sorted(selected_ids)[0]
+    else:
+        user.preferred_device_id = None
 
 
 def _device_collection():
@@ -1076,6 +1105,124 @@ def live_data():
                            format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
+
+
+@main_bp.route('/admin/users')
+def admin_users():
+    guard = _admin_guard()
+    if guard:
+        return guard
+    users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
+    device_map = {}
+    for dev in devices:
+        device_map.setdefault(dev.owner_user_id, []).append(dev)
+    return render_template(
+        'admin_users.html',
+        users=users,
+        device_map=device_map,
+        role_badge=_role_badge,
+        ui_lang=_lang(),
+    )
+
+
+@main_bp.route('/admin/users/new', methods=['GET', 'POST'])
+def admin_user_create():
+    guard = _admin_guard()
+    if guard:
+        return guard
+    devices = _available_devices_for_admin()
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        role = (request.form.get('role', 'user') or 'user').strip().lower()
+        is_active = request.form.get('is_active') == 'on'
+        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
+        preferred_device_id = request.form.get('preferred_device_id', '').strip()
+        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
+
+        if not username or not password:
+            flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
+        elif AppUser.query.filter_by(username=username).first():
+            flash('اسم المستخدم مستخدم من قبل.', 'danger')
+        else:
+            user = AppUser(
+                username=username,
+                password_hash=generate_password_hash(password),
+                full_name=full_name,
+                email=email,
+                role='admin' if role == 'admin' else 'user',
+                preferred_device_type='deye',
+                is_active=is_active,
+                is_admin=(role == 'admin'),
+            )
+            db.session.add(user)
+            db.session.flush()
+            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
+            db.session.commit()
+            flash('تم إنشاء المستخدم بنجاح.', 'success')
+            return redirect(url_for('main.admin_users', lang=_lang()))
+
+    return render_template('admin_user_form.html', mode='create', user_obj=None, devices=devices, selected_device_ids=[], ui_lang=_lang())
+
+
+@main_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+def admin_user_edit(user_id: int):
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = AppUser.query.filter_by(id=user_id).first_or_404()
+    devices = _available_devices_for_admin()
+    owned_ids = [d.id for d in devices if d.owner_user_id == user.id]
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        role = (request.form.get('role', 'user') or 'user').strip().lower()
+        is_active = request.form.get('is_active') == 'on'
+        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
+        preferred_device_id = request.form.get('preferred_device_id', '').strip()
+        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
+
+        other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
+        if not username:
+            flash('اسم المستخدم مطلوب.', 'warning')
+        elif other:
+            flash('اسم المستخدم مستخدم من قبل.', 'danger')
+        else:
+            user.username = username
+            user.full_name = full_name
+            user.email = email
+            user.role = 'admin' if role == 'admin' else 'user'
+            user.is_admin = (user.role == 'admin')
+            user.is_active = is_active
+            if password:
+                user.password_hash = generate_password_hash(password)
+            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
+            db.session.commit()
+            flash('تم تحديث المستخدم بنجاح.', 'success')
+            return redirect(url_for('main.admin_users', lang=_lang()))
+
+    return render_template('admin_user_form.html', mode='edit', user_obj=user, devices=devices, selected_device_ids=owned_ids, ui_lang=_lang())
+
+
+@main_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])
+def admin_user_toggle(user_id: int):
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = AppUser.query.filter_by(id=user_id).first_or_404()
+    if user.username == current_app.config.get('ADMIN_USERNAME') and user.is_admin:
+        flash('لا يمكن تعطيل مدير النظام الأساسي.', 'warning')
+        return redirect(url_for('main.admin_users', lang=_lang()))
+    user.is_active = not bool(user.is_active)
+    db.session.commit()
+    flash('تم تحديث حالة المستخدم.', 'success')
+    return redirect(url_for('main.admin_users', lang=_lang()))
 
 
 @main_bp.route('/devices/select/<int:device_id>', methods=['POST'])

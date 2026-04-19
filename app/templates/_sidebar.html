@@ -26,9 +26,10 @@
       <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}" data-ar="🚨 السجل والتنبيهات" data-en="🚨 Alerts Log">🚨 السجل والتنبيهات</a>
       <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}" data-ar="📍 معلومات المحطة" data-en="📍 Plant Info">📍 معلومات المحطة</a>
       <a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>
+      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}" data-ar="👥 إدارة المستخدمين" data-en="👥 Users">👥 إدارة المستخدمين</a>{% endif %}
       {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}" data-ar="🛠️ لوج النظام والخدمات" data-en="🛠️ System Logs">🛠️ لوج النظام والخدمات</a>{% endif %}
-      <a class="{% if request.endpoint == 'main.deye_settings' %}active{% endif %}" href="{{ url_for('main.deye_settings', lang=ui_lang) }}" data-ar="🔐 ربط Deye" data-en="🔐 Deye Setup">🔐 ربط Deye</a>
-      <a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>
+      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.deye_settings' %}active{% endif %}" href="{{ url_for('main.deye_settings', lang=ui_lang) }}" data-ar="🔐 ربط Deye" data-en="🔐 Deye Setup">🔐 ربط Deye</a>{% endif %}
+      {% if g.is_admin %}<a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>{% endif %}
     </nav>
   </div>
 

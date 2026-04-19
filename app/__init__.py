@@ -35,6 +35,9 @@ def create_app():
         _ensure_default_settings()
         default_user = _ensure_default_app_user(app)
         default_device = _ensure_default_app_device(app, default_user)
+        if default_user.preferred_device_id != default_device.id:
+            default_user.preferred_device_id = default_device.id
+            db.session.commit()
         _backfill_foundation_ids(default_user.id, default_device.id)
 
     return app
@@ -64,6 +67,7 @@ def _migrate_database():
             'email': 'VARCHAR(120)',
             'role': "VARCHAR(50) DEFAULT 'admin'",
             'preferred_device_type': "VARCHAR(50) DEFAULT 'deye'",
+            'preferred_device_id': 'INTEGER',
             'is_active': 'BOOLEAN DEFAULT TRUE',
             'is_admin': 'BOOLEAN DEFAULT FALSE',
             'created_at': 'TIMESTAMP',
@@ -83,6 +87,7 @@ def _migrate_database():
             'auth_mode': "VARCHAR(50) DEFAULT 'config'",
             'credentials_json': 'TEXT',
             'settings_json': 'TEXT',
+            'notes': 'TEXT',
             'is_active': 'BOOLEAN DEFAULT TRUE',
             'created_at': 'TIMESTAMP',
             'updated_at': 'TIMESTAMP',

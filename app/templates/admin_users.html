@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>إدارة المستخدمين</h1>
+          <p class="mb-0">لوحة احترافية لإدارة الحسابات والصلاحيات والأجهزة المرتبطة.</p>
+        </div>
+      </div>
+      <div>
+        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">➕ إنشاء مستخدم</a>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <div class="admin-grid mt-4">
+      <section class="panel-card">
+        <div class="section-head"><h3>👥 المستخدمون</h3><small>{{ users|length }} حساب</small></div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>المستخدم</th><th>الحالة</th><th>الدور</th><th>الأجهزة</th><th>الإجراءات</th></tr></thead>
+            <tbody>
+            {% for u in users %}
+              {% set badge = role_badge(u.role, u.is_active) %}
+              <tr>
+                <td>
+                  <div><strong>{{ u.full_name or u.username }}</strong></div>
+                  <div class="text-muted">@{{ u.username }}</div>
+                  {% if u.email %}<div class="text-muted">{{ u.email }}</div>{% endif %}
+                </td>
+                <td><span class="badge-soft {{ 'success' if u.is_active else 'danger' }}">{{ 'نشط' if u.is_active else 'معطل' }}</span></td>
+                <td><span class="badge-soft {{ badge[1] }}">{{ badge[0] }}</span></td>
+                <td>
+                  {% set devs = device_map.get(u.id, []) %}
+                  {% if devs %}
+                    <div class="device-chip-list">{% for d in devs %}<span class="device-chip">{{ d.name }}{% if d.device_type %} • {{ d.device_type }}{% endif %}</span>{% endfor %}</div>
+                  {% else %}<span class="text-muted">لا توجد أجهزة</span>{% endif %}
+                </td>
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">تعديل</a>
+                    <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}">
+                      <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'تعطيل' if u.is_active else 'تفعيل' }}</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="panel-card">
+        <div class="section-head"><h3>🛡️ الصلاحيات المعتمدة</h3></div>
+        <div class="metric-card-mini"><strong>Admin</strong><span class="text-muted">إدارة المستخدمين، لوج النظام، الربط الحساس، والإشراف الكامل.</span></div>
+        <div class="metric-card-mini mt-3"><strong>User</strong><span class="text-muted">وصول تشغيلي للوحة والتحليلات والجهاز المخصص له دون الصفحات الإدارية.</span></div>
+        <div class="metric-card-mini mt-3"><strong>مبدأ المرحلة الحالية</strong><span class="text-muted">واجهة نظيفة وصلاحيات مرتبة من البداية، مع بقاء القلب الحساس للنظام دون عبث.</span></div>
+      </aside>
+    </div>
+  </main>
+</div>
+{% endblock %}

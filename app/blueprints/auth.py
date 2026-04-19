@@ -13,6 +13,8 @@ from flask import (
     url_for,
 )
 
+from werkzeug.security import check_password_hash
+
 from ..models import AppDevice, AppUser
 
 
@@ -26,10 +28,14 @@ def login():
         password = request.form.get('password', '').strip()
         app_user = AppUser.query.filter_by(username=username, is_active=True).first()
         password_ok = False
+
         if username == current_app.config['ADMIN_USERNAME'] and password == current_app.config['ADMIN_PASSWORD']:
             password_ok = True
-        elif app_user and app_user.password_hash == password:
-            password_ok = True
+        elif app_user and app_user.password_hash:
+            try:
+                password_ok = check_password_hash(app_user.password_hash, password)
+            except Exception:
+                password_ok = (app_user.password_hash == password)
 
         if password_ok:
             session.permanent = True
@@ -41,7 +47,11 @@ def login():
             if app_user:
                 session['user_id'] = app_user.id
                 session['current_device_type'] = app_user.preferred_device_type or 'deye'
-                device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+                device = None
+                if getattr(app_user, 'preferred_device_id', None):
+                    device = AppDevice.query.filter_by(id=app_user.preferred_device_id, is_active=True).first()
+                if device is None:
+                    device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
                 if device:
                     session['current_device_id'] = device.id
                     session['current_device_type'] = device.device_type or 'deye'
