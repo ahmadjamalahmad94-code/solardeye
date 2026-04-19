@@ -134,6 +134,16 @@ def _migrate_database():
             'quality_score': 'REAL DEFAULT 1.0',
             'source': "VARCHAR(30) DEFAULT 'auto_sync'",
         },
+        'service_heartbeat': {
+            'service_key': 'VARCHAR(120)',
+            'service_label': 'VARCHAR(160)',
+            'source': "VARCHAR(40) DEFAULT 'system'",
+            'status': "VARCHAR(30) DEFAULT 'unknown'",
+            'message': 'TEXT',
+            'details_json': 'TEXT',
+            'last_seen_at': 'TIMESTAMP',
+            'updated_at': 'TIMESTAMP',
+        },
         'smart_recommendation_log': {
             'user_id': 'INTEGER',
             'device_id': 'INTEGER',

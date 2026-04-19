@@ -167,3 +167,15 @@ class SmartRecommendationLog(db.Model):
     predicted_next_hour_solar = db.Column(db.Float, nullable=True)
     predicted_risk_level = db.Column(db.String(30), default='unknown')
     raw_json = db.Column(db.Text, nullable=True)
+
+
+class ServiceHeartbeat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_key = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    service_label = db.Column(db.String(160), nullable=False, default='')
+    source = db.Column(db.String(40), nullable=False, default='system')
+    status = db.Column(db.String(30), nullable=False, default='unknown')
+    message = db.Column(db.Text, default='')
+    details_json = db.Column(db.Text, nullable=True)
+    last_seen_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

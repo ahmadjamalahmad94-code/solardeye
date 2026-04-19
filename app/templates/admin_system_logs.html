@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>سجل النظام والخدمات</h1>
+          <p class="mb-0">لوحة إدارية لمراقبة ما يعمل وما يتعطل في الخلفية</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="cards-grid">
+      <div class="stat-card"><span>🖥️ الجهاز الحالي</span><strong>{{ health.device_name }}</strong></div>
+      <div class="stat-card"><span>⚙️ حالة Scheduler</span><strong>{{ health.scheduler_status }}</strong><small>{{ health.scheduler_message }}</small></div>
+      <div class="stat-card"><span>🔄 حالة المزامنة</span><strong>{{ health.auto_sync_status }}</strong><small>{{ health.auto_sync_message }}</small></div>
+      <div class="stat-card"><span>📲 حالة الإشعارات</span><strong>{{ health.notification_status }}</strong><small>{{ health.notification_message }}</small></div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head"><h3>نبضات الخدمات الخلفية</h3></div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>الخدمة</th><th>المصدر</th><th>الحالة</th><th>آخر نبضة</th><th>الرسالة</th></tr></thead>
+          <tbody>
+            {% for row in health.jobs %}
+            <tr>
+              <td>{{ row.service_label }}</td>
+              <td>{{ row.source }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ format_local(row.last_seen_at) if row.last_seen_at else '—' }}</td>
+              <td>{{ row.message or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">لا توجد نبضات مسجلة بعد.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head"><h3>سجل الخدمات</h3></div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>الوقت</th><th>المستوى</th><th>الرسالة</th></tr></thead>
+          <tbody>
+            {% for row in service_logs %}
+            <tr><td>{{ format_local(row.created_at) }}</td><td>{{ row.level }}</td><td>{{ row.message }}</td></tr>
+            {% else %}
+            <tr><td colspan="3">لا توجد سجلات.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4">
+      <div class="section-head"><h3>سجل الأحداث</h3></div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>الوقت</th><th>النوع</th><th>العنوان</th><th>التفاصيل</th></tr></thead>
+          <tbody>
+            {% for row in event_logs %}
+            <tr><td>{{ format_local(row.created_at) }}</td><td>{{ row.event_type }}</td><td>{{ row.title }}</td><td>{{ row.details }}</td></tr>
+            {% else %}
+            <tr><td colspan="4">لا توجد أحداث.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-card mt-4 mb-4">
+      <div class="section-head"><h3>سجل الإشعارات</h3></div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>الوقت</th><th>القناة</th><th>الحالة</th><th>العنوان</th><th>الرسالة</th></tr></thead>
+          <tbody>
+            {% for row in notification_logs %}
+            <tr><td>{{ format_local(row.created_at) }}</td><td>{{ row.channel }}</td><td>{{ row.status }}</td><td>{{ row.title }}</td><td>{{ row.message }}</td></tr>
+            {% else %}
+            <tr><td colspan="5">لا توجد إشعارات مسجلة.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

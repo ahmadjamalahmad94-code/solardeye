@@ -12,6 +12,7 @@ from flask import current_app
 
 from ..extensions import db
 from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog
+from ..services.scope import current_scope_ids, scoped_query
 from ..services.utils import (
     format_local_datetime,
     human_duration_hours,
@@ -227,7 +228,8 @@ def save_settings_from_form(form):
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 def log_event(level: str, message: str, raw=None):
-    db.session.add(SyncLog(level=level, message=message, raw_json=to_json(raw or {})))
+    user_id, device_id = current_scope_ids()
+    db.session.add(SyncLog(user_id=user_id, device_id=device_id, level=level, message=message, raw_json=to_json(raw or {})))
     db.session.commit()
 
 
@@ -235,7 +237,10 @@ def add_event_log(event_type: str, title: str, details: str = '', severity: str 
     settings = load_settings()
     if str(settings.get('event_logging_enabled', 'true')).lower() != 'true':
         return None
+    user_id, device_id = current_scope_ids()
     row = EventLog(
+        user_id=user_id,
+        device_id=device_id,
         event_key=(event_key or event_type)[:160],
         event_type=(event_type or 'system')[:60],
         severity=(severity or 'info')[:20],
@@ -251,7 +256,7 @@ def add_event_log(event_type: str, title: str, details: str = '', severity: str 
 
 
 def get_recent_event_logs(limit: int = 10):
-    return EventLog.query.order_by(EventLog.created_at.desc()).limit(max(int(limit or 10), 1)).all()
+    return scoped_query(EventLog).order_by(EventLog.created_at.desc()).limit(max(int(limit or 10), 1)).all()
 
 
 def _round_w(value) -> float:

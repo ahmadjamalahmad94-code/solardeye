@@ -11,6 +11,7 @@ from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MI
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from app.services.service_monitor import heartbeat
 
 _scheduler: BackgroundScheduler | None = None
 _scheduler_pid: int | None = None
@@ -31,10 +32,13 @@ def _build_job(app, fn_path: str) -> Callable[[], None]:
             module_path, fn_name = fn_path.rsplit('.', 1)
             mod = importlib.import_module(module_path)
             try:
+                heartbeat(fn_path, fn_path, 'running', 'بدأت المهمة', source='scheduler')
                 getattr(mod, fn_name)()
+                heartbeat(fn_path, fn_path, 'ok', 'اكتملت المهمة بنجاح', source='scheduler')
                 logger.info('Scheduler job finished: %s', fn_path)
                 print(f'Scheduler job finished: {fn_path}', flush=True)
-            except Exception:
+            except Exception as exc:
+                heartbeat(fn_path, fn_path, 'failed', f'فشلت المهمة: {exc}', source='scheduler')
                 logger.exception('Scheduled job failed: %s', fn_path)
                 print(f'Scheduled job failed: {fn_path}', flush=True)
                 raise

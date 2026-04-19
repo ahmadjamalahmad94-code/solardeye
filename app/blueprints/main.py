@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, g, redirect, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -20,8 +20,9 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog, UserLoad
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad
 from ..services.deye_client import DeyeClient
+from ..services.scope import current_scope_ids, get_current_device, get_current_user, is_system_admin, scoped_query
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
     safe_power_w, to_json, utc_to_local,
@@ -46,6 +47,80 @@ from .notifications import (
 
 main_bp = Blueprint('main', __name__)
 
+
+def _latest_reading():
+    return scoped_query(Reading).order_by(Reading.created_at.desc()).first()
+
+
+def _active_device():
+    return get_current_device()
+
+
+def _active_user():
+    return get_current_user()
+
+
+def _admin_guard():
+    if not is_system_admin():
+        flash('هذه الصفحة متاحة لمدير النظام فقط.', 'warning')
+        return redirect(url_for('main.dashboard', lang=_lang()))
+    return None
+
+
+def _device_collection():
+    user = _active_user()
+    if user is None:
+        return AppDevice.query.filter_by(is_active=True).order_by(AppDevice.id.asc()).all()
+    return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
+
+
+def _service_health_snapshot(settings):
+    from datetime import timedelta
+    from ..services.utils import utc_to_local
+    from ..services.scope import get_current_device
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    device = get_current_device()
+    latest_reading = _latest_reading()
+    latest_sync = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).first()
+    latest_notification = scoped_query(NotificationLog).order_by(NotificationLog.created_at.desc()).first()
+    recent_error = scoped_query(SyncLog).filter(SyncLog.level.in_(['danger', 'warning'])).order_by(SyncLog.created_at.desc()).first()
+    jobs = ServiceHeartbeat.query.order_by(ServiceHeartbeat.service_label.asc()).all()
+    sync_minutes = max(int(current_app.config.get('AUTO_SYNC_MINUTES', 5) or 5), 1)
+    stale_after = timedelta(minutes=sync_minutes * 3)
+
+    scheduler_status = 'ok' if jobs else 'warning'
+    scheduler_message = 'Scheduler يعمل وتصلنا نبضات للخدمات الخلفية.' if jobs else 'لا توجد نبضات مسجلة بعد من الخدمات الخلفية.'
+
+    auto_sync_status = 'ok'
+    auto_sync_message = 'المزامنة التلقائية تبدو سليمة.'
+    if latest_reading is None:
+        auto_sync_status = 'warning'
+        auto_sync_message = 'لا توجد قراءة حديثة ضمن نطاق الجهاز الحالي.'
+    elif (now - latest_reading.created_at) > stale_after:
+        auto_sync_status = 'failed'
+        auto_sync_message = 'آخر قراءة قديمة نسبيًا مقارنة بجدول المزامنة.'
+
+    notification_status = 'ok' if str(settings.get('notifications_enabled', 'true')).lower() == 'true' else 'warning'
+    notification_message = 'الإشعارات مفعلة.' if notification_status == 'ok' else 'الإشعارات العامة معطلة حاليًا.'
+
+    if recent_error and (now - recent_error.created_at) <= timedelta(hours=12):
+        notification_message += f' آخر تحذير/خطأ: {recent_error.message}'
+
+    return {
+        'device_name': getattr(device, 'name', 'غير محدد'),
+        'scheduler_status': scheduler_status,
+        'scheduler_message': scheduler_message,
+        'auto_sync_status': auto_sync_status,
+        'auto_sync_message': auto_sync_message,
+        'notification_status': notification_status,
+        'notification_message': notification_message,
+        'latest_reading': latest_reading,
+        'latest_sync': latest_sync,
+        'latest_notification': latest_notification,
+        'recent_error': recent_error,
+        'jobs': jobs,
+    }
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -84,7 +159,7 @@ def _lang():
 
 
 def _serialize_loads():
-    rows = UserLoad.query.order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
+    rows = scoped_query(UserLoad).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     return rows
 
 
@@ -251,8 +326,8 @@ def dashboard():
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
     from zoneinfo import ZoneInfo
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
-    logs = SyncLog.query.order_by(SyncLog.created_at.desc()).limit(8).all()
+    latest = _latest_reading()
+    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(8).all()
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
 
@@ -273,7 +348,7 @@ def dashboard():
     day_end_utc = (day_local + timedelta(days=1)).astimezone(UTC).replace(tzinfo=None)
 
     # كل قراءات اليوم المختار
-    day_readings = (Reading.query
+    day_readings = (scoped_query(Reading)
                     .filter(Reading.created_at >= day_start_utc, Reading.created_at < day_end_utc)
                     .order_by(Reading.created_at.asc()).all())
 
@@ -291,7 +366,7 @@ def dashboard():
     readings_hourly = _hourly_sample(day_readings)
     # احتياط: لو ما في بيانات لليوم المختار، خذ آخر 24 قراءة
     if not readings_hourly:
-        readings_hourly = Reading.query.order_by(Reading.created_at.desc()).limit(24).all()[::-1]
+        readings_hourly = scoped_query(Reading).order_by(Reading.created_at.desc()).limit(24).all()[::-1]
 
     labels = [format_time_short(r.created_at, tz_name) for r in readings_hourly]
     solar_values = [r.solar_power for r in readings_hourly]
@@ -341,7 +416,7 @@ def dashboard():
 
 @main_bp.route('/api/live')
 def api_live():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     if not latest:
         return {'ok': False}
     weather = get_weather_for_latest(latest)
@@ -416,7 +491,7 @@ def _get_stats_context(request_args, tz_name):
     start_utc = start.replace(tzinfo=None) if start.tzinfo else start
     end_utc = end.replace(tzinfo=None) if end.tzinfo else end
 
-    ordered = (Reading.query
+    ordered = (scoped_query(Reading)
                .filter(Reading.created_at >= start_utc, Reading.created_at < end_utc)
                .order_by(Reading.created_at.asc())
                .limit(max_rows)
@@ -455,7 +530,7 @@ def reports():
     stats = compute_energy_stats(filtered_rows)
     chart = build_period_chart(filtered_rows, tz_name, selected_view)
     table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     weather = get_weather_for_latest(latest)
 
     home = max(stats['home_consumed_kwh'], 0.01)
@@ -850,7 +925,7 @@ def test_connection():
 def sync_now_internal(trigger='manual'):
     client = DeyeClient(load_settings())
     snapshot = client.snapshot()
-    previous = Reading.query.order_by(Reading.created_at.desc()).first()
+    previous = _latest_reading()
     # Extract device_detail metrics for direct columns
     # Pull all fields directly from device_data (flat dict from device/latest)
     _d = snapshot.raw.get('device_data') or {}
@@ -862,7 +937,9 @@ def sync_now_internal(trigger='manual'):
         try: return float(v)
         except: return default
 
+    user_id, device_id = current_scope_ids()
     reading = Reading(
+        user_id=user_id, device_id=device_id,
         plant_id=snapshot.plant_id, plant_name=snapshot.plant_name,
         solar_power=snapshot.solar_power, home_load=snapshot.home_load,
         battery_soc=snapshot.battery_soc, battery_power=snapshot.battery_power,
@@ -921,7 +998,7 @@ def sync_now():
 
 @main_bp.route('/diagnostics')
 def diagnostics():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     raw_data = {}
     raw_text = '{}'
     if latest and latest.raw_json:
@@ -939,7 +1016,7 @@ def diagnostics():
 def live_data():
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     settings = load_settings()
 
@@ -964,7 +1041,7 @@ def live_data():
             from zoneinfo import ZoneInfo
             day_utc = day.replace(tzinfo=ZoneInfo(tz_name)).astimezone(UTC).replace(tzinfo=None)
             day_end_utc = day_end.replace(tzinfo=ZoneInfo(tz_name)).astimezone(UTC).replace(tzinfo=None)
-            rows = (Reading.query
+            rows = (scoped_query(Reading)
                     .filter(Reading.created_at >= day_utc, Reading.created_at < day_end_utc)
                     .order_by(Reading.created_at.asc()).all())
             if not rows:
@@ -999,9 +1076,47 @@ def live_data():
                            format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
+
+
+@main_bp.route('/devices/select/<int:device_id>', methods=['POST'])
+def select_device(device_id: int):
+    device = AppDevice.query.filter_by(id=device_id, is_active=True).first()
+    user = _active_user()
+    if not device or (user and device.owner_user_id != user.id and not is_system_admin()):
+        flash('الجهاز المطلوب غير متاح ضمن حسابك.', 'warning')
+        return redirect(url_for('main.devices', lang=_lang()))
+    session['current_device_id'] = device.id
+    session['current_device_type'] = device.device_type or 'deye'
+    flash(f'تم اختيار الجهاز: {device.name}', 'success')
+    return redirect(request.referrer or url_for('main.dashboard', lang=_lang()))
+
+
+@main_bp.route('/admin/system-logs')
+def admin_system_logs():
+    guard = _admin_guard()
+    if guard:
+        return guard
+    settings = load_settings()
+    health = _service_health_snapshot(settings)
+    service_logs = SyncLog.query.order_by(SyncLog.created_at.desc()).limit(200).all()
+    event_logs = EventLog.query.order_by(EventLog.created_at.desc()).limit(200).all()
+    notification_logs = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(200).all()
+    return render_template(
+        'admin_system_logs.html',
+        settings=settings,
+        health=health,
+        service_logs=service_logs,
+        event_logs=event_logs,
+        notification_logs=notification_logs,
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        ui_lang=_lang(),
+    )
+
 @main_bp.route('/devices')
 def devices():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
+    devices_list = _device_collection()
+    active_device = _active_device()
     settings = load_settings()
     battery_details = build_battery_details(latest)
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
@@ -1010,7 +1125,7 @@ def devices():
     system_state = system_status['title']
     tz_name = current_app.config['LOCAL_TIMEZONE']
     production_summary = get_production_summary(tz_name)
-    return render_template('devices.html', latest=latest, settings=settings,
+    return render_template('devices.html', latest=latest, settings=settings, devices_list=devices_list, active_device=active_device,
                            battery_details=battery_details,
                            battery_insights=battery_insights,
                            system_state=system_state,
@@ -1022,7 +1137,7 @@ def devices():
 
 @main_bp.route('/battery-lab')
 def battery_lab():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     battery_details = build_battery_details(latest)
     settings = load_settings()
@@ -1034,7 +1149,7 @@ def battery_lab():
     now_local = datetime.now(local_tz)
     since_utc = now_local.replace(minute=0, second=0, microsecond=0).astimezone(UTC) - timedelta(hours=47)
     hourly_rows = (
-        Reading.query
+        scoped_query(Reading)
         .filter(Reading.created_at >= since_utc)
         .order_by(Reading.created_at.asc())
         .all()
@@ -1070,7 +1185,7 @@ def battery_lab():
 
 @main_bp.route('/loads', methods=['GET', 'POST'])
 def loads_page():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     weather = get_weather_for_latest(latest)
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
@@ -1163,7 +1278,7 @@ def loads_page():
 
 @main_bp.route('/alerts')
 def alerts():
-    logs = SyncLog.query.order_by(SyncLog.created_at.desc()).limit(200).all()
+    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(200).all()
     return render_template('alerts.html', logs=logs,
                            format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']), ui_lang=_lang())
 
@@ -1323,7 +1438,7 @@ def notifications_action():
         return redirect(url_for('main.notifications_settings'))
     try:
         settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = Reading.query.order_by(Reading.created_at.desc()).first()
+        latest = _latest_reading()
         weather = get_weather_for_latest(latest)
         if section == 'quick_telegram':
             payload = {'section':'quick_telegram','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'telegram','rule_name':'اختبار Telegram','event_key':f"test-telegram-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار Telegram بنجاح','preview_message':'هذه رسالة الاختبار السريعة لقناة Telegram'}
@@ -1415,7 +1530,7 @@ def channels():
         flash('الإجراء المطلوب غير معروف', 'warning')
         return redirect(url_for('main.channels', lang=lang))
 
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     settings = load_settings()
     weather = get_weather_for_latest(latest) if latest else None
     telegram_webhook_url = _telegram_webhook_target_url()
@@ -1455,9 +1570,9 @@ def notifications_settings():
 
     settings = load_settings()
     rules = load_notification_rules(settings)
-    recent_notifications = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(30).all()
+    recent_notifications = scoped_query(NotificationLog).order_by(NotificationLog.created_at.desc()).limit(30).all()
     notification_preview = session.pop('notification_preview', None)
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     weather = get_weather_for_latest(latest) if latest else None
     telegram_webhook_url = _telegram_webhook_target_url()
     webhook_info = _telegram_webhook_info(settings)
@@ -1507,7 +1622,7 @@ def notifications_test_section():
     try:
         section = request.form.get('section', 'periodic').strip().lower()
         settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = Reading.query.order_by(Reading.created_at.desc()).first()
+        latest = _latest_reading()
         weather = get_weather_for_latest(latest)
         now_ts = int(datetime.now(UTC).timestamp())
         sent_message = ''
@@ -1628,7 +1743,7 @@ def telegram_webhook():
         )
 @main_bp.route('/plant-info')
 def plant_info():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     production_summary = get_production_summary(tz_name)
@@ -1640,7 +1755,7 @@ def plant_info():
 
 @main_bp.route('/api/raw-debug')
 def api_raw_debug():
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = _latest_reading()
     if not latest:
         return {'ok': False, 'error': 'No reading found'}
     try:

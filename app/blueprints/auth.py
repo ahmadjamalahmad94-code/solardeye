@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import (
     Blueprint,
     current_app,
+    g,
     flash,
     jsonify,
     redirect,
@@ -23,12 +24,20 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
+        app_user = AppUser.query.filter_by(username=username, is_active=True).first()
+        password_ok = False
         if username == current_app.config['ADMIN_USERNAME'] and password == current_app.config['ADMIN_PASSWORD']:
+            password_ok = True
+        elif app_user and app_user.password_hash == password:
+            password_ok = True
+
+        if password_ok:
             session.permanent = True
             session['logged_in'] = True
             session['username'] = username
 
-            app_user = AppUser.query.filter_by(username=username).first()
+            if app_user is None:
+                app_user = AppUser.query.filter_by(username=current_app.config['ADMIN_USERNAME']).first()
             if app_user:
                 session['user_id'] = app_user.id
                 session['current_device_type'] = app_user.preferred_device_type or 'deye'
@@ -55,6 +64,22 @@ def protect_routes():
     ep = request.endpoint or ''
     if ep in public_endpoints or ep.startswith('static'):
         return
+    g.current_user = None
+    g.current_device = None
+    g.is_admin = False
+    if session.get('logged_in'):
+        if session.get('user_id'):
+            g.current_user = AppUser.query.filter_by(id=session.get('user_id'), is_active=True).first()
+        if session.get('current_device_id'):
+            g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
+        if g.current_user is None and session.get('username'):
+            g.current_user = AppUser.query.filter_by(username=session.get('username'), is_active=True).first()
+        if g.current_device is None and g.current_user is not None:
+            g.current_device = AppDevice.query.filter_by(owner_user_id=g.current_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+            if g.current_device:
+                session['current_device_id'] = g.current_device.id
+        g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin')
+
     if not session.get('logged_in'):
         wants_json = (
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'

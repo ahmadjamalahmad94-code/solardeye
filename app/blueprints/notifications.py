@@ -9,6 +9,7 @@ from flask import current_app, request, url_for
 
 from ..extensions import db
 from ..models import NotificationLog, Reading, Setting, UserLoad
+from ..services.scope import current_scope_ids, scoped_query
 from ..services.utils import format_local_datetime, human_duration_hours, safe_float, safe_power_w, utc_to_local
 from .helpers import (
     battery_percent_bar, build_battery_insights, build_pre_sunset_prediction,
@@ -545,7 +546,7 @@ def _sms_should_send(settings: dict, event_key: str, signature: str) -> bool:
 
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
     since = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
-    return NotificationLog.query.filter(
+    return scoped_query(NotificationLog).filter(
         NotificationLog.event_key == event_key,
         NotificationLog.created_at >= since,
     ).first() is not None
@@ -554,7 +555,9 @@ def notification_exists(event_key: str, minutes: int = 1440) -> bool:
 def log_notification(event_key, rule_name, title, message, channel, level, response_text='', force=False):
     if not force and notification_exists(event_key):
         return False
+    user_id, device_id = current_scope_ids()
     db.session.add(NotificationLog(
+        user_id=user_id, device_id=device_id,
         event_key=event_key, rule_name=rule_name, title=title, message=message,
         channel=channel, level=level, response_text=response_text,
         status='sent' if level != 'danger' else 'failed',
@@ -794,7 +797,7 @@ def _format_load_suggestions_telegram(latest, settings=None):
         _, weather = _get_weather_for_latest()
     except Exception:
         weather = None
-    loads = UserLoad.query.filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
+    loads = scoped_query(UserLoad).filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     if not loads:
         return '⚡ لا توجد أحمال مضافة ومفعلة بعد.'
     sunset_dt = _parse_hhmm_local(getattr(weather, 'sunset_time', None), now_local) if weather else None
@@ -988,7 +991,7 @@ def process_telegram_update(settings: dict, update: dict):
 
 
 def _periodic_load_suggestion(latest, phase_override=None, settings=None):
-    loads = UserLoad.query.filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
+    loads = scoped_query(UserLoad).filter_by(is_enabled=True).order_by(UserLoad.priority.asc(), UserLoad.power_w.asc(), UserLoad.name.asc()).all()
     if not latest or not loads:
         return None
     _, weather = _get_weather_for_latest()
@@ -1312,7 +1315,7 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
 def _recent_readings_covering(minutes: int):
     minutes = max(int(float(minutes or 0)), 1)
     since = datetime.utcnow() - timedelta(minutes=minutes + 2)
-    rows = Reading.query.filter(Reading.created_at >= since).order_by(Reading.created_at.asc()).all()
+    rows = scoped_query(Reading).filter(Reading.created_at >= since).order_by(Reading.created_at.asc()).all()
     if not rows:
         return []
     span_minutes = (datetime.utcnow() - rows[0].created_at).total_seconds() / 60.0
@@ -1540,7 +1543,7 @@ def _get_weather_for_latest():
     from ..services.weather_service import fetch_weather
     from .helpers import load_settings
     from ..services.utils import safe_float
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = scoped_query(Reading).order_by(Reading.created_at.desc()).first()
     if not latest or not latest.raw_json:
         return latest, None
     import json as _json
@@ -1731,7 +1734,7 @@ def send_daily_morning_report(force=False):
     from datetime import UTC, datetime
     now = datetime.now(UTC)
     event_key = f"daily-report-{now.strftime('%Y-%m-%d')}"
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = scoped_query(Reading).order_by(Reading.created_at.desc()).first()
     if not latest:
         return
     title, message = build_daily_morning_report_message(latest, settings=settings)

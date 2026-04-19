@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from ..extensions import db
 from ..models import SmartRecommendationLog, SmartSnapshot
+from ..services.scope import current_scope_ids, scoped_query
 from ..services.utils import to_json, utc_to_local
 from .helpers import (
     build_battery_insights,
@@ -97,7 +98,10 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
     hours_until_sunrise = prediction.get('hours_until_sunrise')
     is_day = bool(prediction.get('is_day')) if prediction else (_safe_float(getattr(latest, 'solar_power', 0), 0) > 50)
 
+    user_id, device_id = current_scope_ids()
     payload = {
+        'user_id': getattr(latest, 'user_id', None) or user_id,
+        'device_id': getattr(latest, 'device_id', None) or device_id,
         'reading_id': getattr(latest, 'id', None),
         'created_at': getattr(latest, 'created_at', None) or datetime.utcnow(),
         'local_hour': int(local_dt.hour),
@@ -121,7 +125,7 @@ def save_smart_snapshot_from_reading(latest, weather=None, settings=None, source
         'source': source,
     }
 
-    previous = SmartSnapshot.query.order_by(SmartSnapshot.created_at.desc()).first()
+    previous = scoped_query(SmartSnapshot).order_by(SmartSnapshot.created_at.desc()).first()
     if previous and getattr(previous, 'created_at', None):
         elapsed = abs((payload['created_at'] - previous.created_at).total_seconds())
         if elapsed < 15 * 60 and not _significant_snapshot_change(previous, payload):
@@ -138,7 +142,7 @@ def find_similar_snapshots(current_snapshot: SmartSnapshot | None, lookback_days
         return []
     since = (current_snapshot.created_at or datetime.utcnow()) - timedelta(days=max(int(lookback_days or 45), 1))
     query = (
-        SmartSnapshot.query
+        scoped_query(SmartSnapshot)
         .filter(SmartSnapshot.created_at >= since)
         .filter(SmartSnapshot.id != current_snapshot.id)
         .filter(SmartSnapshot.is_day == current_snapshot.is_day)
@@ -343,6 +347,8 @@ def log_historical_recommendation(snapshot: SmartSnapshot | None, advice: dict, 
     if not snapshot:
         return None
     row = SmartRecommendationLog(
+        user_id=getattr(snapshot, 'user_id', None),
+        device_id=getattr(snapshot, 'device_id', None),
         snapshot_id=snapshot.id,
         recommendation_type='historical_advice',
         status_label=str(advice.get('status_label', ''))[:100],
