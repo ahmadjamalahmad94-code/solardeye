@@ -12,6 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from app.services.service_monitor import heartbeat
+from app.services.scope import get_default_system_device, get_default_system_user, reset_system_scope, set_system_scope
 
 _scheduler: BackgroundScheduler | None = None
 _scheduler_pid: int | None = None
@@ -31,6 +32,9 @@ def _build_job(app, fn_path: str) -> Callable[[], None]:
             print(f'Scheduler job started: {fn_path}', flush=True)
             module_path, fn_name = fn_path.rsplit('.', 1)
             mod = importlib.import_module(module_path)
+            system_user = get_default_system_user()
+            system_device = get_default_system_device(system_user)
+            scope_tokens = set_system_scope(getattr(system_user, 'id', None), getattr(system_device, 'id', None))
             try:
                 heartbeat(fn_path, fn_path, 'running', 'بدأت المهمة', source='scheduler')
                 getattr(mod, fn_name)()
@@ -42,6 +46,8 @@ def _build_job(app, fn_path: str) -> Callable[[], None]:
                 logger.exception('Scheduled job failed: %s', fn_path)
                 print(f'Scheduled job failed: {fn_path}', flush=True)
                 raise
+            finally:
+                reset_system_scope(scope_tokens)
     return _inner
 
 
