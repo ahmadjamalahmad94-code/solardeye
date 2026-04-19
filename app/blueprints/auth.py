@@ -1,5 +1,19 @@
 from __future__ import annotations
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+
+from ..models import AppDevice, AppUser
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -13,6 +27,15 @@ def login():
             session.permanent = True
             session['logged_in'] = True
             session['username'] = username
+
+            app_user = AppUser.query.filter_by(username=username).first()
+            if app_user:
+                session['user_id'] = app_user.id
+                session['current_device_type'] = app_user.preferred_device_type or 'deye'
+                device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+                if device:
+                    session['current_device_id'] = device.id
+                    session['current_device_type'] = device.device_type or 'deye'
             flash('تم تسجيل الدخول بنجاح', 'success')
             return redirect(url_for('main.dashboard'))
         flash('اسم المستخدم أو كلمة المرور غير صحيحة', 'danger')

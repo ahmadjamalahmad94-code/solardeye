@@ -1,9 +1,8 @@
+from .deye_adapter import DeyeDeviceAdapter
 
-from .deye_adapter import DeyeAdapter
 
-
-def get_adapter(device_type: str):
-    device_type = (device_type or 'deye').strip().lower()
-    if device_type == 'deye':
-        return DeyeAdapter
-    return DeyeAdapter
+def get_adapter(device_type='deye', device=None):
+    normalized = (device_type or 'deye').strip().lower()
+    if normalized == 'deye':
+        return DeyeDeviceAdapter(device=device)
+    return DeyeDeviceAdapter(device=device)

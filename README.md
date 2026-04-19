@@ -56,8 +56,3 @@ cp ../solar_platform_old/*.db .
 ```
 
 **السبب:** النسخة القديمة تحتوي على `app/routes.py` يسبب تعارضاً مع الـ blueprints الجديدة.
-
-
-## Multi-user foundation (safe mode)
-
-This build adds foundation-only tables for future multi-user and multi-device support without changing the current runtime scheduling or day/night logic.

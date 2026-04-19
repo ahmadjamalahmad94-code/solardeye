@@ -1,11 +1,8 @@
-
 from .base import BaseDeviceAdapter
 
 
-class DeyeAdapter(BaseDeviceAdapter):
+class DeyeDeviceAdapter(BaseDeviceAdapter):
     device_type = 'deye'
 
-    def fetch_reading(self, *args, **kwargs):
-        # Foundation-safe placeholder. Runtime logic still uses the current
-        # stable Deye path until the next multi-user phase.
+    def fetch_latest(self):
         return None
