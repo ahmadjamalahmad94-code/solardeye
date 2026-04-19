@@ -1238,6 +1238,142 @@ def select_device(device_id: int):
     return redirect(request.referrer or url_for('main.dashboard', lang=_lang()))
 
 
+
+
+def _save_device_fields(device: AppDevice, owner_user_id: int):
+    device.name = (request.form.get('name', '') or '').strip() or device.name or 'My Solar Device'
+    device.device_type = (request.form.get('device_type', 'deye') or 'deye').strip().lower()
+    device.api_provider = (request.form.get('api_provider', device.device_type or 'deye') or 'deye').strip().lower()
+    device.api_base_url = (request.form.get('api_base_url', '') or '').strip()
+    device.external_device_id = (request.form.get('external_device_id', '') or '').strip() or None
+    device.device_uid = (request.form.get('device_uid', '') or '').strip() or None
+    device.station_id = (request.form.get('station_id', '') or '').strip() or None
+    device.plant_name = (request.form.get('plant_name', '') or '').strip() or None
+    device.timezone = (request.form.get('timezone', current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')) or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')).strip()
+    device.auth_mode = (request.form.get('auth_mode', 'wizard') or 'wizard').strip().lower()
+    device.notes = (request.form.get('notes', '') or '').strip()
+    device.owner_user_id = owner_user_id
+    device.is_active = request.form.get('is_active') == 'on'
+
+
+@main_bp.route('/devices/manage', methods=['GET', 'POST'])
+def devices_manage():
+    user = _active_user()
+    if user is None:
+        flash('يجب تسجيل الدخول أولًا.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        device = AppDevice(owner_user_id=user.id)
+        _save_device_fields(device, user.id)
+        db.session.add(device)
+        db.session.flush()
+        if not user.preferred_device_id:
+            user.preferred_device_id = device.id
+            session['current_device_id'] = device.id
+            session['current_device_type'] = device.device_type or 'deye'
+        db.session.commit()
+        flash('تمت إضافة الجهاز بنجاح.', 'success')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+
+    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
+    return render_template('devices_manage.html', devices_list=devices_list, ui_lang=_lang(), current_device_id=session.get('current_device_id'))
+
+
+@main_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
+def device_edit(device_id: int):
+    user = _active_user()
+    device = AppDevice.query.filter_by(id=device_id).first_or_404()
+    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
+        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+
+    if request.method == 'POST':
+        _save_device_fields(device, device.owner_user_id or (user.id if user else None))
+        db.session.commit()
+        flash('تم تحديث الجهاز بنجاح.', 'success')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+
+    return render_template('device_form.html', device=device, mode='edit', ui_lang=_lang())
+
+
+@main_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
+def device_toggle(device_id: int):
+    user = _active_user()
+    device = AppDevice.query.filter_by(id=device_id).first_or_404()
+    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
+        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+    device.is_active = not bool(device.is_active)
+    db.session.commit()
+    flash('تم تحديث حالة الجهاز.', 'success')
+    return redirect(url_for('main.devices_manage', lang=_lang()))
+
+
+@main_bp.route('/onboarding', methods=['GET', 'POST'])
+def onboarding_wizard():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+
+    step = (request.args.get('step') or request.form.get('step') or getattr(user, 'onboarding_step', None) or 'welcome').strip().lower()
+    allowed_steps = ['welcome', 'device', 'notifications', 'finish']
+    if step not in allowed_steps:
+        step = 'welcome'
+
+    if request.method == 'POST':
+        action = (request.form.get('action') or 'next').strip().lower()
+        if step == 'device' and action in {'next', 'save'}:
+            existing = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).first()
+            if existing is None:
+                existing = AppDevice(owner_user_id=user.id)
+                db.session.add(existing)
+                db.session.flush()
+            _save_device_fields(existing, user.id)
+            if not user.preferred_device_id:
+                user.preferred_device_id = existing.id
+            session['current_device_id'] = user.preferred_device_id or existing.id
+            session['current_device_type'] = existing.device_type or 'deye'
+        elif step == 'notifications' and action in {'next', 'save'}:
+            if request.form.get('enable_notifications') == 'on':
+                _save_setting_value('notifications_enabled', 'true')
+            elif request.form.get('disable_notifications') == 'on':
+                _save_setting_value('notifications_enabled', 'false')
+
+        if action == 'skip':
+            next_step = {'welcome': 'device', 'device': 'notifications', 'notifications': 'finish', 'finish': 'finish'}.get(step, 'finish')
+        elif action == 'back':
+            next_step = {'finish': 'notifications', 'notifications': 'device', 'device': 'welcome', 'welcome': 'welcome'}.get(step, 'welcome')
+        else:
+            next_step = {'welcome': 'device', 'device': 'notifications', 'notifications': 'finish', 'finish': 'finish'}.get(step, 'finish')
+
+        if step == 'finish' or action == 'complete':
+            user.onboarding_completed = True
+            user.onboarding_step = 'done'
+            db.session.commit()
+            flash('اكتمل الإعداد الأولي بنجاح ✨', 'success')
+            return redirect(url_for('main.dashboard', lang=_lang()))
+
+        user.onboarding_step = next_step
+        db.session.commit()
+        return redirect(url_for('main.onboarding_wizard', step=next_step, lang=_lang()))
+
+    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).all()
+    settings = load_settings()
+    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, settings=settings, ui_lang=_lang())
+
+
+@main_bp.route('/onboarding/skip', methods=['POST'])
+def onboarding_skip():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    user.onboarding_completed = True
+    user.onboarding_step = 'done'
+    db.session.commit()
+    flash('تم تخطي الإعداد الأولي، ويمكنك الرجوع إليه لاحقًا.', 'info')
+    return redirect(url_for('main.dashboard', lang=_lang()))
+
 @main_bp.route('/admin/system-logs')
 def admin_system_logs():
     guard = _admin_guard()

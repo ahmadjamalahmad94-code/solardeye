@@ -24,6 +24,11 @@ class AppUser(db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
+    onboarding_step = db.Column(db.String(50), nullable=True)
+    oauth_provider = db.Column(db.String(30), nullable=True)
+    oauth_subject = db.Column(db.String(255), nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
 
 
 class AppDevice(db.Model):

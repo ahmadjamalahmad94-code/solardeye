@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><h1>تعديل الجهاز</h1><p class="mb-0">حدّث بيانات الجهاز الحالي بشكل منظم.</p></div></div>
+      <div><a class="btn btn-outline-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">↩ الرجوع</a></div>
+    </header>
+    <form method="post" class="panel-card mt-4 admin-form-grid">
+      <div><label class="form-label">اسم الجهاز</label><input class="form-control form-control-lg" name="name" value="{{ device.name }}" required></div>
+      <div><label class="form-label">نوع الجهاز</label><select class="form-select form-select-lg" name="device_type"><option value="deye" {% if device.device_type=='deye' %}selected{% endif %}>Deye</option><option value="custom" {% if device.device_type=='custom' %}selected{% endif %}>Custom / مستقبلًا</option></select></div>
+      <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="{{ device.api_provider or '' }}"></div>
+      <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or '' }}"></div>
+      <div><label class="form-label">Plant Name</label><input class="form-control form-control-lg" name="plant_name" value="{{ device.plant_name or '' }}"></div>
+      <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id" value="{{ device.station_id or '' }}"></div>
+      <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid" value="{{ device.device_uid or '' }}"></div>
+      <div><label class="form-label">External Device ID</label><input class="form-control form-control-lg" name="external_device_id" value="{{ device.external_device_id or '' }}"></div>
+      <div><label class="form-label">Timezone</label><input class="form-control form-control-lg" name="timezone" value="{{ device.timezone or 'Asia/Hebron' }}"></div>
+      <div><label class="form-label">Auth Mode</label><input class="form-control form-control-lg" name="auth_mode" value="{{ device.auth_mode or 'config' }}"></div>
+      <div class="full"><label class="form-label">ملاحظات</label><textarea class="form-control" rows="4" name="notes">{{ device.notes or '' }}</textarea></div>
+      <div class="full form-check form-switch"><input class="form-check-input" type="checkbox" name="is_active" id="deviceActiveEdit" {% if device.is_active %}checked{% endif %}><label class="form-check-label" for="deviceActiveEdit">الجهاز مفعل</label></div>
+      <div class="full d-flex gap-2"><button class="btn btn-solar" type="submit">حفظ التعديلات</button><a class="btn btn-outline-secondary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">إلغاء</a></div>
+    </form>
+  </main>
+</div>
+{% endblock %}

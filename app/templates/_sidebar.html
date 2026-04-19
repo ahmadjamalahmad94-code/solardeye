@@ -19,6 +19,8 @@
       <a class="{% if request.endpoint == 'main.reports' %}active{% endif %}" href="{{ url_for('main.reports', lang=ui_lang) }}" data-ar="🧾 التقارير" data-en="🧾 Reports">🧾 التقارير</a>
       <a class="{% if request.endpoint == 'main.battery_lab' %}active{% endif %}" href="{{ url_for('main.battery_lab', lang=ui_lang) }}" data-ar="🔋 مختبر البطارية" data-en="🔋 Battery Lab">🔋 مختبر البطارية</a>
       <a class="{% if request.endpoint == 'main.devices' %}active{% endif %}" href="{{ url_for('main.devices', lang=ui_lang) }}" data-ar="🖥️ الأجهزة" data-en="🖥️ Devices">🖥️ الأجهزة</a>
+      <a class="{% if request.endpoint in ['main.devices_manage','main.device_edit'] %}active{% endif %}" href="{{ url_for('main.devices_manage', lang=ui_lang) }}" data-ar="🔌 إدارة الأجهزة" data-en="🔌 Manage Devices">🔌 إدارة الأجهزة</a>
+      <a class="{% if request.endpoint == 'main.onboarding_wizard' %}active{% endif %}" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}" data-ar="🧭 الإعداد الأولي" data-en="🧭 Onboarding">🧭 الإعداد الأولي</a>
       <a class="{% if request.endpoint == 'main.live_data' %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}" data-ar="📡 البيانات الحية" data-en="📡 Live Data">📡 البيانات الحية</a>
       <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}" data-ar="💡 أحمالك" data-en="💡 Your Loads">💡 أحمالك</a>
       <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}" data-ar="📲 مركز الإشعارات" data-en="📲 Notifications">📲 مركز الإشعارات</a>

@@ -1335,3 +1335,26 @@ body.saas-only .content-area {
 .device-chip { border:1px solid var(--border); padding:10px 12px; border-radius:14px; background:#fff; }
 .metric-card-mini { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; display:grid; gap:8px; }
 @media (max-width: 1000px) { .admin-grid, .admin-form-grid { grid-template-columns:1fr; } }
+
+.login-links{display:grid;gap:.6rem}
+.register-card{max-width:760px;width:min(92vw,760px)}
+.wizard-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:linear-gradient(180deg,#0f172a,#111827)}
+.wizard-card{width:min(980px,96vw);background:var(--color-surface-primary,#fff);border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:24px;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.wizard-head{display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.wizard-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
+.wizard-step{border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:16px;padding:.85rem;display:flex;gap:.65rem;align-items:center;background:var(--color-surface-secondary,#f8fafc)}
+.wizard-step span{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;background:#dbeafe;color:#1d4ed8;font-weight:700}
+.wizard-step.active{border-color:#2563eb;background:#eff6ff}
+.wizard-step.done{border-color:#16a34a;background:#f0fdf4}
+.wizard-step.done span{background:#dcfce7;color:#15803d}
+.wizard-pane{padding:1rem 0}
+.wizard-note-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin-top:1rem}
+.wizard-note-grid > div,.wizard-note-grid > label{border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:16px;padding:.9rem;background:var(--color-surface-secondary,#f8fafc)}
+.wizard-actions{display:flex;gap:.75rem;align-items:center}
+.devices-manage-grid{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:1rem}
+.device-list-stack{display:grid;gap:.75rem}
+.device-manage-card{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:18px;background:var(--color-surface-secondary,#f8fafc)}
+.device-manage-card.current{border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.08)}
+.device-meta-line{font-size:.85rem;color:var(--color-text-secondary,#64748b);margin-top:.2rem}
+.device-card-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width: 840px){.wizard-steps{grid-template-columns:1fr 1fr}.devices-manage-grid{grid-template-columns:1fr}.wizard-head{flex-direction:column;align-items:flex-start}}

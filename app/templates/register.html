@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="login-shell">
+  <div class="login-card register-card">
+    <div class="brand-mark">✨</div>
+    <h1>إنشاء حساب جديد</h1>
+    <p class="subtext">ابدأ مع منصة الطاقة خلال دقائق، ويمكنك إكمال الإعدادات لاحقًا عبر معالج البداية.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('auth.register') }}" class="mt-4 admin-form-grid">
+      <div>
+        <label class="form-label">اسم المستخدم</label>
+        <input class="form-control form-control-lg" name="username" required autocomplete="username">
+      </div>
+      <div>
+        <label class="form-label">الاسم الكامل</label>
+        <input class="form-control form-control-lg" name="full_name" autocomplete="name">
+      </div>
+      <div class="full">
+        <label class="form-label">البريد الإلكتروني</label>
+        <input type="email" class="form-control form-control-lg" name="email" autocomplete="email">
+      </div>
+      <div>
+        <label class="form-label">كلمة المرور</label>
+        <input type="password" class="form-control form-control-lg" name="password" required autocomplete="new-password">
+      </div>
+      <div>
+        <label class="form-label">تأكيد كلمة المرور</label>
+        <input type="password" class="form-control form-control-lg" name="confirm_password" required autocomplete="new-password">
+      </div>
+      <div class="full d-grid gap-2 mt-2">
+        <button class="btn btn-solar w-100">إنشاء الحساب</button>
+        <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.google_start') }}">الدخول عبر Google</a>
+        <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.facebook_start') }}">الدخول عبر Facebook</a>
+      </div>
+    </form>
+
+    <div class="text-center mt-3">
+      <small>عندك حساب بالفعل؟ <a href="{{ url_for('auth.login') }}">سجّل الدخول</a></small>
+    </div>
+  </div>
+</div>
+{% endblock %}

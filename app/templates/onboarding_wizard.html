@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="wizard-shell">
+  <div class="wizard-card">
+    <div class="wizard-head">
+      <div>
+        <h1>إعداد أول استخدام</h1>
+        <p class="mb-0">خطوات خفيفة وسريعة، ويمكنك التخطي والرجوع لاحقًا.</p>
+      </div>
+      <form method="post" action="{{ url_for('main.onboarding_skip', lang=ui_lang) }}">
+        <button type="submit" class="btn btn-outline-secondary">تخطي الآن</button>
+      </form>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% set steps = [('welcome','1','ترحيب'),('device','2','الجهاز'),('notifications','3','الإشعارات'),('finish','4','الإنهاء')] %}
+    <div class="wizard-steps mt-4">
+      {% for key, num, label in steps %}
+      <div class="wizard-step {% if step == key %}active{% elif step in ['device','notifications','finish'] and key == 'welcome' or step in ['notifications','finish'] and key == 'device' or step == 'finish' and key == 'notifications' %}done{% endif %}">
+        <span>{{ num }}</span><strong>{{ label }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form method="post" class="mt-4">
+      <input type="hidden" name="step" value="{{ step }}">
+      {% if step == 'welcome' %}
+        <div class="wizard-pane">
+          <h3>أهلًا {{ user_obj.full_name or user_obj.username }} 👋</h3>
+          <p>سنجهز حسابك بخطوات بسيطة. هذا المعالج غير إجباري، ويمكنك تخطي أي جزء غير أساسي.</p>
+          <div class="wizard-note-grid">
+            <div>✅ جهاز افتراضي أُنشئ لك تلقائيًا</div>
+            <div>✅ يمكنك إضافة أو تعديل جهازك لاحقًا</div>
+            <div>✅ الإشعارات قابلة للتفعيل أو التخطي الآن</div>
+          </div>
+        </div>
+      {% elif step == 'device' %}
+        {% set dev = devices_list[0] if devices_list else None %}
+        <div class="wizard-pane admin-form-grid">
+          <div class="full"><h3>الجهاز الأول</h3><p>عدّل البيانات الأساسية الآن أو اتركها كما هي وكمّل لاحقًا.</p></div>
+          <div>
+            <label class="form-label">اسم الجهاز</label>
+            <input class="form-control form-control-lg" name="name" value="{{ dev.name if dev else 'My Solar Device' }}">
+          </div>
+          <div>
+            <label class="form-label">نوع الجهاز</label>
+            <select class="form-select form-select-lg" name="device_type">
+              <option value="deye" {% if not dev or dev.device_type == 'deye' %}selected{% endif %}>Deye</option>
+              <option value="custom" {% if dev and dev.device_type == 'custom' %}selected{% endif %}>Custom / مستقبلًا</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">اسم المحطة</label>
+            <input class="form-control form-control-lg" name="plant_name" value="{{ dev.plant_name if dev else '' }}">
+          </div>
+          <div>
+            <label class="form-label">Station ID</label>
+            <input class="form-control form-control-lg" name="station_id" value="{{ dev.station_id if dev else '' }}">
+          </div>
+          <div>
+            <label class="form-label">Device UID</label>
+            <input class="form-control form-control-lg" name="device_uid" value="{{ dev.device_uid if dev else '' }}">
+          </div>
+          <div>
+            <label class="form-label">API Provider</label>
+            <input class="form-control form-control-lg" name="api_provider" value="{{ dev.api_provider if dev else 'deye' }}">
+          </div>
+          <div class="full">
+            <label class="form-label">ملاحظات</label>
+            <textarea class="form-control" rows="3" name="notes">{{ dev.notes if dev else '' }}</textarea>
+          </div>
+        </div>
+      {% elif step == 'notifications' %}
+        <div class="wizard-pane">
+          <h3>الإشعارات</h3>
+          <p>اختر ما إذا كنت تريد تفعيل الإشعارات العامة الآن. يمكن تعديل ذلك لاحقًا من مركز الإشعارات.</p>
+          <div class="wizard-note-grid">
+            <label class="device-chip"><input type="checkbox" name="enable_notifications" {% if (settings.get('notifications_enabled','true')|lower) == 'true' %}checked{% endif %}> تفعيل الإشعارات العامة</label>
+            <label class="device-chip"><input type="checkbox" name="disable_notifications"> تعطيلها الآن</label>
+          </div>
+        </div>
+      {% else %}
+        <div class="wizard-pane">
+          <h3>كل شيء جاهز ✅</h3>
+          <p>تم إعداد حسابك الأساسي. يمكنك الآن الدخول إلى لوحة التحكم أو متابعة إدارة أجهزتك من الواجهة.</p>
+          <div class="wizard-note-grid">
+            <div>🔌 أجهزتك قابلة للإدارة من صفحة الأجهزة</div>
+            <div>👤 ملفك أصبح جاهزًا كمستخدم فعلي داخل النظام</div>
+            <div>🚀 يمكنك متابعة الإعدادات التفصيلية لاحقًا بدون أي ضغط</div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="wizard-actions mt-4">
+        {% if step != 'welcome' %}<button class="btn btn-outline-secondary" name="action" value="back">السابق</button>{% endif %}
+        {% if step != 'finish' %}<button class="btn btn-outline-primary" name="action" value="skip">تخطي</button>{% endif %}
+        <button class="btn btn-solar ms-auto" name="action" value="{{ 'complete' if step == 'finish' else 'next' }}">{{ 'ابدأ الآن' if step == 'finish' else 'التالي' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

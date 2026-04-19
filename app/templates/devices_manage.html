@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="topbar">
+      <div class="topbar-main">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
+        <div>
+          <h1>إدارة الأجهزة</h1>
+          <p class="mb-0">أضف أو عدّل أجهزتك واختر الجهاز الحالي بسهولة.</p>
+        </div>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <div class="devices-manage-grid mt-4">
+      <form method="post" class="panel-card admin-form-grid">
+        <div class="full"><h3>إضافة جهاز جديد</h3></div>
+        <div><label class="form-label">اسم الجهاز</label><input class="form-control form-control-lg" name="name" required></div>
+        <div><label class="form-label">نوع الجهاز</label>
+          <select class="form-select form-select-lg" name="device_type"><option value="deye">Deye</option><option value="custom">Custom / مستقبلًا</option></select>
+        </div>
+        <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="deye"></div>
+        <div><label class="form-label">Plant Name</label><input class="form-control form-control-lg" name="plant_name"></div>
+        <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id"></div>
+        <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid"></div>
+        <div class="full"><label class="form-label">ملاحظات</label><textarea class="form-control" rows="3" name="notes"></textarea></div>
+        <div class="full form-check form-switch"><input class="form-check-input" type="checkbox" name="is_active" id="newDeviceActive" checked><label class="form-check-label" for="newDeviceActive">الجهاز مفعل</label></div>
+        <div class="full"><button class="btn btn-solar" type="submit">إضافة الجهاز</button></div>
+      </form>
+
+      <div class="panel-card">
+        <div class="section-head"><h3>أجهزتي</h3></div>
+        <div class="device-list-stack mt-3">
+          {% for dev in devices_list %}
+          <div class="device-manage-card {% if current_device_id == dev.id %}current{% endif %}">
+            <div>
+              <strong>{{ dev.name }}</strong>
+              <div class="device-meta-line">{{ dev.device_type|upper }}{% if dev.plant_name %} • {{ dev.plant_name }}{% endif %}{% if dev.station_id %} • {{ dev.station_id }}{% endif %}</div>
+            </div>
+            <div class="device-card-actions">
+              {% if current_device_id == dev.id %}<span class="smart-badge">الحالي</span>{% endif %}
+              <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}"><button class="btn btn-outline-primary btn-sm">اختيار</button></form>
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.device_edit', device_id=dev.id, lang=ui_lang) }}">تعديل</a>
+              <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}"><button class="btn btn-outline-secondary btn-sm">{{ 'تعطيل' if dev.is_active else 'تفعيل' }}</button></form>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">لا توجد أجهزة بعد.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

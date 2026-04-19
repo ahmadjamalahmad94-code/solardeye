@@ -25,6 +25,11 @@
       </div>
       <button class="btn btn-solar w-100">دخول</button>
     </form>
+    <div class="login-links mt-3">
+      <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.register') }}">إنشاء حساب جديد</a>
+      <a class="btn btn-outline-secondary w-100" href="{{ url_for('auth.google_start') }}">الدخول عبر Google</a>
+      <a class="btn btn-outline-secondary w-100" href="{{ url_for('auth.facebook_start') }}">الدخول عبر Facebook</a>
+    </div>
   </div>
 </div>
 {% endblock %}

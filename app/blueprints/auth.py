@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from flask import (
     Blueprint,
     current_app,
@@ -12,13 +14,54 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from werkzeug.security import check_password_hash
-
+from ..extensions import db
 from ..models import AppDevice, AppUser
 
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def _login_user(app_user: AppUser):
+    session.permanent = True
+    session['logged_in'] = True
+    session['username'] = app_user.username
+    session['user_id'] = app_user.id
+    session['current_device_type'] = app_user.preferred_device_type or 'deye'
+
+    device = None
+    if getattr(app_user, 'preferred_device_id', None):
+        device = AppDevice.query.filter_by(id=app_user.preferred_device_id, is_active=True).first()
+    if device is None:
+        device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+    if device:
+        session['current_device_id'] = device.id
+        session['current_device_type'] = device.device_type or 'deye'
+        if app_user.preferred_device_id != device.id:
+            app_user.preferred_device_id = device.id
+    app_user.last_login_at = datetime.utcnow()
+    db.session.commit()
+
+
+def _create_default_device_for_user(user: AppUser, name: str | None = None):
+    base_name = (name or user.full_name or user.username or 'My Solar Device').strip()
+    device = AppDevice(
+        owner_user_id=user.id,
+        name=f"{base_name} Device",
+        device_type='deye',
+        api_provider='deye',
+        api_base_url=current_app.config.get('DEYE_BASE_URL', ''),
+        timezone=current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'),
+        auth_mode='wizard',
+        is_active=True,
+        notes='تم إنشاؤه تلقائيًا عند التسجيل لأول مرة.',
+    )
+    db.session.add(device)
+    db.session.flush()
+    user.preferred_device_id = device.id
+    user.preferred_device_type = device.device_type or 'deye'
+    return device
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -38,27 +81,88 @@ def login():
                 password_ok = (app_user.password_hash == password)
 
         if password_ok:
-            session.permanent = True
-            session['logged_in'] = True
-            session['username'] = username
-
             if app_user is None:
                 app_user = AppUser.query.filter_by(username=current_app.config['ADMIN_USERNAME']).first()
             if app_user:
-                session['user_id'] = app_user.id
-                session['current_device_type'] = app_user.preferred_device_type or 'deye'
-                device = None
-                if getattr(app_user, 'preferred_device_id', None):
-                    device = AppDevice.query.filter_by(id=app_user.preferred_device_id, is_active=True).first()
-                if device is None:
-                    device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
-                if device:
-                    session['current_device_id'] = device.id
-                    session['current_device_type'] = device.device_type or 'deye'
-            flash('تم تسجيل الدخول بنجاح', 'success')
-            return redirect(url_for('main.dashboard'))
+                _login_user(app_user)
+                flash('تم تسجيل الدخول بنجاح', 'success')
+                if not getattr(app_user, 'onboarding_completed', False):
+                    return redirect(url_for('main.onboarding_wizard'))
+                return redirect(url_for('main.dashboard'))
         flash('اسم المستخدم أو كلمة المرور غير صحيحة', 'danger')
     return render_template('login.html')
+
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        if not username or not password:
+            flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
+        elif len(password) < 6:
+            flash('كلمة المرور يجب أن تكون 6 أحرف على الأقل.', 'warning')
+        elif password != confirm_password:
+            flash('تأكيد كلمة المرور غير مطابق.', 'danger')
+        elif AppUser.query.filter_by(username=username).first():
+            flash('اسم المستخدم مستخدم من قبل.', 'danger')
+        elif email and AppUser.query.filter_by(email=email).first():
+            flash('البريد الإلكتروني مستخدم من قبل.', 'danger')
+        else:
+            user = AppUser(
+                username=username,
+                password_hash=generate_password_hash(password),
+                full_name=full_name,
+                email=email,
+                role='user',
+                preferred_device_type='deye',
+                is_active=True,
+                is_admin=False,
+                onboarding_completed=False,
+                onboarding_step='welcome',
+            )
+            db.session.add(user)
+            db.session.flush()
+            _create_default_device_for_user(user, full_name or username)
+            db.session.commit()
+            _login_user(user)
+            flash('تم إنشاء الحساب بنجاح. أهلاً بك ✨', 'success')
+            return redirect(url_for('main.onboarding_wizard'))
+    return render_template('register.html')
+
+
+@auth_bp.route('/auth/google/start')
+def google_start():
+    if not current_app.config.get('GOOGLE_CLIENT_ID'):
+        flash('تسجيل الدخول عبر Google غير مُفعّل بعد. أضف مفاتيح Google أولًا.', 'warning')
+        return redirect(url_for('auth.login'))
+    flash('تم تجهيز مسار Google، ويتبقى ربط المفاتيح الرسمية والـ callback الفعلي.', 'info')
+    return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/auth/google/callback')
+def google_callback():
+    flash('Google callback scaffold جاهز، لكنه يحتاج Client ID/Secret وتفعيل من لوحة Google.', 'info')
+    return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/auth/facebook/start')
+def facebook_start():
+    if not current_app.config.get('FACEBOOK_APP_ID'):
+        flash('تسجيل الدخول عبر Facebook غير مُفعّل بعد. أضف مفاتيح Meta أولًا.', 'warning')
+        return redirect(url_for('auth.login'))
+    flash('تم تجهيز مسار Facebook، ويتبقى ربط المفاتيح الرسمية والـ callback الفعلي.', 'info')
+    return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/auth/facebook/callback')
+def facebook_callback():
+    flash('Facebook callback scaffold جاهز، لكنه يحتاج App ID/Secret وتفعيل من Meta.', 'info')
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -70,7 +174,17 @@ def logout():
 
 @auth_bp.before_app_request
 def protect_routes():
-    public_endpoints = {'auth.login', 'static', 'main.telegram_webhook', 'main.telegram_multilink_webhook'}
+    public_endpoints = {
+        'auth.login',
+        'auth.register',
+        'auth.google_start',
+        'auth.google_callback',
+        'auth.facebook_start',
+        'auth.facebook_callback',
+        'static',
+        'main.telegram_webhook',
+        'main.telegram_multilink_webhook',
+    }
     ep = request.endpoint or ''
     if ep in public_endpoints or ep.startswith('static'):
         return

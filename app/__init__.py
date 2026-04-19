@@ -72,6 +72,11 @@ def _migrate_database():
             'is_admin': 'BOOLEAN DEFAULT FALSE',
             'created_at': 'TIMESTAMP',
             'updated_at': 'TIMESTAMP',
+            'onboarding_completed': 'BOOLEAN DEFAULT FALSE',
+            'onboarding_step': 'VARCHAR(50)',
+            'oauth_provider': 'VARCHAR(30)',
+            'oauth_subject': 'VARCHAR(255)',
+            'last_login_at': 'TIMESTAMP',
         },
         'app_device': {
             'owner_user_id': 'INTEGER',
