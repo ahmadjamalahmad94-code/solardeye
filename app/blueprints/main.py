@@ -23,7 +23,7 @@ import arabic_reshaper
 from ..extensions import db
 from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad
 from ..services.deye_client import DeyeClient
-from ..services.scope import current_scope_ids, get_current_device, get_current_user, is_system_admin, scoped_query
+from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
     safe_power_w, to_json, utc_to_local,
@@ -61,11 +61,14 @@ def _active_user():
     return get_current_user()
 
 
-def _admin_guard():
-    if not is_system_admin():
-        flash('هذه الصفحة متاحة لمدير النظام فقط.', 'warning')
-        return redirect(url_for('main.dashboard', lang=_lang()))
-    return None
+
+def _admin_guard(permission: str = 'can_manage_users'):
+    if is_system_admin():
+        return None
+    if has_permission(permission):
+        return None
+    flash('هذه الصفحة غير متاحة لك ضمن صلاحيات حسابك.', 'warning')
+    return redirect(url_for('main.dashboard', lang=_lang()))
 
 
 def _role_badge(role: str, is_active: bool):
@@ -1109,7 +1112,7 @@ def live_data():
 
 @main_bp.route('/admin/users')
 def admin_users():
-    guard = _admin_guard()
+    guard = _admin_guard('can_view_logs')
     if guard:
         return guard
     users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
@@ -1254,6 +1257,8 @@ def _save_device_fields(device: AppDevice, owner_user_id: int):
     device.notes = (request.form.get('notes', '') or '').strip()
     device.owner_user_id = owner_user_id
     device.is_active = request.form.get('is_active') == 'on'
+    _save_device_credentials(device)
+    device.updated_at = datetime.utcnow()
 
 
 @main_bp.route('/devices/manage', methods=['GET', 'POST'])
@@ -1294,7 +1299,8 @@ def device_edit(device_id: int):
         flash('تم تحديث الجهاز بنجاح.', 'success')
         return redirect(url_for('main.devices_manage', lang=_lang()))
 
-    return render_template('device_form.html', device=device, mode='edit', ui_lang=_lang())
+    creds, device_settings = _device_payload(device)
+    return render_template('device_form.html', device=device, device_creds=creds, device_settings=device_settings, mode='edit', ui_lang=_lang())
 
 
 @main_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
@@ -1359,8 +1365,10 @@ def onboarding_wizard():
         return redirect(url_for('main.onboarding_wizard', step=next_step, lang=_lang()))
 
     devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).all()
+    wizard_device = devices_list[0] if devices_list else None
+    wizard_creds, wizard_device_settings = _device_payload(wizard_device)
     settings = load_settings()
-    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, settings=settings, ui_lang=_lang())
+    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, wizard_device=wizard_device, wizard_creds=wizard_creds, wizard_device_settings=wizard_device_settings, settings=settings, ui_lang=_lang())
 
 
 @main_bp.route('/onboarding/skip', methods=['POST'])

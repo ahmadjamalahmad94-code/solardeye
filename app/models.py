@@ -29,6 +29,7 @@ class AppUser(db.Model):
     oauth_provider = db.Column(db.String(30), nullable=True)
     oauth_subject = db.Column(db.String(255), nullable=True)
     last_login_at = db.Column(db.DateTime, nullable=True)
+    permissions_json = db.Column(db.Text, nullable=True)
 
 
 class AppDevice(db.Model):
@@ -49,6 +50,8 @@ class AppDevice(db.Model):
     credentials_json = db.Column(db.Text, nullable=True)
     settings_json = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    connection_status = db.Column(db.String(30), nullable=True, default='new')
+    last_connected_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

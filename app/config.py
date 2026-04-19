@@ -72,3 +72,30 @@ class Config:
     DEYE_STATION_LIST_ENDPOINT = os.getenv('DEYE_STATION_LIST_ENDPOINT', '/station/list')
     DEYE_STATION_LATEST_ENDPOINT = os.getenv('DEYE_STATION_LATEST_ENDPOINT', '/station/latest')
     DEYE_STATION_HISTORY_ENDPOINT = os.getenv('DEYE_STATION_HISTORY_ENDPOINT', '/station/history')
+
+
+# ── OAuth / Social Login ─────────────────────────────────────────────────────
+_google_client_file = os.getenv('GOOGLE_CLIENT_SECRET_FILE', '').strip()
+if not _google_client_file:
+    for _candidate in BASE_DIR.glob('client_secret_*.json'):
+        _google_client_file = str(_candidate)
+        break
+
+_google_json = {}
+if _google_client_file:
+    try:
+        import json as _json
+        _google_json = _json.loads(Path(_google_client_file).read_text(encoding='utf-8')).get('web', {})
+    except Exception:
+        _google_json = {}
+
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID') or _google_json.get('client_id', '')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET') or _google_json.get('client_secret', '')
+GOOGLE_AUTH_URI = os.getenv('GOOGLE_AUTH_URI') or _google_json.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth')
+GOOGLE_TOKEN_URI = os.getenv('GOOGLE_TOKEN_URI') or _google_json.get('token_uri', 'https://oauth2.googleapis.com/token')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI') or ((_google_json.get('redirect_uris') or [''])[1] if len(_google_json.get('redirect_uris') or []) > 1 else (_google_json.get('redirect_uris') or [''])[0])
+GOOGLE_USERINFO_URI = os.getenv('GOOGLE_USERINFO_URI', 'https://openidconnect.googleapis.com/v1/userinfo')
+
+FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', '')
+FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', '')
+FACEBOOK_REDIRECT_URI = os.getenv('FACEBOOK_REDIRECT_URI', '')

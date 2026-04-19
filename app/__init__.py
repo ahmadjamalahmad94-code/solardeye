@@ -77,6 +77,7 @@ def _migrate_database():
             'oauth_provider': 'VARCHAR(30)',
             'oauth_subject': 'VARCHAR(255)',
             'last_login_at': 'TIMESTAMP',
+            'permissions_json': 'TEXT',
         },
         'app_device': {
             'owner_user_id': 'INTEGER',
@@ -93,6 +94,8 @@ def _migrate_database():
             'credentials_json': 'TEXT',
             'settings_json': 'TEXT',
             'notes': 'TEXT',
+            'connection_status': "VARCHAR(30) DEFAULT 'new'",
+            'last_connected_at': 'TIMESTAMP',
             'is_active': 'BOOLEAN DEFAULT TRUE',
             'created_at': 'TIMESTAMP',
             'updated_at': 'TIMESTAMP',
@@ -252,6 +255,31 @@ def _ensure_default_settings():
     db.session.commit()
 
 
+
+
+def _default_permissions_for_role(role: str) -> dict:
+    role = (role or 'user').strip().lower()
+    if role == 'admin':
+        return {
+            'can_manage_users': True,
+            'can_manage_devices': True,
+            'can_view_logs': True,
+            'can_configure_integrations': True,
+        }
+    if role == 'manager':
+        return {
+            'can_manage_users': False,
+            'can_manage_devices': True,
+            'can_view_logs': True,
+            'can_configure_integrations': False,
+        }
+    return {
+        'can_manage_users': False,
+        'can_manage_devices': True,
+        'can_view_logs': False,
+        'can_configure_integrations': False,
+    }
+
 def _settings_map():
     return {row.key: row.value for row in Setting.query.all()}
 
@@ -270,6 +298,9 @@ def _ensure_default_app_user(app):
         if not user.preferred_device_type:
             user.preferred_device_type = 'deye'
             changed = True
+        if not user.permissions_json:
+            user.permissions_json = json.dumps(_default_permissions_for_role(user.role or 'admin'), ensure_ascii=False)
+            changed = True
         if changed:
             user.updated_at = datetime.utcnow()
             db.session.commit()
@@ -284,6 +315,7 @@ def _ensure_default_app_user(app):
         preferred_device_type='deye',
         is_active=True,
         is_admin=True,
+        permissions_json=json.dumps(_default_permissions_for_role('admin'), ensure_ascii=False),
     )
     db.session.add(user)
     db.session.commit()

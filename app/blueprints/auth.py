@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+import secrets
+from urllib.parse import urlencode
+
+import requests
 
 from flask import (
     Blueprint,
@@ -62,6 +66,25 @@ def _create_default_device_for_user(user: AppUser, name: str | None = None):
     user.preferred_device_id = device.id
     user.preferred_device_type = device.device_type or 'deye'
     return device
+
+def _random_username_from_email(email: str) -> str:
+    base = (email.split('@')[0] if email else 'user').strip().lower() or 'user'
+    safe = ''.join(ch for ch in base if ch.isalnum() or ch in ('_', '.'))[:30] or 'user'
+    candidate = safe
+    idx = 1
+    while AppUser.query.filter_by(username=candidate).first() is not None:
+        idx += 1
+        candidate = f"{safe[:24]}{idx}"
+    return candidate
+
+
+def _login_after_social(user: AppUser):
+    _login_user(user)
+    flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
+    if not getattr(user, 'onboarding_completed', False):
+        return redirect(url_for('main.onboarding_wizard'))
+    return redirect(url_for('main.dashboard'))
+
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -135,20 +158,120 @@ def register():
     return render_template('register.html')
 
 
+
 @auth_bp.route('/auth/google/start')
 def google_start():
-    if not current_app.config.get('GOOGLE_CLIENT_ID'):
-        flash('تسجيل الدخول عبر Google غير مُفعّل بعد. أضف مفاتيح Google أولًا.', 'warning')
+    client_id = current_app.config.get('GOOGLE_CLIENT_ID', '')
+    redirect_uri = current_app.config.get('GOOGLE_REDIRECT_URI', '')
+    auth_uri = current_app.config.get('GOOGLE_AUTH_URI', 'https://accounts.google.com/o/oauth2/auth')
+    if not client_id or not redirect_uri:
+        flash('Google OAuth غير مُفعّل بعد. أضف GOOGLE_CLIENT_ID و GOOGLE_REDIRECT_URI أولًا.', 'warning')
         return redirect(url_for('auth.login'))
-    flash('تم تجهيز مسار Google، ويتبقى ربط المفاتيح الرسمية والـ callback الفعلي.', 'info')
-    return redirect(url_for('auth.login'))
+
+    state = secrets.token_urlsafe(24)
+    session['google_oauth_state'] = state
+    params = {
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': state,
+        'access_type': 'online',
+        'include_granted_scopes': 'true',
+        'prompt': 'select_account',
+    }
+    return redirect(f"{auth_uri}?{urlencode(params)}")
 
 
 @auth_bp.route('/auth/google/callback')
 def google_callback():
-    flash('Google callback scaffold جاهز، لكنه يحتاج Client ID/Secret وتفعيل من لوحة Google.', 'info')
-    return redirect(url_for('auth.login'))
+    error = request.args.get('error', '').strip()
+    if error:
+        flash(f'فشل تسجيل الدخول عبر Google: {error}', 'danger')
+        return redirect(url_for('auth.login'))
 
+    code = request.args.get('code', '').strip()
+    state = request.args.get('state', '').strip()
+    expected_state = session.pop('google_oauth_state', None)
+    if not code or not state or not expected_state or state != expected_state:
+        flash('طلب Google غير صالح أو انتهت صلاحيته.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    client_id = current_app.config.get('GOOGLE_CLIENT_ID', '')
+    client_secret = current_app.config.get('GOOGLE_CLIENT_SECRET', '')
+    redirect_uri = current_app.config.get('GOOGLE_REDIRECT_URI', '')
+    token_uri = current_app.config.get('GOOGLE_TOKEN_URI', 'https://oauth2.googleapis.com/token')
+    userinfo_uri = current_app.config.get('GOOGLE_USERINFO_URI', 'https://openidconnect.googleapis.com/v1/userinfo')
+    if not client_id or not client_secret or not redirect_uri:
+        flash('بيانات Google OAuth غير مكتملة داخل الإعدادات.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    try:
+        token_resp = requests.post(
+            token_uri,
+            data={
+                'code': code,
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'redirect_uri': redirect_uri,
+                'grant_type': 'authorization_code',
+            },
+            timeout=20,
+        )
+        token_resp.raise_for_status()
+        token_data = token_resp.json()
+        access_token = token_data.get('access_token', '')
+        if not access_token:
+            raise ValueError('missing_access_token')
+        profile_resp = requests.get(
+            userinfo_uri,
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=20,
+        )
+        profile_resp.raise_for_status()
+        profile = profile_resp.json()
+    except Exception as exc:
+        flash(f'تعذر إكمال Google OAuth: {exc}', 'danger')
+        return redirect(url_for('auth.login'))
+
+    email = (profile.get('email') or '').strip().lower()
+    subject = (profile.get('sub') or '').strip()
+    full_name = (profile.get('name') or '').strip() or email.split('@')[0]
+    if not email or not subject:
+        flash('لم يرجع Google البريد أو المعرّف المطلوب.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    user = AppUser.query.filter_by(oauth_provider='google', oauth_subject=subject).first()
+    if user is None:
+        user = AppUser.query.filter_by(email=email).first()
+    if user is None:
+        user = AppUser(
+            username=_random_username_from_email(email),
+            password_hash='',
+            full_name=full_name,
+            email=email,
+            role='user',
+            preferred_device_type='deye',
+            is_active=True,
+            is_admin=False,
+            onboarding_completed=False,
+            onboarding_step='welcome',
+            oauth_provider='google',
+            oauth_subject=subject,
+        )
+        db.session.add(user)
+        db.session.flush()
+        _create_default_device_for_user(user, full_name)
+    else:
+        user.oauth_provider = 'google'
+        user.oauth_subject = subject
+        if not user.email:
+            user.email = email
+        if not user.full_name:
+            user.full_name = full_name
+
+    db.session.commit()
+    return _login_after_social(user)
 
 @auth_bp.route('/auth/facebook/start')
 def facebook_start():
@@ -191,6 +314,7 @@ def protect_routes():
     g.current_user = None
     g.current_device = None
     g.is_admin = False
+    g.permissions = {}
     if session.get('logged_in'):
         if session.get('user_id'):
             g.current_user = AppUser.query.filter_by(id=session.get('user_id'), is_active=True).first()
@@ -203,6 +327,12 @@ def protect_routes():
             if g.current_device:
                 session['current_device_id'] = g.current_device.id
         g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin')
+        if g.current_user and getattr(g.current_user, 'permissions_json', None):
+            try:
+                import json as _json
+                g.permissions = _json.loads(g.current_user.permissions_json or '{}')
+            except Exception:
+                g.permissions = {}
 
     if not session.get('logged_in'):
         wants_json = (

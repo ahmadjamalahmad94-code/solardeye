@@ -107,3 +107,45 @@ def scoped_query(model, query=None):
     elif user_id is not None and hasattr(model, 'user_id'):
         query = query.filter(getattr(model, 'user_id') == user_id)
     return query
+
+
+
+def get_user_permissions(user=None) -> dict:
+    import json
+    user = user or get_current_user()
+    if not user:
+        return {}
+    raw = getattr(user, 'permissions_json', None)
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+    role = (getattr(user, 'role', '') or 'user').strip().lower()
+    if role == 'admin' or getattr(user, 'is_admin', False):
+        return {
+            'can_manage_users': True,
+            'can_manage_devices': True,
+            'can_view_logs': True,
+            'can_configure_integrations': True,
+        }
+    if role == 'manager':
+        return {
+            'can_manage_users': False,
+            'can_manage_devices': True,
+            'can_view_logs': True,
+            'can_configure_integrations': False,
+        }
+    return {
+        'can_manage_users': False,
+        'can_manage_devices': True,
+        'can_view_logs': False,
+        'can_configure_integrations': False,
+    }
+
+
+def has_permission(permission: str) -> bool:
+    perms = get_user_permissions()
+    return bool(perms.get(permission, False))
