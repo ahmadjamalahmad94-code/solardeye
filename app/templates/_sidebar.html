@@ -27,12 +27,13 @@
       <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}" data-ar="🔗 ربط Telegram وSMS" data-en="🔗 Telegram & SMS">🔗 ربط Telegram وSMS</a>
       <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}" data-ar="🚨 السجل والتنبيهات" data-en="🚨 Alerts Log">🚨 السجل والتنبيهات</a>
       <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}" data-ar="📍 معلومات المحطة" data-en="📍 Plant Info">📍 معلومات المحطة</a>
-      <a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>
-      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}" data-ar="👥 إدارة المستخدمين" data-en="👥 Users">👥 إدارة المستخدمين</a>{% endif %}
+      {% if g.is_admin or g.plan_features.get('can_view_diagnostics') %}<a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>{% endif %}
+      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}" data-ar="👥 إدارة المستخدمين" data-en="👥 Users">👥 إدارة المستخدمين</a><a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}" data-ar="📦 الخطط" data-en="📦 Plans">📦 الخطط</a><a class="{% if request.endpoint in ['main.admin_subscribers','main.admin_subscriber_activate'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}" data-ar="🧾 المشتركون" data-en="🧾 Subscribers">🧾 المشتركون</a>{% endif %}
       {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}" data-ar="🛠️ لوج النظام والخدمات" data-en="🛠️ System Logs">🛠️ لوج النظام والخدمات</a>{% endif %}
       {% if g.is_admin %}<a class="{% if request.endpoint == 'main.deye_settings' %}active{% endif %}" href="{{ url_for('main.deye_settings', lang=ui_lang) }}" data-ar="🔐 ربط Deye" data-en="🔐 Deye Setup">🔐 ربط Deye</a>{% endif %}
-      {% if g.is_admin %}<a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>{% endif %}
-    </nav>
+      {% if g.is_admin or g.plan_features.get('can_view_api_explorer') %}<a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>{% endif %}
+      <a class="{% if request.endpoint == 'main.account_subscription' %}active{% endif %}" href="{{ url_for('main.account_subscription', lang=ui_lang) }}" data-ar="💳 اشتراكي" data-en="💳 Subscription">💳 اشتراكي</a>
+</nav>
   </div>
 
   <div class="sidebar-footer">

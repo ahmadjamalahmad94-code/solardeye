@@ -30,6 +30,7 @@ class AppUser(db.Model):
     oauth_subject = db.Column(db.String(255), nullable=True)
     last_login_at = db.Column(db.DateTime, nullable=True)
     permissions_json = db.Column(db.Text, nullable=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
 
 
 class AppDevice(db.Model):
@@ -54,6 +55,56 @@ class AppDevice(db.Model):
     last_connected_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
+
+
+class SubscriptionPlan(db.Model):
+    __tablename__ = 'subscription_plan'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(120), nullable=False)
+    name_en = db.Column(db.String(120), nullable=False)
+    price = db.Column(db.Float, default=0.0)
+    currency = db.Column(db.String(10), default='USD')
+    duration_days_default = db.Column(db.Integer, default=30)
+    max_devices = db.Column(db.Integer, default=1)
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+    features_json = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TenantAccount(db.Model):
+    __tablename__ = 'tenant_account'
+
+    id = db.Column(db.Integer, primary_key=True)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    display_name = db.Column(db.String(150), nullable=False)
+    status = db.Column(db.String(30), default='trial', index=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('subscription_plan.id'), nullable=True, index=True)
+    max_devices_override = db.Column(db.Integer, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TenantSubscription(db.Model):
+    __tablename__ = 'tenant_subscription'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=False, index=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('subscription_plan.id'), nullable=False, index=True)
+    status = db.Column(db.String(30), default='trial', index=True)
+    activation_mode = db.Column(db.String(30), default='manual')
+    starts_at = db.Column(db.DateTime, nullable=True)
+    ends_at = db.Column(db.DateTime, nullable=True)
+    trial_ends_at = db.Column(db.DateTime, nullable=True)
+    activated_by_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

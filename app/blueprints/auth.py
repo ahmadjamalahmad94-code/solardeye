@@ -22,6 +22,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..models import AppDevice, AppUser
+from ..services.subscriptions import ensure_user_tenant_and_subscription, feature_enabled_for_user
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -316,6 +317,7 @@ def protect_routes():
     g.current_device = None
     g.is_admin = False
     g.permissions = {}
+    g.plan_features = {}
     if session.get('logged_in'):
         if session.get('user_id'):
             g.current_user = AppUser.query.filter_by(id=session.get('user_id'), is_active=True).first()
@@ -334,6 +336,13 @@ def protect_routes():
                 g.permissions = _json.loads(g.current_user.permissions_json or '{}')
             except Exception:
                 g.permissions = {}
+        if g.current_user is not None and not g.is_admin:
+            try:
+                ensure_user_tenant_and_subscription(g.current_user, activated_by_user_id=g.current_user.id)
+                for key in ('can_manage_devices','can_manage_integrations','can_use_telegram','can_use_sms','can_view_diagnostics','can_view_api_explorer'):
+                    g.plan_features[key] = feature_enabled_for_user(g.current_user, key)
+            except Exception:
+                g.plan_features = {}
 
     if not session.get('logged_in'):
         wants_json = (

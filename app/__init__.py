@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash
 from .config import Config
 from .extensions import db
 from .models import AppDevice, AppUser, Setting
+from .services.subscriptions import seed_default_plans
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ def create_app():
         db.create_all()
         _migrate_database()
         _ensure_default_settings()
+        seed_default_plans()
         default_user = _ensure_default_app_user(app)
         default_device = _ensure_default_app_device(app, default_user)
         if default_user.preferred_device_id != default_device.id:
@@ -78,6 +80,7 @@ def _migrate_database():
             'oauth_subject': 'VARCHAR(255)',
             'last_login_at': 'TIMESTAMP',
             'permissions_json': 'TEXT',
+            'tenant_id': 'INTEGER',
         },
         'app_device': {
             'owner_user_id': 'INTEGER',
@@ -99,6 +102,7 @@ def _migrate_database():
             'is_active': 'BOOLEAN DEFAULT TRUE',
             'created_at': 'TIMESTAMP',
             'updated_at': 'TIMESTAMP',
+            'tenant_id': 'INTEGER',
         },
         'reading': {
             'user_id': 'INTEGER',
@@ -173,10 +177,24 @@ def _migrate_database():
         },
     }
 
+
+    # create phase 1.A tables if missing
+    ddl_statements = [
+        """CREATE TABLE IF NOT EXISTS subscription_plan (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name_ar VARCHAR(120) NOT NULL, name_en VARCHAR(120) NOT NULL, price FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', duration_days_default INTEGER DEFAULT 30, max_devices INTEGER DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0, features_json TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS tenant_account (id INTEGER PRIMARY KEY, owner_user_id INTEGER, display_name VARCHAR(150) NOT NULL, status VARCHAR(30) DEFAULT 'trial', plan_id INTEGER, max_devices_override INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS tenant_subscription (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, plan_id INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'trial', activation_mode VARCHAR(30) DEFAULT 'manual', starts_at TIMESTAMP, ends_at TIMESTAMP, trial_ends_at TIMESTAMP, activated_by_user_id INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+    ]
+
     conn = db.engine.raw_connection()
     dialect = getattr(db.engine.dialect, 'name', '').lower()
     try:
         cursor = conn.cursor()
+
+        for ddl in ddl_statements:
+            try:
+                cursor.execute(ddl)
+            except Exception as exc:
+                logger.warning('Startup DDL skipped: %s', exc)
 
         def existing_columns(table_name: str):
             try:
@@ -408,6 +426,14 @@ def _backfill_foundation_ids(user_id, device_id):
         ('smart_snapshot', ['user_id', 'device_id']),
         ('smart_recommendation_log', ['user_id', 'device_id']),
     ]
+
+    # create phase 1.A tables if missing
+    ddl_statements = [
+        """CREATE TABLE IF NOT EXISTS subscription_plan (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name_ar VARCHAR(120) NOT NULL, name_en VARCHAR(120) NOT NULL, price FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', duration_days_default INTEGER DEFAULT 30, max_devices INTEGER DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0, features_json TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS tenant_account (id INTEGER PRIMARY KEY, owner_user_id INTEGER, display_name VARCHAR(150) NOT NULL, status VARCHAR(30) DEFAULT 'trial', plan_id INTEGER, max_devices_override INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS tenant_subscription (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, plan_id INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'trial', activation_mode VARCHAR(30) DEFAULT 'manual', starts_at TIMESTAMP, ends_at TIMESTAMP, trial_ends_at TIMESTAMP, activated_by_user_id INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+    ]
+
     conn = db.engine.raw_connection()
     try:
         cursor = conn.cursor()

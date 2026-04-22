@@ -21,7 +21,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription
 from ..services.deye_client import DeyeClient
 from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query
 from ..services.utils import (
@@ -29,6 +29,7 @@ from ..services.utils import (
     safe_power_w, to_json, utc_to_local,
 )
 from ..services.weather_service import fetch_weather
+from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
@@ -59,6 +60,28 @@ def _active_device():
 
 def _active_user():
     return get_current_user()
+
+
+def _require_subscription_guard():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    if is_system_admin():
+        return None
+    ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    if not user_has_active_subscription(user):
+        flash('اشتراكك منتهي أو غير مفعل. راجع صفحة الاشتراك.', 'warning')
+        return redirect(url_for('main.account_subscription', lang=_lang()))
+    return None
+
+
+def _plan_feature_enabled(feature_key: str) -> bool:
+    user = _active_user()
+    if user is None:
+        return False
+    if is_system_admin():
+        return True
+    return feature_enabled_for_user(user, feature_key)
 
 
 
@@ -357,6 +380,9 @@ def index():
 
 @main_bp.route('/dashboard')
 def dashboard():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
     from zoneinfo import ZoneInfo
@@ -541,6 +567,9 @@ def _get_stats_context(request_args, tz_name):
 
 @main_bp.route('/statistics')
 def statistics():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     tz_name = current_app.config['LOCAL_TIMEZONE']
     selected_view, selected_date, filtered_rows, title_hint, prev_date, next_date, can_go_next = _get_stats_context(request.args, tz_name)
     stats = compute_energy_stats(filtered_rows)
@@ -559,6 +588,9 @@ def statistics():
 
 @main_bp.route('/reports')
 def reports():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     tz_name = current_app.config['LOCAL_TIMEZONE']
     selected_view, selected_date, filtered_rows, title_hint, prev_date, next_date, can_go_next = _get_stats_context(request.args, tz_name)
     stats = compute_energy_stats(filtered_rows)
@@ -1032,6 +1064,9 @@ def sync_now():
 
 @main_bp.route('/diagnostics')
 def diagnostics():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     latest = _latest_reading()
     raw_data = {}
     raw_text = '{}'
@@ -1048,6 +1083,9 @@ def diagnostics():
 
 @main_bp.route('/live-data')
 def live_data():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
     latest = _latest_reading()
@@ -1318,6 +1356,9 @@ def _save_device_fields(device: AppDevice, owner_user_id: int):
 
 @main_bp.route('/devices/manage', methods=['GET', 'POST'])
 def devices_manage():
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
     user = _active_user()
     if user is None:
         flash('يجب تسجيل الدخول أولًا.', 'warning')
@@ -2146,3 +2187,116 @@ def not_found(e):
 @main_bp.errorhandler(500)
 def server_error(e):
     return render_template('error.html', code=500, message='حدث خطأ في الخادم'), 500
+
+
+@main_bp.route('/admin/plans')
+def admin_plans():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    return render_template('admin_plans_phase1a.html', plans=plans, ui_lang=_lang())
+
+
+@main_bp.route('/admin/plans/new', methods=['GET','POST'])
+def admin_plan_create():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plan = None
+    if request.method == 'POST':
+        plan = SubscriptionPlan(
+            code=request.form.get('code','').strip(),
+            name_ar=request.form.get('name_ar','').strip(),
+            name_en=request.form.get('name_en','').strip(),
+            price=float(request.form.get('price') or 0),
+            currency=request.form.get('currency','USD').strip() or 'USD',
+            duration_days_default=int(request.form.get('duration_days_default') or 30),
+            max_devices=int(request.form.get('max_devices') or 1),
+            is_active=request.form.get('is_active') == 'on',
+            sort_order=int(request.form.get('sort_order') or 0),
+            features_json=json.dumps({
+                'can_manage_devices': request.form.get('can_manage_devices') == 'on',
+                'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
+                'can_use_telegram': request.form.get('can_use_telegram') == 'on',
+                'can_use_sms': request.form.get('can_use_sms') == 'on',
+                'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
+                'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
+            }, ensure_ascii=False),
+        )
+        db.session.add(plan)
+        db.session.commit()
+        flash('تم إنشاء الخطة بنجاح', 'success')
+        return redirect(url_for('main.admin_plans', lang=_lang()))
+    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
+
+
+@main_bp.route('/admin/plans/<int:plan_id>/edit', methods=['GET','POST'])
+def admin_plan_edit(plan_id):
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plan = SubscriptionPlan.query.get_or_404(plan_id)
+    if request.method == 'POST':
+        plan.code=request.form.get('code','').strip()
+        plan.name_ar=request.form.get('name_ar','').strip()
+        plan.name_en=request.form.get('name_en','').strip()
+        plan.price=float(request.form.get('price') or 0)
+        plan.currency=request.form.get('currency','USD').strip() or 'USD'
+        plan.duration_days_default=int(request.form.get('duration_days_default') or 30)
+        plan.max_devices=int(request.form.get('max_devices') or 1)
+        plan.is_active=request.form.get('is_active') == 'on'
+        plan.sort_order=int(request.form.get('sort_order') or 0)
+        plan.features_json=json.dumps({
+            'can_manage_devices': request.form.get('can_manage_devices') == 'on',
+            'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
+            'can_use_telegram': request.form.get('can_use_telegram') == 'on',
+            'can_use_sms': request.form.get('can_use_sms') == 'on',
+            'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
+            'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
+        }, ensure_ascii=False)
+        db.session.commit()
+        flash('تم تحديث الخطة', 'success')
+        return redirect(url_for('main.admin_plans', lang=_lang()))
+    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
+
+
+@main_bp.route('/admin/subscribers')
+def admin_subscribers():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    rows=[]
+    users=AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).all()
+    for user in users:
+        tenant, sub = ensure_user_tenant_and_subscription(user)
+        rows.append({'user':user,'tenant':tenant,'subscription':sub,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
+    return render_template('admin_subscribers_phase1a.html', rows=rows, ui_lang=_lang())
+
+
+@main_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
+def admin_subscriber_activate(user_id):
+    admin_user = _active_user()
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    user = AppUser.query.get_or_404(user_id)
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=admin_user.id if admin_user else None)
+    plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc()).all()
+    if request.method == 'POST':
+        plan = SubscriptionPlan.query.get_or_404(int(request.form.get('plan_id')))
+        days = int(request.form.get('days') or plan.duration_days_default or 30)
+        activate_tenant_subscription(tenant, plan, days, activated_by_user_id=admin_user.id if admin_user else None, notes=request.form.get('notes','').strip())
+        flash('تم تفعيل اشتراك المشترك', 'success')
+        return redirect(url_for('main.admin_subscribers', lang=_lang()))
+    return render_template('admin_subscriber_activate_phase1a.html', user=user, tenant=tenant, subscription=sub, plans=plans, ui_lang=_lang())
+
+
+@main_bp.route('/account/subscription')
+def account_subscription():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
+    return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, ui_lang=_lang())
