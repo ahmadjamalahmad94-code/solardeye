@@ -3,6 +3,7 @@ import secrets
 import warnings
 from datetime import timedelta
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,7 +63,7 @@ class Config:
     DEYE_REGION = os.getenv('DEYE_REGION', 'EMEA')
     DEYE_PLANT_ID = os.getenv('DEYE_PLANT_ID', '')
     DEYE_DEVICE_SN = os.getenv('DEYE_DEVICE_SN', '')
-    DEYE_LOGGER_SN = os.getenv('DEYE_LOGGER_SN', '')  # Logger SN (e.g. 3434586752) — needed for device/originalData
+    DEYE_LOGGER_SN = os.getenv('DEYE_LOGGER_SN', '')
     DEYE_PLANT_NAME = os.getenv('DEYE_PLANT_NAME', '')
     DEYE_BATTERY_SN_MAIN = os.getenv('DEYE_BATTERY_SN_MAIN', '')
     DEYE_BATTERY_SN_MODULE = os.getenv('DEYE_BATTERY_SN_MODULE', '')
@@ -73,29 +74,29 @@ class Config:
     DEYE_STATION_LATEST_ENDPOINT = os.getenv('DEYE_STATION_LATEST_ENDPOINT', '/station/latest')
     DEYE_STATION_HISTORY_ENDPOINT = os.getenv('DEYE_STATION_HISTORY_ENDPOINT', '/station/history')
 
+    # ── OAuth / Social Login ─────────────────────────────────────────────────
+    GOOGLE_CLIENT_SECRET_FILE = os.getenv('GOOGLE_CLIENT_SECRET_FILE', '').strip()
+    if not GOOGLE_CLIENT_SECRET_FILE:
+        for _candidate in BASE_DIR.glob('client_secret_*.json'):
+            GOOGLE_CLIENT_SECRET_FILE = str(_candidate)
+            break
 
-# ── OAuth / Social Login ─────────────────────────────────────────────────────
-_google_client_file = os.getenv('GOOGLE_CLIENT_SECRET_FILE', '').strip()
-if not _google_client_file:
-    for _candidate in BASE_DIR.glob('client_secret_*.json'):
-        _google_client_file = str(_candidate)
-        break
+    _google_json = {}
+    if GOOGLE_CLIENT_SECRET_FILE:
+        try:
+            import json as _json
+            _google_json = _json.loads(Path(GOOGLE_CLIENT_SECRET_FILE).read_text(encoding='utf-8')).get('web', {})
+        except Exception:
+            _google_json = {}
 
-_google_json = {}
-if _google_client_file:
-    try:
-        import json as _json
-        _google_json = _json.loads(Path(_google_client_file).read_text(encoding='utf-8')).get('web', {})
-    except Exception:
-        _google_json = {}
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID') or _google_json.get('client_id', '')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET') or _google_json.get('client_secret', '')
+    GOOGLE_AUTH_URI = os.getenv('GOOGLE_AUTH_URI') or _google_json.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth')
+    GOOGLE_TOKEN_URI = os.getenv('GOOGLE_TOKEN_URI') or _google_json.get('token_uri', 'https://oauth2.googleapis.com/token')
+    _redirect_uris = _google_json.get('redirect_uris') or []
+    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI') or (_redirect_uris[1] if len(_redirect_uris) > 1 else (_redirect_uris[0] if _redirect_uris else ''))
+    GOOGLE_USERINFO_URI = os.getenv('GOOGLE_USERINFO_URI', 'https://openidconnect.googleapis.com/v1/userinfo')
 
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID') or _google_json.get('client_id', '')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET') or _google_json.get('client_secret', '')
-GOOGLE_AUTH_URI = os.getenv('GOOGLE_AUTH_URI') or _google_json.get('auth_uri', 'https://accounts.google.com/o/oauth2/auth')
-GOOGLE_TOKEN_URI = os.getenv('GOOGLE_TOKEN_URI') or _google_json.get('token_uri', 'https://oauth2.googleapis.com/token')
-GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI') or ((_google_json.get('redirect_uris') or [''])[1] if len(_google_json.get('redirect_uris') or []) > 1 else (_google_json.get('redirect_uris') or [''])[0])
-GOOGLE_USERINFO_URI = os.getenv('GOOGLE_USERINFO_URI', 'https://openidconnect.googleapis.com/v1/userinfo')
-
-FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', '')
-FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', '')
-FACEBOOK_REDIRECT_URI = os.getenv('FACEBOOK_REDIRECT_URI', '')
+    FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', '')
+    FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', '')
+    FACEBOOK_REDIRECT_URI = os.getenv('FACEBOOK_REDIRECT_URI', '')
