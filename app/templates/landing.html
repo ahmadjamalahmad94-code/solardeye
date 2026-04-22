@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="landing-shell">
+  <header class="landing-header">
+    <a class="landing-brand" href="{{ url_for('main.index', lang=ui_lang) }}">
+      <span class="brand-mark solar">☀️</span>
+      <div>
+        <strong>SolarDeye</strong>
+        <small>منصة ذكية لإدارة الطاقة الشمسية</small>
+      </div>
+    </a>
+    <nav class="landing-nav">
+      <a href="#features">المميزات</a>
+      <a href="#pricing">الأسعار</a>
+      <a href="#contact">الخدمات</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+      <a class="btn btn-solar" href="{{ url_for('auth.register') }}">ابدأ الآن</a>
+    </nav>
+  </header>
+
+  <main class="landing-main">
+    <section class="hero-landing">
+      <div class="hero-copy">
+        <span class="hero-chip">⚡ منصة طاقة ذكية • Multi-user • Multi-device</span>
+        <h1>راقب نظامك الشمسي بواجهة احترافية، تنبيهات ذكية، وأرشيف يَتعلّم من بياناتك.</h1>
+        <p>منصة حديثة لمتابعة الإنتاج، البطارية، الأحمال، الشبكة، والتوقعات الذكية — مع جاهزية للتوسّع للأجهزة المختلفة والحسابات المتعددة.</p>
+        <div class="hero-actions">
+          <a class="btn btn-solar btn-lg" href="{{ url_for('auth.register') }}">إنشاء حساب</a>
+          <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+        </div>
+        <div class="hero-mini-stats">
+          <div><strong>24/7</strong><span>مراقبة لحظية</span></div>
+          <div><strong>Smart</strong><span>اقتراحات مبنية على الأرشيف</span></div>
+          <div><strong>Multi</strong><span>مستخدمون وأجهزة متعددة</span></div>
+        </div>
+      </div>
+      <div class="hero-preview">
+        <div class="preview-card preview-primary">
+          <small>الوضع الحالي</small>
+          <strong>وضع آمن</strong>
+          <span>قراءة لحظية + تحليل ذكي + هامش شحن</span>
+        </div>
+        <div class="preview-grid">
+          <div class="preview-card cyan"><small>الناتج الشمسي</small><strong>3.4 kW</strong><span>مباشر من الجهاز</span></div>
+          <div class="preview-card gold"><small>الفائض المتاح</small><strong>620 W</strong><span>قبل تشغيل الأحمال</span></div>
+          <div class="preview-card navy"><small>البطارية</small><strong>78%</strong><span>جاهزة للمساء</span></div>
+          <div class="preview-card soft"><small>الإشعارات</small><strong>Live</strong><span>Telegram / SMS / Logs</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="landing-section">
+      <div class="section-title"><span>المميزات</span><h2>كل ما تحتاجه لإدارة منصة طاقة حديثة</h2></div>
+      <div class="feature-grid">
+        <article class="feature-card"><div class="feature-icon">📡</div><h3>مراقبة لحظية</h3><p>قراءة مستمرة لإنتاج الشمس، سحب المنزل، حالة البطارية، والتغذية من الشبكة.</p></article>
+        <article class="feature-card"><div class="feature-icon">🧠</div><h3>توقعات ذكية</h3><p>اقتراحات مبنية على الأرشيف والطقس والأنماط التاريخية لتحسين القرار القادم.</p></article>
+        <article class="feature-card"><div class="feature-icon">🔔</div><h3>إشعارات متعددة</h3><p>تنبيهات عبر Telegram وSMS وسجل أحداث واضح لمتابعة كل شيء من مكان واحد.</p></article>
+        <article class="feature-card"><div class="feature-icon">👥</div><h3>متعدد المستخدمين</h3><p>نظام حسابات وصلاحيات وإدارة أجهزة لكل مستخدم بشكل منظم وقابل للتوسع.</p></article>
+        <article class="feature-card"><div class="feature-icon">🔌</div><h3>جاهز لأنواع أجهزة مختلفة</h3><p>بنية adapter-ready بحيث لا تبقى المنصة محصورة بجهاز واحد أو مزود واحد.</p></article>
+        <article class="feature-card"><div class="feature-icon">📱</div><h3>موبايل أولًا</h3><p>واجهة responsive حديثة تتيح لك المتابعة من الهاتف أو الحاسوب بسهولة.</p></article>
+      </div>
+    </section>
+
+    <section class="landing-section how-it-works">
+      <div class="section-title"><span>كيف تعمل؟</span><h2>من التسجيل إلى المراقبة خلال دقائق</h2></div>
+      <div class="steps-grid">
+        <div class="step-card"><span>1</span><h3>أنشئ حسابك</h3><p>سجّل بالبريد أو عبر Google وابدأ فورًا.</p></div>
+        <div class="step-card"><span>2</span><h3>أضف جهازك</h3><p>اربط بيانات Deye أو جهازك الحالي من المعالج الأولي.</p></div>
+        <div class="step-card"><span>3</span><h3>فعّل الإشعارات</h3><p>اختر كيف تريد أن تصل لك التنبيهات المهمة.</p></div>
+        <div class="step-card"><span>4</span><h3>اتخذ قرارات أذكى</h3><p>راقب الأداء والفائض والتوصيات الذكية يومًا بعد يوم.</p></div>
+      </div>
+    </section>
+
+    <section id="pricing" class="landing-section pricing-section">
+      <div class="section-title"><span>الأسعار</span><h2>باقات مرنة حسب حجم الاستخدام</h2></div>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <small>Starter</small>
+          <h3>مجاني</h3>
+          <p>للتجربة والبداية مع جهاز واحد.</p>
+          <ul><li>حساب واحد</li><li>جهاز واحد</li><li>مراقبة أساسية</li><li>إشعارات أساسية</li></ul>
+          <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.register') }}">ابدأ مجانًا</a>
+        </div>
+        <div class="price-card featured">
+          <span class="badge-featured">الأكثر طلبًا</span>
+          <small>Pro</small>
+          <h3>$9<span>/شهريًا</span></h3>
+          <p>للأفراد والأنظمة المتقدمة.</p>
+          <ul><li>أجهزة متعددة</li><li>أرشيف وتحليلات</li><li>إشعارات متقدمة</li><li>دعم أولي</li></ul>
+          <a class="btn btn-solar w-100" href="{{ url_for('auth.register') }}">جرّب Pro</a>
+        </div>
+        <div class="price-card">
+          <small>Business</small>
+          <h3>مخصص</h3>
+          <p>للشركات ومدراء المواقع المتعددة.</p>
+          <ul><li>Multi-user</li><li>صلاحيات متقدمة</li><li>تقارير مخصصة</li><li>دعم أعلى</li></ul>
+          <a class="btn btn-outline-primary w-100" href="#contact">اطلب عرض سعر</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="landing-section services-section">
+      <div class="section-title"><span>الخدمات المدفوعة</span><h2>نساعدك في الإطلاق والربط والتخصيص</h2></div>
+      <div class="services-grid">
+        <div class="service-bullet">⚙️ ربط احترافي مع Deye والأجهزة المتوافقة</div>
+        <div class="service-bullet">🧩 تخصيص الواجهة والباقات حسب مشروعك</div>
+        <div class="service-bullet">📨 إعداد Telegram / SMS والسيناريوهات الذكية</div>
+        <div class="service-bullet">🏢 دعم أنظمة متعددة المواقع والمستخدمين</div>
+      </div>
+      <div class="cta-band">
+        <div>
+          <h3>جاهز تنطلق بمنصة طاقة حديثة؟</h3>
+          <p>ابدأ مجانًا اليوم، أو تواصل معنا إذا كنت تريد باقة مخصصة أو إعدادًا احترافيًا.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="btn btn-solar" href="{{ url_for('auth.register') }}">إنشاء حساب</a>
+          <a class="btn btn-outline-primary" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

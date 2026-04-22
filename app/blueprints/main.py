@@ -350,7 +350,9 @@ def _smart_load_suggestions(latest, settings=None):
 
 @main_bp.route('/')
 def index():
-    return redirect(url_for('main.dashboard'))
+    if session.get('logged_in'):
+        return redirect(url_for('main.dashboard', lang=_lang()))
+    return render_template('landing.html', ui_lang=_lang())
 
 
 @main_bp.route('/dashboard')
@@ -1241,6 +1243,59 @@ def select_device(device_id: int):
     return redirect(request.referrer or url_for('main.dashboard', lang=_lang()))
 
 
+
+
+def _safe_json_loads(raw_value):
+    if not raw_value:
+        return {}
+    try:
+        value = json.loads(raw_value)
+        return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
+def _device_payload(device: AppDevice | None):
+    if device is None:
+        return {}, {}
+    creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    settings = _safe_json_loads(getattr(device, 'settings_json', None))
+
+    normalized_creds = {
+        'deye_email': creds.get('deye_email') or creds.get('email') or '',
+        'deye_password': creds.get('deye_password') or creds.get('password') or '',
+        'deye_app_id': creds.get('deye_app_id') or creds.get('app_id') or '',
+        'deye_app_secret': creds.get('deye_app_secret') or creds.get('app_secret') or '',
+    }
+    normalized_settings = {
+        'deye_region': settings.get('deye_region') or settings.get('region') or 'EMEA',
+        'api_base_url': settings.get('api_base_url') or getattr(device, 'api_base_url', '') or '',
+    }
+    return normalized_creds, normalized_settings
+
+
+def _save_device_credentials(device: AppDevice, form_data=None):
+    form_data = form_data or request.form
+    existing_creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    existing_settings = _safe_json_loads(getattr(device, 'settings_json', None))
+
+    creds = {
+        **existing_creds,
+        'deye_email': (form_data.get('deye_email', '') or '').strip(),
+        'deye_password': (form_data.get('deye_password', '') or '').strip(),
+        'deye_app_id': (form_data.get('deye_app_id', '') or '').strip(),
+        'deye_app_secret': (form_data.get('deye_app_secret', '') or '').strip(),
+    }
+    settings = {
+        **existing_settings,
+        'deye_region': (form_data.get('deye_region', 'EMEA') or 'EMEA').strip(),
+        'api_base_url': (form_data.get('api_base_url', '') or '').strip(),
+    }
+
+    device.credentials_json = json.dumps(creds, ensure_ascii=False)
+    device.settings_json = json.dumps(settings, ensure_ascii=False)
+    if settings.get('api_base_url'):
+        device.api_base_url = settings.get('api_base_url')
 
 
 def _save_device_fields(device: AppDevice, owner_user_id: int):

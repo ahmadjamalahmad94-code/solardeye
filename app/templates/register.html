@@ -4,6 +4,7 @@
   <div class="login-card register-card">
     <div class="brand-mark">✨</div>
     <h1>إنشاء حساب جديد</h1>
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><a class="home-link" href="{{ url_for('main.index', lang=ui_lang) }}">← العودة للرئيسية</a></div>
     <p class="subtext">ابدأ مع منصة الطاقة خلال دقائق، ويمكنك إكمال الإعدادات لاحقًا عبر معالج البداية.</p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
