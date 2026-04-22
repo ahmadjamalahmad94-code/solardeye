@@ -37,6 +37,37 @@
   </div>
 </header>
 
+    <section class="dashboard-showcase reveal-on-scroll">
+      <div class="showcase-copy">
+        <span class="eyebrow">SolarDeye Intelligence</span>
+        <h2>تحكم أهدأ، أوضح، وأسرع في قراءة حالة الطاقة</h2>
+        <p>لوحة داخلية محسّنة بتجربة أقرب إلى منتجات SaaS الحديثة، مع إبراز اللحظة الحالية، وضع الشبكة، وسيناريو الطاقة القادم.</p>
+        <div class="showcase-chips">
+          <span>⚡ لحظي</span>
+          <span>🧠 ذكي</span>
+          <span>📱 متجاوب</span>
+        </div>
+      </div>
+      <div class="showcase-visual">
+        <div class="showcase-orb orb-a"></div>
+        <div class="showcase-orb orb-b"></div>
+        <div class="showcase-panel glass-card">
+          <div class="mini-meter">
+            <small>Solar Input</small>
+            <strong>{{ format_power(latest.solar_power) if latest else '0.0' }}W</strong>
+          </div>
+          <div class="mini-meter">
+            <small>Battery SOC</small>
+            <strong>{{ (latest.battery_soc or 0)|int if latest else 0 }}%</strong>
+          </div>
+          <div class="mini-meter">
+            <small>Home Load</small>
+            <strong>{{ format_power(latest.home_load) if latest else '0.0' }}W</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
 
 
 <style>
@@ -68,7 +99,7 @@
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
 
-    <section class="top-scroll-cards top-kpis-row">
+    <section class="top-scroll-cards top-kpis-row reveal-on-scroll">
       <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
         <span>الحالة العامة</span>
         <strong id="system-status-title">{{ system_status.title }}</strong>
@@ -96,7 +127,7 @@
       </div>
     </section>
 
-    <section class="panel-card mt-4 overview-shell">
+    <section class="panel-card mt-4 overview-shell reveal-on-scroll">
       <div class="overview-side two-column-side">
         <div class="side-stat-card">
           <span>حالة البطارية</span>
@@ -245,7 +276,7 @@
     </section>
     {% endif %}
 
-<section class="panel-card mt-4 smart-archive-panel">
+<section class="panel-card mt-4 smart-archive-panel reveal-on-scroll">
   {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
   <div class="section-head">
     <div>
