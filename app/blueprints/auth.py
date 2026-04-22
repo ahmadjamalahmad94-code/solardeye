@@ -321,14 +321,23 @@ def protect_routes():
     if session.get('logged_in'):
         if session.get('user_id'):
             g.current_user = AppUser.query.filter_by(id=session.get('user_id'), is_active=True).first()
-        if session.get('current_device_id'):
-            g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
         if g.current_user is None and session.get('username'):
             g.current_user = AppUser.query.filter_by(username=session.get('username'), is_active=True).first()
+        if session.get('current_device_id') and g.current_user is not None:
+            if bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin'):
+                g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
+            else:
+                g.current_device = AppDevice.query.filter_by(
+                    id=session.get('current_device_id'),
+                    owner_user_id=g.current_user.id,
+                    is_active=True,
+                ).first()
         if g.current_device is None and g.current_user is not None:
             g.current_device = AppDevice.query.filter_by(owner_user_id=g.current_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
             if g.current_device:
                 session['current_device_id'] = g.current_device.id
+            elif not bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin'):
+                session.pop('current_device_id', None)
         g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin')
         if g.current_user and getattr(g.current_user, 'permissions_json', None):
             try:

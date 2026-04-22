@@ -70,11 +70,20 @@ def get_current_device():
         device = getattr(g, 'current_device', None)
         if device is not None:
             return device
-        device_id = session.get('current_device_id')
-        if device_id:
-            found = AppDevice.query.filter_by(id=device_id, is_active=True).first()
-            if found:
-                return found
+
+        user = get_current_user()
+        if user is not None:
+            is_admin = bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin')
+            device_id = session.get('current_device_id')
+            if device_id:
+                if is_admin:
+                    found = AppDevice.query.filter_by(id=device_id, is_active=True).first()
+                else:
+                    found = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id, is_active=True).first()
+                if found:
+                    return found
+            if not is_admin:
+                return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
 
     system_device_id = _system_device_id.get()
     if system_device_id:
@@ -83,6 +92,9 @@ def get_current_device():
             return found
 
     user = get_current_user()
+    if user is not None and not bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
+        return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+
     return get_default_system_device(user)
 
 
