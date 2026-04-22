@@ -821,7 +821,11 @@ body[data-dir='ltr'] { direction: ltr; }
   --navy-soft: #0c1730;
   --shadow: 0 18px 45px rgba(2, 8, 23, 0.45);
 }
-.theme-glow body, body.theme-minimal, body.theme-saas, 
+.theme-glow body, body.theme-glow { background: radial-gradient(circle at top, #0f213f 0%, #07111f 62%, #040a13 100%); }
+body.theme-minimal, body.theme-saas, body.theme-glow { background-color: var(--bg); color: var(--text); }
+body.theme-glow .hero-card, body.theme-glow .stat-card, body.theme-glow .panel-card, body.theme-glow .flow-card, body.theme-glow .side-stat-card, body.theme-glow .flow-box, body.theme-glow .live-kpi-card, body.theme-glow .meta-pill, body.theme-glow .load-item-card, body.theme-glow .smart-summary-card, body.theme-glow .smart-list-card { background: var(--card); color: var(--text); border-color: var(--border); }
+body.theme-glow .sidebar-toggle, body.theme-glow .btn-outline-primary, body.theme-glow .lang-btn { background: rgba(15, 23, 42, 0.9); color: #fff; border-color: rgba(148,163,184,.24); }
+
 .floating-ui-panel {
   position: fixed;
   top: 14px;
@@ -1370,56 +1374,3 @@ body.saas-only .content-area {
 @media (max-width: 1100px){.hero-landing,.devices-manage-grid,.pricing-grid,.feature-grid{grid-template-columns:1fr 1fr}.wizard-note-grid{grid-template-columns:1fr 1fr}}
 @media (max-width: 900px){.landing-header{padding:16px 18px}.landing-nav{width:100%;justify-content:flex-start;overflow:auto;white-space:nowrap;padding-bottom:4px}.landing-main{padding:18px}.hero-landing,.feature-grid,.steps-grid,.pricing-grid,.services-grid,.devices-manage-grid,.wizard-note-grid,.hero-mini-stats,.preview-grid{grid-template-columns:1fr}.cta-band,.wizard-head,.device-manage-card{flex-direction:column;align-items:stretch}.wizard-steps{grid-template-columns:1fr 1fr}.content-area{padding:18px}.topbar h1{font-size:1.55rem}.sidebar{display:flex;position:sticky;top:0;height:auto;overflow:auto}.app-shell,.app-shell.sidebar-collapsed{grid-template-columns:1fr}.nav-menu{flex-direction:row;overflow:auto}.nav-menu a{white-space:nowrap}.app-shell.sidebar-collapsed .nav-menu a{display:block}.app-shell.sidebar-collapsed .brand-row h4,.app-shell.sidebar-collapsed .brand-row small{display:block}}
 @media (max-width: 560px){.login-card,.wizard-card,.panel-card{padding:18px;border-radius:22px}.brand-mark{width:60px;height:60px}.hero-copy h1{font-size:2rem}.wizard-steps{grid-template-columns:1fr}.hero-actions .btn,.landing-nav .btn{width:100%}}
-
-
-/* ===== Phase UI-2 dashboard enhancement ===== */
-:root{
-  --accent-gold:#f7b500;
-  --accent-cyan:#4cc9f0;
-  --accent-indigo:#5b7cff;
-}
-body.dashboard-enhanced{
-  transition:background-color .25s ease,color .25s ease;
-}
-.content-area{
-  position:relative;
-}
-.dashboard-topbar.clean-header{
-  position:sticky;
-  top:0;
-  z-index:20;
-  backdrop-filter: blur(14px);
-  background: color-mix(in srgb, var(--bg) 84%, transparent);
-  border:1px solid var(--border);
-  border-radius:28px;
-  padding:20px 22px;
-  box-shadow:0 16px 36px rgba(15,23,42,.08);
-}
-.header-title-block h1{
-  letter-spacing:-.03em;
-}
-
-@media (max-width: 1100px){
-  .dashboard-showcase{grid-template-columns:1fr;}
-  .showcase-panel.glass-card{position:relative;inset:auto;grid-template-columns:repeat(3,1fr)}
-}
-@media (max-width: 900px){
-  .dashboard-topbar.clean-header{position:relative;padding:18px;}
-  .dashboard-showcase{padding:20px;border-radius:24px;}
-  .showcase-panel.glass-card{grid-template-columns:1fr;}
-  .header-meta-actions{gap:12px;}
-}
-@media (max-width: 640px){
-  .dashboard-showcase h2{font-size:1.5rem;}
-  .dashboard-showcase{margin-top:16px;padding:18px;}
-  .top-kpis-row{gap:12px;}
-  .top-kpis-row .hero-card strong{font-size:1.4rem;}
-  .dashboard-topbar.clean-header{border-radius:22px;}
-  .meta-pill{padding:10px 12px;}
-}
-
-
-/* Phase 3.2.2: force single SaaS theme */
-.theme-switcher,.sidebar-theme-box{display:none !important;}
-body.saas-only{background:var(--bg);color:var(--text);}
-@media (max-width:900px){.dashboard-topbar.clean-header{position:relative;padding:18px;}}

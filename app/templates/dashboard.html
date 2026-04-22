@@ -38,6 +38,7 @@
 </header>
 
 
+
 <style>
 .smart-archive-panel{padding:22px;border-radius:28px;background:#f9fbff;border:1px solid #dde5f4}
 .smart-archive-title{font-size:2.2rem;font-weight:800;line-height:1.1;color:#17233f;margin:0 0 18px}
@@ -67,7 +68,7 @@
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
 
-    <section class="top-scroll-cards top-kpis-row reveal-on-scroll">
+    <section class="top-scroll-cards top-kpis-row">
       <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
         <span>الحالة العامة</span>
         <strong id="system-status-title">{{ system_status.title }}</strong>
@@ -95,7 +96,7 @@
       </div>
     </section>
 
-    <section class="panel-card mt-4 overview-shell reveal-on-scroll">
+    <section class="panel-card mt-4 overview-shell">
       <div class="overview-side two-column-side">
         <div class="side-stat-card">
           <span>حالة البطارية</span>
@@ -244,7 +245,7 @@
     </section>
     {% endif %}
 
-<section class="panel-card mt-4 smart-archive-panel reveal-on-scroll">
+<section class="panel-card mt-4 smart-archive-panel">
   {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
   <div class="section-head">
     <div>
