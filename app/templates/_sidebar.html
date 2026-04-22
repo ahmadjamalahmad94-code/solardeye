@@ -13,14 +13,6 @@
         <a class="sidebar-lang-btn compact {% if (ui_lang or 'ar') == 'en' %}active{% endif %}" href="{{ request.path }}?lang=en">English</a>
       </div>
     </div>
-<div class="sidebar-theme-box">
-      <div class="sidebar-theme-head">المظهر</div>
-      <div class="theme-switcher theme-switcher-sidebar" role="group" aria-label="Theme switcher">
-        <button class="theme-btn active" type="button" data-theme-value="theme-saas">SaaS</button>
-        <button class="theme-btn" type="button" data-theme-value="theme-glow">Dark</button>
-        <button class="theme-btn" type="button" data-theme-value="theme-minimal">Soft</button>
-      </div>
-    </div>
 <nav class="nav-menu mt-4">
       <a class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard', lang=ui_lang) }}" data-ar="🏠 النظرة العامة" data-en="🏠 Overview">🏠 النظرة العامة</a>
       <a class="{% if request.endpoint == 'main.statistics' %}active{% endif %}" href="{{ url_for('main.statistics', lang=ui_lang) }}" data-ar="📊 الإحصائيات" data-en="📊 Statistics">📊 الإحصائيات</a>

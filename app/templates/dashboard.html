@@ -37,38 +37,6 @@
   </div>
 </header>
 
-    <section class="dashboard-showcase reveal-on-scroll">
-      <div class="showcase-copy">
-        <span class="eyebrow">SolarDeye Intelligence</span>
-        <h2>تحكم أهدأ، أوضح، وأسرع في قراءة حالة الطاقة</h2>
-        <p>لوحة داخلية محسّنة بتجربة أقرب إلى منتجات SaaS الحديثة، مع إبراز اللحظة الحالية، وضع الشبكة، وسيناريو الطاقة القادم.</p>
-        <div class="showcase-chips">
-          <span>⚡ لحظي</span>
-          <span>🧠 ذكي</span>
-          <span>📱 متجاوب</span>
-        </div>
-      </div>
-      <div class="showcase-visual">
-        <div class="showcase-orb orb-a"></div>
-        <div class="showcase-orb orb-b"></div>
-        <div class="showcase-panel glass-card">
-          <div class="mini-meter">
-            <small>Solar Input</small>
-            <strong>{{ format_power(latest.solar_power) if latest else '0.0' }}W</strong>
-          </div>
-          <div class="mini-meter">
-            <small>Battery SOC</small>
-            <strong>{{ (latest.battery_soc or 0)|int if latest else 0 }}%</strong>
-          </div>
-          <div class="mini-meter">
-            <small>Home Load</small>
-            <strong>{{ format_power(latest.home_load) if latest else '0.0' }}W</strong>
-          </div>
-        </div>
-      </div>
-    </section>
-
-
 
 <style>
 .smart-archive-panel{padding:22px;border-radius:28px;background:#f9fbff;border:1px solid #dde5f4}
