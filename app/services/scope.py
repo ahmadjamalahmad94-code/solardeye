@@ -45,6 +45,16 @@ def get_default_system_device(user: AppUser | None = None):
     return AppDevice.query.filter_by(is_active=True).order_by(AppDevice.id.asc()).first()
 
 
+def is_admin_scope() -> bool:
+    if has_request_context():
+        path = (request.path or '').lower()
+        if path.startswith('/admin'):
+            return True
+        if bool(session.get('is_admin_scope', False)):
+            return True
+    return False
+
+
 def get_current_user():
     if has_request_context():
         user = getattr(g, 'current_user', None)
