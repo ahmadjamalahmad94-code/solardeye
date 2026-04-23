@@ -313,3 +313,21 @@ const baseOptions = {
     });
   }
 });
+
+
+document.addEventListener('mousemove', (event) => {
+  const x = `${(event.clientX / window.innerWidth) * 100}%`;
+  const y = `${(event.clientY / window.innerHeight) * 100}%`;
+  document.documentElement.style.setProperty('--mx', x);
+  document.documentElement.style.setProperty('--my', y);
+});
+
+document.querySelectorAll('[data-hover-card]').forEach((card) => {
+  card.addEventListener('pointermove', (event) => {
+    const rect = card.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    card.style.setProperty('--cx', `${x}%`);
+    card.style.setProperty('--cy', `${y}%`);
+  });
+});
