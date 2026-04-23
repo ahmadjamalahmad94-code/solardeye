@@ -240,3 +240,76 @@ class ServiceHeartbeat(db.Model):
     details_json = db.Column(db.Text, nullable=True)
     last_seen_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DeviceType(db.Model):
+    __tablename__ = 'device_type'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    provider = db.Column(db.String(120), nullable=False, default='custom')
+    auth_mode = db.Column(db.String(50), nullable=False, default='api_key')
+    base_url = db.Column(db.String(255), nullable=True)
+    healthcheck_endpoint = db.Column(db.String(255), nullable=True)
+    sync_endpoint = db.Column(db.String(255), nullable=True)
+    required_fields_json = db.Column(db.Text, nullable=True)
+    mapping_schema_json = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class InternalMailThread(db.Model):
+    __tablename__ = 'internal_mail_thread'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    assigned_admin_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    subject = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(50), nullable=False, default='general')
+    priority = db.Column(db.String(30), nullable=False, default='normal')
+    status = db.Column(db.String(30), nullable=False, default='open', index=True)
+    last_reply_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class InternalMailMessage(db.Model):
+    __tablename__ = 'internal_mail_message'
+
+    id = db.Column(db.Integer, primary_key=True)
+    thread_id = db.Column(db.Integer, db.ForeignKey('internal_mail_thread.id'), nullable=False, index=True)
+    sender_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    sender_scope = db.Column(db.String(20), nullable=False, default='user')
+    is_internal_note = db.Column(db.Boolean, default=False, nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class WalletLedger(db.Model):
+    __tablename__ = 'wallet_ledger'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=False, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    entry_type = db.Column(db.String(30), nullable=False, default='credit')
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    currency = db.Column(db.String(10), nullable=False, default='USD')
+    note = db.Column(db.Text, nullable=True)
+    reference = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class AdminActivityLog(db.Model):
+    __tablename__ = 'admin_activity_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    action = db.Column(db.String(120), nullable=False, index=True)
+    target_type = db.Column(db.String(80), nullable=True)
+    target_id = db.Column(db.Integer, nullable=True, index=True)
+    summary = db.Column(db.String(255), nullable=False)
+    details_json = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)

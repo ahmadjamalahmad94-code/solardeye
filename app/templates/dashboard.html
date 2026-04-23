@@ -86,7 +86,6 @@
       </div>
     {% endif %}
 
-    {% if active_device and device_ready and latest %}
     <section class="top-scroll-cards top-kpis-row">
       <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
         <span>الحالة العامة</span>
@@ -431,7 +430,6 @@
         {% for log in logs %}<div class="log-item {{ log.level }}"><div><strong>{{ log.message }}</strong><div class="small text-muted">{{ format_local(log.created_at) }}</div></div></div>{% else %}<div class="empty-state">لا توجد سجلات بعد.</div>{% endfor %}
       </div>
     </section>
-    {% endif %}
   </main>
 </div>
 {% endblock %}

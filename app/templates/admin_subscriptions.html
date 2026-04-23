@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
+  <header class="admin-page-head"><div><span class="eyebrow">{{ 'Subscriptions' if is_en else 'الاشتراكات' }}</span><h1>{{ 'Subscription lifecycle' if is_en else 'دورة حياة الاشتراكات' }}</h1><p>{{ 'Track plans, trials, expirations, and manual activations.' if is_en else 'تابع الخطط والتجارب والانتهاء والتفعيل اليدوي.' }}</p></div></header>
+  <section class="admin-kpi-grid-v2">
+    <article class="admin-kpi-card"><small>{{ 'Subscribers' if is_en else 'المشتركون' }}</small><strong>{{ summary.users }}</strong><span>{{ 'All tenant users' if is_en else 'كل مستخدمي المشتركين' }}</span></article>
+    <article class="admin-kpi-card"><small>{{ 'Active' if is_en else 'النشطون' }}</small><strong>{{ summary.active_users }}</strong><span>{{ 'Active customer accounts' if is_en else 'حسابات العملاء النشطة' }}</span></article>
+    <article class="admin-kpi-card"><small>{{ 'Trials' if is_en else 'التجارب' }}</small><strong>{{ summary.trials }}</strong><span>{{ 'Trial subscriptions' if is_en else 'اشتراكات تجريبية' }}</span></article>
+    <article class="admin-kpi-card"><small>{{ 'Open inbox' if is_en else 'الرسائل المفتوحة' }}</small><strong>{{ summary.open_threads }}</strong><span>{{ 'Support conversations' if is_en else 'محادثات الدعم' }}</span></article>
+  </section>
+  <section class="admin-card-v2"><div class="section-heading-inline"><div><small>{{ 'Subscriptions table' if is_en else 'جدول الاشتراكات' }}</small><h3>{{ 'Plans, tenants, and expiration states' if is_en else 'الخطط والمشتركون وحالات الانتهاء' }}</h3></div></div>
+    <div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Tenant' if is_en else 'المشترك' }}</th><th>{{ 'Plan' if is_en else 'الخطة' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Start' if is_en else 'البداية' }}</th><th>{{ 'End' if is_en else 'الانتهاء' }}</th><th>{{ 'Mode' if is_en else 'النمط' }}</th></tr></thead><tbody>
+      {% for row in rows %}<tr><td><strong>{{ row.tenant.display_name if row.tenant else '-' }}</strong><div class="table-sub">{{ row.owner.email if row.owner and row.owner.email else (row.owner.username if row.owner else '-') }}</div></td><td>{{ row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-') }}</td><td><span class="status-pill {% if row.subscription.status in ['active','trial'] %}success{% elif row.subscription.status in ['paused','warning'] %}warning{% else %}danger{% endif %}">{{ row.subscription.status }}</span></td><td>{{ row.subscription.starts_at or '-' }}</td><td>{{ row.subscription.ends_at or row.subscription.trial_ends_at or '-' }}</td><td>{{ row.subscription.activation_mode }}</td></tr>{% else %}<tr><td colspan="6">{{ 'No subscriptions yet.' if is_en else 'لا توجد اشتراكات بعد.' }}</td></tr>{% endfor %}
+    </tbody></table></div></section>
+</main></div>
+{% endblock %}

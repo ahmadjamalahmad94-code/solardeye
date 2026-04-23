@@ -21,7 +21,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, WalletLedger, AdminActivityLog
 from ..services.deye_client import DeyeClient
 from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query, is_admin_scope
 from ..services.utils import (
@@ -154,6 +154,34 @@ def _device_collection():
         return AppDevice.query.filter_by(is_active=True).order_by(AppDevice.id.asc()).all()
     return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
 
+
+
+
+def _admin_write_log(action: str, summary: str, target_type: str | None = None, target_id: int | None = None, details: dict | None = None):
+    actor = _active_user()
+    row = AdminActivityLog(
+        actor_user_id=getattr(actor, 'id', None),
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        summary=summary,
+        details_json=json.dumps(details or {}, ensure_ascii=False),
+    )
+    db.session.add(row)
+    db.session.commit()
+
+
+def _admin_counts_snapshot():
+    users = AppUser.query.filter_by(is_admin=False).count()
+    active_users = AppUser.query.filter_by(is_admin=False, is_active=True).count()
+    trials = TenantSubscription.query.filter_by(status='trial').count()
+    expiring = TenantSubscription.query.filter(TenantSubscription.ends_at.isnot(None)).count()
+    open_threads = InternalMailThread.query.filter(InternalMailThread.status.in_(['open','pending'])).count()
+    finance_rows = WalletLedger.query.count()
+    return {
+        'users': users, 'active_users': active_users, 'trials': trials, 'expiring': expiring,
+        'open_threads': open_threads, 'finance_rows': finance_rows,
+    }
 
 def _service_health_snapshot(settings):
     from datetime import timedelta
@@ -1952,23 +1980,12 @@ def _telegram_delete_webhook(settings: dict):
         return False, str(exc)
 
 
-def _channel_setting_storage_key(key: str) -> str:
-    user = get_current_user()
-    if user is None or is_system_admin():
-        return key
-    device = get_current_device()
-    if device is not None:
-        return f"device:{device.id}:{key}"
-    return f"user:{user.id}:{key}"
-
-
 def _upsert_channel_setting(key: str, value: str):
-    storage_key = _channel_setting_storage_key(key)
-    row = Setting.query.filter_by(key=storage_key).first()
+    row = Setting.query.filter_by(key=key).first()
     if row:
         row.value = value
     else:
-        db.session.add(Setting(key=storage_key, value=value))
+        db.session.add(Setting(key=key, value=value))
 
 
 CHANNEL_FORM_FIELDS = {
@@ -2539,3 +2556,172 @@ def account_subscription():
     tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
     plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
     return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, ui_lang=_lang())
+
+
+@main_bp.route('/admin/subscriptions')
+def admin_subscriptions():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    rows = []
+    subscriptions = TenantSubscription.query.order_by(TenantSubscription.updated_at.desc(), TenantSubscription.id.desc()).all()
+    for sub in subscriptions:
+        tenant = TenantAccount.query.get(sub.tenant_id)
+        plan = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
+        owner = AppUser.query.get(tenant.owner_user_id) if tenant and tenant.owner_user_id else None
+        rows.append({'subscription': sub, 'tenant': tenant, 'plan': plan, 'owner': owner})
+    return render_template('admin_subscriptions.html', rows=rows, ui_lang=_lang(), summary=_admin_counts_snapshot())
+
+
+@main_bp.route('/admin/devices')
+def admin_devices_center():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    q = AppDevice.query.order_by(AppDevice.updated_at.desc(), AppDevice.id.desc())
+    device_type = (request.args.get('device_type') or '').strip()
+    status = (request.args.get('status') or '').strip()
+    if device_type:
+        q = q.filter_by(device_type=device_type)
+    if status:
+        q = q.filter_by(connection_status=status)
+    rows = []
+    for dev in q.all():
+        owner = AppUser.query.get(dev.owner_user_id) if dev.owner_user_id else None
+        tenant = TenantAccount.query.get(dev.tenant_id) if dev.tenant_id else None
+        rows.append({'device': dev, 'owner': owner, 'tenant': tenant})
+    device_types = DeviceType.query.order_by(DeviceType.name.asc()).all()
+    return render_template('admin_devices_center.html', rows=rows, device_types=device_types, ui_lang=_lang())
+
+
+@main_bp.route('/admin/integrations', methods=['GET', 'POST'])
+def admin_integrations():
+    guard = _admin_guard('can_manage_integrations')
+    if guard:
+        return guard
+    if request.method == 'POST':
+        code = (request.form.get('code') or '').strip().lower()
+        if code:
+            row = DeviceType.query.filter_by(code=code).first()
+            created = row is None
+            if row is None:
+                row = DeviceType(code=code)
+                db.session.add(row)
+            row.name = (request.form.get('name') or code).strip()
+            row.provider = (request.form.get('provider') or 'custom').strip()
+            row.auth_mode = (request.form.get('auth_mode') or 'api_key').strip()
+            row.base_url = (request.form.get('base_url') or '').strip() or None
+            row.healthcheck_endpoint = (request.form.get('healthcheck_endpoint') or '').strip() or None
+            row.sync_endpoint = (request.form.get('sync_endpoint') or '').strip() or None
+            row.required_fields_json = json.dumps([x.strip() for x in (request.form.get('required_fields') or '').split(',') if x.strip()], ensure_ascii=False)
+            row.mapping_schema_json = request.form.get('mapping_schema_json') or '{}'
+            row.is_active = request.form.get('is_active') == 'on'
+            db.session.commit()
+            _admin_write_log('integration.create' if created else 'integration.update', f'Updated integration type {row.code}', 'device_type', row.id, {'provider': row.provider})
+            flash('تم حفظ نوع التكامل بنجاح', 'success')
+            return redirect(url_for('main.admin_integrations', lang=_lang()))
+    rows = DeviceType.query.order_by(DeviceType.created_at.desc(), DeviceType.id.desc()).all()
+    return render_template('admin_integrations.html', rows=rows, ui_lang=_lang())
+
+
+@main_bp.route('/admin/services-health')
+def admin_services_health():
+    guard = _admin_guard('can_view_logs')
+    if guard:
+        return guard
+    heartbeats = ServiceHeartbeat.query.order_by(ServiceHeartbeat.service_label.asc(), ServiceHeartbeat.service_key.asc()).all()
+    latest_sync = SyncLog.query.order_by(SyncLog.created_at.desc()).first()
+    latest_notif = NotificationLog.query.order_by(NotificationLog.created_at.desc()).first()
+    return render_template('admin_services_health.html', heartbeats=heartbeats, latest_sync=latest_sync, latest_notif=latest_notif, ui_lang=_lang())
+
+
+@main_bp.route('/admin/mail', methods=['GET', 'POST'])
+def admin_internal_mail():
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return guard
+    if request.method == 'POST':
+        subject = (request.form.get('subject') or '').strip()
+        body = (request.form.get('body') or '').strip()
+        if subject and body:
+            actor = _active_user()
+            thread = InternalMailThread(
+                created_by_user_id=getattr(actor, 'id', None),
+                assigned_admin_user_id=getattr(actor, 'id', None),
+                subject=subject,
+                category=(request.form.get('category') or 'general').strip(),
+                priority=(request.form.get('priority') or 'normal').strip(),
+                status='open',
+                last_reply_at=datetime.utcnow(),
+            )
+            db.session.add(thread)
+            db.session.flush()
+            db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
+            db.session.commit()
+            _admin_write_log('mail.create', f'Created internal mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'subject': thread.subject})
+            flash('تم إنشاء رسالة داخلية جديدة', 'success')
+            return redirect(url_for('main.admin_internal_mail', lang=_lang()))
+    rows = []
+    threads = InternalMailThread.query.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
+    for thread in threads:
+        owner = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
+        rows.append({'thread': thread, 'owner': owner, 'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all()})
+    return render_template('admin_internal_mail.html', rows=rows, ui_lang=_lang())
+
+
+@main_bp.route('/admin/finance', methods=['GET', 'POST'])
+def admin_finance():
+    guard = _admin_guard('can_manage_finance')
+    if guard:
+        return guard
+    if request.method == 'POST':
+        tenant_id = int(request.form.get('tenant_id') or 0)
+        amount = float(request.form.get('amount') or 0)
+        if tenant_id and amount:
+            actor = _active_user()
+            entry = WalletLedger(tenant_id=tenant_id, actor_user_id=getattr(actor, 'id', None), entry_type=(request.form.get('entry_type') or 'credit').strip(), amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip(), reference=(request.form.get('reference') or '').strip() or None)
+            db.session.add(entry)
+            db.session.commit()
+            _admin_write_log('finance.entry', f'Added finance entry {amount} {entry.currency}', 'wallet_ledger', entry.id, {'tenant_id': tenant_id, 'entry_type': entry.entry_type})
+            flash('تم حفظ الحركة المالية', 'success')
+            return redirect(url_for('main.admin_finance', lang=_lang()))
+    tenants = TenantAccount.query.order_by(TenantAccount.display_name.asc()).all()
+    rows = []
+    for entry in WalletLedger.query.order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all():
+        tenant = TenantAccount.query.get(entry.tenant_id)
+        actor = AppUser.query.get(entry.actor_user_id) if entry.actor_user_id else None
+        rows.append({'entry': entry, 'tenant': tenant, 'actor': actor})
+    totals = {}
+    for tenant in tenants:
+        total = 0.0
+        for entry in WalletLedger.query.filter_by(tenant_id=tenant.id).all():
+            total += entry.amount if entry.entry_type == 'credit' else -entry.amount
+        totals[tenant.id] = total
+    return render_template('admin_finance.html', rows=rows, tenants=tenants, totals=totals, ui_lang=_lang())
+
+
+@main_bp.route('/admin/activity-log')
+def admin_activity_log():
+    guard = _admin_guard('can_view_logs')
+    if guard:
+        return guard
+    rows = []
+    for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).all():
+        actor = AppUser.query.get(item.actor_user_id) if item.actor_user_id else None
+        rows.append({'item': item, 'actor': actor})
+    return render_template('admin_activity_log.html', rows=rows, ui_lang=_lang())
+
+
+@main_bp.route('/admin/roles')
+def admin_roles():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
+    role_matrix = [
+        {'role': 'super_admin', 'summary': 'Full platform control', 'perms': ['manage_users','manage_plans','manage_devices','manage_integrations','manage_finance','manage_support','view_logs']},
+        {'role': 'finance_admin', 'summary': 'Billing, quotas, and credits', 'perms': ['manage_finance','manage_subscriptions','view_logs']},
+        {'role': 'support_admin', 'summary': 'Internal mail, tickets, and replies', 'perms': ['manage_support','reply_messages','view_logs']},
+        {'role': 'integration_admin', 'summary': 'Devices, APIs, and service health', 'perms': ['manage_devices','manage_integrations','view_logs']},
+    ]
+    return render_template('admin_roles.html', admin_users=admin_users, role_matrix=role_matrix, ui_lang=_lang())

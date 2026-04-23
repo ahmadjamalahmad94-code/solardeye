@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 
 from .config import Config
 from .extensions import db
-from .models import AppDevice, AppUser, Setting
+from .models import AppDevice, AppUser, Setting, DeviceType
 from .services.subscriptions import seed_default_plans
 from .scheduler import start_scheduler
 
@@ -41,6 +41,7 @@ def create_app():
             default_user.preferred_device_id = default_device.id
             db.session.commit()
         _backfill_foundation_ids(default_user.id, default_device.id)
+        _seed_device_types()
 
     return app
 
@@ -183,6 +184,11 @@ def _migrate_database():
         """CREATE TABLE IF NOT EXISTS subscription_plan (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name_ar VARCHAR(120) NOT NULL, name_en VARCHAR(120) NOT NULL, price FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', duration_days_default INTEGER DEFAULT 30, max_devices INTEGER DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0, features_json TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS tenant_account (id INTEGER PRIMARY KEY, owner_user_id INTEGER, display_name VARCHAR(150) NOT NULL, status VARCHAR(30) DEFAULT 'trial', plan_id INTEGER, max_devices_override INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS tenant_subscription (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, plan_id INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'trial', activation_mode VARCHAR(30) DEFAULT 'manual', starts_at TIMESTAMP, ends_at TIMESTAMP, trial_ends_at TIMESTAMP, activated_by_user_id INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS device_type (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name VARCHAR(120) NOT NULL, provider VARCHAR(120) DEFAULT 'custom', auth_mode VARCHAR(50) DEFAULT 'api_key', base_url VARCHAR(255), healthcheck_endpoint VARCHAR(255), sync_endpoint VARCHAR(255), required_fields_json TEXT, mapping_schema_json TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_mail_thread (id INTEGER PRIMARY KEY, tenant_id INTEGER, created_by_user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(200) NOT NULL, category VARCHAR(50) DEFAULT 'general', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', last_reply_at TIMESTAMP, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_mail_message (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, sender_user_id INTEGER, sender_scope VARCHAR(20) DEFAULT 'user', is_internal_note BOOLEAN DEFAULT FALSE, body TEXT NOT NULL, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS wallet_ledger (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, actor_user_id INTEGER, entry_type VARCHAR(30) DEFAULT 'credit', amount FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', note TEXT, reference VARCHAR(120), created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS admin_activity_log (id INTEGER PRIMARY KEY, actor_user_id INTEGER, action VARCHAR(120) NOT NULL, target_type VARCHAR(80), target_id INTEGER, summary VARCHAR(255) NOT NULL, details_json TEXT, created_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()
@@ -432,6 +438,11 @@ def _backfill_foundation_ids(user_id, device_id):
         """CREATE TABLE IF NOT EXISTS subscription_plan (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name_ar VARCHAR(120) NOT NULL, name_en VARCHAR(120) NOT NULL, price FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', duration_days_default INTEGER DEFAULT 30, max_devices INTEGER DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0, features_json TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS tenant_account (id INTEGER PRIMARY KEY, owner_user_id INTEGER, display_name VARCHAR(150) NOT NULL, status VARCHAR(30) DEFAULT 'trial', plan_id INTEGER, max_devices_override INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS tenant_subscription (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, plan_id INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'trial', activation_mode VARCHAR(30) DEFAULT 'manual', starts_at TIMESTAMP, ends_at TIMESTAMP, trial_ends_at TIMESTAMP, activated_by_user_id INTEGER, notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS device_type (id INTEGER PRIMARY KEY, code VARCHAR(50) UNIQUE, name VARCHAR(120) NOT NULL, provider VARCHAR(120) DEFAULT 'custom', auth_mode VARCHAR(50) DEFAULT 'api_key', base_url VARCHAR(255), healthcheck_endpoint VARCHAR(255), sync_endpoint VARCHAR(255), required_fields_json TEXT, mapping_schema_json TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_mail_thread (id INTEGER PRIMARY KEY, tenant_id INTEGER, created_by_user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(200) NOT NULL, category VARCHAR(50) DEFAULT 'general', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', last_reply_at TIMESTAMP, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_mail_message (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, sender_user_id INTEGER, sender_scope VARCHAR(20) DEFAULT 'user', is_internal_note BOOLEAN DEFAULT FALSE, body TEXT NOT NULL, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS wallet_ledger (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, actor_user_id INTEGER, entry_type VARCHAR(30) DEFAULT 'credit', amount FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', note TEXT, reference VARCHAR(120), created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS admin_activity_log (id INTEGER PRIMARY KEY, actor_user_id INTEGER, action VARCHAR(120) NOT NULL, target_type VARCHAR(80), target_id INTEGER, summary VARCHAR(255) NOT NULL, details_json TEXT, created_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()

@@ -26,8 +26,16 @@
         <div class="nav-group-title">{{ 'Administration' if is_en else 'الإدارة' }}</div>
         <a class="{% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}" href="{{ url_for('main.admin_dashboard', lang=ui_lang) }}">{{ '📈 Overview' if is_en else '📈 لوحة الإدارة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}">{{ '👥 Users' if is_en else '👥 إدارة المستخدمين' }}</a>
-        <a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ '📦 Plans' if is_en else '📦 الخطط' }}</a>
+        <a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ '📦 Plans & Offers' if is_en else '📦 الخطط والعروض' }}</a>
         <a class="{% if request.endpoint in ['main.admin_subscribers','main.admin_subscriber_activate'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ '🧾 Subscribers' if is_en else '🧾 المشتركون' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_subscriptions' %}active{% endif %}" href="{{ url_for('main.admin_subscriptions', lang=ui_lang) }}">{{ '💳 Subscriptions' if is_en else '💳 الاشتراكات' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_devices_center' %}active{% endif %}" href="{{ url_for('main.admin_devices_center', lang=ui_lang) }}">{{ '🔌 Devices' if is_en else '🔌 الأجهزة' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_integrations' %}active{% endif %}" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_services_health' %}active{% endif %}" href="{{ url_for('main.admin_services_health', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_internal_mail' %}active{% endif %}" href="{{ url_for('main.admin_internal_mail', lang=ui_lang) }}">{{ '✉️ Internal Mail' if is_en else '✉️ البريد الداخلي' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Finance' if is_en else '💰 المالية' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_activity_log' %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ '🕵️ Activity Log' if is_en else '🕵️ سجل العمليات' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_roles' %}active{% endif %}" href="{{ url_for('main.admin_roles', lang=ui_lang) }}">{{ '🛡️ Roles & Permissions' if is_en else '🛡️ الأدوار والصلاحيات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ '🛠️ System Logs' if is_en else '🛠️ لوج النظام والخدمات' }}</a>
       {% else %}
         <div class="nav-group-title">{{ 'Portal' if is_en else 'البوابة' }}</div>
