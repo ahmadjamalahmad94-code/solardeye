@@ -192,6 +192,18 @@ def _migrate_database():
     ]
 
     conn = db.engine.raw_connection()
+    try:
+        cursor = conn.cursor()
+        for ddl in ddl_statements:
+            try:
+                cursor.execute(ddl)
+            except Exception as exc:
+                logger.warning('DDL skipped: %s', exc)
+        conn.commit()
+    finally:
+        conn.close()
+
+    conn = db.engine.raw_connection()
     dialect = getattr(db.engine.dialect, 'name', '').lower()
     try:
         cursor = conn.cursor()
@@ -448,6 +460,18 @@ def _backfill_foundation_ids(user_id, device_id):
     conn = db.engine.raw_connection()
     try:
         cursor = conn.cursor()
+        for ddl in ddl_statements:
+            try:
+                cursor.execute(ddl)
+            except Exception as exc:
+                logger.warning('DDL skipped: %s', exc)
+        conn.commit()
+    finally:
+        conn.close()
+
+    conn = db.engine.raw_connection()
+    try:
+        cursor = conn.cursor()
         dialect = getattr(db.engine.dialect, 'name', '').lower()
         placeholder = '%s' if dialect == 'postgresql' else '?'
         for table_name, columns in updates:
@@ -463,6 +487,63 @@ def _backfill_foundation_ids(user_id, device_id):
         conn.commit()
     finally:
         conn.close()
+
+
+def _seed_device_types():
+    defaults = [
+        {
+            'code': 'deye',
+            'name': 'Deye Cloud',
+            'provider': 'deye',
+            'auth_mode': 'config',
+            'base_url': 'https://eu1-developer.deyecloud.com',
+            'healthcheck_endpoint': '/openapi/v1/station/list',
+            'sync_endpoint': '/openapi/v1/inverter/getInverterRealTimeData',
+            'required_fields_json': json.dumps([
+                'deye_username', 'deye_password', 'station_id'
+            ], ensure_ascii=False),
+            'mapping_schema_json': json.dumps({
+                'solar_power': 'pv_power',
+                'battery_soc': 'battery_soc',
+                'grid_power': 'grid_power',
+                'home_load': 'load_power',
+                'raw_data': 'raw'
+            }, ensure_ascii=False),
+        },
+        {
+            'code': 'custom_api',
+            'name': 'Custom API Device',
+            'provider': 'custom',
+            'auth_mode': 'api_key',
+            'base_url': None,
+            'healthcheck_endpoint': None,
+            'sync_endpoint': None,
+            'required_fields_json': json.dumps([
+                'api_base_url', 'api_key'
+            ], ensure_ascii=False),
+            'mapping_schema_json': json.dumps({
+                'solar_power': 'solar_power',
+                'battery_soc': 'battery_soc',
+                'grid_power': 'grid_power',
+                'home_load': 'home_load',
+                'raw_data': 'raw_data'
+            }, ensure_ascii=False),
+        },
+    ]
+
+    for payload in defaults:
+        row = DeviceType.query.filter_by(code=payload['code']).first()
+        if row:
+            changed = False
+            for key, value in payload.items():
+                if getattr(row, key) in (None, '') and value not in (None, ''):
+                    setattr(row, key, value)
+                    changed = True
+            if changed:
+                db.session.add(row)
+            continue
+        db.session.add(DeviceType(**payload))
+    db.session.commit()
 
 
 def _start_scheduler(app):
