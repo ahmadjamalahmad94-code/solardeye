@@ -2640,33 +2640,57 @@ def admin_internal_mail():
     guard = _admin_guard('can_manage_support')
     if guard:
         return guard
+    actor = _active_user()
     if request.method == 'POST':
-        subject = (request.form.get('subject') or '').strip()
-        body = (request.form.get('body') or '').strip()
-        if subject and body:
-            actor = _active_user()
-            thread = InternalMailThread(
-                created_by_user_id=getattr(actor, 'id', None),
-                assigned_admin_user_id=getattr(actor, 'id', None),
-                subject=subject,
-                category=(request.form.get('category') or 'general').strip(),
-                priority=(request.form.get('priority') or 'normal').strip(),
-                status='open',
-                last_reply_at=datetime.utcnow(),
-            )
-            db.session.add(thread)
-            db.session.flush()
-            db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
-            db.session.commit()
-            _admin_write_log('mail.create', f'Created internal mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'subject': thread.subject})
-            flash('تم إنشاء رسالة داخلية جديدة', 'success')
-            return redirect(url_for('main.admin_internal_mail', lang=_lang()))
+        action = (request.form.get('action') or 'create').strip()
+        if action == 'create':
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            if subject and body:
+                thread = InternalMailThread(
+                    created_by_user_id=getattr(actor, 'id', None),
+                    assigned_admin_user_id=getattr(actor, 'id', None),
+                    subject=subject,
+                    category=(request.form.get('category') or 'general').strip(),
+                    priority=(request.form.get('priority') or 'normal').strip(),
+                    status='open',
+                    last_reply_at=datetime.utcnow(),
+                )
+                db.session.add(thread)
+                db.session.flush()
+                db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
+                db.session.commit()
+                _admin_write_log('mail.create', f'Created internal mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'subject': thread.subject})
+                flash('تم إنشاء رسالة داخلية جديدة', 'success')
+                return redirect(url_for('main.admin_internal_mail', lang=_lang()))
+        elif action == 'reply':
+            thread_id = int(request.form.get('thread_id') or 0)
+            body = (request.form.get('body') or '').strip()
+            thread = InternalMailThread.query.get(thread_id)
+            if thread:
+                if body:
+                    db.session.add(InternalMailMessage(
+                        thread_id=thread.id,
+                        sender_user_id=getattr(actor, 'id', None),
+                        sender_scope='admin',
+                        is_internal_note=bool(request.form.get('is_internal_note')),
+                        body=body,
+                    ))
+                    thread.last_reply_at = datetime.utcnow()
+                thread.status = (request.form.get('status') or thread.status).strip() or thread.status
+                thread.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or thread.assigned_admin_user_id or getattr(actor, 'id', None)
+                db.session.commit()
+                _admin_write_log('mail.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'status': thread.status})
+                flash('تم تحديث الرسالة', 'success')
+                return redirect(url_for('main.admin_internal_mail', lang=_lang()))
     rows = []
     threads = InternalMailThread.query.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
+    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
     for thread in threads:
         owner = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
-        rows.append({'thread': thread, 'owner': owner, 'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all()})
-    return render_template('admin_internal_mail.html', rows=rows, ui_lang=_lang())
+        assignee = AppUser.query.get(thread.assigned_admin_user_id) if thread.assigned_admin_user_id else None
+        rows.append({'thread': thread, 'owner': owner, 'assignee': assignee, 'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all()})
+    return render_template('admin_internal_mail.html', rows=rows, admin_users=admin_users, ui_lang=_lang())
 
 
 @main_bp.route('/admin/finance', methods=['GET', 'POST'])

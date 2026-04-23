@@ -21,7 +21,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
-from ..models import AppDevice, AppUser
+from ..models import AppDevice, AppUser, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage
 from ..services.subscriptions import ensure_user_tenant_and_subscription, feature_enabled_for_user
 
 
@@ -358,6 +358,25 @@ def protect_routes():
                     g.plan_features[key] = feature_enabled_for_user(g.current_user, key)
             except Exception:
                 g.plan_features = {}
+
+        g.current_user_display = (getattr(g.current_user, 'full_name', None) or getattr(g.current_user, 'username', '') or '').strip()
+        g.mail_notification_count = 0
+        g.ticket_notification_count = 0
+        if g.current_user is not None:
+            try:
+                if g.is_admin:
+                    open_threads = InternalMailThread.query.filter(InternalMailThread.status != 'closed').all()
+                    g.mail_notification_count = sum(1 for thread in open_threads if (lambda msg: bool(msg and msg.sender_scope == 'user'))(InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()))
+                    open_tickets = SupportTicket.query.filter(SupportTicket.status != 'closed').all()
+                    g.ticket_notification_count = sum(1 for ticket in open_tickets if (lambda msg: bool(msg and msg.sender_scope == 'user'))(SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()))
+                else:
+                    user_threads = InternalMailThread.query.filter_by(created_by_user_id=g.current_user.id).filter(InternalMailThread.status != 'closed').all()
+                    g.mail_notification_count = sum(1 for thread in user_threads if (lambda msg: bool(msg and msg.sender_scope == 'admin'))(InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()))
+                    user_tickets = SupportTicket.query.filter_by(opened_by_user_id=g.current_user.id).filter(SupportTicket.status != 'closed').all()
+                    g.ticket_notification_count = sum(1 for ticket in user_tickets if (lambda msg: bool(msg and msg.sender_scope == 'admin'))(SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()))
+            except Exception:
+                g.mail_notification_count = 0
+                g.ticket_notification_count = 0
 
     if not session.get('logged_in'):
         wants_json = (

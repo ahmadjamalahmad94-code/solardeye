@@ -1495,3 +1495,10 @@ body::before{
 .ui-reactive{transition:transform .22s ease, box-shadow .22s ease, background-position .25s ease;transform-style:preserve-3d;background-position:center}.ui-reactive:hover{transform:translateY(-4px)}
 @media (max-width:1200px){.admin-highlight-grid,.admin-kpi-grid-v2,.feature-grid-v2,.steps-grid-v2{grid-template-columns:repeat(2,minmax(0,1fr))}.landing-hero-v2,.subscription-hero-v2,.admin-layout-v2{grid-template-columns:1fr}.content-area.admin-shell-v2{padding:24px}}
 @media (max-width:768px){.landing-topbar,.admin-page-head,.section-heading-inline{flex-direction:column;align-items:flex-start}.preview-grid-v2,.pricing-grid-v2,.subscription-status-v2,.form-grid-v2.two,.chip-picker-grid{grid-template-columns:1fr}.admin-highlight-grid,.admin-kpi-grid-v2,.feature-grid-v2,.steps-grid-v2{grid-template-columns:1fr}.landing-v2{padding:14px}.landing-hero-v2,.landing-section-v2,.admin-card-v2,.admin-hero-v2{padding:20px}.hero-copy-v2 h1{font-size:2rem}}
+
+.sidebar-user-box { display:flex; gap:12px; align-items:center; margin-top:14px; padding:12px; border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.06); border-radius:18px; }
+.sidebar-user-avatar { width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:rgba(255,255,255,.12); font-weight:800; color:#fff; }
+.sidebar-user-box strong { display:block; font-size: .98rem; color:#fff; }
+.sidebar-user-box small { color:#c9d5ea; }
+.nav-menu a { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.nav-badge { min-width:24px; height:24px; padding:0 8px; border-radius:999px; display:inline-grid; place-items:center; background:linear-gradient(135deg,#ffd666,#ffb300); color:#141414; font-size:.78rem; font-weight:800; box-shadow:0 6px 16px rgba(255,193,7,.22); }
