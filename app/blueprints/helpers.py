@@ -8,11 +8,11 @@ import math
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from flask import current_app
+from flask import current_app, has_request_context
 
 from ..extensions import db
 from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog
-from ..services.scope import current_scope_ids, scoped_query
+from ..services.scope import current_scope_ids, scoped_query, get_current_user, get_current_device, is_system_admin
 from ..services.utils import (
     format_local_datetime,
     human_duration_hours,
@@ -24,6 +24,51 @@ from ..services.utils import (
     utc_to_local,
 )
 
+
+
+_SCOPED_CHANNEL_SETTING_KEYS = {
+    "telegram_bot_token", "telegram_chat_id", "telegram_api_url",
+    "tg_btn_status", "tg_btn_loads", "tg_btn_weather", "tg_btn_clouds",
+    "tg_btn_battery_eta", "tg_btn_surplus", "tg_btn_decision", "tg_btn_smart",
+    "tg_btn_sunset", "tg_btn_night_risk", "tg_btn_last_sync",
+    "sms_api_url", "sms_api_key", "sms_sender", "sms_recipients",
+}
+
+
+def _load_prefixed_settings(prefix: str) -> dict:
+    if not prefix:
+        return {}
+    rows = Setting.query.filter(Setting.key.like(f"{prefix}%")).all()
+    data = {}
+    for row in rows:
+        data[row.key[len(prefix):]] = row.value
+    return data
+
+
+def _apply_scoped_user_settings(base_settings: dict) -> dict:
+    if not has_request_context():
+        return base_settings
+    user = get_current_user()
+    if user is None or is_system_admin():
+        return base_settings
+
+    settings = dict(base_settings)
+    # Never leak shared channel credentials into a tenant/user portal by default.
+    for key in _SCOPED_CHANNEL_SETTING_KEYS:
+        if key in {"telegram_api_url"}:
+            settings[key] = 'https://api.telegram.org'
+        else:
+            settings[key] = ''
+
+    device = get_current_device()
+    overlays = {}
+    overlays.update(_load_prefixed_settings(f"user:{user.id}:"))
+    if device is not None:
+        overlays.update(_load_prefixed_settings(f"device:{device.id}:"))
+    for key, value in overlays.items():
+        if key in _SCOPED_CHANNEL_SETTING_KEYS:
+            settings[key] = value
+    return settings
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -202,7 +247,7 @@ def load_settings() -> dict:
     }
     for key, value in defaults.items():
         settings.setdefault(key, value)
-    return settings
+    return _apply_scoped_user_settings(settings)
 
 
 def _upsert_setting(key: str, value: str):

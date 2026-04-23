@@ -1952,12 +1952,23 @@ def _telegram_delete_webhook(settings: dict):
         return False, str(exc)
 
 
+def _channel_setting_storage_key(key: str) -> str:
+    user = get_current_user()
+    if user is None or is_system_admin():
+        return key
+    device = get_current_device()
+    if device is not None:
+        return f"device:{device.id}:{key}"
+    return f"user:{user.id}:{key}"
+
+
 def _upsert_channel_setting(key: str, value: str):
-    row = Setting.query.filter_by(key=key).first()
+    storage_key = _channel_setting_storage_key(key)
+    row = Setting.query.filter_by(key=storage_key).first()
     if row:
         row.value = value
     else:
-        db.session.add(Setting(key=key, value=value))
+        db.session.add(Setting(key=storage_key, value=value))
 
 
 CHANNEL_FORM_FIELDS = {
