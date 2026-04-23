@@ -427,7 +427,9 @@ def dashboard():
     from zoneinfo import ZoneInfo
     latest = _latest_reading()
     logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(8).all()
-    settings = load_settings()
+    active_device = _active_device()
+    settings = _device_runtime_settings(active_device, allow_global_connection=False)
+    device_ready, device_ready_message = _device_sync_ready(active_device)
     tz_name = current_app.config['LOCAL_TIMEZONE']
 
     # اختيار اليوم من المعامل — افتراضياً اليوم الحالي
@@ -509,7 +511,8 @@ def dashboard():
         human_duration_hours=human_duration_hours, format_energy=format_energy,
         format_power=format_power, _to_12h_label=_to_12h_label,
         format_local=lambda dt: format_local_datetime(dt, tz_name),
-        ui_lang=_lang(),
+        ui_lang=_lang(), active_device=active_device,
+        device_ready=device_ready, device_ready_message=device_ready_message,
     )
 
 
@@ -1013,17 +1016,34 @@ def deye_settings():
     energy_guard = _energy_portal_guard()
     if energy_guard:
         return energy_guard
-    settings = load_settings()
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
+    device = _active_device()
+    if device is None:
+        flash('لا يوجد جهاز مربوط بهذا الحساب بعد. أضف جهازك أولًا.', 'warning')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+    settings = _device_runtime_settings(device, allow_global_connection=False)
+    ready, ready_message = _device_sync_ready(device)
     if request.method == 'POST':
-        save_settings_from_form(request.form)
-        flash('تم حفظ إعدادات الربط', 'success')
-        return redirect(url_for('main.deye_settings'))
-    return render_template('deye_settings.html', settings=settings)
+        _save_deye_settings_to_device(device, request.form)
+        db.session.commit()
+        flash('تم حفظ إعدادات الربط لهذا الجهاز.', 'success')
+        return redirect(url_for('main.deye_settings', lang=_lang()))
+    return render_template('deye_settings.html', settings=settings, current_device=device, device_ready=ready, device_ready_message=ready_message, ui_lang=_lang())
 
 
 @main_bp.route('/test-connection', methods=['POST'])
 def test_connection():
-    client = DeyeClient(load_settings())
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    device = _active_device()
+    ready, ready_message = _device_sync_ready(device)
+    if not ready:
+        flash(ready_message, 'warning')
+        return redirect(url_for('main.deye_settings', lang=_lang()))
+    client = DeyeClient(_device_runtime_settings(device, allow_global_connection=False))
     try:
         token = client.obtain_token()
         account = client.account_info(token)
@@ -1033,11 +1053,17 @@ def test_connection():
     except Exception as exc:
         log_event('danger', f'فشل اختبار الاتصال: {exc}')
         flash(f'فشل اختبار الاتصال: {exc}', 'danger')
-    return redirect(url_for('main.deye_settings'))
+    return redirect(url_for('main.deye_settings', lang=_lang()))
 
 
 def sync_now_internal(trigger='manual'):
-    client = DeyeClient(load_settings())
+    device = get_current_device()
+    current_user = get_current_user()
+    allow_global_connection = bool(current_user and (getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin') and not has_request_context())
+    ready, ready_message = _device_sync_ready(device, user=current_user)
+    if not ready:
+        raise ValueError(ready_message)
+    client = DeyeClient(_device_runtime_settings(device, allow_global_connection=allow_global_connection))
     snapshot = client.snapshot()
     previous = _latest_reading()
     # Extract device_detail metrics for direct columns
@@ -1101,13 +1127,18 @@ def sync_now_internal(trigger='manual'):
 
 @main_bp.route('/sync-now', methods=['POST'])
 def sync_now():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     try:
         sync_now_internal(trigger='manual')
         flash('تمت المزامنة وجلب البيانات بنجاح', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'warning')
     except Exception as exc:
         log_event('danger', f'فشلت المزامنة: {exc}')
         flash(f'فشلت المزامنة: {exc}', 'danger')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.dashboard', lang=_lang()))
 
 
 @main_bp.route('/diagnostics')
@@ -1347,6 +1378,108 @@ def _safe_json_loads(raw_value):
         return {}
 
 
+_DEVICE_CONNECTION_KEYS = {
+    'deye_app_id', 'deye_app_secret', 'deye_email', 'deye_password', 'deye_password_hash',
+    'deye_region', 'deye_plant_id', 'deye_device_sn', 'deye_logger_sn', 'deye_plant_name',
+    'deye_battery_sn_main', 'deye_battery_sn_module',
+}
+
+
+def _device_runtime_settings(device: AppDevice | None = None, allow_global_connection: bool = False):
+    settings = load_settings().copy()
+    if not allow_global_connection:
+        for key in _DEVICE_CONNECTION_KEYS:
+            settings[key] = ''
+    if device is None:
+        return settings
+
+    creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    device_settings = _safe_json_loads(getattr(device, 'settings_json', None))
+
+    mapping = {
+        'deye_app_id': creds.get('deye_app_id') or creds.get('app_id') or '',
+        'deye_app_secret': creds.get('deye_app_secret') or creds.get('app_secret') or '',
+        'deye_email': creds.get('deye_email') or creds.get('email') or '',
+        'deye_password': creds.get('deye_password') or creds.get('password') or '',
+        'deye_password_hash': creds.get('deye_password_hash') or creds.get('password_hash') or '',
+        'deye_region': device_settings.get('deye_region') or device_settings.get('region') or '',
+        'deye_plant_id': device_settings.get('deye_plant_id') or device_settings.get('plant_id') or getattr(device, 'station_id', '') or '',
+        'deye_device_sn': device_settings.get('deye_device_sn') or device_settings.get('device_sn') or getattr(device, 'device_uid', '') or '',
+        'deye_logger_sn': device_settings.get('deye_logger_sn') or device_settings.get('logger_sn') or '',
+        'deye_plant_name': device_settings.get('deye_plant_name') or device_settings.get('plant_name') or getattr(device, 'plant_name', '') or getattr(device, 'name', '') or '',
+        'deye_battery_sn_main': device_settings.get('deye_battery_sn_main') or device_settings.get('battery_sn_main') or '',
+        'deye_battery_sn_module': device_settings.get('deye_battery_sn_module') or device_settings.get('battery_sn_module') or '',
+    }
+    for key, value in mapping.items():
+        if value not in (None, ''):
+            settings[key] = value
+
+    for key in ('battery_capacity_kwh', 'battery_reserve_percent'):
+        value = device_settings.get(key)
+        if value not in (None, ''):
+            settings[key] = value
+
+    if getattr(device, 'api_base_url', None):
+        settings['api_base_url'] = device.api_base_url
+    return settings
+
+
+def _device_sync_ready(device: AppDevice | None = None, user=None):
+    user = user or _active_user() or get_current_user()
+    device = device or get_current_device()
+    if device is None:
+        return False, 'لا يوجد جهاز مربوط حاليًا بهذا الحساب.'
+    if not bool(getattr(device, 'is_active', False)):
+        return False, 'الجهاز الحالي غير مفعل.'
+
+    allow_global_connection = bool(user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin') and not has_request_context())
+    settings = _device_runtime_settings(device, allow_global_connection=allow_global_connection)
+
+    required = {
+        'deye_app_id': 'App ID',
+        'deye_app_secret': 'App Secret',
+        'deye_email': 'بريد Deye',
+        'deye_plant_id': 'Plant ID',
+    }
+    missing = [label for key, label in required.items() if not str(settings.get(key, '') or '').strip()]
+    if not (str(settings.get('deye_password', '') or '').strip() or str(settings.get('deye_password_hash', '') or '').strip()):
+        missing.append('كلمة مرور Deye أو SHA-256')
+    if missing:
+        return False, 'أكمل إعدادات الجهاز الحالي أولًا: ' + '، '.join(missing)
+    return True, ''
+
+
+def _save_deye_settings_to_device(device: AppDevice, form_data=None):
+    form_data = form_data or request.form
+    creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    device_settings = _safe_json_loads(getattr(device, 'settings_json', None))
+
+    creds.update({
+        'deye_app_id': (form_data.get('deye_app_id', '') or '').strip(),
+        'deye_app_secret': (form_data.get('deye_app_secret', '') or '').strip(),
+        'deye_email': (form_data.get('deye_email', '') or '').strip(),
+        'deye_password': (form_data.get('deye_password', '') or '').strip(),
+        'deye_password_hash': (form_data.get('deye_password_hash', '') or '').strip(),
+    })
+    device_settings.update({
+        'deye_region': (form_data.get('deye_region', '') or '').strip(),
+        'deye_plant_id': (form_data.get('deye_plant_id', '') or '').strip(),
+        'deye_device_sn': (form_data.get('deye_device_sn', '') or '').strip(),
+        'deye_logger_sn': (form_data.get('deye_logger_sn', '') or '').strip(),
+        'deye_plant_name': (form_data.get('deye_plant_name', '') or '').strip(),
+        'battery_capacity_kwh': (form_data.get('battery_capacity_kwh', '') or '').strip(),
+        'battery_reserve_percent': (form_data.get('battery_reserve_percent', '') or '').strip(),
+        'deye_battery_sn_main': (form_data.get('deye_battery_sn_main', '') or '').strip(),
+        'deye_battery_sn_module': (form_data.get('deye_battery_sn_module', '') or '').strip(),
+    })
+    device.station_id = device_settings.get('deye_plant_id') or device.station_id
+    device.device_uid = device_settings.get('deye_device_sn') or device.device_uid
+    device.plant_name = device_settings.get('deye_plant_name') or device.plant_name or device.name
+    device.credentials_json = json.dumps(creds, ensure_ascii=False)
+    device.settings_json = json.dumps(device_settings, ensure_ascii=False)
+    device.updated_at = datetime.utcnow()
+
+
 def _device_payload(device: AppDevice | None):
     if device is None:
         return {}, {}
@@ -1375,6 +1508,7 @@ def _save_device_credentials(device: AppDevice, form_data=None):
         **existing_creds,
         'deye_email': (form_data.get('deye_email', '') or '').strip(),
         'deye_password': (form_data.get('deye_password', '') or '').strip(),
+        'deye_password_hash': (form_data.get('deye_password_hash', '') or '').strip(),
         'deye_app_id': (form_data.get('deye_app_id', '') or '').strip(),
         'deye_app_secret': (form_data.get('deye_app_secret', '') or '').strip(),
     }
@@ -1382,6 +1516,9 @@ def _save_device_credentials(device: AppDevice, form_data=None):
         **existing_settings,
         'deye_region': (form_data.get('deye_region', 'EMEA') or 'EMEA').strip(),
         'api_base_url': (form_data.get('api_base_url', '') or '').strip(),
+        'deye_plant_id': (form_data.get('station_id', '') or '').strip(),
+        'deye_device_sn': (form_data.get('device_uid', '') or '').strip(),
+        'deye_plant_name': (form_data.get('plant_name', '') or '').strip(),
     }
 
     device.credentials_json = json.dumps(creds, ensure_ascii=False)

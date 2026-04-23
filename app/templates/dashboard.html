@@ -9,8 +9,8 @@
     <div class="header-title-block">
       <div class="topbar-main">
         <div>
-          <h1>{{ latest.plant_name if latest else settings.deye_plant_name or 'منصة الطاقة الشمسية' }}</h1>
-          <p class="mb-0">{{ system_status.description if latest else 'نفّذ مزامنة أولًا لعرض البيانات.' }}</p>
+          <h1>{{ latest.plant_name if latest else (active_device.plant_name if active_device else settings.deye_plant_name) or 'منصة الطاقة الشمسية' }}</h1>
+          <p class="mb-0">{% if not active_device %}أضف جهازًا أولًا لبدء المراقبة.{% elif not device_ready %}{{ device_ready_message }}{% else %}{{ system_status.description if latest else 'نفّذ مزامنة أولًا لعرض البيانات.' }}{% endif %}</p>
         </div>
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
       </div>
@@ -28,9 +28,9 @@
         </div>
       </div>
       <div class="topbar-actions unified-actions">
-        <a href="{{ url_for('main.deye_settings') }}" class="btn-ui btn-ui-outline">الإعدادات</a>
-        <form method="post" action="{{ url_for('main.sync_now') }}">
-          <button class="btn-ui btn-ui-primary" type="submit">⟳ مزامنة الآن</button>
+        <a href="{{ url_for('main.deye_settings', lang=ui_lang) }}" class="btn-ui btn-ui-outline">الإعدادات</a>
+        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}">
+          <button class="btn-ui btn-ui-primary" type="submit" {% if not device_ready %}disabled title="{{ device_ready_message }}"{% endif %}>⟳ مزامنة الآن</button>
         </form>
       </div>
     </div>
@@ -67,6 +67,24 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
+
+    {% if not active_device %}
+      <div class="panel-card mt-3">
+        <div class="empty-state-card">
+          <h3>لا يوجد جهاز مربوط بعد</h3>
+          <p>أنشئ جهازك أولًا من صفحة إدارة الأجهزة، ثم أكمل إعدادات الربط قبل بدء المزامنة.</p>
+          <a class="btn-ui btn-ui-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">إدارة الأجهزة</a>
+        </div>
+      </div>
+    {% elif not device_ready %}
+      <div class="panel-card mt-3">
+        <div class="empty-state-card">
+          <h3>الجهاز الحالي غير جاهز للمزامنة</h3>
+          <p>{{ device_ready_message }}</p>
+          <a class="btn-ui btn-ui-primary" href="{{ url_for('main.deye_settings', lang=ui_lang) }}">إكمال إعدادات الربط</a>
+        </div>
+      </div>
+    {% endif %}
 
     <section class="top-scroll-cards top-kpis-row">
       <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
