@@ -1,1 +1,32 @@
-{% extends "base.html" %}{% block body %}<div class="page-shell"><div class="page-header"><h1>المشتركون</h1></div><div class="card"><table class="table"><thead><tr><th>المستخدم</th><th>الخطة</th><th>الحالة</th><th>الانتهاء</th><th>الأجهزة</th><th></th></tr></thead><tbody>{% for row in rows %}<tr><td><strong>{{ row.user.full_name or row.user.username }}</strong><br><small>{{ row.user.email or '-' }}</small></td><td>{{ row.tenant.plan_id if row.tenant else '—' }}</td><td>{{ row.subscription.status if row.subscription else '—' }}</td><td>{{ row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '—' }}</td><td>{{ row.device_count }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">تفعيل / تعديل</a></td></tr>{% endfor %}</tbody></table></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2">
+    <header class="admin-page-head compact">
+      <div><span class="eyebrow">{{ 'Subscribers' if is_en else 'المشتركون' }}</span><h1>{{ 'Activation and lifecycle' if is_en else 'التفعيل ودورة الحياة' }}</h1><p>{{ 'Track each subscriber account, its current plan, and current device capacity.' if is_en else 'متابعة حساب كل مشترك وخطته الحالية وسعة أجهزته المتاحة.' }}</p></div>
+    </header>
+    <section class="admin-card-v2 ui-reactive" data-hover-card>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <thead><tr><th>{{ 'Subscriber' if is_en else 'المستخدم' }}</th><th>{{ 'Plan' if is_en else 'الخطة' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Ends' if is_en else 'الانتهاء' }}</th><th>{{ 'Devices' if is_en else 'الأجهزة' }}</th><th>{{ 'Actions' if is_en else 'الإجراءات' }}</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+            {% set sub = row.subscription %}
+            <tr>
+              <td><strong>{{ row.user.full_name or row.user.username }}</strong><div class="table-sub">{{ row.user.email or '@' ~ row.user.username }}</div></td>
+              <td>{{ row.tenant.display_name if row.tenant else '-' }}<div class="table-sub">{{ sub.plan_id if sub else '-' }}</div></td>
+              <td><span class="status-pill {% if sub and sub.status in ['active','trial'] %}success{% elif sub and sub.status in ['expired','suspended'] %}danger{% else %}warning{% endif %}">{{ sub.status if sub else '-' }}</span></td>
+              <td>{{ sub.ends_at.strftime('%Y-%m-%d') if sub and sub.ends_at else '-' }}</td>
+              <td>{{ row.device_count }}</td>
+              <td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">{{ 'Activate / Edit' if is_en else 'تفعيل / تعديل' }}</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

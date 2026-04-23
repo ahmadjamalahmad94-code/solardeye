@@ -37,7 +37,7 @@ def _login_user(app_user: AppUser):
 
     device = None
     if getattr(app_user, 'preferred_device_id', None):
-        device = AppDevice.query.filter_by(id=app_user.preferred_device_id, is_active=True).first()
+        device = AppDevice.query.filter_by(id=app_user.preferred_device_id, owner_user_id=app_user.id, is_active=True).first()
     if device is None:
         device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
     if device and not bool(getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin'):

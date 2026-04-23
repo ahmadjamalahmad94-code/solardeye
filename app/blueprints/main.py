@@ -119,23 +119,31 @@ def _role_badge(role: str, is_active: bool):
     return ('مدير' if role == 'admin' else 'مستخدم', 'success' if role == 'admin' else 'warning')
 
 
-def _available_devices_for_admin():
-    return AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
+def _available_devices_for_admin(user: AppUser | None = None):
+    query = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc())
+    if user is None:
+        return query.all()
+    return query.filter((AppDevice.owner_user_id.is_(None)) | (AppDevice.owner_user_id == user.id)).all()
 
 
 def _assign_devices_to_user(user: AppUser, device_ids: list[int], preferred_device_id: int | None):
     selected_ids = set(device_ids)
     devices = AppDevice.query.order_by(AppDevice.id.asc()).all()
+    # only allow assigning currently unowned devices or devices already owned by this user
+    selectable = {dev.id for dev in devices if dev.owner_user_id in (None, user.id)}
+    selected_ids &= selectable
+
     for dev in devices:
-        if dev.id in selected_ids:
+        if dev.id in selected_ids and dev.owner_user_id in (None, user.id):
             dev.owner_user_id = user.id
     for dev in devices:
         if dev.owner_user_id == user.id and dev.id not in selected_ids:
             dev.owner_user_id = None
-    if preferred_device_id and preferred_device_id in selected_ids:
+    user_device_ids = sorted(dev.id for dev in devices if dev.owner_user_id == user.id)
+    if preferred_device_id and preferred_device_id in user_device_ids:
         user.preferred_device_id = preferred_device_id
-    elif selected_ids:
-        user.preferred_device_id = sorted(selected_ids)[0]
+    elif user_device_ids:
+        user.preferred_device_id = user_device_ids[0]
     else:
         user.preferred_device_id = None
 
@@ -425,11 +433,11 @@ def dashboard():
     from datetime import UTC, datetime, timedelta
     from ..services.utils import utc_to_local
     from zoneinfo import ZoneInfo
-    latest = _latest_reading()
-    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(8).all()
     active_device = _active_device()
     settings = _device_runtime_settings(active_device, allow_global_connection=False)
     device_ready, device_ready_message = _device_sync_ready(active_device)
+    latest = _latest_reading() if device_ready else None
+    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(8).all() if active_device else []
     tz_name = current_app.config['LOCAL_TIMEZONE']
 
     # اختيار اليوم من المعامل — افتراضياً اليوم الحالي
@@ -465,8 +473,8 @@ def dashboard():
         return [v for _, v in sorted(buckets.items())]
 
     readings_hourly = _hourly_sample(day_readings)
-    # احتياط: لو ما في بيانات لليوم المختار، خذ آخر 24 قراءة
-    if not readings_hourly:
+    # احتياط: خذ آخر 24 قراءة فقط إذا كان الجهاز الحالي صالحًا وله قراءات داخل نطاقه
+    if not readings_hourly and active_device and device_ready:
         readings_hourly = scoped_query(Reading).order_by(Reading.created_at.desc()).limit(24).all()[::-1]
 
     labels = [format_time_short(r.created_at, tz_name) for r in readings_hourly]
@@ -518,9 +526,11 @@ def dashboard():
 
 @main_bp.route('/api/live')
 def api_live():
-    latest = _latest_reading()
+    device = _active_device()
+    ready, _ = _device_sync_ready(device)
+    latest = _latest_reading() if ready else None
     if not latest:
-        return {'ok': False}
+        return {'ok': False, 'empty': True}
     weather = get_weather_for_latest(latest)
     settings = load_settings()
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
@@ -1302,7 +1312,7 @@ def admin_user_edit(user_id: int):
     if guard:
         return guard
     user = AppUser.query.filter_by(id=user_id).first_or_404()
-    devices = _available_devices_for_admin()
+    devices = _available_devices_for_admin(user)
     owned_ids = [d.id for d in devices if d.owner_user_id == user.id]
 
     if request.method == 'POST':

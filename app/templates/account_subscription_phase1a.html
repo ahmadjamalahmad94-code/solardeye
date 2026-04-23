@@ -1,1 +1,25 @@
-{% extends "base.html" %}{% block body %}<div class="page-shell"><div class="page-header"><h1>اشتراكي</h1></div><div class="card subscription-card"><p><strong>الخطة:</strong> {{ plan.name_ar if plan else '—' }}</p><p><strong>الحالة:</strong> {{ subscription.status if subscription else '—' }}</p><p><strong>البداية:</strong> {{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '—' }}</p><p><strong>الانتهاء:</strong> {{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '—' }}</p><p><strong>عدد الأجهزة المسموح:</strong> {{ plan.max_devices if plan else '—' }}</p></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area">
+    <header class="admin-page-head compact">
+      <div><span class="eyebrow">{{ 'Subscription' if is_en else 'الاشتراك' }}</span><h1>{{ 'My plan and account status' if is_en else 'خطتي وحالة الحساب' }}</h1><p>{{ 'A cleaner subscription view for the subscriber portal.' if is_en else 'عرض أنظف للاشتراك داخل بوابة المشترك.' }}</p></div>
+    </header>
+    <section class="subscription-hero-v2 ui-reactive" data-hover-card>
+      <div class="subscription-main-v2">
+        <span class="hero-pill">{{ 'Current package' if is_en else 'الباقة الحالية' }}</span>
+        <h2>{{ plan.name_en if is_en and plan else (plan.name_ar if plan else ('No active plan' if is_en else 'لا توجد خطة نشطة')) }}</h2>
+        <p>{{ tenant.display_name if tenant else (user.full_name or user.username) }}</p>
+      </div>
+      <div class="subscription-status-v2">
+        <div><small>{{ 'Status' if is_en else 'الحالة' }}</small><strong>{{ subscription.status if subscription else '-' }}</strong></div>
+        <div><small>{{ 'Starts' if is_en else 'البداية' }}</small><strong>{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '-' }}</strong></div>
+        <div><small>{{ 'Ends' if is_en else 'الانتهاء' }}</small><strong>{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '-' }}</strong></div>
+        <div><small>{{ 'Allowed devices' if is_en else 'عدد الأجهزة المسموح' }}</small><strong>{{ plan.max_devices if plan else 0 }}</strong></div>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

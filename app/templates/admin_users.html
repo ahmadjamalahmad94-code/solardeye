@@ -1,53 +1,65 @@
 {% extends 'base.html' %}
 {% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>إدارة المستخدمين</h1>
-          <p class="mb-0">لوحة احترافية لإدارة الحسابات والصلاحيات والأجهزة المرتبطة.</p>
-        </div>
-      </div>
+  <main class="content-area admin-shell-v2">
+    <header class="admin-page-head compact">
       <div>
-        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">➕ إنشاء مستخدم</a>
+        <span class="eyebrow">{{ 'User management' if is_en else 'إدارة المستخدمين' }}</span>
+        <h1>{{ 'Accounts, roles, and ownership' if is_en else 'الحسابات والصلاحيات والملكية' }}</h1>
+        <p>{{ 'Manage platform users without mixing subscriber runtime data into the admin workspace.' if is_en else 'إدارة حسابات المنصة بدون خلط بيانات التشغيل الخاصة بالمشتركين داخل لوحة الإدارة.' }}</p>
+      </div>
+      <div class="admin-head-actions">
+        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
       </div>
     </header>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
-    {% endwith %}
-
-    <div class="admin-grid mt-4">
-      <section class="panel-card">
-        <div class="section-head"><h3>👥 المستخدمون</h3><small>{{ users|length }} حساب</small></div>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>المستخدم</th><th>الحالة</th><th>الدور</th><th>الأجهزة</th><th>الإجراءات</th></tr></thead>
+    <section class="admin-layout-v2 single">
+      <div class="admin-card-v2 ui-reactive" data-hover-card>
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ users|length }} {{ 'accounts' if is_en else 'حساب' }}</small>
+            <h3>{{ 'All users' if is_en else 'كل المستخدمين' }}</h3>
+          </div>
+        </div>
+        <div class="table-shell-v2">
+          <table class="admin-table-v2">
+            <thead>
+              <tr>
+                <th>{{ 'User' if is_en else 'المستخدم' }}</th>
+                <th>{{ 'Role' if is_en else 'الدور' }}</th>
+                <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+                <th>{{ 'Owned devices' if is_en else 'الأجهزة التابعة' }}</th>
+                <th>{{ 'Actions' if is_en else 'الإجراءات' }}</th>
+              </tr>
+            </thead>
             <tbody>
             {% for u in users %}
               {% set badge = role_badge(u.role, u.is_active) %}
+              {% set devs = device_map.get(u.id, []) %}
               <tr>
                 <td>
-                  <div><strong>{{ u.full_name or u.username }}</strong></div>
-                  <div class="text-muted">@{{ u.username }}</div>
-                  {% if u.email %}<div class="text-muted">{{ u.email }}</div>{% endif %}
+                  <strong>{{ u.full_name or u.username }}</strong>
+                  <div class="table-sub">@{{ u.username }}</div>
+                  {% if u.email %}<div class="table-sub">{{ u.email }}</div>{% endif %}
                 </td>
-                <td><span class="badge-soft {{ 'success' if u.is_active else 'danger' }}">{{ 'نشط' if u.is_active else 'معطل' }}</span></td>
-                <td><span class="badge-soft {{ badge[1] }}">{{ badge[0] }}</span></td>
+                <td><span class="status-pill {{ 'warning' if badge[0] == 'مستخدم' or badge[0] == 'User' else 'success' }}">{{ badge[0] }}</span></td>
+                <td><span class="status-pill {{ 'success' if u.is_active else 'danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span></td>
                 <td>
-                  {% set devs = device_map.get(u.id, []) %}
                   {% if devs %}
-                    <div class="device-chip-list">{% for d in devs %}<span class="device-chip">{{ d.name }}{% if d.device_type %} • {{ d.device_type }}{% endif %}</span>{% endfor %}</div>
-                  {% else %}<span class="text-muted">لا توجد أجهزة</span>{% endif %}
+                    <div class="chip-row-v2">
+                      {% for d in devs %}<span class="chip-v2">{{ d.name }}{% if d.device_type %} • {{ d.device_type }}{% endif %}</span>{% endfor %}
+                    </div>
+                  {% else %}
+                    <span class="table-sub">{{ 'No owned devices' if is_en else 'لا توجد أجهزة تابعة' }}</span>
+                  {% endif %}
                 </td>
                 <td>
-                  <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">تعديل</a>
+                  <div class="action-row-v2">
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
                     <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}">
-                      <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'تعطيل' if u.is_active else 'تفعيل' }}</button>
+                      <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
                     </form>
                   </div>
                 </td>
@@ -56,15 +68,8 @@
             </tbody>
           </table>
         </div>
-      </section>
-
-      <aside class="panel-card">
-        <div class="section-head"><h3>🛡️ الصلاحيات المعتمدة</h3></div>
-        <div class="metric-card-mini"><strong>Admin</strong><span class="text-muted">إدارة المستخدمين، لوج النظام، الربط الحساس، والإشراف الكامل.</span></div>
-        <div class="metric-card-mini mt-3"><strong>User</strong><span class="text-muted">وصول تشغيلي للوحة والتحليلات والجهاز المخصص له دون الصفحات الإدارية.</span></div>
-        <div class="metric-card-mini mt-3"><strong>مبدأ المرحلة الحالية</strong><span class="text-muted">واجهة نظيفة وصلاحيات مرتبة من البداية، مع بقاء القلب الحساس للنظام دون عبث.</span></div>
-      </aside>
-    </div>
+      </div>
+    </section>
   </main>
 </div>
 {% endblock %}

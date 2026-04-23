@@ -1,1 +1,33 @@
-{% extends "base.html" %}{% block body %}<div class="page-shell"><div class="page-header"><h1>الخطط</h1><a class="btn btn-primary" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">إضافة خطة</a></div><div class="card"><table class="table"><thead><tr><th>الكود</th><th>الاسم</th><th>السعر</th><th>المدة</th><th>الأجهزة</th><th>الحالة</th><th></th></tr></thead><tbody>{% for plan in plans %}<tr><td>{{ plan.code }}</td><td>{{ plan.name_ar }}</td><td>{{ plan.price }} {{ plan.currency }}</td><td>{{ plan.duration_days_default }} يوم</td><td>{{ plan.max_devices }}</td><td>{{ 'مفعلة' if plan.is_active else 'معطلة' }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.admin_plan_edit', plan_id=plan.id, lang=ui_lang) }}">تعديل</a></td></tr>{% endfor %}</tbody></table></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2">
+    <header class="admin-page-head compact">
+      <div><span class="eyebrow">{{ 'Plans' if is_en else 'الخطط' }}</span><h1>{{ 'Subscriptions and packaging' if is_en else 'الباقات والاشتراكات' }}</h1><p>{{ 'Create and manage productized plans for subscribers.' if is_en else 'إنشاء وإدارة باقات واضحة للمشتركين.' }}</p></div>
+      <a class="btn btn-solar" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ 'Create plan' if is_en else 'إضافة خطة' }}</a>
+    </header>
+    <section class="admin-card-v2 ui-reactive" data-hover-card>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <thead><tr><th>{{ 'Code' if is_en else 'الكود' }}</th><th>{{ 'Name' if is_en else 'الاسم' }}</th><th>{{ 'Price' if is_en else 'السعر' }}</th><th>{{ 'Duration' if is_en else 'المدة' }}</th><th>{{ 'Devices' if is_en else 'الأجهزة' }}</th><th>{{ 'State' if is_en else 'الحالة' }}</th><th>{{ 'Actions' if is_en else 'الإجراءات' }}</th></tr></thead>
+          <tbody>
+            {% for plan in plans %}
+            <tr>
+              <td><span class="chip-v2">{{ plan.code }}</span></td>
+              <td><strong>{{ plan.name_en if is_en else plan.name_ar }}</strong><div class="table-sub">{{ plan.name_ar }} / {{ plan.name_en }}</div></td>
+              <td>{{ plan.price }} {{ plan.currency }}</td>
+              <td>{{ plan.duration_days_default }} {{ 'days' if is_en else 'يوم' }}</td>
+              <td>{{ plan.max_devices }}</td>
+              <td><span class="status-pill {{ 'success' if plan.is_active else 'danger' }}">{{ 'Active' if is_en and plan.is_active else ('Inactive' if is_en else ('مفعلة' if plan.is_active else 'معطلة')) }}</span></td>
+              <td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_plan_edit', plan_id=plan.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

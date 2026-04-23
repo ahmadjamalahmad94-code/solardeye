@@ -1,1 +1,26 @@
-{% extends "base.html" %}{% block body %}<div class="page-shell"><div class="page-header"><h1>تفعيل اشتراك المشترك</h1></div><form method="post" class="card form-card"><div class="info-box"><p><strong>المستخدم:</strong> {{ user.full_name or user.username }}</p><p><strong>الحالة الحالية:</strong> {{ subscription.status if subscription else '—' }}</p></div><div class="form-grid"><label>الخطة<select name="plan_id" required>{% for plan in plans %}<option value="{{ plan.id }}">{{ plan.name_ar }} — {{ plan.price }} {{ plan.currency }}</option>{% endfor %}</select></label><label>عدد الأيام<input type="number" name="days" value="30" min="1" required></label><label>ملاحظات<textarea name="notes" rows="4"></textarea></label></div><div class="form-actions"><button class="btn btn-primary" type="submit">تفعيل الاشتراك</button><a class="btn btn-light" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">رجوع</a></div></form></div>{% endblock %}
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2">
+    <header class="admin-page-head compact">
+      <div><span class="eyebrow">{{ 'Subscriber activation' if is_en else 'تفعيل المشترك' }}</span><h1>{{ user.full_name or user.username }}</h1><p>{{ 'Assign or renew plan access without exposing runtime device data.' if is_en else 'تعيين أو تجديد الخطة بدون كشف بيانات التشغيل الخاصة بالجهاز.' }}</p></div>
+      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
+    </header>
+    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+      <div class="form-grid-v2 two">
+        <label><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-select form-select-lg" name="plan_id">{% for p in plans %}<option value="{{ p.id }}">{{ p.name_en if is_en else p.name_ar }} — {{ p.price }} {{ p.currency }}</option>{% endfor %}</select></label>
+        <label><span>{{ 'Days' if is_en else 'عدد الأيام' }}</span><input class="form-control form-control-lg" type="number" name="days" value="{{ (subscription.ends_at - subscription.starts_at).days if subscription and subscription.starts_at and subscription.ends_at else 30 }}"></label>
+        <label class="full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control form-control-lg" name="notes" rows="4"></textarea></label>
+      </div>
+      <div class="subscription-summary-v2">
+        <div><small>{{ 'Current tenant' if is_en else 'الحساب الحالي' }}</small><strong>{{ tenant.display_name if tenant else '-' }}</strong></div>
+        <div><small>{{ 'Current status' if is_en else 'الحالة الحالية' }}</small><strong>{{ subscription.status if subscription else '-' }}</strong></div>
+        <div><small>{{ 'Ends at' if is_en else 'ينتهي في' }}</small><strong>{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '-' }}</strong></div>
+      </div>
+      <div class="action-row-v2 mt-3"><button class="btn btn-solar" type="submit">{{ 'Activate subscription' if is_en else 'تفعيل الاشتراك' }}</button></div>
+    </form>
+  </main>
+</div>
+{% endblock %}
