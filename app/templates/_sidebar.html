@@ -33,7 +33,9 @@
         <a class="{% if request.endpoint == 'main.admin_integrations' %}active{% endif %}" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_services_health' %}active{% endif %}" href="{{ url_for('main.admin_services_health', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_internal_mail' %}active{% endif %}" href="{{ url_for('main.admin_internal_mail', lang=ui_lang) }}">{{ '✉️ Internal Mail' if is_en else '✉️ البريد الداخلي' }}</a>
-        <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Finance' if is_en else '💰 المالية' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_tickets' %}active{% endif %}" href="{{ url_for('main.admin_tickets', lang=ui_lang) }}">{{ '🎫 Tickets' if is_en else '🎫 التذاكر' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Wallet & Finance' if is_en else '💰 المحفظة والمالية' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_quotas' %}active{% endif %}" href="{{ url_for('main.admin_quotas', lang=ui_lang) }}">{{ '📏 Quotas' if is_en else '📏 الكوتا' }}</a>
         <a class="{% if request.endpoint == 'main.admin_activity_log' %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ '🕵️ Activity Log' if is_en else '🕵️ سجل العمليات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_roles' %}active{% endif %}" href="{{ url_for('main.admin_roles', lang=ui_lang) }}">{{ '🛡️ Roles & Permissions' if is_en else '🛡️ الأدوار والصلاحيات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ '🛠️ System Logs' if is_en else '🛠️ لوج النظام والخدمات' }}</a>
@@ -50,6 +52,8 @@
         <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}">{{ '💡 Loads' if is_en else '💡 الأحمال' }}</a>
         <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">{{ '📲 Notifications' if is_en else '📲 الإشعارات' }}</a>
         <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">{{ '🔗 Telegram & SMS' if is_en else '🔗 Telegram و SMS' }}</a>
+        <a class="{% if request.endpoint == 'main.portal_messages' %}active{% endif %}" href="{{ url_for('main.portal_messages', lang=ui_lang) }}">{{ '✉️ Messages' if is_en else '✉️ الرسائل' }}</a>
+        <a class="{% if request.endpoint == 'main.portal_tickets' %}active{% endif %}" href="{{ url_for('main.portal_tickets', lang=ui_lang) }}">{{ '🎫 Tickets' if is_en else '🎫 التذاكر' }}</a>
       {% endif %}
     </nav>
   </div>

@@ -288,6 +288,51 @@ class InternalMailMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
+class SupportTicket(db.Model):
+    __tablename__ = 'support_ticket'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
+    opened_by_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    assigned_admin_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    subject = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(50), nullable=False, default='support')
+    priority = db.Column(db.String(30), nullable=False, default='normal')
+    status = db.Column(db.String(30), nullable=False, default='open', index=True)
+    related_device_id = db.Column(db.Integer, db.ForeignKey('app_device.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_reply_at = db.Column(db.DateTime, nullable=True)
+
+
+class SupportTicketMessage(db.Model):
+    __tablename__ = 'support_ticket_message'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)
+    sender_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    sender_scope = db.Column(db.String(20), nullable=False, default='user')
+    is_internal_note = db.Column(db.Boolean, default=False, nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class TenantQuota(db.Model):
+    __tablename__ = 'tenant_quota'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=False, index=True)
+    quota_key = db.Column(db.String(80), nullable=False, index=True)
+    quota_label = db.Column(db.String(120), nullable=True)
+    limit_value = db.Column(db.Float, nullable=False, default=0.0)
+    used_value = db.Column(db.Float, nullable=False, default=0.0)
+    reset_period = db.Column(db.String(30), nullable=False, default='manual')
+    status = db.Column(db.String(30), nullable=False, default='active')
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class WalletLedger(db.Model):
     __tablename__ = 'wallet_ledger'
 

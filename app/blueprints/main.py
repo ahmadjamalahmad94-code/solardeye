@@ -21,7 +21,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, WalletLedger, AdminActivityLog
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, TenantQuota, WalletLedger, AdminActivityLog
 from ..services.deye_client import DeyeClient
 from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query, is_admin_scope
 from ..services.utils import (
@@ -2725,3 +2725,174 @@ def admin_roles():
         {'role': 'integration_admin', 'summary': 'Devices, APIs, and service health', 'perms': ['manage_devices','manage_integrations','view_logs']},
     ]
     return render_template('admin_roles.html', admin_users=admin_users, role_matrix=role_matrix, ui_lang=_lang())
+
+
+@main_bp.route('/admin/tickets', methods=['GET', 'POST'])
+def admin_tickets():
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return guard
+    actor = _active_user()
+    if request.method == 'POST':
+        action = (request.form.get('action') or 'create').strip()
+        if action == 'create':
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            if subject and body:
+                ticket = SupportTicket(
+                    tenant_id=int(request.form.get('tenant_id') or 0) or None,
+                    opened_by_user_id=getattr(actor, 'id', None),
+                    assigned_admin_user_id=getattr(actor, 'id', None),
+                    subject=subject,
+                    category=(request.form.get('category') or 'support').strip(),
+                    priority=(request.form.get('priority') or 'normal').strip(),
+                    status='open',
+                    related_device_id=int(request.form.get('related_device_id') or 0) or None,
+                    last_reply_at=datetime.utcnow(),
+                )
+                db.session.add(ticket)
+                db.session.flush()
+                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
+                db.session.commit()
+                _admin_write_log('ticket.create', f'Created ticket #{ticket.id}', 'support_ticket', ticket.id, {'subject': ticket.subject})
+                flash('تم إنشاء التذكرة', 'success')
+        elif action == 'reply':
+            ticket_id = int(request.form.get('ticket_id') or 0)
+            body = (request.form.get('body') or '').strip()
+            ticket = SupportTicket.query.get(ticket_id)
+            if ticket and body:
+                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body, is_internal_note=bool(request.form.get('is_internal_note'))))
+                ticket.status = (request.form.get('status') or ticket.status).strip()
+                ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
+                ticket.last_reply_at = datetime.utcnow()
+                db.session.commit()
+                _admin_write_log('ticket.reply', f'Replied to ticket #{ticket.id}', 'support_ticket', ticket.id, {'status': ticket.status})
+                flash('تم تحديث التذكرة', 'success')
+    tickets=[]
+    for ticket in SupportTicket.query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
+        opener = AppUser.query.get(ticket.opened_by_user_id) if ticket.opened_by_user_id else None
+        assignee = AppUser.query.get(ticket.assigned_admin_user_id) if ticket.assigned_admin_user_id else None
+        tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
+        device = AppDevice.query.get(ticket.related_device_id) if ticket.related_device_id else None
+        messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all()
+        tickets.append({'ticket': ticket, 'opener': opener, 'assignee': assignee, 'tenant': tenant, 'device': device, 'messages': messages})
+    return render_template('admin_tickets.html', rows=tickets, tenants=TenantAccount.query.order_by(TenantAccount.display_name.asc()).all(), devices=AppDevice.query.order_by(AppDevice.name.asc()).all(), admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), ui_lang=_lang())
+
+
+@main_bp.route('/admin/quotas', methods=['GET', 'POST'])
+def admin_quotas():
+    guard = _admin_guard('can_manage_finance')
+    if guard:
+        return guard
+    actor = _active_user()
+    if request.method == 'POST':
+        quota_id = int(request.form.get('quota_id') or 0)
+        if quota_id:
+            quota = TenantQuota.query.get(quota_id)
+            if quota:
+                quota.limit_value = float(request.form.get('limit_value') or quota.limit_value or 0)
+                quota.used_value = float(request.form.get('used_value') or quota.used_value or 0)
+                quota.status = (request.form.get('status') or quota.status).strip()
+                quota.reset_period = (request.form.get('reset_period') or quota.reset_period).strip()
+                quota.notes = (request.form.get('notes') or quota.notes or '').strip()
+                db.session.commit()
+                _admin_write_log('quota.update', f'Updated quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': quota.tenant_id, 'quota_key': quota.quota_key})
+                flash('تم تحديث الكوتا', 'success')
+        else:
+            tenant_id = int(request.form.get('tenant_id') or 0)
+            quota_key = (request.form.get('quota_key') or '').strip()
+            if tenant_id and quota_key:
+                quota = TenantQuota(
+                    tenant_id=tenant_id,
+                    quota_key=quota_key,
+                    quota_label=(request.form.get('quota_label') or quota_key).strip(),
+                    limit_value=float(request.form.get('limit_value') or 0),
+                    used_value=float(request.form.get('used_value') or 0),
+                    reset_period=(request.form.get('reset_period') or 'manual').strip(),
+                    status=(request.form.get('status') or 'active').strip(),
+                    notes=(request.form.get('notes') or '').strip() or None,
+                )
+                db.session.add(quota)
+                db.session.commit()
+                _admin_write_log('quota.create', f'Created quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant_id, 'quota_key': quota_key})
+                flash('تم إنشاء الكوتا', 'success')
+    rows=[]
+    for quota in TenantQuota.query.order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all():
+        tenant = TenantAccount.query.get(quota.tenant_id)
+        percent = 0
+        if quota.limit_value and quota.limit_value > 0:
+            percent = round((quota.used_value / quota.limit_value) * 100, 1)
+        rows.append({'quota': quota, 'tenant': tenant, 'percent': percent})
+    return render_template('admin_quotas.html', rows=rows, tenants=TenantAccount.query.order_by(TenantAccount.display_name.asc()).all(), ui_lang=_lang())
+
+
+@main_bp.route('/portal/messages', methods=['GET', 'POST'])
+def portal_messages():
+    guard = _energy_portal_guard()
+    if guard:
+        return guard
+    user = _active_user()
+    if request.method == 'POST' and user is not None:
+        action = (request.form.get('action') or 'create').strip()
+        tenant = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+        if action == 'create':
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            if subject and body:
+                thread = InternalMailThread(tenant_id=getattr(tenant, 'id', None), created_by_user_id=user.id, subject=subject, category=(request.form.get('category') or 'support').strip(), priority=(request.form.get('priority') or 'normal').strip(), status='open', last_reply_at=datetime.utcnow())
+                db.session.add(thread)
+                db.session.flush()
+                db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
+                db.session.commit()
+                flash('تم إرسال الرسالة للإدارة', 'success')
+        elif action == 'reply':
+            thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
+            body = (request.form.get('body') or '').strip()
+            if thread and thread.created_by_user_id == user.id and body:
+                db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
+                thread.last_reply_at = datetime.utcnow()
+                if thread.status == 'closed':
+                    thread.status = 'open'
+                db.session.commit()
+                flash('تمت إضافة الرد', 'success')
+    rows=[]
+    if user is not None:
+        for thread in InternalMailThread.query.filter_by(created_by_user_id=user.id).order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all():
+            rows.append({'thread': thread, 'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all()})
+    return render_template('portal_messages.html', rows=rows, ui_lang=_lang())
+
+
+@main_bp.route('/portal/tickets', methods=['GET', 'POST'])
+def portal_tickets():
+    guard = _energy_portal_guard()
+    if guard:
+        return guard
+    user = _active_user()
+    tenant = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(user, 'id', None)) if user else None
+    if request.method == 'POST' and user is not None:
+        action = (request.form.get('action') or 'create').strip()
+        if action == 'create':
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            if subject and body:
+                ticket = SupportTicket(tenant_id=getattr(tenant, 'id', None), opened_by_user_id=user.id, subject=subject, category=(request.form.get('category') or 'support').strip(), priority=(request.form.get('priority') or 'normal').strip(), status='open', related_device_id=int(request.form.get('related_device_id') or 0) or getattr(_active_device(), 'id', None), last_reply_at=datetime.utcnow())
+                db.session.add(ticket)
+                db.session.flush()
+                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
+                db.session.commit()
+                flash('تم فتح التذكرة', 'success')
+        elif action == 'reply':
+            ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
+            body = (request.form.get('body') or '').strip()
+            if ticket and ticket.opened_by_user_id == user.id and body:
+                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
+                ticket.last_reply_at = datetime.utcnow()
+                if ticket.status == 'closed':
+                    ticket.status = 'open'
+                db.session.commit()
+                flash('تمت إضافة الرد على التذكرة', 'success')
+    rows=[]
+    if user is not None:
+        for ticket in SupportTicket.query.filter_by(opened_by_user_id=user.id).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
+            rows.append({'ticket': ticket, 'messages': SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all()})
+    return render_template('portal_tickets.html', rows=rows, devices=_device_collection(), ui_lang=_lang())
