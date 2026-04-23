@@ -23,7 +23,7 @@ import arabic_reshaper
 from ..extensions import db
 from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription
 from ..services.deye_client import DeyeClient
-from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query
+from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query, is_admin_scope
 from ..services.utils import (
     format_local_datetime, human_duration_hours, safe_float,
     safe_power_w, to_json, utc_to_local,
@@ -91,8 +91,26 @@ def _admin_guard(permission: str = 'can_manage_users'):
     if has_permission(permission):
         return None
     flash('هذه الصفحة غير متاحة لك ضمن صلاحيات حسابك.', 'warning')
+    return redirect(url_for('main.admin_dashboard', lang=_lang()))
+
+
+
+
+def _redirect_by_role(user=None):
+    user = user or _active_user()
+    if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
+        return redirect(url_for('main.admin_dashboard', lang=_lang()))
     return redirect(url_for('main.dashboard', lang=_lang()))
 
+
+def _energy_portal_guard():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    if getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin':
+        flash('لوحة الإدارة منفصلة عن بوابة الطاقة. ادخل بوابة مستخدم لرؤية جهازك.', 'info')
+        return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    return None
 
 def _role_badge(role: str, is_active: bool):
     role = (role or 'user').strip().lower()
@@ -374,12 +392,33 @@ def _smart_load_suggestions(latest, settings=None):
 @main_bp.route('/')
 def index():
     if session.get('logged_in'):
+        user = _active_user()
+        if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
+            return redirect(url_for('main.admin_dashboard', lang=_lang()))
         return redirect(url_for('main.dashboard', lang=_lang()))
     return render_template('landing.html', ui_lang=_lang())
 
 
+@main_bp.route('/admin/dashboard')
+def admin_dashboard():
+    guard = _admin_guard()
+    if guard:
+        return guard
+    total_users = AppUser.query.filter_by(is_admin=False).count()
+    total_tenants = TenantAccount.query.count()
+    active_subs = TenantSubscription.query.filter(TenantSubscription.status.in_(['active', 'trial'])).count()
+    total_plans = SubscriptionPlan.query.filter_by(is_active=True).count()
+    total_devices = AppDevice.query.filter_by(is_active=True).count()
+    recent_subscribers = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).limit(8).all()
+    heartbeat_rows = ServiceHeartbeat.query.order_by(ServiceHeartbeat.updated_at.desc()).limit(6).all()
+    return render_template('admin_dashboard.html', total_users=total_users, total_tenants=total_tenants, active_subs=active_subs, total_plans=total_plans, total_devices=total_devices, recent_subscribers=recent_subscribers, heartbeat_rows=heartbeat_rows)
+
+
 @main_bp.route('/dashboard')
 def dashboard():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -567,6 +606,9 @@ def _get_stats_context(request_args, tz_name):
 
 @main_bp.route('/statistics')
 def statistics():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -588,6 +630,9 @@ def statistics():
 
 @main_bp.route('/reports')
 def reports():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -965,6 +1010,9 @@ def export_statistics_pdf():
 
 @main_bp.route('/deye', methods=['GET', 'POST'])
 def deye_settings():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     settings = load_settings()
     if request.method == 'POST':
         save_settings_from_form(request.form)
@@ -1064,6 +1112,9 @@ def sync_now():
 
 @main_bp.route('/diagnostics')
 def diagnostics():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -1083,6 +1134,9 @@ def diagnostics():
 
 @main_bp.route('/live-data')
 def live_data():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -1356,6 +1410,9 @@ def _save_device_fields(device: AppDevice, owner_user_id: int):
 
 @main_bp.route('/devices/manage', methods=['GET', 'POST'])
 def devices_manage():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     guard = _require_subscription_guard()
     if guard:
         return guard
@@ -1414,6 +1471,9 @@ def device_toggle(device_id: int):
 
 @main_bp.route('/onboarding', methods=['GET', 'POST'])
 def onboarding_wizard():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     user = _active_user()
     if user is None:
         return redirect(url_for('auth.login'))
@@ -1501,6 +1561,9 @@ def admin_system_logs():
 
 @main_bp.route('/devices')
 def devices():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     latest = _latest_reading()
     devices_list = _device_collection()
     active_device = _active_device()
@@ -1524,6 +1587,9 @@ def devices():
 
 @main_bp.route('/battery-lab')
 def battery_lab():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     latest = _latest_reading()
     tz_name = current_app.config['LOCAL_TIMEZONE']
     battery_details = build_battery_details(latest)
@@ -1572,6 +1638,9 @@ def battery_lab():
 
 @main_bp.route('/loads', methods=['GET', 'POST'])
 def loads_page():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     latest = _latest_reading()
     weather = get_weather_for_latest(latest)
     settings = load_settings()
@@ -1665,6 +1734,9 @@ def loads_page():
 
 @main_bp.route('/alerts')
 def alerts():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(200).all()
     return render_template('alerts.html', logs=logs,
                            format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']), ui_lang=_lang())
@@ -1858,6 +1930,9 @@ def notifications_action():
 
 @main_bp.route('/channels', methods=['GET', 'POST'])
 def channels():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     lang = request.args.get('lang') or request.form.get('lang')
     if request.method == 'POST':
         action = (request.form.get('channel_action') or '').strip().lower()
@@ -1934,6 +2009,9 @@ def channels():
     )
 @main_bp.route('/notifications', methods=['GET', 'POST'])
 def notifications_settings():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     settings = load_settings()
     if request.method == 'POST':
         section = (request.args.get('section') or request.form.get('settings_section') or '').strip().lower()
@@ -2130,6 +2208,9 @@ def telegram_webhook():
         )
 @main_bp.route('/plant-info')
 def plant_info():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
     latest = _latest_reading()
     settings = load_settings()
     tz_name = current_app.config['LOCAL_TIMEZONE']

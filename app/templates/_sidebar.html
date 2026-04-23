@@ -3,42 +3,46 @@
     <div class="brand-row">
       <div class="brand-icon">☀️</div>
       <div>
-        <h4 class="mb-0" data-ar="منصة الطاقة" data-en="Energy Platform">منصة الطاقة</h4>
-        <small data-ar="V17 المطورة" data-en="V17 Enhanced">V17 المطورة</small>
+        <h4 class="mb-0">{{ 'لوحة الإدارة' if g.is_admin else 'منصة الطاقة' }}</h4>
+        <small>{{ 'CRM / SaaS Admin' if g.is_admin else 'V17 المطورة' }}</small>
       </div>
     </div>
-<div class="sidebar-lang-box">
+    <div class="sidebar-lang-box">
       <div class="sidebar-lang-inline">
         <a class="sidebar-lang-btn compact {% if (ui_lang or 'ar') == 'ar' %}active{% endif %}" href="{{ request.path }}?lang=ar">عربي</a>
         <a class="sidebar-lang-btn compact {% if (ui_lang or 'ar') == 'en' %}active{% endif %}" href="{{ request.path }}?lang=en">English</a>
       </div>
     </div>
-<nav class="nav-menu mt-4">
-      <a class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard', lang=ui_lang) }}" data-ar="🏠 النظرة العامة" data-en="🏠 Overview">🏠 النظرة العامة</a>
-      <a class="{% if request.endpoint == 'main.statistics' %}active{% endif %}" href="{{ url_for('main.statistics', lang=ui_lang) }}" data-ar="📊 الإحصائيات" data-en="📊 Statistics">📊 الإحصائيات</a>
-      <a class="{% if request.endpoint == 'main.reports' %}active{% endif %}" href="{{ url_for('main.reports', lang=ui_lang) }}" data-ar="🧾 التقارير" data-en="🧾 Reports">🧾 التقارير</a>
-      <a class="{% if request.endpoint == 'main.battery_lab' %}active{% endif %}" href="{{ url_for('main.battery_lab', lang=ui_lang) }}" data-ar="🔋 مختبر البطارية" data-en="🔋 Battery Lab">🔋 مختبر البطارية</a>
-      <a class="{% if request.endpoint == 'main.devices' %}active{% endif %}" href="{{ url_for('main.devices', lang=ui_lang) }}" data-ar="🖥️ الأجهزة" data-en="🖥️ Devices">🖥️ الأجهزة</a>
-      <a class="{% if request.endpoint in ['main.devices_manage','main.device_edit'] %}active{% endif %}" href="{{ url_for('main.devices_manage', lang=ui_lang) }}" data-ar="🔌 إدارة الأجهزة" data-en="🔌 Manage Devices">🔌 إدارة الأجهزة</a>
-      <a class="{% if request.endpoint == 'main.onboarding_wizard' %}active{% endif %}" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}" data-ar="🧭 الإعداد الأولي" data-en="🧭 Onboarding">🧭 الإعداد الأولي</a>
-      <a class="{% if request.endpoint == 'main.live_data' %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}" data-ar="📡 البيانات الحية" data-en="📡 Live Data">📡 البيانات الحية</a>
-      <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}" data-ar="💡 أحمالك" data-en="💡 Your Loads">💡 أحمالك</a>
-      <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}" data-ar="📲 مركز الإشعارات" data-en="📲 Notifications">📲 مركز الإشعارات</a>
-      <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}" data-ar="🔗 ربط Telegram وSMS" data-en="🔗 Telegram & SMS">🔗 ربط Telegram وSMS</a>
-      <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}" data-ar="🚨 السجل والتنبيهات" data-en="🚨 Alerts Log">🚨 السجل والتنبيهات</a>
-      <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}" data-ar="📍 معلومات المحطة" data-en="📍 Plant Info">📍 معلومات المحطة</a>
-      {% if g.is_admin or g.plan_features.get('can_view_diagnostics') %}<a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}" data-ar="🧪 التشخيص" data-en="🧪 Diagnostics">🧪 التشخيص</a>{% endif %}
-      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}" data-ar="👥 إدارة المستخدمين" data-en="👥 Users">👥 إدارة المستخدمين</a><a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}" data-ar="📦 الخطط" data-en="📦 Plans">📦 الخطط</a><a class="{% if request.endpoint in ['main.admin_subscribers','main.admin_subscriber_activate'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}" data-ar="🧾 المشتركون" data-en="🧾 Subscribers">🧾 المشتركون</a>{% endif %}
-      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}" data-ar="🛠️ لوج النظام والخدمات" data-en="🛠️ System Logs">🛠️ لوج النظام والخدمات</a>{% endif %}
-      {% if g.is_admin %}<a class="{% if request.endpoint == 'main.deye_settings' %}active{% endif %}" href="{{ url_for('main.deye_settings', lang=ui_lang) }}" data-ar="🔐 ربط Deye" data-en="🔐 Deye Setup">🔐 ربط Deye</a>{% endif %}
-      {% if g.is_admin or g.plan_features.get('can_view_api_explorer') %}<a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}" data-ar="🔬 API Explorer" data-en="🔬 API Explorer">🔬 API Explorer</a>{% endif %}
-      <a class="{% if request.endpoint == 'main.account_subscription' %}active{% endif %}" href="{{ url_for('main.account_subscription', lang=ui_lang) }}" data-ar="💳 اشتراكي" data-en="💳 Subscription">💳 اشتراكي</a>
-</nav>
+    <nav class="nav-menu mt-4">
+      {% if g.is_admin %}
+        <a class="{% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}" href="{{ url_for('main.admin_dashboard', lang=ui_lang) }}">📈 لوحة الإدارة</a>
+        <a class="{% if request.endpoint == 'main.admin_users' %}active{% endif %}" href="{{ url_for('main.admin_users', lang=ui_lang) }}">👥 إدارة المستخدمين</a>
+        <a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">📦 الخطط</a>
+        <a class="{% if request.endpoint in ['main.admin_subscribers','main.admin_subscriber_activate'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">🧾 المشتركون</a>
+        <a class="{% if request.endpoint == 'main.admin_system_logs' %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">🛠️ لوج النظام والخدمات</a>
+      {% else %}
+        <a class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard', lang=ui_lang) }}">🏠 النظرة العامة</a>
+        <a class="{% if request.endpoint == 'main.statistics' %}active{% endif %}" href="{{ url_for('main.statistics', lang=ui_lang) }}">📊 الإحصائيات</a>
+        <a class="{% if request.endpoint == 'main.reports' %}active{% endif %}" href="{{ url_for('main.reports', lang=ui_lang) }}">🧾 التقارير</a>
+        <a class="{% if request.endpoint == 'main.battery_lab' %}active{% endif %}" href="{{ url_for('main.battery_lab', lang=ui_lang) }}">🔋 مختبر البطارية</a>
+        <a class="{% if request.endpoint == 'main.devices' %}active{% endif %}" href="{{ url_for('main.devices', lang=ui_lang) }}">🖥️ الأجهزة</a>
+        <a class="{% if request.endpoint in ['main.devices_manage','main.device_edit'] %}active{% endif %}" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">🔌 إدارة الأجهزة</a>
+        <a class="{% if request.endpoint == 'main.onboarding_wizard' %}active{% endif %}" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}">🧭 الإعداد الأولي</a>
+        <a class="{% if request.endpoint == 'main.live_data' %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}">📡 البيانات الحية</a>
+        <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}">💡 أحمالك</a>
+        <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">📲 مركز الإشعارات</a>
+        <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">🔗 ربط Telegram وSMS</a>
+        <a class="{% if request.endpoint == 'main.alerts' %}active{% endif %}" href="{{ url_for('main.alerts', lang=ui_lang) }}">🚨 السجل والتنبيهات</a>
+        <a class="{% if request.endpoint == 'main.plant_info' %}active{% endif %}" href="{{ url_for('main.plant_info', lang=ui_lang) }}">📍 معلومات المحطة</a>
+        {% if g.plan_features.get('can_view_diagnostics') %}<a class="{% if request.endpoint == 'main.diagnostics' %}active{% endif %}" href="{{ url_for('main.diagnostics', lang=ui_lang) }}">🧪 التشخيص</a>{% endif %}
+        {% if g.plan_features.get('can_view_api_explorer') %}<a class="{% if request.endpoint == 'probe.api_probe_page' %}active{% endif %}" href="{{ url_for('probe.api_probe_page', lang=ui_lang) }}">🔬 API Explorer</a>{% endif %}
+        <a class="{% if request.endpoint == 'main.account_subscription' %}active{% endif %}" href="{{ url_for('main.account_subscription', lang=ui_lang) }}">💳 اشتراكي</a>
+      {% endif %}
+    </nav>
   </div>
-
   <div class="sidebar-footer">
     <form method="post" action="{{ url_for('auth.logout') }}">
-      <button class="btn btn-outline-light w-100" data-ar="تسجيل الخروج" data-en="Sign out">تسجيل الخروج</button>
+      <button class="btn btn-outline-light w-100">تسجيل الخروج</button>
     </form>
   </div>
 </aside>

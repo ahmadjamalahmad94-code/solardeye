@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
-from flask import g, has_request_context, session
+from flask import g, has_request_context, session, request
 
 from ..models import AppDevice, AppUser
 
@@ -67,6 +67,8 @@ def get_current_user():
 
 def get_current_device():
     if has_request_context():
+        if is_admin_scope():
+            return None
         device = getattr(g, 'current_device', None)
         if device is not None:
             return device
@@ -75,15 +77,13 @@ def get_current_device():
         if user is not None:
             is_admin = bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin')
             device_id = session.get('current_device_id')
-            if device_id:
-                if is_admin:
-                    found = AppDevice.query.filter_by(id=device_id, is_active=True).first()
-                else:
-                    found = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id, is_active=True).first()
+            if device_id and not is_admin:
+                found = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id, is_active=True).first()
                 if found:
                     return found
             if not is_admin:
                 return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+            return None
 
     system_device_id = _system_device_id.get()
     if system_device_id:
@@ -95,8 +95,7 @@ def get_current_device():
     if user is not None and not bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
         return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
 
-    return get_default_system_device(user)
-
+    return None
 
 def current_scope_ids():
     user = get_current_user()

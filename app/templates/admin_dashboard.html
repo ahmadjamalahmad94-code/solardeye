@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="page-shell">
+  <div class="page-header">
+    <h1>لوحة إدارة المنصة</h1>
+    <p class="text-muted">CRM / SaaS Admin — إدارة المشتركين والخطط فقط</p>
+  </div>
+  <div class="stats-grid">
+    <div class="card stat-card"><div class="stat-label">المشتركون</div><div class="stat-value">{{ total_users }}</div></div>
+    <div class="card stat-card"><div class="stat-label">الحسابات</div><div class="stat-value">{{ total_tenants }}</div></div>
+    <div class="card stat-card"><div class="stat-label">الاشتراكات النشطة</div><div class="stat-value">{{ active_subs }}</div></div>
+    <div class="card stat-card"><div class="stat-label">الخطط المفعلة</div><div class="stat-value">{{ total_plans }}</div></div>
+    <div class="card stat-card"><div class="stat-label">الأجهزة المسجلة</div><div class="stat-value">{{ total_devices }}</div></div>
+  </div>
+  <div class="grid-2 mt-4">
+    <div class="card">
+      <h3>آخر المشتركين</h3>
+      <table class="table"><thead><tr><th>الاسم</th><th>البريد</th></tr></thead><tbody>
+      {% for user in recent_subscribers %}<tr><td>{{ user.full_name or user.username }}</td><td>{{ user.email or '-' }}</td></tr>{% else %}<tr><td colspan="2">لا يوجد</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3>نبضات الخدمات</h3>
+      <table class="table"><thead><tr><th>الخدمة</th><th>الحالة</th><th>آخر تحديث</th></tr></thead><tbody>
+      {% for row in heartbeat_rows %}<tr><td>{{ row.service_label or row.service_key }}</td><td>{{ row.status }}</td><td>{{ row.updated_at or '-' }}</td></tr>{% else %}<tr><td colspan="3">لا يوجد</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+  </div>
+</div>
+{% endblock %}

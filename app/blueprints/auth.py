@@ -40,11 +40,13 @@ def _login_user(app_user: AppUser):
         device = AppDevice.query.filter_by(id=app_user.preferred_device_id, is_active=True).first()
     if device is None:
         device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
-    if device:
+    if device and not bool(getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin'):
         session['current_device_id'] = device.id
         session['current_device_type'] = device.device_type or 'deye'
         if app_user.preferred_device_id != device.id:
             app_user.preferred_device_id = device.id
+    else:
+        session.pop('current_device_id', None)
     app_user.last_login_at = datetime.utcnow()
     db.session.commit()
 
@@ -82,6 +84,8 @@ def _random_username_from_email(email: str) -> str:
 def _login_after_social(user: AppUser):
     _login_user(user)
     flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
+    if getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin':
+        return redirect(url_for('main.admin_dashboard'))
     if not getattr(user, 'onboarding_completed', False):
         return redirect(url_for('main.onboarding_wizard'))
     return redirect(url_for('main.dashboard'))
@@ -110,6 +114,8 @@ def login():
             if app_user:
                 _login_user(app_user)
                 flash('تم تسجيل الدخول بنجاح', 'success')
+                if getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin':
+                    return redirect(url_for('main.admin_dashboard'))
                 if not getattr(app_user, 'onboarding_completed', False):
                     return redirect(url_for('main.onboarding_wizard'))
                 return redirect(url_for('main.dashboard'))
