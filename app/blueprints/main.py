@@ -1273,6 +1273,185 @@ def live_data():
 
 
 
+
+
+def _wallet_balance_for_tenant(tenant_id: int | None) -> float:
+    if not tenant_id:
+        return 0.0
+    total = 0.0
+    for entry in WalletLedger.query.filter_by(tenant_id=tenant_id).all():
+        total += entry.amount if entry.entry_type == 'credit' else -entry.amount
+    return round(total, 2)
+
+
+def _parse_dt_local(value: str | None):
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M'):
+        try:
+            return datetime.strptime(raw, fmt)
+        except Exception:
+            continue
+    return None
+
+
+def _admin_user_payload(user: AppUser):
+    tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(_active_user(), 'id', None))
+    devices = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.updated_at.desc(), AppDevice.id.desc()).all()
+    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    tenant_threads = InternalMailThread.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
+    thread_rows = []
+    for thread in tenant_threads:
+        thread_rows.append({
+            'thread': thread,
+            'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all(),
+            'assignee': AppUser.query.get(thread.assigned_admin_user_id) if thread.assigned_admin_user_id else None,
+        })
+    tenant_tickets = SupportTicket.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all()
+    ticket_rows = []
+    for ticket in tenant_tickets:
+        ticket_rows.append({
+            'ticket': ticket,
+            'messages': SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all(),
+            'assignee': AppUser.query.get(ticket.assigned_admin_user_id) if ticket.assigned_admin_user_id else None,
+            'device': AppDevice.query.get(ticket.related_device_id) if ticket.related_device_id else None,
+        })
+    finance_rows = WalletLedger.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all()
+    quota_rows = TenantQuota.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all()
+    activity_rows = AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).limit(150).all()
+    related_activities = []
+    for item in activity_rows:
+        details = {}
+        try:
+            details = json.loads(item.details_json or '{}') if item.details_json else {}
+        except Exception:
+            details = {}
+        if details.get('tenant_id') == getattr(tenant, 'id', None) or details.get('user_id') == user.id or item.target_id == user.id:
+            related_activities.append({'item': item, 'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None})
+    feature_map = plan_features(SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None)
+    return {
+        'tenant': tenant,
+        'subscription': subscription,
+        'devices': devices,
+        'plans': plans,
+        'thread_rows': thread_rows,
+        'ticket_rows': ticket_rows,
+        'finance_rows': finance_rows,
+        'quota_rows': quota_rows,
+        'activity_rows': related_activities[:40],
+        'wallet_balance': _wallet_balance_for_tenant(getattr(tenant, 'id', None)),
+        'feature_map': feature_map,
+    }
+
+
+@main_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
+def admin_user_profile(user_id: int):
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = AppUser.query.filter_by(id=user_id).first_or_404()
+    actor = _active_user()
+    tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(actor, 'id', None))
+
+    if request.method == 'POST':
+        action = (request.form.get('action') or '').strip()
+        if action == 'save_profile':
+            username = (request.form.get('username') or user.username or '').strip()
+            other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
+            if other:
+                flash('اسم المستخدم مستخدم من قبل.', 'danger')
+            else:
+                user.username = username
+                user.full_name = (request.form.get('full_name') or '').strip()
+                user.email = (request.form.get('email') or '').strip()
+                user.is_active = request.form.get('is_active') == 'on'
+                role = (request.form.get('role') or user.role or 'user').strip().lower()
+                user.role = 'admin' if role == 'admin' else 'user'
+                user.is_admin = (user.role == 'admin')
+                if request.form.get('password'):
+                    user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
+                db.session.commit()
+                _admin_write_log('user.profile', f'Updated profile for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'tenant_id': tenant.id})
+                flash('تم تحديث البيانات الشخصية.', 'success')
+        elif action == 'save_subscription':
+            plan_id = int(request.form.get('plan_id') or 0) or None
+            sub_status = (request.form.get('subscription_status') or getattr(subscription, 'status', 'trial')).strip()
+            tenant.status = (request.form.get('tenant_status') or tenant.status or 'trial').strip()
+            tenant.max_devices_override = int(request.form.get('max_devices_override') or 0) or None
+            if plan_id:
+                tenant.plan_id = plan_id
+                if subscription:
+                    subscription.plan_id = plan_id
+            if subscription:
+                subscription.status = sub_status
+                subscription.starts_at = _parse_dt_local(request.form.get('starts_at')) or subscription.starts_at
+                subscription.ends_at = _parse_dt_local(request.form.get('ends_at')) or subscription.ends_at
+                subscription.trial_ends_at = _parse_dt_local(request.form.get('trial_ends_at')) or subscription.trial_ends_at
+                subscription.notes = (request.form.get('subscription_notes') or subscription.notes or '').strip() or None
+            db.session.commit()
+            _admin_write_log('subscription.profile', f'Updated subscription for tenant #{tenant.id}', 'tenant_subscription', getattr(subscription, 'id', None), {'tenant_id': tenant.id, 'user_id': user.id})
+            flash('تم تحديث بيانات الاشتراك.', 'success')
+        elif action == 'finance_entry':
+            amount = float(request.form.get('amount') or 0)
+            if amount:
+                entry = WalletLedger(tenant_id=tenant.id, actor_user_id=getattr(actor, 'id', None), entry_type=(request.form.get('entry_type') or 'credit').strip(), amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip() or None, reference=(request.form.get('reference') or '').strip() or None)
+                db.session.add(entry)
+                db.session.commit()
+                _admin_write_log('finance.profile', f'Added finance entry for tenant #{tenant.id}', 'wallet_ledger', entry.id, {'tenant_id': tenant.id, 'user_id': user.id, 'entry_type': entry.entry_type})
+                flash('تمت إضافة حركة مالية للمشترك.', 'success')
+        elif action == 'quota_entry':
+            quota_id = int(request.form.get('quota_id') or 0)
+            if quota_id:
+                quota = TenantQuota.query.get(quota_id)
+                if quota and quota.tenant_id == tenant.id:
+                    quota.limit_value = float(request.form.get('limit_value') or quota.limit_value or 0)
+                    quota.used_value = float(request.form.get('used_value') or quota.used_value or 0)
+                    quota.status = (request.form.get('status') or quota.status).strip()
+                    quota.reset_period = (request.form.get('reset_period') or quota.reset_period).strip()
+                    quota.notes = (request.form.get('notes') or quota.notes or '').strip() or None
+                    db.session.commit()
+                    _admin_write_log('quota.profile.update', f'Updated quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id})
+                    flash('تم تحديث الكوتا.', 'success')
+            else:
+                quota_key = (request.form.get('quota_key') or '').strip()
+                if quota_key:
+                    quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key, quota_label=(request.form.get('quota_label') or quota_key).strip(), limit_value=float(request.form.get('limit_value') or 0), used_value=float(request.form.get('used_value') or 0), reset_period=(request.form.get('reset_period') or 'manual').strip(), status=(request.form.get('status') or 'active').strip(), notes=(request.form.get('notes') or '').strip() or None)
+                    db.session.add(quota)
+                    db.session.commit()
+                    _admin_write_log('quota.profile.create', f'Created quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': quota.quota_key})
+                    flash('تمت إضافة كوتا جديدة.', 'success')
+        elif action == 'mail_reply':
+            thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
+            body = (request.form.get('body') or '').strip()
+            if thread and thread.tenant_id == tenant.id:
+                if body:
+                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
+                thread.status = (request.form.get('status') or thread.status or 'open').strip()
+                thread.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or thread.assigned_admin_user_id or getattr(actor, 'id', None)
+                thread.last_reply_at = datetime.utcnow()
+                db.session.commit()
+                _admin_write_log('mail.profile.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': thread.status})
+                flash('تم حفظ تحديث الرسالة.', 'success')
+        elif action == 'ticket_reply':
+            ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
+            body = (request.form.get('body') or '').strip()
+            if ticket and ticket.tenant_id == tenant.id:
+                if body:
+                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
+                ticket.status = (request.form.get('status') or ticket.status or 'open').strip()
+                ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
+                ticket.last_reply_at = datetime.utcnow()
+                db.session.commit()
+                _admin_write_log('ticket.profile.reply', f'Updated ticket #{ticket.id}', 'support_ticket', ticket.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': ticket.status})
+                flash('تم حفظ تحديث التذكرة.', 'success')
+        return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab=request.args.get('tab') or 'profile'))
+
+    payload = _admin_user_payload(user)
+    tab = (request.args.get('tab') or 'profile').strip()
+    return render_template('admin_user_profile.html', user_obj=user, tab=tab, admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), role_badge=_role_badge, ui_lang=_lang(), **payload)
+
+
 @main_bp.route('/admin/users')
 def admin_users():
     guard = _admin_guard('can_view_logs')
@@ -2784,8 +2963,9 @@ def admin_tickets():
             ticket_id = int(request.form.get('ticket_id') or 0)
             body = (request.form.get('body') or '').strip()
             ticket = SupportTicket.query.get(ticket_id)
-            if ticket and body:
-                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body, is_internal_note=bool(request.form.get('is_internal_note'))))
+            if ticket:
+                if body:
+                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body, is_internal_note=bool(request.form.get('is_internal_note'))))
                 ticket.status = (request.form.get('status') or ticket.status).strip()
                 ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket.last_reply_at = datetime.utcnow()

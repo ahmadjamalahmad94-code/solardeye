@@ -7,8 +7,8 @@
     <header class="admin-page-head compact">
       <div>
         <span class="eyebrow">{{ 'User management' if is_en else 'إدارة المستخدمين' }}</span>
-        <h1>{{ 'Accounts, roles, and ownership' if is_en else 'الحسابات والصلاحيات والملكية' }}</h1>
-        <p>{{ 'Manage platform users without mixing subscriber runtime data into the admin workspace.' if is_en else 'إدارة حسابات المنصة بدون خلط بيانات التشغيل الخاصة بالمشتركين داخل لوحة الإدارة.' }}</p>
+        <h1>{{ 'Users hub and customer 360 pages' if is_en else 'مركز المستخدمين وصفحات المشترك الكاملة' }}</h1>
+        <p>{{ 'Every account now opens into a complete subscriber profile with personal, subscription, support, finance, quota, and device sections.' if is_en else 'كل حساب يفتح الآن كصفحة مشترك كاملة فيها البيانات الشخصية والاشتراك والدعم والمالية والكوتا والأجهزة.' }}</p>
       </div>
       <div class="admin-head-actions">
         <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
@@ -57,6 +57,7 @@
                 </td>
                 <td>
                   <div class="action-row-v2">
+                    <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">{{ 'Open 360 page' if is_en else 'فتح صفحة المشترك' }}</a>
                     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
                     <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}">
                       <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
