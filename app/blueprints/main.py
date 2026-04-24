@@ -1436,27 +1436,52 @@ def admin_user_profile(user_id: int):
         elif action == 'mail_reply':
             thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
             body = (request.form.get('body') or '').strip()
-            if thread and thread.tenant_id == tenant.id:
+            belongs_to_user = bool(thread and (
+                (getattr(thread, 'tenant_id', None) and thread.tenant_id == tenant.id) or
+                getattr(thread, 'created_by_user_id', None) == user.id
+            ))
+            if thread and belongs_to_user:
+                if not thread.tenant_id:
+                    thread.tenant_id = tenant.id
+                if not thread.created_by_user_id:
+                    thread.created_by_user_id = user.id
                 if body:
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
                 thread.status = (request.form.get('status') or thread.status or 'open').strip()
                 thread.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or thread.assigned_admin_user_id or getattr(actor, 'id', None)
                 thread.last_reply_at = datetime.utcnow()
+                thread.updated_at = datetime.utcnow()
                 db.session.commit()
                 _admin_write_log('mail.profile.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': thread.status})
-                flash('تم حفظ تحديث الرسالة.', 'success')
+                flash('تم إرسال الرد وتحديث المحادثة.', 'success')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
+            flash('تعذر إرسال الرد: المحادثة غير مرتبطة بهذا المشترك.', 'danger')
+            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
         elif action == 'ticket_reply':
             ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
             body = (request.form.get('body') or '').strip()
-            if ticket and ticket.tenant_id == tenant.id:
+            belongs_to_user = bool(ticket and (
+                (getattr(ticket, 'tenant_id', None) and ticket.tenant_id == tenant.id) or
+                getattr(ticket, 'opened_by_user_id', None) == user.id
+            ))
+            if ticket and belongs_to_user:
+                if not ticket.tenant_id:
+                    ticket.tenant_id = tenant.id
+                if not ticket.opened_by_user_id:
+                    ticket.opened_by_user_id = user.id
                 if body:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
                 ticket.status = (request.form.get('status') or ticket.status or 'open').strip()
                 ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket.last_reply_at = datetime.utcnow()
+                ticket.updated_at = datetime.utcnow()
                 db.session.commit()
                 _admin_write_log('ticket.profile.reply', f'Updated ticket #{ticket.id}', 'support_ticket', ticket.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': ticket.status})
-                flash('تم حفظ تحديث التذكرة.', 'success')
+                flash('تم إرسال الرد وتحديث التذكرة.', 'success')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
+            flash('تعذر إرسال الرد: التذكرة غير مرتبطة بهذا المشترك.', 'danger')
+            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
+
         return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab=request.args.get('tab') or 'profile'))
 
     payload = _admin_user_payload(user)

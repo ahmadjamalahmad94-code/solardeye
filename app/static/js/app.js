@@ -351,5 +351,9 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   function refresh(){ if(!feedUrl) return; fetch(feedUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.json()).then(data=>{ if(count) count.textContent = data.count || 0; if(mailCount) mailCount.textContent = data.mail_count || 0; if(ticketCount) ticketCount.textContent = data.ticket_count || 0; render(data.items || []); }).catch(()=>{}); }
   btn && btn.addEventListener('click', function(e){ e.preventDefault(); wrap.classList.toggle('open'); if(wrap.classList.contains('open')) refresh(); });
   document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) wrap.classList.remove('open'); });
-  refresh(); setInterval(refresh, 60000);
+  
+  refresh();
+  setInterval(refresh, 10000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) refresh(); });
+
 })();
