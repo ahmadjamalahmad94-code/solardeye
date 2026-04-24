@@ -429,8 +429,17 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       const rows = Array.from(mailbox.querySelectorAll('[data-case-row]'));
       const panels = Array.from(mailbox.querySelectorAll('[data-case-panel]'));
       const inspectors = Array.from(mailbox.querySelectorAll('[data-inspector-panel]'));
-      const search = document.getElementById('supportQueueSearch') || document.getElementById('profileSupportSearch');
+      const pageRoot = mailbox.closest('.support-mailbox-page-v62, .profile-support-mailbox-v62, .portal-support-mailbox-page-v63') || document;
+      const search = pageRoot.querySelector('#supportQueueSearch, #profileSupportSearch, #portalSupportSearch');
+      const portalFilterButtons = Array.from(pageRoot.querySelectorAll('[data-portal-filter]'));
+      let portalFilter = 'all';
 
+      function rowIsVisible(row){
+        return !row.classList.contains('is-hidden-by-search') && !row.classList.contains('is-hidden-by-filter');
+      }
+      function firstVisibleRow(){
+        return rows.find(rowIsVisible);
+      }
       function activate(key, pushHash=true){
         if(!key) return;
         rows.forEach(row => row.classList.toggle('is-active', row.dataset.caseTarget === key));
@@ -442,6 +451,30 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
         }
         if(pushHash && history.replaceState){ history.replaceState(null, '', `${location.pathname}${location.search}#case-${key}`); }
       }
+      function ensureActiveVisible(){
+        const active = rows.find(row => row.classList.contains('is-active'));
+        if(active && rowIsVisible(active)) return;
+        const next = firstVisibleRow();
+        if(next) activate(next.dataset.caseTarget, false);
+      }
+      function applySearch(){
+        if(!search) return;
+        const q = escText(search.value).toLowerCase();
+        rows.forEach(row => {
+          const haystack = `${row.dataset.title || ''} ${row.dataset.owner || ''} ${row.dataset.status || ''}`.toLowerCase();
+          row.classList.toggle('is-hidden-by-search', Boolean(q && !haystack.includes(q)));
+        });
+        ensureActiveVisible();
+      }
+      function applyPortalFilter(){
+        rows.forEach(row => {
+          let hidden = false;
+          if(portalFilter === 'open') hidden = row.dataset.caseState === 'closed';
+          if(portalFilter === 'closed') hidden = row.dataset.caseState !== 'closed';
+          row.classList.toggle('is-hidden-by-filter', hidden);
+        });
+        ensureActiveVisible();
+      }
 
       rows.forEach(row => row.addEventListener('click', () => activate(row.dataset.caseTarget)));
       const hashKey = (location.hash || '').replace('#case-', '').replace('#', '');
@@ -451,18 +484,20 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
         if(active) activate(active.dataset.caseTarget, false);
       }
 
-      const localSearch = mailbox.closest('.support-mailbox-page-v62') ? document.getElementById('supportQueueSearch') : null;
-      const searchInput = localSearch || search;
-      if(searchInput && rows.length){
-        searchInput.addEventListener('input', () => {
-          const q = escText(searchInput.value).toLowerCase();
-          rows.forEach(row => {
-            const haystack = `${row.dataset.title || ''} ${row.dataset.owner || ''} ${row.dataset.status || ''}`.toLowerCase();
-            row.classList.toggle('is-hidden-by-search', Boolean(q && !haystack.includes(q)));
+      if(search && rows.length){
+        search.addEventListener('input', applySearch);
+        applySearch();
+      }
+      if(portalFilterButtons.length){
+        portalFilterButtons.forEach(btn => {
+          btn.addEventListener('click', () => {
+            portalFilter = btn.dataset.portalFilter || 'all';
+            portalFilterButtons.forEach(b => b.classList.toggle('active', b === btn));
+            applyPortalFilter();
           });
         });
+        applyPortalFilter();
       }
-
     });
 
     document.querySelectorAll('[data-mailbox-view-toggle]').forEach(toggle => {

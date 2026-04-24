@@ -39,7 +39,7 @@ def seed_canned_replies():
 
 def case_url(case_type: str, source_id: int, owner_id: int | None = None, lang: str = 'ar') -> str:
     if owner_id:
-        anchor = f"#thread-{source_id}" if case_type == 'message' else f"#ticket-{source_id}"
+        anchor = f"#case-mail-{source_id}" if case_type == 'message' else f"#case-ticket-{source_id}"
         return url_for('main.admin_user_profile', user_id=owner_id, lang=lang, tab='support') + anchor
     if case_type == 'message':
         return url_for('main.admin_internal_mail', lang=lang) + f"#thread-{source_id}"
@@ -48,7 +48,7 @@ def case_url(case_type: str, source_id: int, owner_id: int | None = None, lang: 
 
 def portal_case_url(case_type: str, source_id: int, lang: str = 'ar') -> str:
     typ = 'mail' if case_type == 'message' else 'ticket'
-    anchor = f"#thread-{source_id}" if case_type == 'message' else f"#ticket-{source_id}"
+    anchor = f"#case-mail-{source_id}" if case_type == 'message' else f"#case-ticket-{source_id}"
     return url_for('main.portal_support', lang=lang, type=typ) + anchor
 
 

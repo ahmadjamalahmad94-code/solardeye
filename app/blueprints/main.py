@@ -1493,13 +1493,13 @@ def admin_user_profile(user_id: int):
                 new_status = (request.form.get('status') or old_status or 'open').strip()
                 if old_status in ('closed', 'resolved'):
                     flash('هذه المحادثة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
                 old_assignee_id = thread.assigned_admin_user_id
                 assignment_only = bool(request.form.get('assignment_only'))
                 requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
                 if assignment_only and not requested_assignee_id:
                     flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
                 final_assignee_id = requested_assignee_id or thread.assigned_admin_user_id or getattr(actor, 'id', None)
                 thread_messages = InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
                 assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
@@ -1525,7 +1525,7 @@ def admin_user_profile(user_id: int):
                 db.session.commit()
                 _admin_write_log('mail.profile.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': thread.status})
                 flash('تم إرسال الرد وتحديث المحادثة.', 'success')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
             flash('تعذر إرسال الرد: المحادثة غير مرتبطة بهذا المشترك.', 'danger')
             return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
         elif action == 'ticket_reply':
@@ -1544,13 +1544,13 @@ def admin_user_profile(user_id: int):
                 new_status = (request.form.get('status') or old_status or 'open').strip()
                 if old_status in ('closed', 'resolved'):
                     flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
                 old_assignee_id = ticket.assigned_admin_user_id
                 assignment_only = bool(request.form.get('assignment_only'))
                 requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
                 if assignment_only and not requested_assignee_id:
                     flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
                 final_assignee_id = requested_assignee_id or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket_messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
                 assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
@@ -1576,7 +1576,7 @@ def admin_user_profile(user_id: int):
                 db.session.commit()
                 _admin_write_log('ticket.profile.reply', f'Updated ticket #{ticket.id}', 'support_ticket', ticket.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': ticket.status})
                 flash('تم إرسال الرد وتحديث التذكرة.', 'success')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
             flash('تعذر إرسال الرد: التذكرة غير مرتبطة بهذا المشترك.', 'danger')
             return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
 
@@ -3317,6 +3317,7 @@ def _portal_support_rows(user):
             'updated_at': thread.updated_at or thread.last_reply_at or thread.created_at,
             'messages': messages,
             'item': thread,
+            'assignee': AppUser.query.get(thread.assigned_admin_user_id) if thread.assigned_admin_user_id else None,
         })
 
     for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
@@ -3331,6 +3332,7 @@ def _portal_support_rows(user):
             'updated_at': ticket.updated_at or ticket.last_reply_at or ticket.created_at,
             'messages': messages,
             'item': ticket,
+            'assignee': AppUser.query.get(ticket.assigned_admin_user_id) if ticket.assigned_admin_user_id else None,
         })
 
     rows.sort(key=lambda row: row.get('updated_at') or datetime.min, reverse=True)
@@ -3366,7 +3368,7 @@ def portal_support():
                     audit_case('ticket', ticket.id, user.id, 'ticket.create', 'Subscriber opened a ticket', commit=False)
                     db.session.commit()
                     flash('تم فتح التذكرة بنجاح' if _lang() != 'en' else 'Ticket opened successfully', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
+                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
                 thread = InternalMailThread(tenant_id=getattr(tenant, 'id', None), created_by_user_id=user.id, subject=subject, category=category, priority=priority, status='open', last_reply_at=datetime.utcnow())
                 db.session.add(thread)
                 db.session.flush()
@@ -3377,7 +3379,7 @@ def portal_support():
                 audit_case('message', thread.id, user.id, 'message.create', 'Subscriber opened a support message', commit=False)
                 db.session.commit()
                 flash('تم إرسال الرسالة للإدارة' if _lang() != 'en' else 'Message sent to management', 'success')
-                return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
+                return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
         elif action == 'reply':
             if kind == 'ticket':
                 ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
@@ -3385,7 +3387,7 @@ def portal_support():
                 if ticket and belongs and body:
                     if (ticket.status or '').strip() == 'closed':
                         flash('هذه التذكرة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This ticket is closed and cannot receive new replies.', 'warning')
-                        return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
+                        return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
                     if not ticket.opened_by_user_id:
                         ticket.opened_by_user_id = user.id
                     if not ticket.tenant_id and tenant:
@@ -3400,14 +3402,14 @@ def portal_support():
                     audit_case('ticket', ticket.id, user.id, 'ticket.user_reply', 'Subscriber replied to ticket', commit=False)
                     db.session.commit()
                     flash('تمت إضافة الرد على التذكرة' if _lang() != 'en' else 'Ticket reply added', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
+                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
             else:
                 thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
                 belongs = bool(thread and (thread.created_by_user_id == user.id or (getattr(tenant, 'id', None) and thread.tenant_id == tenant.id)))
                 if thread and belongs and body:
                     if (thread.status or '').strip() == 'closed':
                         flash('هذه المحادثة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This conversation is closed and cannot receive new replies.', 'warning')
-                        return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
+                        return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
                     if not thread.created_by_user_id:
                         thread.created_by_user_id = user.id
                     if not thread.tenant_id and tenant:
@@ -3422,7 +3424,7 @@ def portal_support():
                     audit_case('message', thread.id, user.id, 'message.user_reply', 'Subscriber replied to message', commit=False)
                     db.session.commit()
                     flash('تمت إضافة الرد' if _lang() != 'en' else 'Reply added', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
+                    return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
             flash('تعذر حفظ الرد، تأكد من أن العنصر تابع لحسابك.' if _lang() != 'en' else 'Could not save reply for this account.', 'danger')
 
     rows = _portal_support_rows(user)
@@ -3458,7 +3460,7 @@ def _support_notification_items(limit=5, include_closed=False):
                 sender = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
                 tenant = TenantAccount.query.get(thread.tenant_id) if thread.tenant_id else None
                 owner_id = thread.created_by_user_id or getattr(tenant, 'owner_user_id', None) or getattr(sender, 'id', None)
-                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#thread-{thread.id}') if owner_id else (url_for('main.admin_internal_mail', lang=_lang()) + f'#thread-{thread.id}')})
+                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}') if owner_id else (url_for('main.admin_internal_mail', lang=_lang()) + f'#thread-{thread.id}')})
             for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(50).all():
                 msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
                 if not msg or (not include_closed and msg.sender_scope != 'user'):
@@ -3466,7 +3468,7 @@ def _support_notification_items(limit=5, include_closed=False):
                 sender = AppUser.query.get(ticket.opened_by_user_id) if ticket.opened_by_user_id else None
                 tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
                 owner_id = ticket.opened_by_user_id or getattr(tenant, 'owner_user_id', None) or getattr(sender, 'id', None)
-                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}') if owner_id else (url_for('main.admin_tickets', lang=_lang()) + f'#ticket-{ticket.id}')})
+                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}') if owner_id else (url_for('main.admin_tickets', lang=_lang()) + f'#ticket-{ticket.id}')})
         else:
             tenant, _subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(user, 'id', None))
             tenant_id = getattr(tenant, 'id', None)
@@ -3483,12 +3485,12 @@ def _support_notification_items(limit=5, include_closed=False):
                 msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
                 if not msg or (not include_closed and msg.sender_scope != 'admin'):
                     continue
-                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}'})
+                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}'})
             for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(50).all():
                 msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
                 if not msg or (not include_closed and msg.sender_scope != 'admin'):
                     continue
-                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}'})
+                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}'})
     except Exception:
         return []
     items.sort(key=lambda item: item.get('created_at') or datetime.min, reverse=True)
