@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Backups' if is_en else 'النسخ الاحتياطي' }}{% endblock %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2 backup-page-v71">
+    <header class="admin-page-head backup-hero-v71">
+      <div>
+        <span class="eyebrow">{{ 'Platform Recovery' if is_en else 'استعادة المنصة' }}</span>
+        <h1>{{ 'Database backups' if is_en else 'النسخ الاحتياطي لقاعدة البيانات' }}</h1>
+        <p>{{ 'Create local restore points, schedule daily/weekly/monthly backups, and optionally upload them to Google Drive.' if is_en else 'أنشئ نقاط استعادة محلية، وجدول نسخ يومية/أسبوعية/شهرية، وارفعها اختياريًا إلى Google Drive.' }}</p>
+      </div>
+      <form method="post" class="backup-now-form-v71">
+        <input type="hidden" name="action" value="backup_now">
+        <label class="switch-row"><span>{{ 'Upload to Drive too' if is_en else 'رفع إلى Drive أيضًا' }}</span><input type="checkbox" name="upload_drive"></label>
+        <button class="btn btn-solar" type="submit">💾 {{ 'Backup now' if is_en else 'نسخ الآن' }}</button>
+      </form>
+    </header>
+
+    <section class="admin-layout-v2 two backup-layout-v71">
+      <article class="admin-card-v2">
+        <small>{{ 'Schedule' if is_en else 'الجدولة' }}</small>
+        <h3>{{ 'Automatic backup policy' if is_en else 'سياسة النسخ التلقائي' }}</h3>
+        <form method="post" class="form-grid-v2 two">
+          <input type="hidden" name="action" value="save_settings">
+          <label class="switch-row full"><span>{{ 'Enable automatic backups' if is_en else 'تفعيل النسخ التلقائي' }}</span><input type="checkbox" name="backup_enabled" {% if settings.backup_enabled == 'true' %}checked{% endif %}></label>
+          <label><span>{{ 'Frequency' if is_en else 'التكرار' }}</span><select class="form-control" name="backup_frequency">
+            <option value="daily" {% if settings.backup_frequency == 'daily' %}selected{% endif %}>{{ 'Daily' if is_en else 'يومي' }}</option>
+            <option value="weekly" {% if settings.backup_frequency == 'weekly' %}selected{% endif %}>{{ 'Weekly' if is_en else 'أسبوعي' }}</option>
+            <option value="monthly" {% if settings.backup_frequency == 'monthly' %}selected{% endif %}>{{ 'Monthly' if is_en else 'شهري' }}</option>
+          </select></label>
+          <label><span>{{ 'Local copies to keep' if is_en else 'عدد النسخ المحلية' }}</span><input class="form-control" name="backup_keep_local" type="number" min="1" value="{{ settings.backup_keep_local or 12 }}"></label>
+          <label class="switch-row full"><span>{{ 'Enable Google Drive upload' if is_en else 'تفعيل الرفع إلى Google Drive' }}</span><input type="checkbox" name="backup_drive_enabled" {% if settings.backup_drive_enabled == 'true' %}checked{% endif %}></label>
+          <label class="full"><span>{{ 'Drive folder ID' if is_en else 'معرّف مجلد Drive' }}</span><input class="form-control" name="backup_drive_folder_id" value="{{ settings.backup_drive_folder_id or '' }}" placeholder="1AbC..." dir="ltr"></label>
+          <div class="full backup-note-v71">{{ 'Drive upload requires GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_FILE in environment variables. Do not paste service account secrets here.' if is_en else 'الرفع إلى Drive يحتاج GOOGLE_SERVICE_ACCOUNT_JSON أو GOOGLE_SERVICE_ACCOUNT_FILE في متغيرات البيئة. لا تضع أسرار الخدمة داخل الواجهة.' }}</div>
+          <div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save backup policy' if is_en else 'حفظ سياسة النسخ' }}</button></div>
+        </form>
+      </article>
+
+      <article class="admin-card-v2">
+        <small>{{ 'Restore points' if is_en else 'نقاط الاستعادة' }}</small>
+        <h3>{{ 'Available backups' if is_en else 'النسخ المتاحة' }}</h3>
+        <div class="backup-list-v71">
+          {% for b in backups %}
+          <div class="backup-row-v71">
+            <div><strong>{{ b.name }}</strong><span>{{ format_local(b.created_at) }} · {{ (b.size / 1024)|round(1) }} KB</span></div>
+            <div class="backup-actions-v71">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_backup_download', filename=b.name, lang=ui_lang) }}">{{ 'Download' if is_en else 'تحميل' }}</a>
+              <form method="post" onsubmit="return confirm('{{ 'This will replace current database content. Continue?' if is_en else 'سيتم استبدال بيانات قاعدة البيانات الحالية. هل أنت متأكد؟' }}')">
+                <input type="hidden" name="action" value="restore"><input type="hidden" name="filename" value="{{ b.name }}">
+                <input class="form-control form-control-sm" name="confirm_restore" placeholder="RESTORE" dir="ltr">
+                <button class="btn btn-outline-danger btn-sm">{{ 'Restore' if is_en else 'استعادة' }}</button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+          <div class="empty-box-v2">{{ 'No backups yet.' if is_en else 'لا توجد نسخ بعد.' }}</div>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+{% endblock %}

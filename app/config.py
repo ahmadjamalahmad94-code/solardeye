@@ -54,6 +54,16 @@ class Config:
     AUTO_SYNC_ENABLED = os.getenv('AUTO_SYNC_ENABLED', 'true').lower() == 'true'
     AUTO_SYNC_MINUTES = max(int(os.getenv('AUTO_SYNC_MINUTES', '5') or '5'), 1)
 
+
+    # ── Backups ───────────────────────────────────────────────────────────────
+    BACKUP_ENABLED = os.getenv('BACKUP_ENABLED', 'true').lower() == 'true'
+    BACKUP_FREQUENCY = os.getenv('BACKUP_FREQUENCY', 'daily').lower()  # daily / weekly / monthly
+    BACKUP_KEEP_LOCAL = int(os.getenv('BACKUP_KEEP_LOCAL', '12') or '12')
+    GOOGLE_DRIVE_BACKUP_ENABLED = os.getenv('GOOGLE_DRIVE_BACKUP_ENABLED', 'false').lower() == 'true'
+    GOOGLE_DRIVE_BACKUP_FOLDER_ID = os.getenv('GOOGLE_DRIVE_BACKUP_FOLDER_ID', '').strip()
+    GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+    GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', '').strip()
+
     # Limits & retention
     MAX_READINGS_QUERY = int(os.getenv('MAX_READINGS_QUERY', '2000') or '2000')
     SYNCLOG_RETENTION_DAYS = int(os.getenv('SYNCLOG_RETENTION_DAYS', '30') or '30')

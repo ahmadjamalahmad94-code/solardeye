@@ -13,6 +13,8 @@ from .services.subscriptions import seed_default_plans
 from .services.support_ops import seed_canned_replies, sync_existing_cases
 from .services.security import register_security
 from .services.labels import register_template_helpers
+from .services.i18n import register_i18n
+from .services.backup_service import ensure_backup_settings
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ def create_app():
     app.config.from_object(Config)
 
     db.init_app(app)
+    register_i18n(app)
     register_security(app)
     register_template_helpers(app)
 
@@ -49,6 +52,7 @@ def create_app():
         _migrate_database()
         _ensure_database_indexes()
         _ensure_default_settings()
+        ensure_backup_settings()
         seed_default_plans()
         seed_canned_replies()
         try:

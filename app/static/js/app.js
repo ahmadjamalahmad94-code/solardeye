@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const langToggle = document.getElementById('langToggle');
 
   const currentLang = () => body.dataset.lang === 'en' ? 'en' : 'ar';
+  const chartLabel = (ar, en) => currentLang() === 'en' ? en : ar;
   const applyTranslations = () => {
     document.documentElement.lang = currentLang();
     document.documentElement.dir = currentLang() === 'en' ? 'ltr' : 'rtl';
@@ -61,10 +62,10 @@ const baseOptions = {
       data: {
         labels: parse(powerChart.dataset.labels),
         datasets: [
-          { label: 'الطاقة الشمسية', data: parse(powerChart.dataset.solar), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 3 },
-          { label: 'استهلاك البيت', data: parse(powerChart.dataset.load), borderColor: '#ec4899', tension: 0.35, pointRadius: 4, borderWidth: 3 },
-          { label: 'الشبكة', data: parse(powerChart.dataset.grid), borderColor: '#94a3b8', borderDash: [6,4], tension: 0.25, pointRadius: 3, borderWidth: 2 },
-          { label: 'البطارية (شحن/تفريغ)', data: parse(powerChart.dataset.battery), borderColor: '#10b981', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+          { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(powerChart.dataset.solar), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 3 },
+          { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(powerChart.dataset.load), borderColor: '#ec4899', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+          { label: chartLabel('الشبكة', 'Grid'), data: parse(powerChart.dataset.grid), borderColor: '#94a3b8', borderDash: [6,4], tension: 0.25, pointRadius: 3, borderWidth: 2 },
+          { label: chartLabel('البطارية (شحن/تفريغ)', 'Battery charge/discharge'), data: parse(powerChart.dataset.battery), borderColor: '#10b981', tension: 0.35, pointRadius: 4, borderWidth: 3 },
         ]
       },
       options: { ...baseOptions, scales: { x: baseOptions.scales.x, y: { ...baseOptions.scales.y, ticks: { ...baseOptions.scales.y.ticks, callback: (v) => v + ' W' } } } }
@@ -86,15 +87,15 @@ const baseOptions = {
     new Chart(statsProfileChart.getContext('2d'), {
       type: kind === 'day' ? 'line' : 'bar',
       data: { labels: parse(statsProfileChart.dataset.labels), datasets: kind === 'day' ? [
-        { label: 'الطاقة الشمسية', data: parse(statsProfileChart.dataset.solar), borderColor: '#f59e0b', tension: 0.35, pointRadius: 4, borderWidth: 3 },
-        { label: 'استهلاك البيت', data: parse(statsProfileChart.dataset.home), borderColor: '#ec4899', tension: 0.35, pointRadius: 4, borderWidth: 3 },
-        { label: 'البطارية', data: parse(statsProfileChart.dataset.battery), borderColor: '#10b981', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+        { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(statsProfileChart.dataset.solar), borderColor: '#f59e0b', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+        { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(statsProfileChart.dataset.home), borderColor: '#ec4899', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+        { label: chartLabel('البطارية', 'Battery'), data: parse(statsProfileChart.dataset.battery), borderColor: '#10b981', tension: 0.35, pointRadius: 4, borderWidth: 3 },
         { label: '% SOC', data: parse(statsProfileChart.dataset.soc), borderColor: '#3b82f6', yAxisID: 'y1', tension: 0.35, pointRadius: 4, borderWidth: 3 }
       ] : [
-        { label: 'الطاقة الشمسية', data: parse(statsProfileChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
-        { label: 'استهلاك البيت', data: parse(statsProfileChart.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
-        { label: 'البطارية', data: parse(statsProfileChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
-        { label: 'الشبكة', data: parse(statsProfileChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' },
+        { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(statsProfileChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
+        { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(statsProfileChart.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
+        { label: chartLabel('البطارية', 'Battery'), data: parse(statsProfileChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
+        { label: chartLabel('الشبكة', 'Grid'), data: parse(statsProfileChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' },
       ] },
       options: { ...baseOptions, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo' } } } }, scales: { x: baseOptions.scales.x, y: baseOptions.scales.y, y1: { beginAtZero: true, suggestedMax: 100, position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { family: 'Cairo' } } } } }
     });
@@ -105,10 +106,10 @@ const baseOptions = {
     new Chart(statsUsageChart.getContext('2d'), {
       type: 'bar',
       data: { labels: parse(statsUsageChart.dataset.labels), datasets: [
-        { label: 'الطاقة الشمسية', data: parse(statsUsageChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
-        { label: 'استهلاك البيت', data: parse(statsUsageChart.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
-        { label: 'البطارية', data: parse(statsUsageChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
-        { label: 'الشبكة', data: parse(statsUsageChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' },
+        { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(statsUsageChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
+        { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(statsUsageChart.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
+        { label: chartLabel('البطارية', 'Battery'), data: parse(statsUsageChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
+        { label: chartLabel('الشبكة', 'Grid'), data: parse(statsUsageChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' },
       ] },
       options: { ...baseOptions, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo' } } } } }
     });
@@ -178,16 +179,16 @@ const baseOptions = {
   if (reportsMainChart) {
     const kind = reportsMainChart.dataset.kind || 'day';
     const lineDatasets = [
-      { label: 'الطاقة الشمسية', data: parse(reportsMainChart.dataset.solar), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.08)', fill: true, tension: 0.38, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
-      { label: 'استهلاك البيت', data: parse(reportsMainChart.dataset.home), borderColor: '#ec4899', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
-      { label: 'البطارية', data: parse(reportsMainChart.dataset.battery), borderColor: '#10b981', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+      { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(reportsMainChart.dataset.solar), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.08)', fill: true, tension: 0.38, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+      { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(reportsMainChart.dataset.home), borderColor: '#ec4899', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+      { label: chartLabel('البطارية', 'Battery'), data: parse(reportsMainChart.dataset.battery), borderColor: '#10b981', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
       { label: '% SOC', data: parse(reportsMainChart.dataset.soc), borderColor: '#3b82f6', yAxisID: 'y1', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 }
     ];
     const barDatasets = [
-      { label: 'الطاقة الشمسية', data: parse(reportsMainChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.82)', borderRadius: 10, maxBarThickness: 34 },
-      { label: 'استهلاك البيت', data: parse(reportsMainChart.dataset.home), backgroundColor: 'rgba(236,72,153,.82)', borderRadius: 10, maxBarThickness: 34 },
-      { label: 'البطارية', data: parse(reportsMainChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.82)', borderRadius: 10, maxBarThickness: 34 },
-      { label: 'الشبكة', data: parse(reportsMainChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.82)', borderRadius: 10, maxBarThickness: 34 },
+      { label: chartLabel('الطاقة الشمسية', 'Solar power'), data: parse(reportsMainChart.dataset.solar), backgroundColor: 'rgba(245,158,11,.82)', borderRadius: 10, maxBarThickness: 34 },
+      { label: chartLabel('استهلاك البيت', 'Home load'), data: parse(reportsMainChart.dataset.home), backgroundColor: 'rgba(236,72,153,.82)', borderRadius: 10, maxBarThickness: 34 },
+      { label: chartLabel('البطارية', 'Battery'), data: parse(reportsMainChart.dataset.battery), backgroundColor: 'rgba(16,185,129,.82)', borderRadius: 10, maxBarThickness: 34 },
+      { label: chartLabel('الشبكة', 'Grid'), data: parse(reportsMainChart.dataset.grid), backgroundColor: 'rgba(148,163,184,.82)', borderRadius: 10, maxBarThickness: 34 },
     ];
     new Chart(reportsMainChart.getContext('2d'), {
       type: kind === 'day' ? 'line' : 'bar',
@@ -221,7 +222,7 @@ const baseOptions = {
       data: {
         labels: parse(batteryLabSocChart.dataset.labels),
         datasets: [{
-          label: 'نسبة البطارية %',
+          label: chartLabel('نسبة البطارية %', 'Battery SOC %'),
           data: parse(batteryLabSocChart.dataset.soc),
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59,130,246,0.08)',
@@ -255,9 +256,9 @@ const baseOptions = {
       data: {
         labels: parse(batteryLabPowerChart.dataset.labels),
         datasets: [
-          { label: 'قدرة البطارية W', data: parse(batteryLabPowerChart.dataset.power), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.05)', tension: 0.28, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, fill: false },
-          { label: 'الجهد V', data: parse(batteryLabPowerChart.dataset.voltage), borderColor: '#f59e0b', tension: 0.24, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, yAxisID: 'y1' },
-          { label: 'التيار A', data: parse(batteryLabPowerChart.dataset.current), borderColor: '#8b5cf6', tension: 0.24, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, yAxisID: 'y2' }
+          { label: chartLabel('قدرة البطارية W', 'Battery power W'), data: parse(batteryLabPowerChart.dataset.power), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.05)', tension: 0.28, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, fill: false },
+          { label: chartLabel('الجهد V', 'Voltage V'), data: parse(batteryLabPowerChart.dataset.voltage), borderColor: '#f59e0b', tension: 0.24, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, yAxisID: 'y1' },
+          { label: chartLabel('التيار A', 'Current A'), data: parse(batteryLabPowerChart.dataset.current), borderColor: '#8b5cf6', tension: 0.24, pointRadius: 2, pointHoverRadius: 4, borderWidth: 3, yAxisID: 'y2' }
         ]
       },
       options: {
@@ -346,10 +347,21 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   const markReadUrl = wrap.dataset.markReadUrl;
   let previousCount = null;
 
+  function lang(){ return document.body && document.body.dataset.lang === 'en' ? 'en' : 'ar'; }
   function esc(s){return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-  function kindLabel(kind){ return kind === 'ticket' ? 'تذكرة' : 'رسالة'; }
+  function kindLabel(kind){ return kind === 'ticket' ? (lang()==='en'?'Ticket':'تذكرة') : (lang()==='en'?'Message':'رسالة'); }
   function statusLabel(status){
-    return ({new:'جديد', open:'مفتوح', assigned:'مخصص', pending:'قيد الانتظار', in_progress:'قيد المتابعة', waiting_user:'بانتظار المستخدم', resolved:'تم الحل', closed:'مغلق', read:'مقروء'}[status]) || status || '';
+    const ar = {new:'جديد', open:'مفتوح', assigned:'مخصص', pending:'قيد الانتظار', in_progress:'قيد المتابعة', waiting_user:'بانتظار المستخدم', resolved:'تم الحل', closed:'مغلق', read:'مقروء'};
+    const en = {new:'New', open:'Open', assigned:'Assigned', pending:'Pending', in_progress:'In progress', waiting_user:'Waiting user', resolved:'Resolved', closed:'Closed', read:'Read'};
+    return ((lang()==='en'?en:ar)[status]) || status || '';
+  }
+  function legacyInline(s){
+    if(lang() !== 'en') return s || '';
+    const map = {'لا توجد إشعارات مفتوحة حاليًا.':'No open notifications.','وصل تحديث دعم جديد':'New support update received','تحديث على التذكرة':'Ticket update','تحديث على رسالة الدعم':'Support message update','تذكرة جديدة':'New ticket','رسالة دعم جديدة':'New support message','تمت إعادة فتح طلب الدعم':'Support request reopened'};
+    let out = String(s || '');
+    Object.keys(map).forEach(k => { out = out.split(k).join(map[k]); });
+    if(/[؀-ۿ]/.test(out)) out = out.replace(/[؀-ۿ][؀-ۿ\s،؛؟\-_:()\/\.]+/g, '').replace(/\s{2,}/g,' ').trim() || 'Update';
+    return out;
   }
   function toast(message){
     let root = document.getElementById('clientToastStackV61');
@@ -366,10 +378,10 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   }
   function render(items){
     if(!list) return;
-    if(!items || !items.length){ list.innerHTML = '<div class="notification-empty">لا توجد إشعارات مفتوحة حاليًا.</div>'; return; }
+    if(!items || !items.length){ list.innerHTML = `<div class="notification-empty">${lang()==='en'?'No open notifications.':'لا توجد إشعارات مفتوحة حاليًا.'}</div>`; return; }
     list.innerHTML = items.map(item => {
       const kind = item.kind === 'ticket' ? 'ticket' : 'message';
-      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
+      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
     }).join('');
   }
   function updateCounts(data){
@@ -377,7 +389,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     if(count) { count.textContent = next; count.classList.toggle('is-zero', next <= 0); }
     if(mailCount) mailCount.textContent = data.mail_count || 0;
     if(ticketCount) ticketCount.textContent = data.ticket_count || 0;
-    if(previousCount !== null && next > previousCount) toast('وصل تحديث دعم جديد');
+    if(previousCount !== null && next > previousCount) toast(lang()==='en'?'New support update received':'وصل تحديث دعم جديد');
     previousCount = next;
   }
   function refresh(){
@@ -727,23 +739,118 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     'لا توجد إشعارات مفتوحة حاليًا.': 'No open notifications.',
     'تعليم الكل كمقروء': 'Mark all read',
     'عرض الكل': 'View all',
+    'لوحة الإدارة': 'Admin Dashboard',
+    'النظرة العامة': 'Overview',
+    'الإعدادات': 'Settings',
+    'إكمال إعدادات الربط': 'Complete connection settings',
+    'حالة النظام': 'System status',
+    'آخر تحديث': 'Last update',
+    'إنتاج الطاقة': 'Energy production',
+    'استهلاك البيت': 'Home load',
+    'الطاقة الشمسية': 'Solar power',
+    'الشبكة': 'Grid',
+    'البطارية': 'Battery',
+    'البيانات الحية': 'Live data',
+    'الإحصائيات': 'Statistics',
+    'التقارير': 'Reports',
+    'الأحمال': 'Loads',
+    'الإشعارات': 'Notifications',
+    'الدعم والمراسلات': 'Support and messaging',
+    'منصة الطاقة': 'Energy Platform',
+    'البوابة': 'Portal',
+    'المتابعة': 'Monitoring',
+    'المشتركون': 'Subscribers',
+    'التفعيل ودورة الحياة': 'Activation and lifecycle',
+    'الخطة': 'Plan',
+    'الحالة': 'Status',
+    'الإجراءات': 'Actions',
+    'المستخدم': 'User',
+    'المستخدمون': 'Users',
+    'مركز المستخدمين': 'Users hub',
+    'إنشاء مستخدم': 'Create user',
+    'فتح صفحة المشترك': 'Open subscriber page',
+    'فتح الدعم': 'Open support',
+    'تفعيل / تعديل': 'Activate / Edit',
+    'تفعيل اشتراك المشترك': 'Activate subscriber subscription',
+    'خطة الاشتراك': 'Subscription plan',
+    'عدد الأيام': 'Number of days',
+    'تفعيل الاشتراك': 'Activate subscription',
+    'النسخ والاستعادة': 'Backups & Recovery',
+    'النسخ الاحتياطي': 'Backups',
+    'نسخ الآن': 'Backup now',
+    'حفظ سياسة النسخ': 'Save backup policy',
+    'تحميل': 'Download',
+    'استعادة': 'Restore',
+    'الخدمة': 'Service',
+    'الرسالة': 'Message',
+    'آخر نبضة': 'Last seen',
+    'مركز صحة الخدمات': 'Services health center',
+    'صحة الخدمات': 'Services health',
+    'الجدولة': 'Scheduler',
+    'الجدولة الداخلية': 'Internal scheduler',
+    'تعمل': 'Running',
+    'غير ظاهرة': 'Not visible',
+    'نقاط الاستعادة': 'Restore points',
+    'التكرار': 'Frequency',
+    'يومي': 'Daily',
+    'أسبوعي': 'Weekly',
+    'شهري': 'Monthly',
+    'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.': 'Permanent delete? A backup will be created first.',
+    'اكتب RESTORE لتأكيد الاستعادة.': 'Type RESTORE to confirm restore.',
+    'تم تحديث إعدادات النسخ الاحتياطي.': 'Backup settings updated.',
+    'تم إنشاء نسخة احتياطية بنجاح.': 'Backup created successfully.',
+    'تعذر إنشاء النسخة الاحتياطية.': 'Backup creation failed.',
+    'تم حذف المستخدم نهائيًا.': 'User permanently deleted.',
+    'تم تحديث حالة المستخدم.': 'User status updated.',
+    'إجراء جماعي غير معروف.': 'Unknown bulk action.',
+    'اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.': 'Select at least one user before applying an action.',
+    'تم تنفيذ العملية على': 'Action applied to',
+    'مستخدم. تم تخطي': 'users. Skipped',
+    'مشترك جديد': 'New subscriber',
+    'إجراءات سريعة': 'Fast actions',
+    'دورة الحياة': 'Lifecycle',
+    'الحساب نشط': 'Account active',
+    'الحساب معطل': 'Account disabled',
+    'يوم متبقي': 'days left',
+    'لا يوجد تاريخ انتهاء': 'No end date',
   };
 
+  function translateLegacy(text){
+    const raw = String(text || '');
+    const trimmed = raw.trim();
+    if(!trimmed) return raw;
+    if(translations[trimmed]) return raw.replace(trimmed, translations[trimmed]);
+    let out = raw;
+    Object.keys(translations).sort((a,b)=>b.length-a.length).forEach(key => {
+      if(key && out.includes(key)) out = out.split(key).join(translations[key]);
+    });
+    // Final guard for English mode: do not leave raw Arabic text visible. This
+    // catches legacy hard-coded strings until the template is fully migrated.
+    if(/[؀-ۿ]/.test(out)){
+      out = out.replace(/[؀-ۿ][؀-ۿ\s،؛؟\-_:()\/\.]+/g, '');
+      out = out.replace(/\s{2,}/g, ' ').trim() || 'Text';
+    }
+    return out;
+  }
   function autoTranslateTextNodes(){
     if(currentLang() !== 'en') return;
-    const forbidden = 'SCRIPT,STYLE,TEXTAREA,INPUT,SELECT,OPTION,CODE,PRE,[data-no-auto-i18n]';
+    const forbidden = 'SCRIPT,STYLE,TEXTAREA,INPUT,CODE,PRE,[data-no-auto-i18n]';
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode(node){
         const parent = node.parentElement;
         if(!parent || parent.closest(forbidden)) return NodeFilter.FILTER_REJECT;
         const text = (node.nodeValue || '').trim();
-        if(!text || text.length > 80) return NodeFilter.FILTER_SKIP;
-        return translations[text] ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        if(!text || text.length > 500) return NodeFilter.FILTER_SKIP;
+        return /[؀-ۿ]/.test(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }
     });
     const nodes = [];
     while(walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(node => { node.nodeValue = node.nodeValue.replace(node.nodeValue.trim(), translations[node.nodeValue.trim()]); });
+    nodes.forEach(node => { node.nodeValue = translateLegacy(node.nodeValue); });
+    document.querySelectorAll('input[placeholder], textarea[placeholder], [title]').forEach(el => {
+      if(el.placeholder && /[؀-ۿ]/.test(el.placeholder)) el.placeholder = translateLegacy(el.placeholder);
+      if(el.title && /[؀-ۿ]/.test(el.title)) el.title = translateLegacy(el.title);
+    });
   }
 
   function initSecretToggles(){

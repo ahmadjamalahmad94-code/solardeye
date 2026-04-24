@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 from werkzeug.security import generate_password_hash
-from flask import Blueprint, Response, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -21,7 +21,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, TenantQuota, WalletLedger, AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SmartSnapshot, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, TenantQuota, WalletLedger, AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply
 from ..services.deye_client import DeyeClient
 from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query, is_admin_scope
 from ..services.utils import (
@@ -31,6 +31,7 @@ from ..services.utils import (
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
 from ..services.security import preserve_secret_form_value, sanitize_response_payload
+from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting
 from ..services.support_ops import (
     audit_case, build_support_queue, case_url, notify_user, portal_case_url,
     sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
@@ -212,6 +213,81 @@ def _admin_write_log(action: str, summary: str, target_type: str | None = None, 
         current_app.logger.exception('admin activity log failed: %s', exc)
 
 
+
+
+def _hard_delete_user_account(user: AppUser, actor_id: int | None = None) -> dict:
+    """Delete a subscriber and owned operational data.
+
+    This is intentionally explicit instead of relying on DB cascades because the
+    project has grown through additive migrations and some foreign keys are
+    nullable. Admin/self deletion is blocked by the caller.
+    """
+    tenant_ids = []
+    if getattr(user, 'tenant_id', None):
+        tenant_ids.append(user.tenant_id)
+    tenant_ids.extend([t.id for t in TenantAccount.query.filter_by(owner_user_id=user.id).all()])
+    tenant_ids = sorted(set([tid for tid in tenant_ids if tid]))
+    device_ids = [d.id for d in AppDevice.query.filter_by(owner_user_id=user.id).all()]
+
+    # Support conversations and tickets owned by this user / tenant.
+    mail_threads = InternalMailThread.query.filter(
+        db.or_(InternalMailThread.created_by_user_id == user.id, InternalMailThread.tenant_id.in_(tenant_ids) if tenant_ids else False)
+    ).all()
+    thread_ids = [r.id for r in mail_threads]
+    if thread_ids:
+        InternalMailMessage.query.filter(InternalMailMessage.thread_id.in_(thread_ids)).delete(synchronize_session=False)
+        SupportCase.query.filter(SupportCase.case_type == 'message', SupportCase.source_id.in_(thread_ids)).delete(synchronize_session=False)
+        SupportAuditLog.query.filter(SupportAuditLog.case_type == 'message', SupportAuditLog.source_id.in_(thread_ids)).delete(synchronize_session=False)
+        InternalMailThread.query.filter(InternalMailThread.id.in_(thread_ids)).delete(synchronize_session=False)
+
+    tickets = SupportTicket.query.filter(
+        db.or_(SupportTicket.opened_by_user_id == user.id, SupportTicket.tenant_id.in_(tenant_ids) if tenant_ids else False)
+    ).all()
+    ticket_ids = [r.id for r in tickets]
+    if ticket_ids:
+        SupportTicketMessage.query.filter(SupportTicketMessage.ticket_id.in_(ticket_ids)).delete(synchronize_session=False)
+        SupportCase.query.filter(SupportCase.case_type == 'ticket', SupportCase.source_id.in_(ticket_ids)).delete(synchronize_session=False)
+        SupportAuditLog.query.filter(SupportAuditLog.case_type == 'ticket', SupportAuditLog.source_id.in_(ticket_ids)).delete(synchronize_session=False)
+        SupportTicket.query.filter(SupportTicket.id.in_(ticket_ids)).delete(synchronize_session=False)
+
+    NotificationEvent.query.filter(db.or_(NotificationEvent.target_user_id == user.id, NotificationEvent.tenant_id.in_(tenant_ids) if tenant_ids else False)).delete(synchronize_session=False)
+
+    if tenant_ids:
+        WalletLedger.query.filter(WalletLedger.tenant_id.in_(tenant_ids)).delete(synchronize_session=False)
+        TenantQuota.query.filter(TenantQuota.tenant_id.in_(tenant_ids)).delete(synchronize_session=False)
+        TenantSubscription.query.filter(TenantSubscription.tenant_id.in_(tenant_ids)).delete(synchronize_session=False)
+
+    # Device-linked operational data.
+    if device_ids:
+        Reading.query.filter(db.or_(Reading.user_id == user.id, Reading.device_id.in_(device_ids))).delete(synchronize_session=False)
+        SyncLog.query.filter(db.or_(SyncLog.user_id == user.id, SyncLog.device_id.in_(device_ids))).delete(synchronize_session=False)
+        NotificationLog.query.filter(db.or_(NotificationLog.user_id == user.id, NotificationLog.device_id.in_(device_ids))).delete(synchronize_session=False)
+        EventLog.query.filter(db.or_(EventLog.user_id == user.id, EventLog.device_id.in_(device_ids))).delete(synchronize_session=False)
+        SmartSnapshot.query.filter(db.or_(SmartSnapshot.user_id == user.id, SmartSnapshot.device_id.in_(device_ids))).delete(synchronize_session=False)
+        UserLoad.query.filter(db.or_(UserLoad.user_id == user.id, UserLoad.device_id.in_(device_ids))).delete(synchronize_session=False)
+        AppDevice.query.filter(AppDevice.id.in_(device_ids)).delete(synchronize_session=False)
+    else:
+        Reading.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        SyncLog.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        NotificationLog.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        EventLog.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        SmartSnapshot.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        UserLoad.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+    # Logs are kept but detached from the deleted user to preserve audit history.
+    WalletLedger.query.filter_by(actor_user_id=user.id).update({'actor_user_id': None}, synchronize_session=False)
+    AdminActivityLog.query.filter_by(actor_user_id=user.id).update({'actor_user_id': None}, synchronize_session=False)
+    AdminActivityLog.query.filter_by(target_type='app_user', target_id=user.id).update({'target_id': None}, synchronize_session=False)
+    SupportAuditLog.query.filter_by(actor_user_id=user.id).update({'actor_user_id': None}, synchronize_session=False)
+
+    if tenant_ids:
+        TenantAccount.query.filter(TenantAccount.id.in_(tenant_ids)).delete(synchronize_session=False)
+
+    username = user.username
+    db.session.delete(user)
+    return {'username': username, 'tenant_ids': tenant_ids, 'device_ids': device_ids, 'thread_ids': thread_ids, 'ticket_ids': ticket_ids}
+
+
 def _admin_counts_snapshot():
     users = AppUser.query.filter_by(is_admin=False).count()
     active_users = AppUser.query.filter_by(is_admin=False, is_active=True).count()
@@ -304,8 +380,11 @@ from .smart_engine import get_latest_historical_overview, save_smart_snapshot_fr
 
 
 def _lang():
-    lang = (request.args.get('lang') or session.get('ui_lang') or 'ar').strip().lower()
-    return 'en' if lang == 'en' else 'ar'
+    raw = (request.args.get('lang') or request.form.get('lang') or session.get('ui_lang') or getattr(g, 'ui_lang', None) or 'ar')
+    lang = 'en' if str(raw).strip().lower().startswith('en') else 'ar'
+    session['ui_lang'] = lang
+    g.ui_lang = lang
+    return lang
 
 
 def _serialize_loads():
@@ -1624,16 +1703,27 @@ def admin_users():
         if not selected_ids:
             flash('اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.', 'warning')
             return redirect(url_for('main.admin_users', lang=_lang()))
-        if action not in {'activate', 'disable', 'soft_delete'}:
+        if action not in {'activate', 'disable', 'soft_delete', 'hard_delete'}:
             flash('إجراء جماعي غير معروف.', 'warning')
             return redirect(url_for('main.admin_users', lang=_lang()))
         changed = 0
         skipped = 0
+        if action == 'hard_delete':
+            try:
+                create_backup(reason='pre_bulk_hard_delete', upload_drive=False)
+            except Exception as exc:
+                current_app.logger.warning('Pre-bulk-delete backup skipped: %s', exc)
         for user in AppUser.query.filter(AppUser.id.in_(selected_ids)).all():
-            if actor and user.id == actor.id and action in {'disable', 'soft_delete'}:
+            if actor and user.id == actor.id and action in {'disable', 'soft_delete', 'hard_delete'}:
                 skipped += 1
                 continue
-            if action == 'activate':
+            if action == 'hard_delete':
+                if user.is_admin or user.username == current_app.config.get('ADMIN_USERNAME'):
+                    skipped += 1
+                    continue
+                _hard_delete_user_account(user, getattr(actor, 'id', None))
+                changed += 1
+            elif action == 'activate':
                 user.is_active = True
                 changed += 1
             elif action == 'disable':
@@ -1784,6 +1874,40 @@ def admin_user_toggle(user_id: int):
     flash('تم تحديث حالة المستخدم.', 'success')
     return redirect(url_for('main.admin_users', lang=_lang()))
 
+
+
+@main_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+def admin_user_delete(user_id: int):
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    actor = _active_user()
+    user = AppUser.query.filter_by(id=user_id).first_or_404()
+    if actor and user.id == actor.id:
+        flash('لا يمكن حذف حسابك الحالي.', 'warning')
+        return redirect(url_for('main.admin_users', lang=_lang()))
+    if user.is_admin or user.username == current_app.config.get('ADMIN_USERNAME'):
+        flash('لا يمكن حذف مدير النظام الأساسي.', 'warning')
+        return redirect(url_for('main.admin_users', lang=_lang()))
+    try:
+        # Keep a local restore point before destructive deletion.
+        create_backup(reason=f'pre_delete_user_{user.id}', upload_drive=False)
+    except Exception as exc:
+        current_app.logger.warning('Pre-delete backup skipped: %s', exc)
+    try:
+        result = _hard_delete_user_account(user, getattr(actor, 'id', None))
+        db.session.commit()
+        _admin_write_log('user.hard_delete', f'Hard deleted user account', 'app_user', None, result)
+        flash('تم حذف المستخدم نهائيًا.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception('Hard delete user failed: %s', exc)
+        user = AppUser.query.filter_by(id=user_id).first()
+        if user:
+            user.is_active = False
+            db.session.commit()
+        flash('تعذر حذف المستخدم بسبب بيانات مرتبطة. تم تعطيله بدلًا من ذلك حفاظًا على السجلات.', 'warning')
+    return redirect(url_for('main.admin_users', lang=_lang()))
 
 @main_bp.route('/devices/select/<int:device_id>', methods=['POST'])
 def select_device(device_id: int):
@@ -2940,11 +3064,24 @@ def admin_subscribers():
     if guard:
         return guard
     rows=[]
-    users=AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).all()
+    users=AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
+    stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
+    now = datetime.utcnow()
     for user in users:
         tenant, sub = ensure_user_tenant_and_subscription(user)
-        rows.append({'user':user,'tenant':tenant,'subscription':sub,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
-    return render_template('admin_subscribers_phase1a.html', rows=rows, ui_lang=_lang())
+        status = (sub.status if sub else getattr(tenant, 'status', 'trial')) or 'trial'
+        stats['total'] += 1
+        if not user.is_active:
+            stats['disabled'] += 1
+        if status in stats:
+            stats[status] += 1
+        plan = plans.get(sub.plan_id) if sub and sub.plan_id else plans.get(getattr(tenant, 'plan_id', None))
+        days_left = None
+        if sub and sub.ends_at:
+            days_left = (sub.ends_at.date() - now.date()).days
+        rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
+    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, ui_lang=_lang())
 
 
 @main_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
@@ -3041,15 +3178,86 @@ def admin_integrations():
     return render_template('admin_integrations.html', rows=rows, ui_lang=_lang())
 
 
+
+
+@main_bp.route('/admin/backups', methods=['GET', 'POST'])
+def admin_backups():
+    guard = _admin_guard('can_view_logs')
+    if guard:
+        return guard
+    if request.method == 'POST':
+        action = (request.form.get('action') or '').strip()
+        if action == 'save_settings':
+            set_setting('backup_enabled', 'true' if request.form.get('backup_enabled') == 'on' else 'false')
+            freq = (request.form.get('backup_frequency') or 'daily').strip().lower()
+            if freq not in {'daily', 'weekly', 'monthly'}:
+                freq = 'daily'
+            set_setting('backup_frequency', freq)
+            set_setting('backup_keep_local', str(max(int(request.form.get('backup_keep_local') or 12), 1)))
+            set_setting('backup_drive_enabled', 'true' if request.form.get('backup_drive_enabled') == 'on' else 'false')
+            set_setting('backup_drive_folder_id', (request.form.get('backup_drive_folder_id') or '').strip())
+            db.session.commit()
+            flash('تم تحديث إعدادات النسخ الاحتياطي.', 'success')
+        elif action == 'backup_now':
+            try:
+                create_backup(reason='manual', upload_drive=request.form.get('upload_drive') == 'on')
+                flash('تم إنشاء نسخة احتياطية بنجاح.', 'success')
+            except Exception as exc:
+                current_app.logger.exception('Manual backup failed: %s', exc)
+                flash('تعذر إنشاء النسخة الاحتياطية.', 'danger')
+        elif action == 'restore':
+            filename = (request.form.get('filename') or '').strip()
+            confirm = (request.form.get('confirm_restore') or '').strip().upper()
+            if confirm != 'RESTORE':
+                flash('اكتب RESTORE لتأكيد الاستعادة.', 'warning')
+            else:
+                try:
+                    restore_backup(filename)
+                    flash('تم استعادة قاعدة البيانات من النسخة الاحتياطية.', 'success')
+                except Exception as exc:
+                    current_app.logger.exception('Backup restore failed: %s', exc)
+                    flash('تعذر استعادة النسخة الاحتياطية.', 'danger')
+        return redirect(url_for('main.admin_backups', lang=_lang()))
+    return render_template('admin_backups.html', settings=backup_settings(), backups=list_backups(), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+
+
+@main_bp.route('/admin/backups/download/<path:filename>')
+def admin_backup_download(filename: str):
+    guard = _admin_guard('can_view_logs')
+    if guard:
+        return guard
+    for row in list_backups():
+        if row['name'] == filename:
+            return send_file(row['path'], as_attachment=True, download_name=row['name'])
+    return redirect(url_for('main.admin_backups', lang=_lang()))
+
+
 @main_bp.route('/admin/services-health')
 def admin_services_health():
     guard = _admin_guard('can_view_logs')
     if guard:
         return guard
     heartbeats = ServiceHeartbeat.query.order_by(ServiceHeartbeat.service_label.asc(), ServiceHeartbeat.service_key.asc()).all()
+    hb_map = {row.service_key: row for row in heartbeats}
     latest_sync = SyncLog.query.order_by(SyncLog.created_at.desc()).first()
     latest_notif = NotificationLog.query.order_by(NotificationLog.created_at.desc()).first()
-    return render_template('admin_services_health.html', heartbeats=heartbeats, latest_sync=latest_sync, latest_notif=latest_notif, ui_lang=_lang())
+    scheduler_obj = getattr(current_app, 'scheduler', None)
+    scheduler_jobs = []
+    scheduler_running = False
+    try:
+        scheduler_running = bool(scheduler_obj and scheduler_obj.running)
+        scheduler_jobs = [{'id': j.id, 'next_run_time': getattr(j, 'next_run_time', None)} for j in scheduler_obj.get_jobs()] if scheduler_obj else []
+    except Exception:
+        scheduler_running = False
+    service_cards = [
+        {'key': 'scheduler', 'label_ar': 'الجدولة الداخلية', 'label_en': 'Internal Scheduler', 'status': 'ok' if scheduler_running else ('warning' if current_app.config.get('DISABLE_INTERNAL_SCHEDULER') else 'failed'), 'message_ar': 'الجدولة تعمل.' if scheduler_running else 'الجدولة غير ظاهرة داخل هذا العامل. تأكد من gunicorn.conf و DISABLE_INTERNAL_SCHEDULER.', 'message_en': 'Scheduler is running.' if scheduler_running else 'Scheduler is not visible in this worker. Check gunicorn.conf and DISABLE_INTERNAL_SCHEDULER.', 'details': scheduler_jobs},
+        {'key': 'deye_auto_sync', 'label_ar': 'المزامنة التلقائية', 'label_en': 'Auto Sync', 'heartbeat': hb_map.get('app.blueprints.main.sync_now_internal') or hb_map.get('deye_auto_sync')},
+        {'key': 'advanced_notifications_check', 'label_ar': 'الإشعارات المتقدمة', 'label_en': 'Advanced Notifications', 'heartbeat': hb_map.get('app.blueprints.notifications.run_advanced_notification_scheduler')},
+        {'key': 'weather_change_check', 'label_ar': 'فحص الطقس', 'label_en': 'Weather Checks', 'heartbeat': hb_map.get('app.blueprints.notifications.run_weather_checks')},
+        {'key': 'database_backup', 'label_ar': 'النسخ الاحتياطي', 'label_en': 'Database Backup', 'heartbeat': hb_map.get('database_backup')},
+        {'key': 'database_backup_drive', 'label_ar': 'رفع النسخ إلى Drive', 'label_en': 'Drive Upload', 'heartbeat': hb_map.get('database_backup_drive')},
+    ]
+    return render_template('admin_services_health.html', heartbeats=heartbeats, service_cards=service_cards, latest_sync=latest_sync, latest_notif=latest_notif, scheduler_jobs=scheduler_jobs, scheduler_running=scheduler_running, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
 
 
 @main_bp.route('/admin/mail', methods=['GET', 'POST'])

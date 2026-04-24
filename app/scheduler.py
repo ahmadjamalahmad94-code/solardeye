@@ -114,6 +114,11 @@ def start_scheduler(app) -> BackgroundScheduler:
             'func': _build_job(app, 'app.blueprints.notifications.send_daily_morning_report'),
             'trigger': CronTrigger(hour=9, minute=5, timezone=timezone_name),
         },
+        {
+            'id': 'database_backup_maintenance',
+            'func': _build_job(app, 'app.services.backup_service.scheduled_backup_job'),
+            'trigger': CronTrigger(hour=2, minute=15, timezone=timezone_name),
+        },
     ]
 
     if app.config.get('AUTO_SYNC_ENABLED', True):
@@ -145,6 +150,10 @@ def start_scheduler(app) -> BackgroundScheduler:
     app._scheduler_started = True
 
     _log('Scheduler started in pid=%s with jobs=%s', current_pid, [j.id for j in scheduler.get_jobs()])
+    try:
+        heartbeat('scheduler', 'Internal Scheduler', 'ok', 'Scheduler started and jobs are registered.', source='scheduler', details={'pid': current_pid, 'jobs': [j.id for j in scheduler.get_jobs()]})
+    except Exception:
+        pass
 
     try:
         atexit.register(lambda: scheduler.shutdown(wait=False) if scheduler.running else None)

@@ -28,6 +28,16 @@ services:
         value: false
       - key: TELEGRAM_WEBHOOK_SECRET
         generateValue: true
+      - key: BACKUP_ENABLED
+        value: true
+      - key: BACKUP_FREQUENCY
+        value: daily
+      - key: BACKUP_KEEP_LOCAL
+        value: 12
+      - key: GOOGLE_DRIVE_BACKUP_ENABLED
+        value: false
+      - key: GOOGLE_DRIVE_BACKUP_FOLDER_ID
+        value: ""
       - key: DATABASE_URL
         fromDatabase:
           name: solardeye-db

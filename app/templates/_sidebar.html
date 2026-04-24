@@ -7,10 +7,10 @@
       <div>
         {% if g.is_admin %}
           <h4 class="mb-0">{{ 'Admin Console' if is_en else 'لوحة الإدارة' }}</h4>
-          <small>{{ 'SolarDeye Command v7.0' if is_en else 'SolarDeye Command v7.0' }}</small>
+          <small>{{ 'SolarDeye Command v7.1' if is_en else 'SolarDeye Command v7.1' }}</small>
         {% else %}
           <h4 class="mb-0">{{ 'Solar Platform' if is_en else 'منصة الطاقة' }}</h4>
-          <small>{{ 'Smart Portal v7.0' if is_en else 'البوابة الذكية v6.1' }}</small>
+          <small>{{ 'Smart Portal v7.1' if is_en else 'البوابة الذكية v7.1' }}</small>
         {% endif %}
       </div>
     </div>
@@ -25,8 +25,8 @@
 
     <div class="sidebar-lang-box">
       <div class="sidebar-lang-inline">
-        <a class="sidebar-lang-btn compact {% if not is_en %}active{% endif %}" href="{{ request.path }}?lang=ar">عربي</a>
-        <a class="sidebar-lang-btn compact {% if is_en %}active{% endif %}" href="{{ request.path }}?lang=en">English</a>
+        <a class="sidebar-lang-btn compact {% if not is_en %}active{% endif %}" href="{{ lang_url('ar') }}">عربي</a>
+        <a class="sidebar-lang-btn compact {% if is_en %}active{% endif %}" href="{{ lang_url('en') }}">English</a>
       </div>
     </div>
 
@@ -40,6 +40,7 @@
         <a class="{% if request.endpoint == 'main.admin_devices_center' %}active{% endif %}" href="{{ url_for('main.admin_devices_center', lang=ui_lang) }}">{{ '🔌 Devices' if is_en else '🔌 الأجهزة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_integrations' %}active{% endif %}" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_services_health' %}active{% endif %}" href="{{ url_for('main.admin_services_health', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
+        <a class="{% if request.endpoint in ['main.admin_backups','main.admin_backup_download'] %}active{% endif %}" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">{{ '💾 Backups & Recovery' if is_en else '💾 النسخ والاستعادة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Wallet & Finance' if is_en else '💰 المحفظة والمالية' }}</a>
         <a class="{% if request.endpoint == 'main.admin_activity_log' %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ '🕵️ Activity Log' if is_en else '🕵️ سجل العمليات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_roles' %}active{% endif %}" href="{{ url_for('main.admin_roles', lang=ui_lang) }}">{{ '🛡️ Roles & Permissions' if is_en else '🛡️ الأدوار والصلاحيات' }}</a>

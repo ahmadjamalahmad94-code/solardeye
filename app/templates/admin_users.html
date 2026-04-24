@@ -16,7 +16,7 @@
     </header>
 
     <section class="admin-layout-v2 single">
-      <form method="post" id="usersBulkForm" class="admin-card-v2 ui-reactive" data-hover-card>
+      <form method="post" id="usersBulkForm" class="admin-card-v2 ui-reactive" data-hover-card onsubmit="const v=this.querySelector('[name=bulk_action]')?.value; return v!=='hard_delete' || confirm('{{ 'Permanent delete selected users? A backup is recommended before continuing.' if is_en else 'حذف نهائي للمستخدمين المحددين؟ يفضل وجود نسخة احتياطية قبل المتابعة.' }}');">
         <div class="users-toolbar-v5">
           <div>
             <small>{{ users|length }} {{ 'accounts' if is_en else 'حساب' }}</small>
@@ -30,6 +30,7 @@
               <option value="activate">{{ 'Activate selected' if is_en else 'تفعيل المحدد' }}</option>
               <option value="disable">{{ 'Disable selected' if is_en else 'تعطيل المحدد' }}</option>
               <option value="soft_delete">{{ 'Safe delete selected' if is_en else 'حذف آمن للمحدد' }}</option>
+              <option value="hard_delete">{{ 'Permanent delete selected' if is_en else 'حذف نهائي للمحدد' }}</option>
             </select>
             <button class="btn btn-solar" type="submit">{{ 'Apply' if is_en else 'تنفيذ' }}</button>
           </div>
@@ -90,6 +91,9 @@
                     <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}">
                       <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
                     </form>
+                    {% if not u.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=u.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
+                      <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
+                    </form>{% endif %}
                   </div>
                 </td>
               </tr>
