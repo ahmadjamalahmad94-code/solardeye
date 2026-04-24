@@ -73,7 +73,7 @@
                     <span class="table-sub">{{ 'No open items' if is_en else 'لا يوجد مفتوح' }}</span>
                   {% endif %}
                 </td>
-                <td><span class="status-pill {{ 'warning' if badge[0] == 'مستخدم' or badge[0] == 'User' else 'success' }}">{{ badge[0] }}</span></td>
+                <td><span class="status-pill {{ 'warning' if badge[0] == 'مستخدم' or badge[0] == 'User' else 'success' }}">{{ t(badge[0]) }}</span></td>
                 <td><span class="status-pill {{ 'success' if u.is_active else 'danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span></td>
                 <td>
                   {% if devs %}

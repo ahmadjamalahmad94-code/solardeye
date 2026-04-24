@@ -815,21 +815,30 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     'لا يوجد تاريخ انتهاء': 'No end date',
   };
 
+  const serverTranslations = (window.SOLARDEYE_I18N && typeof window.SOLARDEYE_I18N === 'object') ? window.SOLARDEYE_I18N : {};
+  Object.keys(serverTranslations).forEach(key => { if(key && serverTranslations[key]) translations[key] = serverTranslations[key]; });
+
   function translateLegacy(text){
     const raw = String(text || '');
     const trimmed = raw.trim();
     if(!trimmed) return raw;
     if(translations[trimmed]) return raw.replace(trimmed, translations[trimmed]);
     let out = raw;
+    const escapeRegex = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const replaceKnownPhrase = (text, key, value) => {
+      if(!key || !text.includes(key)) return text;
+      if(/^[؀-ۿ]+$/.test(key)){
+        const pattern = new RegExp('(?<![؀-ۿ])' + escapeRegex(key) + '(?![؀-ۿ])', 'g');
+        return text.replace(pattern, value);
+      }
+      return text.split(key).join(value);
+    };
     Object.keys(translations).sort((a,b)=>b.length-a.length).forEach(key => {
-      if(key && out.includes(key)) out = out.split(key).join(translations[key]);
+      out = replaceKnownPhrase(out, key, translations[key]);
     });
-    // Final guard for English mode: do not leave raw Arabic text visible. This
-    // catches legacy hard-coded strings until the template is fully migrated.
-    if(/[؀-ۿ]/.test(out)){
-      out = out.replace(/[؀-ۿ][؀-ۿ\s،؛؟\-_:()\/\.]+/g, '');
-      out = out.replace(/\s{2,}/g, ' ').trim() || 'Text';
-    }
+    // Do not erase unknown Arabic: user-generated support messages or device
+    // names may legitimately be Arabic. The server catalog handles UI strings;
+    // this client pass only translates known legacy labels.
     return out;
   }
   function autoTranslateTextNodes(){
