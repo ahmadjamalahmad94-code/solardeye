@@ -1602,3 +1602,8 @@ body::before{
 .notification-center-card h3{font-size:1.25rem;margin:18px 0 8px;font-weight:900;color:#0f172a}
 .notification-center-card p{color:#475569;line-height:1.8;margin:0 0 16px;font-weight:700}
 @media(max-width:760px){.support-command-head-v55,.closed-support-head-v56{flex-direction:column;align-items:stretch}.support-segment-v55{width:100%;overflow:auto}.notification-center-grid{grid-template-columns:1fr}}
+/* Heavy v5.7 — support assignment workflow */
+.support-assignment-hint-v57{border:1px solid rgba(251,191,36,.35);background:linear-gradient(135deg,rgba(255,251,235,.95),rgba(239,246,255,.92));color:#334155;border-radius:16px;padding:10px 14px;font-weight:800;font-size:.92rem;line-height:1.7}
+.support-action-row-v57{align-items:stretch!important}.support-buttons-v57{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.support-buttons-v57 .btn{border-radius:18px!important;font-weight:900!important;padding:12px 18px!important}.support-buttons-v57 .btn-outline-primary{background:#fff!important;border:1px solid #93c5fd!important;color:#1d4ed8!important;box-shadow:0 10px 25px rgba(29,78,216,.08)}.support-buttons-v57 .btn-outline-primary:hover{background:#dbeafe!important;color:#0f2b66!important;transform:translateY(-1px)}
+.support-assignee-chip-v57{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;background:#e0f2fe;color:#075985;font-weight:900;border:1px solid #bae6fd;margin-inline-start:8px}.support-auto-notice-v57{border-radius:20px;border:1px dashed rgba(59,130,246,.35);background:#eff6ff;color:#1e3a8a;padding:12px 14px;font-weight:800}
+@media(max-width:900px){.support-buttons-v57{width:100%;justify-content:stretch}.support-buttons-v57 .btn{flex:1 1 100%}}
