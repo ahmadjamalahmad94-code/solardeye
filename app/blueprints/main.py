@@ -3335,8 +3335,10 @@ def notifications_feed():
 
 
 @main_bp.route('/notification-center')
+@main_bp.route('/notifications/center')
 def notification_center():
     guard = _login_guard()
     if guard:
         return guard
-    return render_template('notification_center.html', items=_support_notification_items(limit=200, include_closed=True), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+    items = _support_notification_payload(limit=200, include_closed=True)
+    return render_template('notification_center.html', items=items, ui_lang=_lang())

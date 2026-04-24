@@ -5,12 +5,12 @@
 {% set ticket_count = rows|selectattr('kind','equalto','ticket')|list|length %}
 <div class="app-shell">
   {% include '_sidebar.html' %}
-  <main class="content-area portal-support-v53">
+  <main class="content-area portal-support-v53 portal-support-v54">
     <header class="portal-support-hero-v53">
       <div>
         <span class="eyebrow">{{ 'Support Center' if is_en else 'مركز الدعم' }}</span>
-        <h1>{{ 'Messages and Tickets' if is_en else 'الرسائل والتذاكر' }}</h1>
-        <p>{{ 'One elegant place to message management, open tickets, follow replies, and continue conversations.' if is_en else 'مكان واحد أنيق لمراسلة الإدارة وفتح التذاكر ومتابعة الردود واستكمال المحادثات.' }}</p>
+        <h1>{{ 'Messages and Tickets' if is_en else 'الدعم والمراسلات' }}</h1>
+        <p>{{ 'Send messages, open tickets, follow replies, and continue conversations from one elegant place.' if is_en else 'أرسل رسالة، افتح تذكرة، وتابع ردود الإدارة من مكان واحد أنيق وواضح.' }}</p>
       </div>
       <div class="support-hero-stats-v53">
         <div><small>{{ 'Messages' if is_en else 'الرسائل' }}</small><strong>{{ mail_count }}</strong></div>
@@ -18,33 +18,65 @@
       </div>
     </header>
 
-    <section class="support-compose-grid-v53">
-      <article class="support-compose-card-v53 mail-card">
-        <div class="compose-top-v53"><span class="support-kind-badge-v53 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><h2>{{ 'Send a message' if is_en else 'إرسال رسالة للإدارة' }}</h2></div>
-        <form method="post" class="support-compose-form-v53">
-          <input type="hidden" name="action" value="create"><input type="hidden" name="kind" value="mail">
-          <label><span>{{ 'Subject' if is_en else 'العنوان' }}</span><input name="subject" class="form-control" required></label>
-          <div class="compose-row-v53">
-            <label><span>{{ 'Category' if is_en else 'التصنيف' }}</span><select name="category" class="form-control"><option value="support">Support</option><option value="billing">Billing</option><option value="complaint">Complaint</option></select></label>
-            <label><span>{{ 'Priority' if is_en else 'الأولوية' }}</span><select name="priority" class="form-control"><option value="normal">Normal</option><option value="high">High</option></select></label>
+    <section class="support-unified-composer-v54" data-default-kind="{{ 'ticket' if selected_type == 'ticket' else 'mail' }}">
+      <article class="support-compose-card-v54" id="supportComposerCard">
+        <div class="composer-accent-v54" id="composerAccent"></div>
+        <div class="composer-header-v54">
+          <div>
+            <span class="eyebrow" id="composerEyebrow">{{ 'Unified composer' if is_en else 'محرر موحد' }}</span>
+            <h2 id="composerTitle">{{ 'Send a message to management' if is_en else 'إرسال رسالة للإدارة' }}</h2>
+            <p id="composerHint">{{ 'Use a message for general follow-up, or switch to ticket when the issue needs tracking.' if is_en else 'استخدم الرسالة للمتابعة العامة، أو حوّلها لتذكرة عندما تحتاج المشكلة متابعة وحالة.' }}</p>
           </div>
-          <label><span>{{ 'Message' if is_en else 'الرسالة' }}</span><textarea name="body" rows="4" class="form-control" required></textarea></label>
-          <button class="btn btn-solar">{{ 'Send message' if is_en else 'إرسال الرسالة' }}</button>
-        </form>
-      </article>
+          <div class="composer-toggle-v54" role="tablist" aria-label="support type">
+            <button type="button" class="active" data-kind="mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</button>
+            <button type="button" data-kind="ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</button>
+          </div>
+        </div>
 
-      <article class="support-compose-card-v53 ticket-card">
-        <div class="compose-top-v53"><span class="support-kind-badge-v53 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><h2>{{ 'Open a ticket' if is_en else 'فتح تذكرة دعم' }}</h2></div>
-        <form method="post" class="support-compose-form-v53">
-          <input type="hidden" name="action" value="create"><input type="hidden" name="kind" value="ticket">
-          <label><span>{{ 'Subject' if is_en else 'العنوان' }}</span><input name="subject" class="form-control" required></label>
+        <form method="post" class="support-compose-form-v53 support-compose-form-v54" id="supportComposerForm">
+          <input type="hidden" name="action" value="create">
+          <input type="hidden" name="kind" value="mail" id="supportKindInput">
+
+          <label>
+            <span>{{ 'Subject' if is_en else 'العنوان' }}</span>
+            <input name="subject" class="form-control" required placeholder="{{ 'Write a clear subject...' if is_en else 'اكتب عنوانًا واضحًا...' }}">
+          </label>
+
           <div class="compose-row-v53">
-            <label><span>{{ 'Category' if is_en else 'الفئة' }}</span><select name="category" class="form-control"><option value="support">Support</option><option value="billing">Billing</option><option value="device">Device</option></select></label>
-            <label><span>{{ 'Priority' if is_en else 'الأولوية' }}</span><select name="priority" class="form-control"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
+            <label>
+              <span id="categoryLabel">{{ 'Category' if is_en else 'التصنيف' }}</span>
+              <select name="category" class="form-control" id="supportCategorySelect">
+                <option value="support">Support</option>
+                <option value="billing">Billing</option>
+                <option value="complaint">Complaint</option>
+              </select>
+            </label>
+            <label>
+              <span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
+              <select name="priority" class="form-control" id="supportPrioritySelect">
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+              </select>
+            </label>
           </div>
-          <label><span>{{ 'Device' if is_en else 'الجهاز' }}</span><select name="related_device_id" class="form-control"><option value="">-</option>{% for device in devices %}<option value="{{ device.id }}">{{ device.name }}</option>{% endfor %}</select></label>
-          <label><span>{{ 'Details' if is_en else 'التفاصيل' }}</span><textarea name="body" class="form-control" rows="4" required></textarea></label>
-          <button class="btn btn-solar">{{ 'Open ticket' if is_en else 'فتح التذكرة' }}</button>
+
+          <label class="ticket-only-v54" id="ticketDeviceField" style="display:none;">
+            <span>{{ 'Device' if is_en else 'الجهاز' }}</span>
+            <select name="related_device_id" class="form-control">
+              <option value="">-</option>
+              {% for device in devices %}<option value="{{ device.id }}">{{ device.name }}</option>{% endfor %}
+            </select>
+          </label>
+
+          <label>
+            <span id="bodyLabel">{{ 'Message' if is_en else 'الرسالة' }}</span>
+            <textarea name="body" rows="5" class="form-control" required placeholder="{{ 'Write your message clearly...' if is_en else 'اكتب رسالتك بوضوح...' }}"></textarea>
+          </label>
+
+          <div class="composer-submit-row-v54">
+            <div class="composer-mini-note-v54" id="composerMiniNote">{{ 'The administration will receive this as an internal message.' if is_en else 'ستصل هذه كرسالة داخلية للإدارة.' }}</div>
+            <button class="btn btn-solar" id="composerSubmitBtn">{{ 'Send message' if is_en else 'إرسال الرسالة' }}</button>
+          </div>
         </form>
       </article>
     </section>
@@ -99,4 +131,57 @@
     </section>
   </main>
 </div>
+<script>
+(function(){
+  const root = document.querySelector('.support-unified-composer-v54');
+  if(!root) return;
+  const isEn = {{ 'true' if is_en else 'false' }};
+  const form = document.getElementById('supportComposerForm');
+  const kindInput = document.getElementById('supportKindInput');
+  const card = document.getElementById('supportComposerCard');
+  const title = document.getElementById('composerTitle');
+  const hint = document.getElementById('composerHint');
+  const mini = document.getElementById('composerMiniNote');
+  const btn = document.getElementById('composerSubmitBtn');
+  const bodyLabel = document.getElementById('bodyLabel');
+  const categoryLabel = document.getElementById('categoryLabel');
+  const deviceField = document.getElementById('ticketDeviceField');
+  const cat = document.getElementById('supportCategorySelect');
+  const pri = document.getElementById('supportPrioritySelect');
+  const buttons = root.querySelectorAll('.composer-toggle-v54 button');
+  function setOptions(select, values){
+    select.innerHTML = '';
+    values.forEach(([v,t]) => { const o = document.createElement('option'); o.value=v; o.textContent=t; select.appendChild(o); });
+  }
+  function setKind(kind){
+    const ticket = kind === 'ticket';
+    kindInput.value = kind;
+    card.classList.toggle('is-ticket', ticket);
+    card.classList.toggle('is-mail', !ticket);
+    deviceField.style.display = ticket ? '' : 'none';
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
+    if(ticket){
+      title.textContent = isEn ? 'Open a support ticket' : 'فتح تذكرة دعم';
+      hint.textContent = isEn ? 'Use tickets for issues that need tracking, status, and follow-up.' : 'استخدم التذكرة للمشاكل التي تحتاج متابعة وحالة واضحة حتى الحل.';
+      mini.textContent = isEn ? 'The ticket will be tracked until it is solved or closed.' : 'سيتم تتبع التذكرة حتى حل المشكلة أو إغلاقها.';
+      btn.textContent = isEn ? 'Open ticket' : 'فتح التذكرة';
+      bodyLabel.textContent = isEn ? 'Details' : 'التفاصيل';
+      categoryLabel.textContent = isEn ? 'Category' : 'الفئة';
+      setOptions(cat, [['support','Support'],['billing','Billing'],['device','Device']]);
+      setOptions(pri, [['normal','Normal'],['high','High'],['urgent','Urgent']]);
+    } else {
+      title.textContent = isEn ? 'Send a message to management' : 'إرسال رسالة للإدارة';
+      hint.textContent = isEn ? 'Use messages for general follow-up, notes, or quick questions.' : 'استخدم الرسالة للمتابعة العامة أو الملاحظات أو الأسئلة السريعة.';
+      mini.textContent = isEn ? 'The administration will receive this as an internal message.' : 'ستصل هذه كرسالة داخلية للإدارة.';
+      btn.textContent = isEn ? 'Send message' : 'إرسال الرسالة';
+      bodyLabel.textContent = isEn ? 'Message' : 'الرسالة';
+      categoryLabel.textContent = isEn ? 'Category' : 'التصنيف';
+      setOptions(cat, [['support','Support'],['billing','Billing'],['complaint','Complaint']]);
+      setOptions(pri, [['normal','Normal'],['high','High']]);
+    }
+  }
+  buttons.forEach(b => b.addEventListener('click', () => setKind(b.dataset.kind)));
+  setKind(root.dataset.defaultKind || 'mail');
+})();
+</script>
 {% endblock %}
