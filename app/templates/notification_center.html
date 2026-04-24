@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2">
+    <header class="admin-page-head compact">
+      <div>
+        <span class="eyebrow">{{ 'Notification Center' if is_en else 'مركز الإشعارات' }}</span>
+        <h1>{{ 'Messages and ticket updates' if is_en else 'تحديثات الرسائل والتذاكر' }}</h1>
+        <p>{{ 'Open any item to jump directly to the subscriber support tab or the related portal thread.' if is_en else 'افتح أي عنصر للانتقال مباشرة إلى تبويب الدعم في صفحة المشترك أو المحادثة المرتبطة.' }}</p>
+      </div>
+    </header>
+    <section class="notification-center-grid">
+      {% for item in items %}
+      <a class="notification-center-card kind-{{ item.kind }} status-{{ item.status|replace(' ', '-') }}" href="{{ item.url }}" id="{{ item.kind }}-{{ item.id }}">
+        <div class="notification-card-topline"><span class="notification-kind">{{ 'Ticket' if item.kind == 'ticket' and is_en else ('تذكرة' if item.kind == 'ticket' else ('Message' if is_en else 'رسالة')) }}</span><span class="notification-status">{{ item.status }}</span></div>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.details }}</p>
+        <div class="notification-card-footer"><span>{{ 'From' if is_en else 'من' }}: {{ item.sender }}</span><small>{{ format_local(item.created_at) if item.created_at else '' }}</small></div>
+      </a>
+      {% else %}
+      <div class="panel-card"><div class="empty-state-card"><h3>{{ 'No notifications yet' if is_en else 'لا توجد إشعارات حتى الآن' }}</h3><p>{{ 'New support messages and ticket replies will appear here.' if is_en else 'ستظهر هنا رسائل الدعم الجديدة وردود التذاكر.' }}</p></div></div>
+      {% endfor %}
+    </section>
+  </main>
+</div>
+{% endblock %}

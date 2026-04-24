@@ -331,3 +331,25 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     card.style.setProperty('--cy', `${y}%`);
   });
 });
+
+// Heavy v5 notification dropdown
+(function(){
+  const wrap = document.getElementById('notificationBellWrap');
+  if(!wrap) return;
+  const btn = document.getElementById('notificationBellBtn');
+  const list = document.getElementById('notificationList');
+  const count = document.getElementById('notificationBellCount');
+  const mailCount = document.getElementById('notificationMailCount');
+  const ticketCount = document.getElementById('notificationTicketCount');
+  const feedUrl = wrap.dataset.feedUrl;
+  function esc(s){return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+  function render(items){
+    if(!list) return;
+    if(!items || !items.length){ list.innerHTML = '<div class="notification-empty">لا توجد إشعارات مفتوحة حاليًا.</div>'; return; }
+    list.innerHTML = items.map(item => `<a class="notification-item kind-${esc(item.kind)} status-${esc(item.status)}" href="${esc(item.url)}"><div class="notif-row"><span class="notif-kind">${item.kind === 'ticket' ? 'تذكرة' : 'رسالة'}</span><span class="notif-status">${esc(item.status)}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>من: ${esc(item.sender)}</span><small>${esc(item.created_at)}</small></div></a>`).join('');
+  }
+  function refresh(){ if(!feedUrl) return; fetch(feedUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.json()).then(data=>{ if(count) count.textContent = data.count || 0; if(mailCount) mailCount.textContent = data.mail_count || 0; if(ticketCount) ticketCount.textContent = data.ticket_count || 0; render(data.items || []); }).catch(()=>{}); }
+  btn && btn.addEventListener('click', function(e){ e.preventDefault(); wrap.classList.toggle('open'); if(wrap.classList.contains('open')) refresh(); });
+  document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) wrap.classList.remove('open'); });
+  refresh(); setInterval(refresh, 60000);
+})();

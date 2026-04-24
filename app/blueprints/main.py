@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 from werkzeug.security import generate_password_hash
-from flask import Blueprint, Response, current_app, flash, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -3100,3 +3100,77 @@ def portal_tickets():
         for ticket in SupportTicket.query.filter_by(opened_by_user_id=user.id).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
             rows.append({'ticket': ticket, 'messages': SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all()})
     return render_template('portal_tickets.html', rows=rows, devices=_device_collection(), ui_lang=_lang())
+
+# --- Heavy v5: floating notification center for mail and tickets ---
+def _support_notification_items(limit=5, include_closed=False):
+    user = _active_user()
+    if user is None:
+        return []
+    items = []
+    try:
+        if is_system_admin():
+            thread_q = InternalMailThread.query
+            ticket_q = SupportTicket.query
+            if not include_closed:
+                thread_q = thread_q.filter(InternalMailThread.status != 'closed')
+                ticket_q = ticket_q.filter(SupportTicket.status != 'closed')
+            for thread in thread_q.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).limit(50).all():
+                msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
+                if not msg or (not include_closed and msg.sender_scope != 'user'):
+                    continue
+                sender = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
+                tenant = TenantAccount.query.get(thread.tenant_id) if thread.tenant_id else None
+                owner_id = thread.created_by_user_id or getattr(sender, 'id', None)
+                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#thread-{thread.id}') if owner_id else (url_for('main.admin_internal_mail', lang=_lang()) + f'#thread-{thread.id}')})
+            for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(50).all():
+                msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
+                if not msg or (not include_closed and msg.sender_scope != 'user'):
+                    continue
+                sender = AppUser.query.get(ticket.opened_by_user_id) if ticket.opened_by_user_id else None
+                tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
+                owner_id = ticket.opened_by_user_id or getattr(sender, 'id', None)
+                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}') if owner_id else (url_for('main.admin_tickets', lang=_lang()) + f'#ticket-{ticket.id}')})
+        else:
+            thread_q = InternalMailThread.query.filter_by(created_by_user_id=user.id)
+            ticket_q = SupportTicket.query.filter_by(opened_by_user_id=user.id)
+            if not include_closed:
+                thread_q = thread_q.filter(InternalMailThread.status != 'closed')
+                ticket_q = ticket_q.filter(SupportTicket.status != 'closed')
+            for thread in thread_q.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).limit(50).all():
+                msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
+                if not msg or (not include_closed and msg.sender_scope != 'admin'):
+                    continue
+                items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_messages', lang=_lang()) + f'#thread-{thread.id}'})
+            for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(50).all():
+                msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
+                if not msg or (not include_closed and msg.sender_scope != 'admin'):
+                    continue
+                items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':'الإدارة' if msg.sender_scope == 'admin' else (g.current_user_display or user.username),'details':msg.body,'created_at':msg.created_at,'url':url_for('main.portal_tickets', lang=_lang()) + f'#ticket-{ticket.id}'})
+    except Exception:
+        return []
+    items.sort(key=lambda item: item.get('created_at') or datetime.min, reverse=True)
+    return items[:limit] if limit else items
+
+
+def _support_notification_payload(limit=5, include_closed=False):
+    payload = []
+    for item in _support_notification_items(limit=limit, include_closed=include_closed):
+        created = item.get('created_at')
+        payload.append({'kind':item.get('kind'),'id':item.get('id'),'title':item.get('title') or '','status':item.get('status') or 'open','priority':item.get('priority') or 'normal','sender':item.get('sender') or '','details':(item.get('details') or '')[:240],'created_at':format_local_datetime(created) if created else '','url':item.get('url') or '#'})
+    return payload
+
+
+@main_bp.route('/notifications/feed')
+def notifications_feed():
+    if not session.get('logged_in'):
+        return jsonify({'count': 0, 'items': []})
+    items = _support_notification_payload(limit=5, include_closed=False)
+    return jsonify({'count': (getattr(g, 'mail_notification_count', 0) or 0) + (getattr(g, 'ticket_notification_count', 0) or 0), 'mail_count': getattr(g, 'mail_notification_count', 0) or 0, 'ticket_count': getattr(g, 'ticket_notification_count', 0) or 0, 'items': items})
+
+
+@main_bp.route('/notification-center')
+def notification_center():
+    guard = _login_guard()
+    if guard:
+        return guard
+    return render_template('notification_center.html', items=_support_notification_items(limit=200, include_closed=True), ui_lang=_lang())

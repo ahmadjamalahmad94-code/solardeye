@@ -1,0 +1,17 @@
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% if session.get('logged_in') %}
+<div class="notification-bell-wrap" id="notificationBellWrap" data-feed-url="{{ url_for('main.notifications_feed', lang=ui_lang) }}">
+  <button class="notification-bell-btn" type="button" id="notificationBellBtn" aria-label="{{ 'Notifications' if is_en else 'الإشعارات' }}">
+    <span class="bell-icon">🔔</span>
+    <span class="notification-bell-count" id="notificationBellCount">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>
+  </button>
+  <div class="notification-dropdown" id="notificationDropdown">
+    <div class="notification-dropdown-head">
+      <div><strong>{{ 'Notifications' if is_en else 'الإشعارات' }}</strong><small>{{ 'Messages and tickets' if is_en else 'الرسائل والتذاكر المفتوحة' }}</small></div>
+      <span class="notification-mini-count"><span id="notificationMailCount">{{ g.mail_notification_count or 0 }}</span> ✉️ / <span id="notificationTicketCount">{{ g.ticket_notification_count or 0 }}</span> 🎫</span>
+    </div>
+    <div class="notification-list" id="notificationList"><div class="notification-empty">{{ 'No open notifications.' if is_en else 'لا توجد إشعارات مفتوحة حاليًا.' }}</div></div>
+    <a class="notification-more" href="{{ url_for('main.notification_center', lang=ui_lang) }}">{{ 'View all notifications' if is_en else 'عرض كل الإشعارات' }}</a>
+  </div>
+</div>
+{% endif %}
