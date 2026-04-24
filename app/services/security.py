@@ -14,7 +14,7 @@ CSRF_EXEMPT_ENDPOINTS = {
 }
 
 SENSITIVE_KEY_RE = re.compile(
-    r'(password|passwd|secret|token|api[_-]?key|private[_-]?key|access[_-]?key|client[_-]?secret|credentials)',
+    r'(password|passwd|secret|token|api[_-]?key|private[_-]?key|access[_-]?key|client[_-]?secret|credentials|chat[_-]?id|sms[_-]?recipients|phone|email|plant[_-]?id|station[_-]?id|device[_-]?(sn|uid)|logger[_-]?sn|battery[_-]?sn|serial)',
     re.IGNORECASE,
 )
 SECRET_PLACEHOLDERS = {'', '****', '********', '••••••', '••••••••', '__KEEP_SECRET__'}

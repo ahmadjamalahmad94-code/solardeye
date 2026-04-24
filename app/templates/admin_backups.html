@@ -11,7 +11,7 @@
         <h1>{{ 'Database backups' if is_en else 'النسخ الاحتياطي لقاعدة البيانات' }}</h1>
         <p>{{ 'Create local restore points, schedule daily/weekly/monthly backups, and optionally upload them to Google Drive.' if is_en else 'أنشئ نقاط استعادة محلية، وجدول نسخ يومية/أسبوعية/شهرية، وارفعها اختياريًا إلى Google Drive.' }}</p>
       </div>
-      <form method="post" class="backup-now-form-v71">
+      <form method="post" class="backup-now-form-v71"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="backup_now">
         <label class="switch-row"><span>{{ 'Upload to Drive too' if is_en else 'رفع إلى Drive أيضًا' }}</span><input type="checkbox" name="upload_drive"></label>
         <button class="btn btn-solar" type="submit">💾 {{ 'Backup now' if is_en else 'نسخ الآن' }}</button>
@@ -22,7 +22,7 @@
       <article class="admin-card-v2">
         <small>{{ 'Schedule' if is_en else 'الجدولة' }}</small>
         <h3>{{ 'Automatic backup policy' if is_en else 'سياسة النسخ التلقائي' }}</h3>
-        <form method="post" class="form-grid-v2 two">
+        <form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="save_settings">
           <label class="switch-row full"><span>{{ 'Enable automatic backups' if is_en else 'تفعيل النسخ التلقائي' }}</span><input type="checkbox" name="backup_enabled" {% if settings.backup_enabled == 'true' %}checked{% endif %}></label>
           <label><span>{{ 'Frequency' if is_en else 'التكرار' }}</span><select class="form-control" name="backup_frequency">
@@ -39,6 +39,17 @@
       </article>
 
       <article class="admin-card-v2">
+        <small>{{ 'Upload restore point' if is_en else 'رفع نقطة استعادة' }}</small>
+        <h3>{{ 'Import backup file' if is_en else 'استيراد ملف نسخة احتياطية' }}</h3>
+        <form method="post" enctype="multipart/form-data" class="form-grid-v2 single backup-upload-v80"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="upload_backup">
+          <label><span>{{ 'Backup file' if is_en else 'ملف النسخة الاحتياطية' }}</span><input class="form-control" type="file" name="backup_file" accept=".gz,application/gzip" required></label>
+          <div class="backup-note-v71">{{ 'Only SolarDeye solardeye_backup_*.json.gz files are accepted.' if is_en else 'يتم قبول ملفات SolarDeye بصيغة solardeye_backup_*.json.gz فقط.' }}</div>
+          <div class="action-row-v2"><button class="btn btn-outline-primary">{{ 'Upload backup' if is_en else 'رفع النسخة' }}</button></div>
+        </form>
+      </article>
+
+      <article class="admin-card-v2">
         <small>{{ 'Restore points' if is_en else 'نقاط الاستعادة' }}</small>
         <h3>{{ 'Available backups' if is_en else 'النسخ المتاحة' }}</h3>
         <div class="backup-list-v71">
@@ -47,7 +58,7 @@
             <div><strong>{{ b.name }}</strong><span>{{ format_local(b.created_at) }} · {{ (b.size / 1024)|round(1) }} KB</span></div>
             <div class="backup-actions-v71">
               <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_backup_download', filename=b.name, lang=ui_lang) }}">{{ 'Download' if is_en else 'تحميل' }}</a>
-              <form method="post" onsubmit="return confirm('{{ 'This will replace current database content. Continue?' if is_en else 'سيتم استبدال بيانات قاعدة البيانات الحالية. هل أنت متأكد؟' }}')">
+              <form method="post" onsubmit="return confirm('{{ 'This will replace current database content. Continue?' if is_en else 'سيتم استبدال بيانات قاعدة البيانات الحالية. هل أنت متأكد؟' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="restore"><input type="hidden" name="filename" value="{{ b.name }}">
                 <input class="form-control form-control-sm" name="confirm_restore" placeholder="RESTORE" dir="ltr">
                 <button class="btn btn-outline-danger btn-sm">{{ 'Restore' if is_en else 'استعادة' }}</button>

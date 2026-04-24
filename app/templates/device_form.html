@@ -8,7 +8,7 @@
       <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><span class="eyebrow">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span><h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1><p class="mb-0">{{ 'Private IDs and credentials are masked. Leave blank to keep saved values.' if is_en else 'المعرّفات والبيانات الخاصة مخفية. اترك الحقول فارغة للاحتفاظ بالقيم المحفوظة.' }}</p></div></div>
       <div><a class="btn btn-outline-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">↩ {{ 'Back' if is_en else 'الرجوع' }}</a></div>
     </header>
-    <form method="post" class="panel-card mt-4 admin-form-grid">
+    <form method="post" class="panel-card mt-4 admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div><label class="form-label">{{ 'Device name' if is_en else 'اسم الجهاز' }}</label><input class="form-control form-control-lg" name="name" value="{{ device.name }}" required></div>
       <div><label class="form-label">{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><select class="form-select form-select-lg" name="device_type"><option value="deye" {% if device.device_type=='deye' %}selected{% endif %}>Deye</option><option value="custom" {% if device.device_type=='custom' %}selected{% endif %}>Custom</option></select></div>
       <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="{{ device.api_provider or '' }}"></div>

@@ -12,10 +12,10 @@
         </div>
       </div>
       <div class="topbar-actions d-flex gap-2">
-        <form method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}">
+        <form method="post" action="{{ url_for('main.notifications_action', section='quick_telegram', action='send') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-primary">اختبار Telegram</button>
         </form>
-        <form method="post" action="{{ url_for('main.notifications_action', section='quick_both', action='send') }}">
+        <form method="post" action="{{ url_for('main.notifications_action', section='quick_both', action='send') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-solar">اختبار القناتين</button>
         </form>
       </div>
@@ -44,7 +44,7 @@
       </section>
     {% endif %}
 
-    <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2" id="notificationsSettingsForm">
+    <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2" id="notificationsSettingsForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <section class="panel-card notification-overview-card">
         <div class="notify-overview-grid">
           <div class="overview-metric-card metric-telegram"><span>Telegram</span><strong>{{ 'مفعل' if settings.telegram_bot_token and settings.telegram_chat_id else 'غير مكتمل' }}</strong><small>Bot + Chat + API</small></div>

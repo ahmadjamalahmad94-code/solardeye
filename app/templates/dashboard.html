@@ -29,7 +29,7 @@
       </div>
       <div class="topbar-actions unified-actions">
         <a href="{{ url_for('main.deye_settings', lang=ui_lang) }}" class="btn-ui btn-ui-outline">الإعدادات</a>
-        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}">
+        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-ui btn-ui-primary" type="submit" {% if not device_ready %}disabled title="{{ device_ready_message }}"{% endif %}>⟳ مزامنة الآن</button>
         </form>
       </div>

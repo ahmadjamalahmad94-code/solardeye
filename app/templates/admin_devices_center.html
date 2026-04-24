@@ -1,9 +1,63 @@
 {% extends "base.html" %}
+{% block title %}{{ 'Devices' if is_en else 'الأجهزة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
-<header class="admin-page-head"><div><span class="eyebrow">{{ 'Devices' if is_en else 'الأجهزة' }}</span><h1>{{ 'Devices control center' if is_en else 'مركز التحكم بالأجهزة' }}</h1><p>{{ 'Monitor ownership, readiness, connection state, and future multi-provider growth.' if is_en else 'راقب الملكية والجاهزية وحالة الاتصال والتوسع المستقبلي متعدد المزودين.' }}</p></div></header>
-<section class="admin-card-v2"><form class="form-grid-v2 two" method="get"><div><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><select name="device_type" class="form-control"><option value="">{{ 'All' if is_en else 'الكل' }}</option>{% for dt in device_types %}<option value="{{ dt.code }}" {% if request.args.get('device_type')==dt.code %}selected{% endif %}>{{ dt.name }}</option>{% endfor %}</select></div><div><label>{{ 'Connection status' if is_en else 'حالة الاتصال' }}</label><input class="form-control" name="status" value="{{ request.args.get('status','') }}"></div><div><button class="btn btn-solar mt-2">{{ 'Filter' if is_en else 'تصفية' }}</button></div></form></section>
-<section class="admin-card-v2"><div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Device' if is_en else 'الجهاز' }}</th><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Owner' if is_en else 'المالك' }}</th><th>{{ 'Tenant' if is_en else 'المشترك' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر اتصال' }}</th></tr></thead><tbody>{% for row in rows %}<tr><td><strong>{{ row.device.name }}</strong><div class="table-sub">{{ row.device.device_uid or row.device.external_device_id or ('ID #' ~ row.device.id) }}</div></td><td>{{ row.device.device_type }}</td><td>{{ row.owner.full_name if row.owner and row.owner.full_name else (row.owner.username if row.owner else '-') }}</td><td>{{ row.tenant.display_name if row.tenant else '-' }}</td><td><span class="status-pill {% if row.device.connection_status in ['ok','connected','ready'] %}success{% elif row.device.connection_status in ['new','warning'] %}warning{% else %}danger{% endif %}">{{ ui_label(row.device.connection_status or 'new', 'status', ui_lang) }}</span></td><td>{{ row.device.last_connected_at or '-' }}</td></tr>{% else %}<tr><td colspan="6">{{ 'No devices found.' if is_en else 'لا توجد أجهزة.' }}</td></tr>{% endfor %}</tbody></table></div></section>
-</main></div>
+{% set total = device_stats.total %}
+{% set connected = device_stats.connected %}
+{% set inactive = device_stats.inactive %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2 admin-devices-v80">
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">{{ 'Device Fleet' if is_en else 'أسطول الأجهزة' }}</span>
+        <h1>{{ 'Devices control center' if is_en else 'مركز التحكم بالأجهزة' }}</h1>
+        <p>{{ 'Monitor ownership, readiness, connection state, and sensitive identifiers safely.' if is_en else 'راقب الملكية والجاهزية وحالة الاتصال مع إخفاء المعرّفات الحساسة.' }}</p>
+      </div>
+      <div class="admin-head-actions">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">🧩 {{ 'Integrations' if is_en else 'التكاملات' }}</a>
+        <a class="btn btn-solar" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">👥 {{ 'Subscribers' if is_en else 'المشتركين' }}</a>
+      </div>
+    </header>
+
+    <section class="admin-kpi-grid-v2">
+      <article class="admin-kpi-card"><small>{{ 'Total devices' if is_en else 'إجمالي الأجهزة' }}</small><strong>{{ total }}</strong><span>{{ 'Registered in platform' if is_en else 'مسجلة في المنصة' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Connected / ready' if is_en else 'متصل / جاهز' }}</small><strong>{{ connected }}</strong><span>{{ 'Healthy connection states' if is_en else 'حالات اتصال سليمة' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Inactive' if is_en else 'غير مفعلة' }}</small><strong>{{ inactive }}</strong><span>{{ 'Disabled devices' if is_en else 'أجهزة معطلة' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Types' if is_en else 'الأنواع' }}</small><strong>{{ device_stats.types }}</strong><span>{{ 'Configured providers' if is_en else 'مزودين مهيئين' }}</span></article>
+    </section>
+
+    <section class="admin-card-v2">
+      <form class="form-grid-v2 three" method="get">
+        <input type="hidden" name="lang" value="{{ ui_lang }}">
+        <label><span>{{ 'Device type' if is_en else 'نوع الجهاز' }}</span><select name="device_type" class="form-control"><option value="">{{ 'All' if is_en else 'الكل' }}</option>{% for dt in device_types %}<option value="{{ dt.code }}" {% if request.args.get('device_type')==dt.code %}selected{% endif %}>{{ dt.name }}</option>{% endfor %}</select></label>
+        <label><span>{{ 'Connection status' if is_en else 'حالة الاتصال' }}</span><input class="form-control" name="status" value="{{ request.args.get('status','') }}" placeholder="ok / connected / warning"></label>
+        <div class="action-row-v2 align-self-end"><button class="btn btn-solar">{{ 'Filter' if is_en else 'تصفية' }}</button><a class="btn btn-outline-secondary" href="{{ url_for('main.admin_devices_center', lang=ui_lang) }}">{{ 'Reset' if is_en else 'إلغاء التصفية' }}</a></div>
+      </form>
+    </section>
+
+    <section class="admin-card-v2">
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <thead><tr><th>{{ 'Device' if is_en else 'الجهاز' }}</th><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Owner' if is_en else 'المالك' }}</th><th>{{ 'Tenant' if is_en else 'المشترك' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر اتصال' }}</th><th>{{ 'Privacy' if is_en else 'الخصوصية' }}</th></tr></thead>
+          <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><strong>{{ row.device.name }}</strong><div class="table-sub device-mask">{{ mask_identifier(row.device.device_uid or row.device.external_device_id) if (row.device.device_uid or row.device.external_device_id) else ('ID #' ~ row.device.id) }}</div></td>
+            <td><span class="ui-badge-v70 is-info">{{ row.device.device_type }}</span></td>
+            <td>{% if row.owner %}<strong>{{ row.owner.full_name or row.owner.username }}</strong><div class="table-sub">@{{ row.owner.username }}</div>{% else %}<span class="table-sub">—</span>{% endif %}</td>
+            <td>{{ row.tenant.display_name if row.tenant else '—' }}</td>
+            <td><span class="ui-badge-v70 {{ badge_class(row.device.connection_status or 'new') }}">{{ ui_label(row.device.connection_status or 'new', 'status', ui_lang) }}</span>{% if not row.device.is_active %}<div><span class="ui-badge-v70 is-muted">{{ 'Disabled' if is_en else 'معطل' }}</span></div>{% endif %}</td>
+            <td>{{ format_local(row.device.last_connected_at) if row.device.last_connected_at else '—' }}</td>
+            <td><span class="privacy-pill-v80">🔒 {{ 'IDs masked' if is_en else 'المعرّفات مخفية' }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-box-v2">{{ 'No devices found.' if is_en else 'لا توجد أجهزة.' }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
 {% endblock %}

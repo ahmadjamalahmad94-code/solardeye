@@ -32,11 +32,12 @@ from ..services.utils import (
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
 from ..services.security import preserve_secret_form_value, sanitize_response_payload
-from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting
+from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
 from ..services.support_ops import (
     audit_case, build_support_queue, case_url, notify_user, portal_case_url,
     sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
 )
+from ..services.platform_audit import audit_project
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
@@ -2557,7 +2558,7 @@ def _save_channels_settings_from_form(form, section: str | None = None):
     if not config:
         return False
     existing = load_settings()
-    sensitive_fields = {'telegram_bot_token', 'sms_api_key'}
+    sensitive_fields = {'telegram_bot_token', 'telegram_chat_id', 'sms_api_key', 'sms_recipients'}
     for field in config.get('text', []):
         if field in sensitive_fields:
             value = preserve_secret_form_value(form, field, existing.get(field, ''))
@@ -3166,7 +3167,13 @@ def admin_devices_center():
         tenant = TenantAccount.query.get(dev.tenant_id) if dev.tenant_id else None
         rows.append({'device': dev, 'owner': owner, 'tenant': tenant})
     device_types = DeviceType.query.order_by(DeviceType.name.asc()).all()
-    return render_template('admin_devices_center.html', rows=rows, device_types=device_types, ui_lang=_lang())
+    device_stats = {
+        'total': len(rows),
+        'connected': sum(1 for row in rows if (getattr(row['device'], 'connection_status', '') or '').lower() in ['ok', 'connected', 'ready']),
+        'inactive': sum(1 for row in rows if not bool(getattr(row['device'], 'is_active', True))),
+        'types': len(device_types),
+    }
+    return render_template('admin_devices_center.html', rows=rows, device_types=device_types, device_stats=device_stats, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
 
 
 @main_bp.route('/admin/integrations', methods=['GET', 'POST'])
@@ -3201,6 +3208,16 @@ def admin_integrations():
 
 
 
+@main_bp.route('/admin/platform-review')
+def admin_platform_review():
+    guard = _admin_guard('can_view_logs')
+    if guard:
+        return guard
+    audit = audit_project(current_app.root_path.rsplit('/app', 1)[0])
+    return render_template('admin_platform_review.html', audit=audit, ui_lang=_lang())
+
+
+
 @main_bp.route('/admin/backups', methods=['GET', 'POST'])
 def admin_backups():
     guard = _admin_guard('can_view_logs')
@@ -3226,6 +3243,14 @@ def admin_backups():
             except Exception as exc:
                 current_app.logger.exception('Manual backup failed: %s', exc)
                 flash('تعذر إنشاء النسخة الاحتياطية.', 'danger')
+        elif action == 'upload_backup':
+            file = request.files.get('backup_file')
+            try:
+                saved = save_uploaded_backup(file)
+                flash(f'تم رفع نسخة احتياطية للاستعادة: {saved.get("filename")}', 'success')
+            except Exception as exc:
+                current_app.logger.exception('Backup upload failed: %s', exc)
+                flash('تعذر رفع ملف النسخة الاحتياطية.', 'danger')
         elif action == 'restore':
             filename = (request.form.get('filename') or '').strip()
             confirm = (request.form.get('confirm_restore') or '').strip().upper()
@@ -3264,14 +3289,23 @@ def admin_services_health():
     latest_notif = NotificationLog.query.order_by(NotificationLog.created_at.desc()).first()
     scheduler_obj = getattr(current_app, 'scheduler', None)
     scheduler_jobs = []
-    scheduler_running = False
+    scheduler_visible = False
+    scheduler_hb = hb_map.get('scheduler')
+    scheduler_recent = False
     try:
-        scheduler_running = bool(scheduler_obj and scheduler_obj.running)
+        scheduler_visible = bool(scheduler_obj and scheduler_obj.running)
         scheduler_jobs = [{'id': j.id, 'next_run_time': getattr(j, 'next_run_time', None)} for j in scheduler_obj.get_jobs()] if scheduler_obj else []
     except Exception:
-        scheduler_running = False
+        scheduler_visible = False
+    try:
+        scheduler_recent = bool(scheduler_hb and scheduler_hb.last_seen_at and (datetime.utcnow() - scheduler_hb.last_seen_at) <= timedelta(minutes=45) and scheduler_hb.status in ['ok', 'running'])
+    except Exception:
+        scheduler_recent = False
+    scheduler_running = scheduler_visible or scheduler_recent
+    scheduler_message_ar = 'الجدولة تعمل داخل هذا العامل.' if scheduler_visible else ('الجدولة تعمل حسب آخر نبضة مسجلة، حتى لو لم تظهر داخل هذا الطلب.' if scheduler_recent else 'الجدولة غير ظاهرة. افحص gunicorn.conf و DISABLE_INTERNAL_SCHEDULER والـ worker الحالي.')
+    scheduler_message_en = 'Scheduler is running in this worker.' if scheduler_visible else ('Scheduler is healthy by recent heartbeat, even if it is not visible in this request worker.' if scheduler_recent else 'Scheduler is not visible. Check gunicorn.conf, DISABLE_INTERNAL_SCHEDULER, and the current worker.')
     service_cards = [
-        {'key': 'scheduler', 'label_ar': 'الجدولة الداخلية', 'label_en': 'Internal Scheduler', 'status': 'ok' if scheduler_running else ('warning' if current_app.config.get('DISABLE_INTERNAL_SCHEDULER') else 'failed'), 'message_ar': 'الجدولة تعمل.' if scheduler_running else 'الجدولة غير ظاهرة داخل هذا العامل. تأكد من gunicorn.conf و DISABLE_INTERNAL_SCHEDULER.', 'message_en': 'Scheduler is running.' if scheduler_running else 'Scheduler is not visible in this worker. Check gunicorn.conf and DISABLE_INTERNAL_SCHEDULER.', 'details': scheduler_jobs},
+        {'key': 'scheduler', 'label_ar': 'الجدولة الداخلية', 'label_en': 'Internal Scheduler', 'status': 'ok' if scheduler_running else ('warning' if current_app.config.get('DISABLE_INTERNAL_SCHEDULER') else 'failed'), 'message_ar': scheduler_message_ar, 'message_en': scheduler_message_en, 'details': scheduler_jobs, 'heartbeat': scheduler_hb},
         {'key': 'deye_auto_sync', 'label_ar': 'المزامنة التلقائية', 'label_en': 'Auto Sync', 'heartbeat': hb_map.get('app.blueprints.main.sync_now_internal') or hb_map.get('deye_auto_sync')},
         {'key': 'advanced_notifications_check', 'label_ar': 'الإشعارات المتقدمة', 'label_en': 'Advanced Notifications', 'heartbeat': hb_map.get('app.blueprints.notifications.run_advanced_notification_scheduler')},
         {'key': 'weather_change_check', 'label_ar': 'فحص الطقس', 'label_en': 'Weather Checks', 'heartbeat': hb_map.get('app.blueprints.notifications.run_weather_checks')},

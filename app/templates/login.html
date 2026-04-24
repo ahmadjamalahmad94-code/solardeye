@@ -15,7 +15,7 @@
       {% endif %}
     {% endwith %}
 
-    <form method="post" action="{{ url_for('auth.login') }}" class="mt-4">
+    <form method="post" action="{{ url_for('auth.login') }}" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
         <label class="form-label">اسم المستخدم</label>
         <input class="form-control form-control-lg" name="username" required autocomplete="username">

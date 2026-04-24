@@ -7,7 +7,7 @@
       <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><h1>معلومات المحطة</h1><p class="mb-0">بيانات المحطة الأساسية والربط الحالي</p></div></div>
     </header>
     <div class="cards-grid">
-      <div class="stat-card"><span>🪪 Plant ID</span><strong>{{ settings.deye_plant_id }}</strong></div>
+      <div class="stat-card"><span>🪪 Plant ID</span><strong>{{ mask_identifier(settings.deye_plant_id) if settings.deye_plant_id else '-' }}</strong></div>
       <div class="stat-card"><span>🏷️ الاسم</span><strong>{{ latest.plant_name if latest else settings.deye_plant_name }}</strong></div>
       <div class="stat-card"><span>🌍 المنطقة</span><strong>{{ settings.deye_region }}</strong></div>
     </div>
@@ -15,7 +15,7 @@
       <div class="section-head"><h3>معلومات إضافية</h3></div>
       <div class="table-responsive">
         <table class="table align-middle">
-          <tr><th>Device SN</th><td>{{ settings.deye_device_sn }}</td></tr>
+          <tr><th>Device SN</th><td>{{ mask_identifier(settings.deye_device_sn) if settings.deye_device_sn else '-' }}</td></tr>
           <tr><th>آخر حالة</th><td>{{ latest.status_text if latest else 'لا توجد قراءة' }}</td></tr>
           <tr><th>إنتاج اليوم</th><td>{{ format_energy(production_summary.today_kwh) if production_summary else '0.00 kWh' }}</td></tr>
           <tr><th>إنتاج الشهر</th><td>{{ format_energy(production_summary.month_kwh) if production_summary else '0.00 kWh' }}</td></tr>

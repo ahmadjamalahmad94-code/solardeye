@@ -44,7 +44,7 @@
         <h3 data-ar="تجريب اقتراح الأحمال" data-en="Test load suggestions">تجريب اقتراح الأحمال</h3>
       </div>
       <div class="load-sim-grid">
-        <form method="post" class="load-sim-main-form">
+        <form method="post" class="load-sim-main-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="simulate">
           <div>
             <label class="form-label" data-ar="أقصى حمل تريد السماح به ليلًا (واط)" data-en="Night max draw you allow (W)">أقصى حمل تريد السماح به ليلًا (واط)</label>
@@ -55,12 +55,12 @@
           </div>
         </form>
         <div class="load-side-actions">
-          <form method="post" class="inline-mini-form">
+          <form method="post" class="inline-mini-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_night_limit">
             <input type="hidden" id="nightMaxHidden" name="night_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
             <button class="btn btn-outline-primary" type="submit" data-ar="💾 حفظ الحد الليلي" data-en="💾 Save night limit">💾 حفظ الحد الليلي</button>
           </form>
-          <form method="post" class="inline-mini-form">
+          <form method="post" class="inline-mini-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="send_telegram_loads">
             <input type="hidden" id="sendSuggestHidden" name="simulate_max_w" value="{{ request.args.get('simulate_max_w', request.form.get('simulate_max_w', saved_night_max_w|int)) }}">
             <button class="btn btn-outline-primary" type="submit" data-ar="📤 أرسل الاقتراح إلى Telegram" data-en="📤 Send suggestion to Telegram">📤 أرسل الاقتراح إلى Telegram</button>
@@ -95,7 +95,7 @@
         <h3 data-ar="ربط Telegram التفاعلي" data-en="Interactive Telegram">ربط Telegram التفاعلي</h3>
       </div>
       <p class="mb-2">{% if ui_lang == 'en' %}You can send the interactive button menu now. To make buttons work inside Telegram, set your bot webhook to <code>/telegram/webhook</code> on your public domain after deployment.{% else %}يمكنك الآن إرسال قائمة الأزرار التفاعلية. ولتشغيل الأزرار داخل Telegram فعليًا، اربط Webhook البوت على المسار <code>/telegram/webhook</code> بعد نشر الموقع على رابط عام.{% endif %}</p>
-      <form method="post" action="{{ url_for('main.telegram_send_menu_route') }}">
+      <form method="post" action="{{ url_for('main.telegram_send_menu_route') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-outline-primary" type="submit">📲 {% if ui_lang == 'en' %}Send Telegram menu{% else %}إرسال قائمة Telegram{% endif %}</button>
       </form>
     </section>
@@ -105,7 +105,7 @@
         <div class="section-head">
           <h3 data-ar="إضافة حمل جديد" data-en="Add a new load">إضافة حمل جديد</h3>
         </div>
-        <form method="post" class="load-form-grid">
+        <form method="post" class="load-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="add">
           <div>
             <label class="form-label" data-ar="اسم الجهاز" data-en="Device name">اسم الجهاز</label>
@@ -156,12 +156,12 @@
               <small>{% if ui_lang == 'en' %}Priority{% else %}الأولوية{% endif %}: {{ ui_label(row.priority, 'priority', ui_lang) }}</small>
             </div>
             <div class="load-item-actions">
-              <form method="post">
+              <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="toggle">
                 <input type="hidden" name="load_id" value="{{ row.id }}">
                 <button class="btn btn-sm btn-outline-primary" type="submit">{% if row.is_enabled %}{% if ui_lang == 'en' %}Disable{% else %}تعطيل{% endif %}{% else %}{% if ui_lang == 'en' %}Enable{% else %}تفعيل{% endif %}{% endif %}</button>
               </form>
-              <form method="post" onsubmit="return confirm('{{ 'Delete this load?' if ui_lang == 'en' else 'حذف هذا الحمل؟' }}')">
+              <form method="post" onsubmit="return confirm('{{ 'Delete this load?' if ui_lang == 'en' else 'حذف هذا الحمل؟' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="load_id" value="{{ row.id }}">
                 <button class="btn btn-sm btn-outline-danger" type="submit">{% if ui_lang == 'en' %}Delete{% else %}حذف{% endif %}</button>

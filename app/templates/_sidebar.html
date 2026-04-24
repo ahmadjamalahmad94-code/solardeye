@@ -7,10 +7,10 @@
       <div>
         {% if g.is_admin %}
           <h4 class="mb-0">{{ 'Admin Console' if is_en else 'لوحة الإدارة' }}</h4>
-          <small>{{ 'SolarDeye Command v7.2.1' if is_en else 'SolarDeye Command v7.2.1' }}</small>
+          <small>{{ 'SolarDeye Command v8.0' if is_en else 'SolarDeye Command v8.0' }}</small>
         {% else %}
           <h4 class="mb-0">{{ 'Solar Platform' if is_en else 'منصة الطاقة' }}</h4>
-          <small>{{ 'Smart Portal v7.2.1' if is_en else 'البوابة الذكية v7.2' }}</small>
+          <small>{{ 'Smart Portal v8.0' if is_en else 'البوابة الذكية v8.0' }}</small>
         {% endif %}
       </div>
     </div>
@@ -40,6 +40,7 @@
         <a class="{% if request.endpoint == 'main.admin_devices_center' %}active{% endif %}" href="{{ url_for('main.admin_devices_center', lang=ui_lang) }}">{{ '🔌 Devices' if is_en else '🔌 الأجهزة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_integrations' %}active{% endif %}" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_services_health' %}active{% endif %}" href="{{ url_for('main.admin_services_health', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
+        <a class="{% if request.endpoint == 'main.admin_platform_review' %}active{% endif %}" href="{{ url_for('main.admin_platform_review', lang=ui_lang) }}">{{ '🧪 Platform Review' if is_en else '🧪 مراجعة المنصة' }}</a>
         <a class="{% if request.endpoint in ['main.admin_backups','main.admin_backup_download'] %}active{% endif %}" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">{{ '💾 Backups & Recovery' if is_en else '💾 النسخ والاستعادة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Wallet & Finance' if is_en else '💰 المحفظة والمالية' }}</a>
         <a class="{% if request.endpoint == 'main.admin_activity_log' %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ '🕵️ Activity Log' if is_en else '🕵️ سجل العمليات' }}</a>
@@ -64,7 +65,7 @@
   </div>
 
   <div class="sidebar-footer">
-    <form method="post" action="{{ url_for('auth.logout') }}">
+    <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-light w-100">{{ 'Sign out' if is_en else 'تسجيل الخروج' }}</button>
     </form>
   </div>

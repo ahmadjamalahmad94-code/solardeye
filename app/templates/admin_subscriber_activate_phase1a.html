@@ -8,7 +8,7 @@
       <div><span class="eyebrow">{{ 'Subscriber activation' if is_en else 'تفعيل المشترك' }}</span><h1>{{ user.full_name or user.username }}</h1><p>{{ 'Assign or renew plan access without exposing runtime device data.' if is_en else 'تعيين أو تجديد الخطة بدون كشف بيانات التشغيل الخاصة بالجهاز.' }}</p></div>
       <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
-    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid-v2 two">
         <label><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-select form-select-lg" name="plan_id">{% for p in plans %}<option value="{{ p.id }}">{{ p.name_en if is_en else p.name_ar }} — {{ p.price }} {{ p.currency }}</option>{% endfor %}</select></label>
         <label><span>{{ 'Days' if is_en else 'عدد الأيام' }}</span><input class="form-control form-control-lg" type="number" name="days" value="{{ (subscription.ends_at - subscription.starts_at).days if subscription and subscription.starts_at and subscription.ends_at else 30 }}"></label>

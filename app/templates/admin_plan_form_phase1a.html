@@ -9,7 +9,7 @@
       <div><span class="eyebrow">{{ 'Plan form' if is_en else 'نموذج الخطة' }}</span><h1>{{ 'Edit plan' if is_en and plan else ('Create plan' if is_en else ('تعديل الخطة' if plan else 'إنشاء خطة')) }}</h1></div>
       <a class="btn btn-outline-primary" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
-    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid-v2 two">
         <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control form-control-lg" type="text" name="code" value="{{ plan.code if plan else '' }}" required></label>
         <label><span>{{ 'Arabic name' if is_en else 'الاسم عربي' }}</span><input class="form-control form-control-lg" type="text" name="name_ar" value="{{ plan.name_ar if plan else '' }}" required></label>

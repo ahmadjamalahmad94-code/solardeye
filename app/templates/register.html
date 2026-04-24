@@ -15,7 +15,7 @@
       {% endif %}
     {% endwith %}
 
-    <form method="post" action="{{ url_for('auth.register') }}" class="mt-4 admin-form-grid">
+    <form method="post" action="{{ url_for('auth.register') }}" class="mt-4 admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label class="form-label">اسم المستخدم</label>
         <input class="form-control form-control-lg" name="username" required autocomplete="username">

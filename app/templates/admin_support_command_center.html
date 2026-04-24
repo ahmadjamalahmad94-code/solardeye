@@ -122,7 +122,7 @@
               {% endfor %}
             </div>
 
-            <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}">
+            <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="case_type" value="{{ c.case_type }}">
               <input type="hidden" name="source_id" value="{{ c.source_id }}">
               <input type="hidden" name="filter_key" value="{{ filter_key }}">
@@ -193,7 +193,7 @@
                 <div><dt>SLA</dt><dd>{% if row.overdue %}<span class="sla-red">{{ 'Overdue' if is_en else 'متأخر' }}</span>{% elif row.until_sla_hours is not none %}<span class="sla-green">{{ row.until_sla_hours }} {{ 'hours left' if is_en else 'ساعة متبقية' }}</span>{% else %}—{% endif %}</dd></div>
               </dl>
               <div class="quick-actions-v62">
-                <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}">
+                <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="case_type" value="{{ c.case_type }}"><input type="hidden" name="source_id" value="{{ c.source_id }}"><input type="hidden" name="filter_key" value="{{ filter_key }}">
                   {% if is_closed %}
                     <button class="btn btn-warning w-100" name="case_action" value="reopen">{{ 'Reopen case' if is_en else 'إعادة فتح الحالة' }}</button>

@@ -18,7 +18,7 @@
     {% endwith %}
 
     <div class="devices-manage-grid mt-4">
-      <form method="post" class="panel-card admin-form-grid">
+      <form method="post" class="panel-card admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="full"><h3>إضافة جهاز جديد</h3></div>
         <div><label class="form-label">اسم الجهاز</label><input class="form-control form-control-lg" name="name" required></div>
         <div><label class="form-label">نوع الجهاز</label>
@@ -27,8 +27,8 @@
         <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="deye"></div>
         <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="https://eu1-developer.deyecloud.com/v1.0"></div>
         <div><label class="form-label">Plant Name</label><input class="form-control form-control-lg" name="plant_name"></div>
-        <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id"></div>
-        <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid"></div>
+        <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id" placeholder="{{ 'Stored privately' if is_en else 'محفوظ بشكل مخفي' }}"></div>
+        <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid" placeholder="{{ 'Stored privately' if is_en else 'محفوظ بشكل مخفي' }}"></div>
         <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email"></div>
         <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password"></div>
         <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id"></div>
@@ -46,13 +46,13 @@
           <div class="device-manage-card {% if current_device_id == dev.id %}current{% endif %}">
             <div>
               <strong>{{ dev.name }}</strong>
-              <div class="device-meta-line">{{ dev.device_type|upper }}{% if dev.plant_name %} • {{ dev.plant_name }}{% endif %}{% if dev.station_id %} • {{ dev.station_id }}{% endif %}</div>
+              <div class="device-meta-line">{{ dev.device_type|upper }}{% if dev.plant_name %} • {{ dev.plant_name }}{% endif %}{% if dev.station_id %} • {{ mask_identifier(dev.station_id) }}{% endif %}</div>
             </div>
             <div class="device-card-actions">
               {% if current_device_id == dev.id %}<span class="smart-badge">الحالي</span>{% endif %}
-              <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}"><button class="btn btn-outline-primary btn-sm">اختيار</button></form>
+              <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary btn-sm">اختيار</button></form>
               <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.device_edit', device_id=dev.id, lang=ui_lang) }}">تعديل</a>
-              <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}"><button class="btn btn-outline-secondary btn-sm">{{ 'تعطيل' if dev.is_active else 'تفعيل' }}</button></form>
+              <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary btn-sm">{{ 'تعطيل' if dev.is_active else 'تفعيل' }}</button></form>
             </div>
           </div>
           {% else %}

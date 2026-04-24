@@ -75,7 +75,7 @@ def _serialize_database() -> dict[str, Any]:
     payload = {
         'created_at': datetime.utcnow().isoformat(),
         'app': 'SolarDeye',
-        'version': 'heavy-v7.1',
+        'version': 'heavy-v8.0',
         'dialect': db.engine.dialect.name,
         'tables': {},
     }
@@ -200,6 +200,31 @@ def scheduled_backup_job():
         heartbeat('database_backup', 'Database Backup', 'ok', 'Backup is not due yet.', source='backup')
         return None
     return create_backup(reason='scheduled')
+
+
+def save_uploaded_backup(file_storage) -> dict[str, Any]:
+    """Store an uploaded .json.gz backup file in the controlled backup directory.
+
+    The restore flow only reads from this directory, so uploaded restore points are
+    validated by extension and normalized to a safe filename before they become
+    selectable in the UI.
+    """
+    if file_storage is None or not getattr(file_storage, 'filename', ''):
+        raise ValueError('No backup file was uploaded.')
+    original = Path(file_storage.filename).name
+    if not original.endswith('.json.gz') or not original.startswith('solardeye_backup_'):
+        raise ValueError('Backup file must be a solardeye_backup_*.json.gz file.')
+    safe_name = original.replace('..', '').replace('/', '').replace('\\', '')
+    target = backup_dir() / safe_name
+    file_storage.save(target)
+    # Quick validation: make sure it is gzip JSON and has a tables object.
+    with gzip.open(target, 'rt', encoding='utf-8') as fh:
+        payload = json.load(fh)
+    if not isinstance(payload, dict) or 'tables' not in payload:
+        target.unlink(missing_ok=True)
+        raise ValueError('Uploaded file is not a valid SolarDeye backup.')
+    heartbeat('database_backup_upload', 'Backup Upload', 'ok', f'Uploaded restore point: {safe_name}', source='backup')
+    return {'ok': True, 'filename': safe_name, 'path': str(target), 'size': target.stat().st_size}
 
 
 def restore_backup(filename: str) -> dict[str, Any]:

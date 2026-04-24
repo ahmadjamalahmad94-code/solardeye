@@ -13,7 +13,7 @@
       <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
 
-    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid-v2 two">
         <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg" name="username" value="{{ user_obj.username if user_obj else '' }}" required></label>
         <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name if user_obj else '' }}"></label>

@@ -33,7 +33,7 @@
         <div class="stats-pill">مستقل</div>
       </div>
 
-      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="lang" value="{{ ui_lang }}">
         <input type="hidden" name="channel_section" value="telegram">
 
@@ -44,7 +44,7 @@
           </div>
           <div>
             <label class="form-label">Chat ID</label>
-            <input class="form-control" type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}" placeholder="ضع Chat ID هنا">
+            <input class="form-control" type="text" name="telegram_chat_id" value="" placeholder="{{ mask_identifier(settings.telegram_chat_id) if settings.telegram_chat_id else ('Chat ID' if ui_lang == 'en' else 'ضع Chat ID هنا') }}">
           </div>
           <div>
             <label class="form-label">Telegram API URL</label>
@@ -86,7 +86,7 @@
         <div class="stats-pill">أزرار فقط</div>
       </div>
 
-      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="lang" value="{{ ui_lang }}">
         <input type="hidden" name="channel_section" value="telegram_buttons">
 
@@ -125,7 +125,7 @@
         <div class="stats-pill">مستقل</div>
       </div>
 
-      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}">
+      <form method="post" action="{{ url_for('main.channels', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="lang" value="{{ ui_lang }}">
         <input type="hidden" name="channel_section" value="sms">
 
@@ -144,7 +144,7 @@
           </div>
           <div>
             <label class="form-label">المستلمون</label>
-            <input class="form-control" type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}" placeholder="0599...,0598...">
+            <input class="form-control" type="text" name="sms_recipients" value="" placeholder="{{ mask_identifier(settings.sms_recipients, visible=3) if settings.sms_recipients else '0599...,0598...' }}">
           </div>
         </div>
 

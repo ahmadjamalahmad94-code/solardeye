@@ -11,7 +11,7 @@ from flask import Blueprint, render_template, request, current_app
 from .helpers import load_settings
 from ..services.utils import sha256_hex
 from ..services.scope import is_system_admin
-from ..services.security import sanitize_response_payload
+from ..services.security import sanitize_response_payload, mask_identifier
 
 probe_bp = Blueprint('probe', __name__)
 
@@ -174,11 +174,12 @@ def run_probe(settings: dict) -> dict:
     if plant_id:    sns.append(('Plant ID',        plant_id))
 
     for label, sn in sns:
-        rec(f'GET  /device/originalData [{label}: {sn}]', 'device',
+        sn_label = mask_identifier(sn)
+        rec(f'GET  /device/originalData [{label}: {sn_label}]', 'device',
             _call(session, 'GET', f'{_DEV}/device/originalData', token=token, params={'deviceId': sn}),
             'بيانات خام السجلات (PV، جهد، حرارة، BMS)')
 
-        rec(f'POST /device/originalData [{label}: {sn}]', 'device',
+        rec(f'POST /device/originalData [{label}: {sn_label}]', 'device',
             _call(session, 'POST', f'{_DEV}/device/originalData', token=token, body={'deviceId': sn}),
             'نفس الـ endpoint بـ POST')
 
@@ -189,16 +190,17 @@ def run_probe(settings: dict) -> dict:
     if logger_sn:   dev_sns.append(('Logger SN',   logger_sn))
 
     for label, sn in dev_sns:
-        rec(f'POST /device/latest [{label}: {sn}]', 'device_sn',
+        sn_label = mask_identifier(sn)
+        rec(f'POST /device/latest [{label}: {sn_label}]', 'device_sn',
             _call(session, 'POST', f'{_EU}/device/latest', token=token, body={'deviceList': [sn]}),
             'أحدث بيانات الجهاز — يتضمن SOC، إنتاج يومي/شهري/كلي، جهد، تيار')
 
-        rec(f'POST /device/measurePoints [{label}: {sn}]', 'device_sn',
+        rec(f'POST /device/measurePoints [{label}: {sn_label}]', 'device_sn',
             _call(session, 'POST', f'{_EU}/device/measurePoints', token=token, body={'deviceSn': sn}),
             'قائمة المقاييس المتاحة للجهاز (SOC, PV1_V, INV_T...)')
 
         today = datetime.now().strftime('%Y-%m-%d')
-        rec(f'POST /device/history (day) [{label}: {sn}]', 'device_sn',
+        rec(f'POST /device/history (day) [{label}: {sn_label}]', 'device_sn',
             _call(session, 'POST', f'{_EU}/device/history', token=token, body={
                 'deviceSn': sn, 'granularity': 1, 'startAt': today, 'endAt': today,
                 'measurePoints': ['SOC', 'generationPower', 'batteryPower']

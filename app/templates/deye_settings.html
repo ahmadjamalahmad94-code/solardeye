@@ -22,7 +22,7 @@
     {% endwith %}
 
     <div class="panel-card">
-      <form method="post" class="settings-form">
+      <form method="post" class="settings-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div><label>App ID</label><input name="deye_app_id" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_app_id) if settings.deye_app_id else ('Enter App ID' if is_en else 'أدخل App ID') }}"><small class="secret-field-hint">{{ 'Blank keeps saved value.' if is_en else 'تركه فارغًا يحافظ على القيمة المحفوظة.' }}</small></div>
         <div><label>App Secret</label><input type="password" name="deye_app_secret" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_app_secret) if settings.deye_app_secret else ('Enter App Secret' if is_en else 'أدخل App Secret') }}"></div>
         <div><label>{{ 'Deye email' if is_en else 'بريد Deye' }}</label><input name="deye_email" value="" class="form-control" placeholder="{{ mask_email(settings.deye_email) if settings.deye_email else ('Enter Deye email' if is_en else 'أدخل بريد Deye') }}"></div>
@@ -41,8 +41,8 @@
       </form>
 
       <div class="mt-4 d-flex gap-2 flex-wrap">
-        <form method="post" action="{{ url_for('main.test_connection', lang=ui_lang) }}"><button class="btn btn-outline-primary">{{ 'Test connection' if is_en else 'اختبار الاتصال' }}</button></form>
-        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}"><button class="btn btn-outline-success">{{ 'Fetch live reading now' if is_en else 'جلب قراءة حقيقية الآن' }}</button></form>
+        <form method="post" action="{{ url_for('main.test_connection', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary">{{ 'Test connection' if is_en else 'اختبار الاتصال' }}</button></form>
+        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-success">{{ 'Fetch live reading now' if is_en else 'جلب قراءة حقيقية الآن' }}</button></form>
       </div>
     </div>
   </main>

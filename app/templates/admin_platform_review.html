@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}{% endblock %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2 platform-review-v80">
+    <header class="admin-page-head platform-review-hero-v80">
+      <div>
+        <span class="eyebrow">Heavy v8</span>
+        <h1>{{ 'Platform review center' if is_en else 'مركز مراجعة المنصة' }}</h1>
+        <p>{{ 'A page-by-page static health view for templates, forms, CSRF coverage, private-data exposure, and UI cleanup debt.' if is_en else 'فحص ثابت صفحة بصفحة للقوالب والنماذج وتغطية CSRF والبيانات الخاصة وديون تنظيف الواجهة.' }}</p>
+      </div>
+      <div class="platform-score-v80 {{ 'danger' if audit.summary.high_risk_templates else ('warning' if audit.summary.medium_risk_templates else 'ok') }}">
+        <small>{{ 'Risk' if is_en else 'المخاطر' }}</small>
+        <strong>{{ audit.summary.high_risk_templates }}</strong>
+        <span>{{ 'high-risk pages' if is_en else 'صفحات عالية الخطورة' }}</span>
+      </div>
+    </header>
+
+    <section class="admin-kpi-grid-v2 platform-kpi-v80">
+      <article class="admin-kpi-card"><small>{{ 'Templates' if is_en else 'القوالب' }}</small><strong>{{ audit.summary.templates }}</strong><span>{{ 'HTML pages scanned' if is_en else 'صفحة HTML مفحوصة' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Main blueprint routes' if is_en else 'مسارات main blueprint' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'POST forms' if is_en else 'نماذج POST' }}</small><strong>{{ audit.summary.post_forms }}</strong><span>{{ audit.summary.csrf_inputs }} {{ 'visible CSRF inputs' if is_en else 'CSRF ظاهر' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'ملف main.py' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ 'lines; split gradually' if is_en else 'سطر؛ يحتاج فصل تدريجي' }}</span></article>
+      <article class="admin-kpi-card"><small>CSS / JS</small><strong>{{ audit.summary.css_kb }}KB</strong><span>JS {{ audit.summary.js_kb }}KB</span></article>
+    </section>
+
+    <section class="admin-layout-v2 two platform-layout-v80">
+      <article class="admin-card-v2">
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Recommended next work' if is_en else 'الأعمال التالية المقترحة' }}</small>
+            <h3>{{ 'v8 quality checklist' if is_en else 'قائمة جودة v8' }}</h3>
+          </div>
+        </div>
+        <div class="activity-list-v2">
+          {% for item in audit.recommendations %}
+          <div class="activity-item-v2"><div><strong>{{ item.area }}</strong><small>{{ item.en if is_en else item.ar }}</small></div><span class="ui-badge-v70 is-info">{{ 'Review' if is_en else 'مراجعة' }}</span></div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <article class="admin-card-v2">
+        <small>{{ 'Static summary' if is_en else 'ملخص ثابت' }}</small>
+        <h3>{{ 'Cleanup debt' if is_en else 'ديون التنظيف' }}</h3>
+        <div class="cleanup-meter-v80">
+          <div><span>{{ 'Inline styles' if is_en else 'Inline styles' }}</span><strong>{{ audit.summary.inline_styles }}</strong></div>
+          <div><span>{{ 'Medium-risk pages' if is_en else 'صفحات متوسطة الخطورة' }}</span><strong>{{ audit.summary.medium_risk_templates }}</strong></div>
+          <div><span>{{ 'OK / low-risk pages' if is_en else 'صفحات سليمة أو منخفضة' }}</span><strong>{{ audit.summary.ok_templates }}</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="admin-card-v2">
+      <div class="section-heading-inline"><div><small>{{ 'Page-by-page' if is_en else 'صفحة صفحة' }}</small><h3>{{ 'Template audit table' if is_en else 'جدول فحص القوالب' }}</h3></div></div>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2 platform-table-v80">
+          <thead><tr><th>{{ 'Template' if is_en else 'القالب' }}</th><th>{{ 'Risk' if is_en else 'المستوى' }}</th><th>{{ 'Forms' if is_en else 'النماذج' }}</th><th>CSRF</th><th>{{ 'Inline style' if is_en else 'ستايل داخلي' }}</th><th>{{ 'Sensitive notes' if is_en else 'ملاحظات حساسة' }}</th></tr></thead>
+          <tbody>
+          {% for row in audit.templates %}
+            <tr class="risk-{{ row.severity }}">
+              <td><strong>{{ row.name }}</strong><div class="table-sub">{{ row.relative_path }} · {{ row.size_kb }}KB</div></td>
+              <td><span class="ui-badge-v70 {{ 'is-danger' if row.severity == 'high' else ('is-warning' if row.severity == 'medium' else 'is-success') }}">{{ row.severity }}</span></td>
+              <td>{{ row.post_forms }}</td>
+              <td>{{ row.csrf_inputs }}</td>
+              <td>{{ row.inline_styles }}</td>
+              <td>{% if row.sensitive_hits %}{{ row.sensitive_hits|join(' / ') }}{% else %}<span class="table-sub">{{ 'No direct hit' if is_en else 'لا يوجد رصد مباشر' }}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

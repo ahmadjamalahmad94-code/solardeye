@@ -32,6 +32,8 @@ def strip_known_conditionals(text):
     text = re.sub(r"{{\s*'[^']*[\u0600-\u06FF][^']*'\s+if\s+[^}]*?else\s+'[^']*[A-Za-z][^']*'\s*}}", '', text)
     text = re.sub(r"\('([^']*[A-Za-z][^']*)'\s+if\s+is_en\s+else\s+'([^']*[\u0600-\u06FF][^']*)'\)", '', text)
     text = re.sub(r'data-ar="[^"]*[\u0600-\u06FF][^"]*"\s+data-en="[^"]*"', '', text)
+    text = re.sub(r"{{\s*(?:t|tr)\(\s*'[^']*[\u0600-\u06FF][^']*'\s*\)\s*}}", '', text)
+    text = re.sub(r'{{\s*(?:t|tr)\(\s*"[^"]*[\u0600-\u06FF][^"]*"\s*\)\s*}}', '', text)
     text = re.sub(r"{%\s*if\s+(?:ui_lang|\(ui_lang or 'ar'\))[^%]*==\s*'en'\s*%}(.*?){%\s*else\s*%}.*?{%\s*endif\s*%}", r"\1", text, flags=re.DOTALL)
     return text
 

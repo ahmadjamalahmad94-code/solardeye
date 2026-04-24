@@ -150,7 +150,7 @@
                 {% if is_closed %}
                   <div class="portal-frozen-reply-v63">🔒 {{ 'This item is closed and frozen. Open a new request if you need additional help.' if is_en else 'هذا الطلب مغلق ومجمّد. افتح طلبًا جديدًا إذا احتجت متابعة إضافية.' }}</div>
                 {% else %}
-                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="reply-composer-v62 portal-reply-composer-v63" data-support-reply-form data-case-key="{{ key }}">
+                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="reply-composer-v62 portal-reply-composer-v63" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="reply">
                     <input type="hidden" name="kind" value="{{ row.kind }}">
                     {% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}
@@ -213,7 +213,7 @@
                   </div>
                 </div>
 
-                <form method="post" class="support-compose-form-v53 support-compose-form-v54" id="supportComposerForm" data-support-reply-form>
+                <form method="post" class="support-compose-form-v53 support-compose-form-v54" id="supportComposerForm" data-support-reply-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="action" value="create">
                   <input type="hidden" name="kind" value="mail" id="supportKindInput">
                   <label><span>{{ 'Subject' if is_en else 'العنوان' }}</span><input name="subject" class="form-control" required placeholder="{{ 'Write a clear subject...' if is_en else 'اكتب عنوانًا واضحًا...' }}"></label>
