@@ -63,6 +63,16 @@ def _support_already_has_assignment_notice(messages):
     return False
 
 
+def _support_has_assignment_notice_for(messages, admin):
+    label = _support_admin_label(admin) if admin else ''
+    for msg in messages or []:
+        body = getattr(msg, 'body', '') or ''
+        if (getattr(msg, 'sender_scope', '') == 'admin' and not getattr(msg, 'is_internal_note', False)
+                and 'تم استلام' in body and (not label or label in body)):
+            return True
+    return False
+
+
 def _assignment_notice_body(kind, admin):
     name = _support_admin_label(admin)
     if kind == 'ticket':
@@ -1471,13 +1481,23 @@ def admin_user_profile(user_id: int):
                     flash('هذه المحادثة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
                     return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
                 old_assignee_id = thread.assigned_admin_user_id
+                assignment_only = bool(request.form.get('assignment_only'))
                 requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
+                if assignment_only and not requested_assignee_id:
+                    flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
                 final_assignee_id = requested_assignee_id or thread.assigned_admin_user_id or getattr(actor, 'id', None)
                 thread_messages = InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
-                if body:
+                assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
+                if body and not assignment_only:
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                if final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(thread_messages):
-                    assigned_admin = AppUser.query.get(final_assignee_id)
+                if assignment_only:
+                    if final_assignee_id and (old_assignee_id != final_assignee_id or not _support_has_assignment_notice_for(thread_messages, assigned_admin)):
+                        db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
+                        flash('تم اعتماد المدير المسؤول وإشعار المشترك.', 'success')
+                    elif final_assignee_id:
+                        flash('هذا المدير معتمد مسبقًا لهذه المحادثة.', 'info')
+                elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(thread_messages):
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
                 if new_status == 'closed' and old_status != 'closed':
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
@@ -1509,13 +1529,23 @@ def admin_user_profile(user_id: int):
                     flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
                     return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
                 old_assignee_id = ticket.assigned_admin_user_id
+                assignment_only = bool(request.form.get('assignment_only'))
                 requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
+                if assignment_only and not requested_assignee_id:
+                    flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
                 final_assignee_id = requested_assignee_id or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket_messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
-                if body:
+                assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
+                if body and not assignment_only:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                if final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
-                    assigned_admin = AppUser.query.get(final_assignee_id)
+                if assignment_only:
+                    if final_assignee_id and (old_assignee_id != final_assignee_id or not _support_has_assignment_notice_for(ticket_messages, assigned_admin)):
+                        db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
+                        flash('تم اعتماد المدير المسؤول وإشعار المشترك.', 'success')
+                    elif final_assignee_id:
+                        flash('هذا المدير معتمد مسبقًا لهذه التذكرة.', 'info')
+                elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
                 if new_status == 'closed' and old_status != 'closed':
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
