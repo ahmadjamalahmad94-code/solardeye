@@ -49,30 +49,30 @@
 <div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></div>
 <div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button></div></form></div></section>
 {% elif tab == 'support' %}
-<section class="support-control-v55" data-support-workspace>
-  <div class="support-command-head-v55">
+{% set open_threads = thread_rows|rejectattr('thread.status','equalto','closed')|list %}
+{% set closed_threads = thread_rows|selectattr('thread.status','equalto','closed')|list %}
+{% set open_tickets = ticket_rows|rejectattr('ticket.status','equalto','closed')|list %}
+{% set closed_tickets = ticket_rows|selectattr('ticket.status','equalto','closed')|list %}
+<section class="support-control-v56" data-support-workspace>
+  <div class="support-command-head-v55 support-command-head-v56">
     <div>
       <span class="eyebrow">{{ 'Unified support workspace' if is_en else 'مساحة الدعم الموحدة' }}</span>
-      <h2>{{ 'Messages and support tickets' if is_en else 'الرسائل وتذاكر الدعم' }}</h2>
-      <p>{{ 'One shared experience for mail and tickets, with clearer colors and faster filtering.' if is_en else 'تجربة واحدة مشتركة للرسائل والتذاكر مع تمييز أوضح بالألوان وتبديل أسرع من الهيدر.' }}</p>
+      <h2>{{ 'Open support conversations' if is_en else 'الدعم المفتوح والقابل للرد' }}</h2>
+      <p>{{ 'Closed items are archived below and cannot receive new replies.' if is_en else 'العناصر المغلقة تُنقل للأسفل وتتجمد ولا تقبل ردودًا جديدة.' }}</p>
     </div>
     <div class="support-segment-v55" role="tablist">
       <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
-      <button type="button" data-filter="mail">✉️ {{ 'Messages' if is_en else 'رسائل' }} <b>{{ thread_rows|length }}</b></button>
-      <button type="button" data-filter="ticket">🎫 {{ 'Tickets' if is_en else 'تذاكر دعم' }} <b>{{ ticket_rows|length }}</b></button>
+      <button type="button" data-filter="mail">✉️ {{ 'Messages' if is_en else 'رسائل' }} <b>{{ open_threads|length }}</b></button>
+      <button type="button" data-filter="ticket">🎫 {{ 'Tickets' if is_en else 'تذاكر دعم' }} <b>{{ open_tickets|length }}</b></button>
     </div>
   </div>
 
-  <div class="support-board-v55">
-    {% for row in thread_rows %}
-    <article class="support-card-v55 kind-mail status-{{ row.thread.status }}" data-kind="mail" id="thread-{{ row.thread.id }}">
+  <div class="support-board-v55 support-board-v56">
+    {% for row in open_threads %}
+    <article class="support-card-v55 support-card-v56 kind-mail status-{{ row.thread.status }}" data-kind="mail" id="thread-{{ row.thread.id }}">
       <div class="support-card-glow-v55"></div>
       <div class="support-card-head-v55">
-        <div>
-          <span class="support-type-v55 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span>
-          <h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3>
-          <p>{{ row.thread.category }} • {{ row.thread.priority }}</p>
-        </div>
+        <div><span class="support-type-v55 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3><p>{{ row.thread.category }} • {{ row.thread.priority }}</p></div>
         <span class="support-status-v55 {{ row.thread.status }}">{{ row.thread.status }}</span>
       </div>
       <div class="support-thread-v55">
@@ -80,30 +80,22 @@
         <div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}">
           <div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div>
           <p>{{ msg.body }}</p>
-        </div>
-        {% else %}<div class="empty-box-v2">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>{% endfor %}
+        </div>{% else %}<div class="empty-box-v2">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>{% endfor %}
       </div>
-      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#thread-{{ row.thread.id }}" class="support-reply-form-v55">
+      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#thread-{{ row.thread.id }}" class="support-reply-form-v55 support-live-form-v56">
         <input type="hidden" name="action" value="mail_reply"><input type="hidden" name="thread_id" value="{{ row.thread.id }}">
-        <div class="support-form-grid-v55">
-          <label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','pending','waiting_user','closed'] %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
-          <label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label>
-        </div>
+        <div class="support-form-grid-v55"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','pending','waiting_user','closed'] %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label><label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label></div>
         <textarea class="form-control" name="body" rows="3" placeholder="{{ 'Write a clear reply to the subscriber...' if is_en else 'اكتب رد واضح للمشترك...' }}"></textarea>
         <div class="support-action-row-v55"><label class="switch-row"><span>{{ 'Internal note only' if is_en else 'ملاحظة داخلية فقط' }}</span><input type="checkbox" name="is_internal_note" value="1"></label><button class="btn btn-solar" type="submit">{{ 'Send reply / update' if is_en else 'إرسال الرد / تحديث الحالة' }}</button></div>
       </form>
     </article>
     {% endfor %}
 
-    {% for row in ticket_rows %}
-    <article class="support-card-v55 kind-ticket status-{{ row.ticket.status }}" data-kind="ticket" id="ticket-{{ row.ticket.id }}">
+    {% for row in open_tickets %}
+    <article class="support-card-v55 support-card-v56 kind-ticket status-{{ row.ticket.status }}" data-kind="ticket" id="ticket-{{ row.ticket.id }}">
       <div class="support-card-glow-v55"></div>
       <div class="support-card-head-v55">
-        <div>
-          <span class="support-type-v55 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</span>
-          <h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3>
-          <p>{{ row.ticket.category }} • {{ row.ticket.priority }}{% if row.device %} • {{ row.device.name }}{% endif %}</p>
-        </div>
+        <div><span class="support-type-v55 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</span><h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3><p>{{ row.ticket.category }} • {{ row.ticket.priority }}{% if row.device %} • {{ row.device.name }}{% endif %}</p></div>
         <span class="support-status-v55 {{ row.ticket.status }}">{{ row.ticket.status }}</span>
       </div>
       <div class="support-thread-v55">
@@ -111,24 +103,31 @@
         <div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}">
           <div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div>
           <p>{{ msg.body }}</p>
-        </div>
-        {% else %}<div class="empty-box-v2">{{ 'No ticket messages yet.' if is_en else 'لا توجد رسائل في التذكرة بعد.' }}</div>{% endfor %}
+        </div>{% else %}<div class="empty-box-v2">{{ 'No ticket messages yet.' if is_en else 'لا توجد رسائل في التذكرة بعد.' }}</div>{% endfor %}
       </div>
-      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#ticket-{{ row.ticket.id }}" class="support-reply-form-v55">
+      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#ticket-{{ row.ticket.id }}" class="support-reply-form-v55 support-live-form-v56">
         <input type="hidden" name="action" value="ticket_reply"><input type="hidden" name="ticket_id" value="{{ row.ticket.id }}">
-        <div class="support-form-grid-v55">
-          <label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','in_progress','waiting_user','closed'] %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
-          <label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label>
-        </div>
+        <div class="support-form-grid-v55"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','in_progress','waiting_user','closed'] %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label><label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label></div>
         <textarea class="form-control" name="body" rows="3" placeholder="{{ 'Reply to the ticket and close it when solved...' if is_en else 'اكتب الرد ثم أغلق التذكرة عند الحل...' }}"></textarea>
         <div class="support-action-row-v55"><label class="switch-row"><span>{{ 'Internal note only' if is_en else 'ملاحظة داخلية فقط' }}</span><input type="checkbox" name="is_internal_note" value="1"></label><button class="btn btn-solar" type="submit">{{ 'Send reply / update' if is_en else 'إرسال الرد / تحديث الحالة' }}</button></div>
       </form>
     </article>
     {% endfor %}
 
-    {% if (thread_rows|length + ticket_rows|length) == 0 %}
-      <div class="empty-state-box">{{ 'No messages or tickets for this subscriber yet.' if is_en else 'لا توجد رسائل أو تذاكر لهذا المشترك بعد.' }}</div>
-    {% endif %}
+    {% if (open_threads|length + open_tickets|length) == 0 %}<div class="empty-state-box">{{ 'No open support items.' if is_en else 'لا توجد رسائل أو تذاكر مفتوحة.' }}</div>{% endif %}
+  </div>
+
+  <div class="closed-support-section-v56">
+    <div class="closed-support-head-v56"><span>✅</span><div><h3>{{ 'Closed support archive' if is_en else 'الرسائل والتذاكر المغلقة' }}</h3><p>{{ 'Frozen history only. No replies can be added here.' if is_en else 'سجل محفوظ فقط. لا يمكن إضافة ردود بعد الإغلاق.' }}</p></div></div>
+    <div class="support-board-v55 support-board-v56 closed-board-v56">
+      {% for row in closed_threads %}
+      <article class="support-card-v55 support-card-v56 kind-mail status-closed is-frozen" data-kind="mail" id="thread-{{ row.thread.id }}"><div class="support-card-head-v55"><div><span class="support-type-v55 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3><p>{{ row.thread.category }} • {{ row.thread.priority }}</p></div><span class="support-status-v55 closed">closed</span></div><div class="support-thread-v55">{% for msg in row.messages %}<div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</div></article>
+      {% endfor %}
+      {% for row in closed_tickets %}
+      <article class="support-card-v55 support-card-v56 kind-ticket status-closed is-frozen" data-kind="ticket" id="ticket-{{ row.ticket.id }}"><div class="support-card-head-v55"><div><span class="support-type-v55 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</span><h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3><p>{{ row.ticket.category }} • {{ row.ticket.priority }}{% if row.device %} • {{ row.device.name }}{% endif %}</p></div><span class="support-status-v55 closed">closed</span></div><div class="support-thread-v55">{% for msg in row.messages %}<div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</div></article>
+      {% endfor %}
+      {% if (closed_threads|length + closed_tickets|length) == 0 %}<div class="empty-state-box">{{ 'No closed items yet.' if is_en else 'لا توجد عناصر مغلقة بعد.' }}</div>{% endif %}
+    </div>
   </div>
 </section>
 {% elif tab == 'finance' %}

@@ -1445,9 +1445,16 @@ def admin_user_profile(user_id: int):
                     thread.tenant_id = tenant.id
                 if not thread.created_by_user_id:
                     thread.created_by_user_id = user.id
+                old_status = (thread.status or 'open').strip()
+                new_status = (request.form.get('status') or old_status or 'open').strip()
+                if old_status == 'closed':
+                    flash('هذه المحادثة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
                 if body:
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                thread.status = (request.form.get('status') or thread.status or 'open').strip()
+                if new_status == 'closed' and old_status != 'closed':
+                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
+                thread.status = new_status
                 thread.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or thread.assigned_admin_user_id or getattr(actor, 'id', None)
                 thread.last_reply_at = datetime.utcnow()
                 thread.updated_at = datetime.utcnow()
@@ -1469,9 +1476,16 @@ def admin_user_profile(user_id: int):
                     ticket.tenant_id = tenant.id
                 if not ticket.opened_by_user_id:
                     ticket.opened_by_user_id = user.id
+                old_status = (ticket.status or 'open').strip()
+                new_status = (request.form.get('status') or old_status or 'open').strip()
+                if old_status == 'closed':
+                    flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
+                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
                 if body:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                ticket.status = (request.form.get('status') or ticket.status or 'open').strip()
+                if new_status == 'closed' and old_status != 'closed':
+                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
+                ticket.status = new_status
                 ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket.last_reply_at = datetime.utcnow()
                 ticket.updated_at = datetime.utcnow()
@@ -2945,6 +2959,11 @@ def admin_internal_mail():
             body = (request.form.get('body') or '').strip()
             thread = InternalMailThread.query.get(thread_id)
             if thread:
+                old_status = (thread.status or 'open').strip()
+                new_status = (request.form.get('status') or old_status).strip() or old_status
+                if old_status == 'closed':
+                    flash('هذه الرسالة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
+                    return redirect(url_for('main.admin_internal_mail', lang=_lang()))
                 if body:
                     db.session.add(InternalMailMessage(
                         thread_id=thread.id,
@@ -2954,7 +2973,10 @@ def admin_internal_mail():
                         body=body,
                     ))
                     thread.last_reply_at = datetime.utcnow()
-                thread.status = (request.form.get('status') or thread.status).strip() or thread.status
+                if new_status == 'closed' and old_status != 'closed':
+                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
+                    thread.last_reply_at = datetime.utcnow()
+                thread.status = new_status
                 thread.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or thread.assigned_admin_user_id or getattr(actor, 'id', None)
                 db.session.commit()
                 _admin_write_log('mail.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'status': thread.status})
@@ -3062,11 +3084,19 @@ def admin_tickets():
             body = (request.form.get('body') or '').strip()
             ticket = SupportTicket.query.get(ticket_id)
             if ticket:
+                old_status = (ticket.status or 'open').strip()
+                new_status = (request.form.get('status') or old_status).strip() or old_status
+                if old_status == 'closed':
+                    flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
+                    return redirect(url_for('main.admin_tickets', lang=_lang()))
                 if body:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body, is_internal_note=bool(request.form.get('is_internal_note'))))
-                ticket.status = (request.form.get('status') or ticket.status).strip()
+                if new_status == 'closed' and old_status != 'closed':
+                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
+                ticket.status = new_status
                 ticket.assigned_admin_user_id = int(request.form.get('assigned_admin_user_id') or 0) or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
                 ticket.last_reply_at = datetime.utcnow()
+                ticket.updated_at = datetime.utcnow()
                 db.session.commit()
                 _admin_write_log('ticket.reply', f'Replied to ticket #{ticket.id}', 'support_ticket', ticket.id, {'status': ticket.status})
                 flash('تم تحديث التذكرة', 'success')
@@ -3218,6 +3248,9 @@ def portal_support():
                 ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
                 belongs = bool(ticket and (ticket.opened_by_user_id == user.id or (getattr(tenant, 'id', None) and ticket.tenant_id == tenant.id)))
                 if ticket and belongs and body:
+                    if (ticket.status or '').strip() == 'closed':
+                        flash('هذه التذكرة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This ticket is closed and cannot receive new replies.', 'warning')
+                        return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
                     if not ticket.opened_by_user_id:
                         ticket.opened_by_user_id = user.id
                     if not ticket.tenant_id and tenant:
@@ -3225,8 +3258,6 @@ def portal_support():
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
                     ticket.last_reply_at = datetime.utcnow()
                     ticket.updated_at = datetime.utcnow()
-                    if ticket.status == 'closed':
-                        ticket.status = 'open'
                     db.session.commit()
                     flash('تمت إضافة الرد على التذكرة' if _lang() != 'en' else 'Ticket reply added', 'success')
                     return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
@@ -3234,6 +3265,9 @@ def portal_support():
                 thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
                 belongs = bool(thread and (thread.created_by_user_id == user.id or (getattr(tenant, 'id', None) and thread.tenant_id == tenant.id)))
                 if thread and belongs and body:
+                    if (thread.status or '').strip() == 'closed':
+                        flash('هذه المحادثة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This conversation is closed and cannot receive new replies.', 'warning')
+                        return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
                     if not thread.created_by_user_id:
                         thread.created_by_user_id = user.id
                     if not thread.tenant_id and tenant:
@@ -3241,8 +3275,6 @@ def portal_support():
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
                     thread.last_reply_at = datetime.utcnow()
                     thread.updated_at = datetime.utcnow()
-                    if thread.status == 'closed':
-                        thread.status = 'open'
                     db.session.commit()
                     flash('تمت إضافة الرد' if _lang() != 'en' else 'Reply added', 'success')
                     return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
@@ -3337,8 +3369,12 @@ def notifications_feed():
 @main_bp.route('/notification-center')
 @main_bp.route('/notifications/center')
 def notification_center():
-    guard = _login_guard()
-    if guard:
-        return guard
-    items = _support_notification_payload(limit=200, include_closed=True)
+    if not session.get('logged_in'):
+        return redirect(url_for('auth.login', lang=_lang()))
+    try:
+        items = _support_notification_payload(limit=200, include_closed=True)
+    except Exception as exc:
+        current_app.logger.exception('notification_center failed: %s', exc)
+        items = []
+        flash('تعذر تحميل مركز الإشعارات، تم فتح الصفحة بوضع آمن.', 'warning')
     return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))

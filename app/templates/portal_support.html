@@ -87,35 +87,23 @@
       <a class="{% if selected_type == 'ticket' %}active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}">🎫 {{ 'Tickets' if is_en else 'التذاكر' }}</a>
     </section>
 
-    <section class="portal-support-list-v53">
+    <section class="portal-support-list-v53 portal-support-list-v56">
       {% set shown = namespace(count=0) %}
+      {% set closed_count = namespace(value=0) %}
       {% for row in rows %}
-        {% if selected_type == 'all' or selected_type == row.kind %}
+        {% if row.status == 'closed' %}{% set closed_count.value = closed_count.value + 1 %}{% endif %}
+        {% if row.status != 'closed' and (selected_type == 'all' or selected_type == row.kind) %}
           {% set shown.count = shown.count + 1 %}
-          <article class="portal-support-card-v53 kind-{{ row.kind }} status-{{ row.status }}" id="{{ 'thread' if row.kind == 'mail' else 'ticket' }}-{{ row.id }}">
+          <article class="portal-support-card-v53 portal-support-card-v56 kind-{{ row.kind }} status-{{ row.status }}" id="{{ 'thread' if row.kind == 'mail' else 'ticket' }}-{{ row.id }}">
             <div class="portal-support-head-v53">
-              <div>
-                <span class="support-kind-badge-v53 {{ row.kind }}">{{ '✉️ Message' if is_en and row.kind=='mail' else ('🎫 Ticket' if is_en else ('✉️ رسالة' if row.kind=='mail' else '🎫 تذكرة')) }}</span>
-                <h3>#{{ row.id }} — {{ row.subject }}</h3>
-                <p>{{ row.category }} • {{ row.priority }}</p>
-              </div>
+              <div><span class="support-kind-badge-v53 {{ row.kind }}">{{ '✉️ Message' if is_en and row.kind=='mail' else ('🎫 Ticket' if is_en else ('✉️ رسالة' if row.kind=='mail' else '🎫 تذكرة')) }}</span><h3>#{{ row.id }} — {{ row.subject }}</h3><p>{{ row.category }} • {{ row.priority }}</p></div>
               <span class="support-status-v53 {{ row.status }}">{{ row.status }}</span>
             </div>
-
             <div class="portal-chat-thread-v53">
               {% for msg in row.messages %}
-              <div class="portal-chat-bubble-v53 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}">
-                <div class="portal-chat-meta-v53">
-                  <strong>{{ 'Management' if is_en and msg.sender_scope=='admin' else ('You' if is_en else ('الإدارة' if msg.sender_scope=='admin' else 'أنت')) }}</strong>
-                  <small>{{ format_local(msg.created_at) if format_local is defined else '' }}</small>
-                </div>
-                <p>{{ msg.body }}</p>
-              </div>
-              {% else %}
-              <div class="empty-box-v2">{{ 'No conversation yet.' if is_en else 'لا توجد محادثة بعد.' }}</div>
-              {% endfor %}
+              <div class="portal-chat-bubble-v53 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}"><div class="portal-chat-meta-v53"><strong>{{ 'Management' if is_en and msg.sender_scope=='admin' else ('You' if is_en else ('الإدارة' if msg.sender_scope=='admin' else 'أنت')) }}</strong><small>{{ format_local(msg.created_at) if format_local is defined else '' }}</small></div><p>{{ msg.body }}</p></div>
+              {% else %}<div class="empty-box-v2">{{ 'No conversation yet.' if is_en else 'لا توجد محادثة بعد.' }}</div>{% endfor %}
             </div>
-
             <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#{{ 'thread' if row.kind == 'mail' else 'ticket' }}-{{ row.id }}" class="portal-reply-form-v53">
               <input type="hidden" name="action" value="reply"><input type="hidden" name="kind" value="{{ row.kind }}">
               {% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}
@@ -125,9 +113,25 @@
           </article>
         {% endif %}
       {% endfor %}
-      {% if shown.count == 0 %}
-        <div class="empty-state-box">{{ 'No support items yet.' if is_en else 'لا توجد رسائل أو تذاكر بعد.' }}</div>
-      {% endif %}
+      {% if shown.count == 0 %}<div class="empty-state-box">{{ 'No open support items yet.' if is_en else 'لا توجد رسائل أو تذاكر مفتوحة بعد.' }}</div>{% endif %}
+    </section>
+
+    <section class="portal-support-closed-v56">
+      <div class="closed-support-head-v56"><span>✅</span><div><h3>{{ 'Closed messages and tickets' if is_en else 'الرسائل والتذاكر المغلقة' }}</h3><p>{{ 'Closed items are frozen and cannot receive new replies.' if is_en else 'العناصر المغلقة مجمدة ولا تقبل ردودًا جديدة.' }}</p></div></div>
+      <div class="portal-support-list-v53 portal-support-list-v56 closed-board-v56">
+        {% set closed_shown = namespace(count=0) %}
+        {% for row in rows %}
+          {% if row.status == 'closed' and (selected_type == 'all' or selected_type == row.kind) %}
+          {% set closed_shown.count = closed_shown.count + 1 %}
+          <article class="portal-support-card-v53 portal-support-card-v56 kind-{{ row.kind }} status-closed is-frozen" id="{{ 'thread' if row.kind == 'mail' else 'ticket' }}-{{ row.id }}">
+            <div class="portal-support-head-v53"><div><span class="support-kind-badge-v53 {{ row.kind }}">{{ '✉️ Message' if is_en and row.kind=='mail' else ('🎫 Ticket' if is_en else ('✉️ رسالة' if row.kind=='mail' else '🎫 تذكرة')) }}</span><h3>#{{ row.id }} — {{ row.subject }}</h3><p>{{ row.category }} • {{ row.priority }}</p></div><span class="support-status-v53 closed">closed</span></div>
+            <div class="portal-chat-thread-v53">{% for msg in row.messages %}<div class="portal-chat-bubble-v53 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}"><div class="portal-chat-meta-v53"><strong>{{ 'Management' if is_en and msg.sender_scope=='admin' else ('You' if is_en else ('الإدارة' if msg.sender_scope=='admin' else 'أنت')) }}</strong><small>{{ format_local(msg.created_at) if format_local is defined else '' }}</small></div><p>{{ msg.body }}</p></div>{% endfor %}</div>
+            <div class="frozen-note-v56">🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</div>
+          </article>
+          {% endif %}
+        {% endfor %}
+        {% if closed_shown.count == 0 %}<div class="empty-state-box">{{ 'No closed support items yet.' if is_en else 'لا توجد عناصر مغلقة بعد.' }}</div>{% endif %}
+      </div>
     </section>
   </main>
 </div>
