@@ -370,9 +370,15 @@ def protect_routes():
                     open_tickets = SupportTicket.query.filter(SupportTicket.status != 'closed').all()
                     g.ticket_notification_count = sum(1 for ticket in open_tickets if (lambda msg: bool(msg and msg.sender_scope == 'user'))(SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()))
                 else:
-                    user_threads = InternalMailThread.query.filter_by(created_by_user_id=g.current_user.id).filter(InternalMailThread.status != 'closed').all()
+                    tenant, _subscription = ensure_user_tenant_and_subscription(g.current_user, activated_by_user_id=g.current_user.id)
+                    tenant_id = getattr(tenant, 'id', None)
+                    if tenant_id:
+                        user_threads = InternalMailThread.query.filter(db.or_(InternalMailThread.created_by_user_id == g.current_user.id, InternalMailThread.tenant_id == tenant_id)).filter(InternalMailThread.status != 'closed').all()
+                        user_tickets = SupportTicket.query.filter(db.or_(SupportTicket.opened_by_user_id == g.current_user.id, SupportTicket.tenant_id == tenant_id)).filter(SupportTicket.status != 'closed').all()
+                    else:
+                        user_threads = InternalMailThread.query.filter_by(created_by_user_id=g.current_user.id).filter(InternalMailThread.status != 'closed').all()
+                        user_tickets = SupportTicket.query.filter_by(opened_by_user_id=g.current_user.id).filter(SupportTicket.status != 'closed').all()
                     g.mail_notification_count = sum(1 for thread in user_threads if (lambda msg: bool(msg and msg.sender_scope == 'admin'))(InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()))
-                    user_tickets = SupportTicket.query.filter_by(opened_by_user_id=g.current_user.id).filter(SupportTicket.status != 'closed').all()
                     g.ticket_notification_count = sum(1 for ticket in user_tickets if (lambda msg: bool(msg and msg.sender_scope == 'admin'))(SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()))
             except Exception:
                 g.mail_notification_count = 0

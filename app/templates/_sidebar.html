@@ -55,8 +55,7 @@
         <a class="{% if request.endpoint == 'main.loads_page' %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}">{{ '💡 Loads' if is_en else '💡 الأحمال' }}</a>
         <a class="{% if request.endpoint == 'main.notifications_settings' %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">{{ '📲 Notifications' if is_en else '📲 الإشعارات' }}</a>
         <a class="{% if request.endpoint == 'main.channels' %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">{{ '🔗 Telegram & SMS' if is_en else '🔗 Telegram و SMS' }}</a>
-        <a class="{% if request.endpoint == 'main.portal_messages' %}active{% endif %}" href="{{ url_for('main.portal_messages', lang=ui_lang) }}">{{ '✉️ Messages' if is_en else '✉️ الرسائل' }}{% if g.mail_notification_count %}<span class='nav-badge'>{{ g.mail_notification_count }}</span>{% endif %}</a>
-        <a class="{% if request.endpoint == 'main.portal_tickets' %}active{% endif %}" href="{{ url_for('main.portal_tickets', lang=ui_lang) }}">{{ '🎫 Tickets' if is_en else '🎫 التذاكر' }}{% if g.ticket_notification_count %}<span class='nav-badge'>{{ g.ticket_notification_count }}</span>{% endif %}</a>
+        <a class="{% if request.endpoint in ['main.portal_support','main.portal_messages','main.portal_tickets'] %}active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang) }}">{{ '💬 Support Center' if is_en else '💬 الدعم والمراسلات' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class='nav-badge'>{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>
       {% endif %}
     </nav>
   </div>
