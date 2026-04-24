@@ -14,7 +14,7 @@
         <p>{{ tenant.display_name if tenant else (user.full_name or user.username) }}</p>
       </div>
       <div class="subscription-status-v2">
-        <div><small>{{ 'Status' if is_en else 'الحالة' }}</small><strong>{{ subscription.status if subscription else '-' }}</strong></div>
+        <div><small>{{ 'Status' if is_en else 'الحالة' }}</small><strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</strong></div>
         <div><small>{{ 'Starts' if is_en else 'البداية' }}</small><strong>{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '-' }}</strong></div>
         <div><small>{{ 'Ends' if is_en else 'الانتهاء' }}</small><strong>{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '-' }}</strong></div>
         <div><small>{{ 'Allowed devices' if is_en else 'عدد الأجهزة المسموح' }}</small><strong>{{ plan.max_devices if plan else 0 }}</strong></div>

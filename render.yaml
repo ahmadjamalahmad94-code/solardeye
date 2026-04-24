@@ -10,6 +10,8 @@ services:
         value: 3.11.9
       - key: SECRET_KEY
         generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
       - key: LOCAL_TIMEZONE
         value: Asia/Hebron
       - key: AUTO_SYNC_ENABLED
@@ -18,6 +20,14 @@ services:
         value: 5
       - key: WEB_CONCURRENCY
         value: 1
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: CSRF_ENABLED
+        value: true
+      - key: DEBUG_TOOLS_ENABLED
+        value: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
       - key: DATABASE_URL
         fromDatabase:
           name: solardeye-db

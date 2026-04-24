@@ -57,7 +57,7 @@
               {% for user in recent_subscribers %}
               <tr>
                 <td><strong>{{ user.full_name or user.username }}</strong><div class="table-sub">@{{ user.username }}</div></td>
-                <td>{{ user.email or '-' }}</td>
+                <td>{{ mask_email(user.email) if user.email else '-' }}</td>
                 <td><span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span></td>
               </tr>
               {% else %}
@@ -84,7 +84,7 @@
                 <strong>{{ row.service_label or row.service_key }}</strong>
                 <small>{{ row.updated_at or '-' }}</small>
               </div>
-              <span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ row.status }}</span>
+              <span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
             </div>
             {% else %}
             <div class="empty-box-v2">{{ 'No service heartbeats yet.' if is_en else 'لا توجد نبضات خدمات بعد.' }}</div>

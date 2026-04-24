@@ -1,27 +1,25 @@
-# Environment — never commit real credentials
+# Secrets and local environment
 .env
+.env.*
+!.env.example
+client_secret_*.json
+*.pem
+*.key
+*.p12
+*.pfx
 
-# Python
+# Python/runtime
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
+*.sqlite
+*.db
+instance/
 .venv/
 venv/
-env/
 
-# Database
-*.db
-*.sqlite3
-instance/
-
-# OS
+# Logs/build artifacts
+*.log
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-client_secret_303425910592-1vv645159b3fs0j2gf5t2v6mse1mm41t.apps.googleusercontent.com.json
+node_modules/
+dist/
+build/

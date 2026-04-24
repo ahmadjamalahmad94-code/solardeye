@@ -60,11 +60,11 @@
           </div>
           <div>
             <label class="form-label">Station ID</label>
-            <input class="form-control form-control-lg" name="station_id" value="{{ dev.station_id if dev else '' }}">
+            <input class="form-control form-control-lg" name="station_id" value="" placeholder="{{ mask_identifier(dev.station_id) if dev and dev.station_id else '' }}">
           </div>
           <div>
             <label class="form-label">Device UID</label>
-            <input class="form-control form-control-lg" name="device_uid" value="{{ dev.device_uid if dev else '' }}">
+            <input class="form-control form-control-lg" name="device_uid" value="" placeholder="{{ mask_identifier(dev.device_uid) if dev and dev.device_uid else '' }}">
           </div>
           <div>
             <label class="form-label">API Provider</label>
@@ -74,10 +74,10 @@
             <label class="form-label">ملاحظات</label>
             <textarea class="form-control" rows="3" name="notes">{{ dev.notes if dev else '' }}</textarea>
           </div>
-          <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email" value="{{ wizard_creds.get('deye_email','') }}"></div>
-          <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password" value="{{ wizard_creds.get('deye_password','') }}"></div>
-          <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id" value="{{ wizard_creds.get('deye_app_id','') }}"></div>
-          <div><label class="form-label">Deye App Secret</label><input class="form-control form-control-lg" name="deye_app_secret" value="{{ wizard_creds.get('deye_app_secret','') }}"></div>
+          <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email" value="" placeholder="{{ mask_email(wizard_creds.get('deye_email')) if wizard_creds.get('deye_email') else '' }}"></div>
+          <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password" value="" placeholder="{{ mask_secret(wizard_creds.get('deye_password')) if wizard_creds.get('deye_password') else '' }}"></div>
+          <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id" value="" placeholder="{{ mask_identifier(wizard_creds.get('deye_app_id')) if wizard_creds.get('deye_app_id') else '' }}"></div>
+          <div><label class="form-label">Deye App Secret</label><input type="password" class="form-control form-control-lg" name="deye_app_secret" value="" placeholder="{{ mask_secret(wizard_creds.get('deye_app_secret')) if wizard_creds.get('deye_app_secret') else '' }}"></div>
           <div><label class="form-label">منطقة Deye</label><input class="form-control form-control-lg" name="deye_region" value="{{ wizard_device_settings.get('deye_region','EMEA') }}"></div>
           <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="{{ dev.api_base_url if dev else '' }}"></div>
         </div>

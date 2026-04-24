@@ -166,7 +166,6 @@ def _filtered_query(filter_key='all', actor_id=None):
 
 
 def support_queue_stats(actor_id=None):
-    sync_existing_cases(commit=False)
     now = datetime.utcnow()
     active_q = SupportCase.query.filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     stats = {
@@ -210,12 +209,16 @@ def _preview(text: str | None, limit: int = 150) -> str:
     return text[:limit].rstrip() + '…'
 
 
-def build_support_queue(filter_key='all', actor_id=None, lang='ar'):
-    sync_existing_cases(commit=True)
+def build_support_queue(filter_key='all', actor_id=None, lang='ar', limit: int = 150, auto_sync: bool = False):
+    if auto_sync:
+        sync_existing_cases(commit=True)
     q = _filtered_query(filter_key, actor_id)
     rows = []
     now = datetime.utcnow()
-    cases = q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc()).all()
+    cases_query = q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc())
+    if limit:
+        cases_query = cases_query.limit(limit)
+    cases = cases_query.all()
     for case in cases:
         source = _source_for_case(case)
         messages = _messages_for_case(case)

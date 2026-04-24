@@ -599,3 +599,167 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     document.querySelectorAll('[data-support-workspace]').forEach(initWorkspace);
   });
 })();
+
+// Heavy v7.0 — platform hardening, mobile drawer, CSRF, and language polish
+(function(){
+  function currentLang(){ return (document.body && document.body.dataset.lang === 'en') ? 'en' : 'ar'; }
+  function csrfToken(){
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return (document.body && document.body.dataset.csrfToken) || (meta && meta.content) || '';
+  }
+
+  // Add CSRF token to all forms just before submit. This covers old templates without hand-editing every form.
+  document.addEventListener('submit', function(event){
+    const form = event.target;
+    if(!form || form.tagName !== 'FORM') return;
+    const method = (form.getAttribute('method') || 'get').toLowerCase();
+    if(!['post','put','patch','delete'].includes(method)) return;
+    if(form.querySelector('input[name="csrf_token"]')) return;
+    const token = csrfToken();
+    if(!token) return;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'csrf_token';
+    input.value = token;
+    form.appendChild(input);
+  }, true);
+
+  // Add CSRF to AJAX/fetch writes.
+  if(window.fetch && !window.fetch.__solarCsrfWrapped){
+    const originalFetch = window.fetch.bind(window);
+    const wrapped = function(resource, options){
+      options = options || {};
+      const method = String(options.method || 'GET').toUpperCase();
+      if(['POST','PUT','PATCH','DELETE'].includes(method)){
+        const headers = new Headers(options.headers || {});
+        const token = csrfToken();
+        if(token && !headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', token);
+        options.headers = headers;
+      }
+      return originalFetch(resource, options);
+    };
+    wrapped.__solarCsrfWrapped = true;
+    window.fetch = wrapped;
+  }
+
+  // Mobile sidebar drawer instead of hiding navigation completely.
+  function initMobileSidebar(){
+    const sidebar = document.getElementById('sidebar');
+    const launcher = document.getElementById('mobileSidebarLauncher');
+    const backdrop = document.getElementById('sidebarBackdropV70');
+    const closeBtn = document.getElementById('sidebarMobileCloseV70');
+    if(!sidebar || !launcher) return;
+    function open(){
+      document.body.classList.add('sidebar-open-v70');
+      sidebar.classList.add('is-open-v70');
+      if(backdrop) backdrop.hidden = false;
+    }
+    function close(){
+      document.body.classList.remove('sidebar-open-v70');
+      sidebar.classList.remove('is-open-v70');
+      if(backdrop) backdrop.hidden = true;
+    }
+    launcher.addEventListener('click', open);
+    closeBtn && closeBtn.addEventListener('click', close);
+    backdrop && backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', (event) => { if(event.key === 'Escape') close(); });
+  }
+
+  const translations = {
+    'إعدادات ربط Deye': 'Deye Connection Settings',
+    'إعدادات الربط الحقيقي + سعة البطارية + المنطقة الزمنية المحلية': 'Real connection settings, battery capacity, and local time zone.',
+    'حفظ الإعدادات': 'Save settings',
+    'اختبار الاتصال': 'Test connection',
+    'جلب قراءة حقيقية الآن': 'Sync now',
+    'ربط Telegram و SMS': 'Telegram & SMS Channels',
+    'العودة إلى الإشعارات': 'Back to notifications',
+    'حفظ إعدادات Telegram': 'Save Telegram settings',
+    'تفعيل Webhook': 'Enable webhook',
+    'فحص Webhook': 'Check webhook',
+    'إلغاء Webhook': 'Delete webhook',
+    'إرسال اختبار Telegram': 'Send Telegram test',
+    'حفظ إعدادات SMS': 'Save SMS settings',
+    'إرسال اختبار SMS': 'Send SMS test',
+    'إدارة الأجهزة': 'Device Management',
+    'أضف أو عدّل أجهزتك واختر الجهاز الحالي بسهولة.': 'Add, edit, and select your current device easily.',
+    'إضافة جهاز جديد': 'Add new device',
+    'أجهزتي': 'My devices',
+    'الجهاز مفعل': 'Device enabled',
+    'إضافة الجهاز': 'Add device',
+    'الحالي': 'Current',
+    'اختيار': 'Select',
+    'تعديل': 'Edit',
+    'تعطيل': 'Disable',
+    'تفعيل': 'Enable',
+    'لا توجد أجهزة بعد.': 'No devices yet.',
+    'ملاحظات': 'Notes',
+    'كلمة المرور': 'Password',
+    'اسم المستخدم': 'Username',
+    'البريد الإلكتروني': 'Email',
+    'الاسم الكامل': 'Full name',
+    'البيانات الشخصية': 'Personal data',
+    'الاشتراك': 'Subscription',
+    'الدعم': 'Support',
+    'المالية': 'Finance',
+    'الأجهزة': 'Devices',
+    'النشاط': 'Activity',
+    'مفتوح': 'Open',
+    'مخصص': 'Assigned',
+    'قيد المتابعة': 'In progress',
+    'بانتظار المستخدم': 'Waiting user',
+    'بانتظار ردك': 'Waiting for you',
+    'تم الحل': 'Resolved',
+    'مغلق': 'Closed',
+    'عادي': 'Normal',
+    'مهم': 'High',
+    'عاجل': 'Urgent',
+    'منخفض': 'Low',
+    'نشط': 'Active',
+    'غير نشط': 'Inactive',
+    'مفعل': 'Enabled',
+    'غير مفعل': 'Disabled',
+    'حفظ': 'Save',
+    'إلغاء': 'Cancel',
+    'حذف': 'Delete',
+    'بحث': 'Search',
+    'تحديث': 'Update',
+    'تسجيل الخروج': 'Sign out',
+    'لا توجد إشعارات مفتوحة حاليًا.': 'No open notifications.',
+    'تعليم الكل كمقروء': 'Mark all read',
+    'عرض الكل': 'View all',
+  };
+
+  function autoTranslateTextNodes(){
+    if(currentLang() !== 'en') return;
+    const forbidden = 'SCRIPT,STYLE,TEXTAREA,INPUT,SELECT,OPTION,CODE,PRE,[data-no-auto-i18n]';
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode(node){
+        const parent = node.parentElement;
+        if(!parent || parent.closest(forbidden)) return NodeFilter.FILTER_REJECT;
+        const text = (node.nodeValue || '').trim();
+        if(!text || text.length > 80) return NodeFilter.FILTER_SKIP;
+        return translations[text] ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    const nodes = [];
+    while(walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => { node.nodeValue = node.nodeValue.replace(node.nodeValue.trim(), translations[node.nodeValue.trim()]); });
+  }
+
+  function initSecretToggles(){
+    document.querySelectorAll('[data-secret-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = document.querySelector(btn.dataset.secretToggle);
+        if(!target) return;
+        target.type = target.type === 'password' ? 'text' : 'password';
+        btn.textContent = target.type === 'password' ? (currentLang() === 'en' ? 'Show' : 'إظهار') : (currentLang() === 'en' ? 'Hide' : 'إخفاء');
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    initMobileSidebar();
+    initSecretToggles();
+    autoTranslateTextNodes();
+  });
+})();

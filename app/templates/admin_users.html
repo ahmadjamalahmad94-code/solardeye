@@ -63,7 +63,7 @@
                     </div>
                   {% endif %}
                   <div class="table-sub">@{{ u.username }}</div>
-                  {% if u.email %}<div class="table-sub">{{ u.email }}</div>{% endif %}
+                  {% if u.email %}<div class="table-sub">{{ mask_email(u.email) }}</div>{% endif %}
                 </td>
                 <td>
                   {% if support.mail or support.tickets %}

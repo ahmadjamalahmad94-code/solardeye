@@ -30,6 +30,7 @@ from ..services.utils import (
 )
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
+from ..services.security import preserve_secret_form_value, sanitize_response_payload
 from ..services.support_ops import (
     audit_case, build_support_queue, case_url, notify_user, portal_case_url,
     sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
@@ -1237,7 +1238,8 @@ def diagnostics():
         except Exception:
             raw_data = {'raw_text': latest.raw_json}
             raw_text = latest.raw_json
-    return render_template('diagnostics.html', latest=latest, raw_data=raw_data, raw_text=raw_text,
+    raw_data = sanitize_response_payload(raw_data)
+    return render_template('diagnostics.html', latest=latest, raw_data=raw_data, raw_text=raw_text, debug_tools_enabled=current_app.config.get('DEBUG_TOOLS_ENABLED') and is_system_admin(),
                            format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']), ui_lang=_lang())
 
 
@@ -1885,22 +1887,22 @@ def _save_deye_settings_to_device(device: AppDevice, form_data=None):
     device_settings = _safe_json_loads(getattr(device, 'settings_json', None))
 
     creds.update({
-        'deye_app_id': (form_data.get('deye_app_id', '') or '').strip(),
-        'deye_app_secret': (form_data.get('deye_app_secret', '') or '').strip(),
-        'deye_email': (form_data.get('deye_email', '') or '').strip(),
-        'deye_password': (form_data.get('deye_password', '') or '').strip(),
-        'deye_password_hash': (form_data.get('deye_password_hash', '') or '').strip(),
+        'deye_app_id': preserve_secret_form_value(form_data, 'deye_app_id', creds.get('deye_app_id') or creds.get('app_id') or ''),
+        'deye_app_secret': preserve_secret_form_value(form_data, 'deye_app_secret', creds.get('deye_app_secret') or creds.get('app_secret') or ''),
+        'deye_email': preserve_secret_form_value(form_data, 'deye_email', creds.get('deye_email') or creds.get('email') or ''),
+        'deye_password': preserve_secret_form_value(form_data, 'deye_password', creds.get('deye_password') or creds.get('password') or ''),
+        'deye_password_hash': preserve_secret_form_value(form_data, 'deye_password_hash', creds.get('deye_password_hash') or creds.get('password_hash') or ''),
     })
     device_settings.update({
         'deye_region': (form_data.get('deye_region', '') or '').strip(),
-        'deye_plant_id': (form_data.get('deye_plant_id', '') or '').strip(),
-        'deye_device_sn': (form_data.get('deye_device_sn', '') or '').strip(),
-        'deye_logger_sn': (form_data.get('deye_logger_sn', '') or '').strip(),
+        'deye_plant_id': preserve_secret_form_value(form_data, 'deye_plant_id', device_settings.get('deye_plant_id') or ''),
+        'deye_device_sn': preserve_secret_form_value(form_data, 'deye_device_sn', device_settings.get('deye_device_sn') or ''),
+        'deye_logger_sn': preserve_secret_form_value(form_data, 'deye_logger_sn', device_settings.get('deye_logger_sn') or ''),
         'deye_plant_name': (form_data.get('deye_plant_name', '') or '').strip(),
         'battery_capacity_kwh': (form_data.get('battery_capacity_kwh', '') or '').strip(),
         'battery_reserve_percent': (form_data.get('battery_reserve_percent', '') or '').strip(),
-        'deye_battery_sn_main': (form_data.get('deye_battery_sn_main', '') or '').strip(),
-        'deye_battery_sn_module': (form_data.get('deye_battery_sn_module', '') or '').strip(),
+        'deye_battery_sn_main': preserve_secret_form_value(form_data, 'deye_battery_sn_main', device_settings.get('deye_battery_sn_main') or ''),
+        'deye_battery_sn_module': preserve_secret_form_value(form_data, 'deye_battery_sn_module', device_settings.get('deye_battery_sn_module') or ''),
     })
     device.station_id = device_settings.get('deye_plant_id') or device.station_id
     device.device_uid = device_settings.get('deye_device_sn') or device.device_uid
@@ -1936,18 +1938,18 @@ def _save_device_credentials(device: AppDevice, form_data=None):
 
     creds = {
         **existing_creds,
-        'deye_email': (form_data.get('deye_email', '') or '').strip(),
-        'deye_password': (form_data.get('deye_password', '') or '').strip(),
-        'deye_password_hash': (form_data.get('deye_password_hash', '') or '').strip(),
-        'deye_app_id': (form_data.get('deye_app_id', '') or '').strip(),
-        'deye_app_secret': (form_data.get('deye_app_secret', '') or '').strip(),
+        'deye_email': preserve_secret_form_value(form_data, 'deye_email', existing_creds.get('deye_email') or existing_creds.get('email') or ''),
+        'deye_password': preserve_secret_form_value(form_data, 'deye_password', existing_creds.get('deye_password') or existing_creds.get('password') or ''),
+        'deye_password_hash': preserve_secret_form_value(form_data, 'deye_password_hash', existing_creds.get('deye_password_hash') or existing_creds.get('password_hash') or ''),
+        'deye_app_id': preserve_secret_form_value(form_data, 'deye_app_id', existing_creds.get('deye_app_id') or existing_creds.get('app_id') or ''),
+        'deye_app_secret': preserve_secret_form_value(form_data, 'deye_app_secret', existing_creds.get('deye_app_secret') or existing_creds.get('app_secret') or ''),
     }
     settings = {
         **existing_settings,
         'deye_region': (form_data.get('deye_region', 'EMEA') or 'EMEA').strip(),
         'api_base_url': (form_data.get('api_base_url', '') or '').strip(),
-        'deye_plant_id': (form_data.get('station_id', '') or '').strip(),
-        'deye_device_sn': (form_data.get('device_uid', '') or '').strip(),
+        'deye_plant_id': preserve_secret_form_value(form_data, 'station_id', existing_settings.get('deye_plant_id') or ''),
+        'deye_device_sn': preserve_secret_form_value(form_data, 'device_uid', existing_settings.get('deye_device_sn') or ''),
         'deye_plant_name': (form_data.get('plant_name', '') or '').strip(),
     }
 
@@ -1961,10 +1963,10 @@ def _save_device_fields(device: AppDevice, owner_user_id: int):
     device.name = (request.form.get('name', '') or '').strip() or device.name or 'My Solar Device'
     device.device_type = (request.form.get('device_type', 'deye') or 'deye').strip().lower()
     device.api_provider = (request.form.get('api_provider', device.device_type or 'deye') or 'deye').strip().lower()
-    device.api_base_url = (request.form.get('api_base_url', '') or '').strip()
-    device.external_device_id = (request.form.get('external_device_id', '') or '').strip() or None
-    device.device_uid = (request.form.get('device_uid', '') or '').strip() or None
-    device.station_id = (request.form.get('station_id', '') or '').strip() or None
+    device.api_base_url = (request.form.get('api_base_url', '') or '').strip() or device.api_base_url
+    device.external_device_id = preserve_secret_form_value(request.form, 'external_device_id', device.external_device_id or '') or None
+    device.device_uid = preserve_secret_form_value(request.form, 'device_uid', device.device_uid or '') or None
+    device.station_id = preserve_secret_form_value(request.form, 'station_id', device.station_id or '') or None
     device.plant_name = (request.form.get('plant_name', '') or '').strip() or None
     device.timezone = (request.form.get('timezone', current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')) or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')).strip()
     device.auth_mode = (request.form.get('auth_mode', 'wizard') or 'wizard').strip().lower()
@@ -2352,7 +2354,11 @@ def _telegram_set_webhook(settings: dict):
     if not target:
         return False, 'تعذر تحديد رابط الـ webhook'
     try:
-        r = requests.get(f"{base}/bot{token}/setWebhook", params={'url': target}, timeout=20)
+        params = {'url': target}
+        secret = (current_app.config.get('TELEGRAM_WEBHOOK_SECRET') or '').strip()
+        if secret:
+            params['secret_token'] = secret
+        r = requests.get(f"{base}/bot{token}/setWebhook", params=params, timeout=20)
         data = r.json()
         return bool(data.get('ok')), data.get('description') or r.text[:500]
     except Exception as exc:
@@ -2405,8 +2411,14 @@ def _save_channels_settings_from_form(form, section: str | None = None):
     config = CHANNEL_FORM_FIELDS.get(section)
     if not config:
         return False
+    existing = load_settings()
+    sensitive_fields = {'telegram_bot_token', 'sms_api_key'}
     for field in config.get('text', []):
-        _upsert_channel_setting(field, (form.get(field, '') or '').strip())
+        if field in sensitive_fields:
+            value = preserve_secret_form_value(form, field, existing.get(field, ''))
+        else:
+            value = (form.get(field, '') or '').strip()
+        _upsert_channel_setting(field, value)
     for key in config.get('checkbox', []):
         _upsert_channel_setting(key, 'true' if form.get(key) == 'on' else 'false')
     db.session.commit()
@@ -2750,6 +2762,16 @@ def telegram_webhook():
             mimetype='application/json'
         )
 
+    secret = (current_app.config.get('TELEGRAM_WEBHOOK_SECRET') or '').strip()
+    if secret:
+        supplied = (request.headers.get('X-Telegram-Bot-Api-Secret-Token') or request.args.get('secret') or '').strip()
+        if supplied != secret:
+            return Response(
+                json.dumps({'ok': False, 'error': 'invalid webhook secret'}, ensure_ascii=False),
+                status=403,
+                mimetype='application/json'
+            )
+
     data = request.get_json(silent=True) or {}
     if not data:
         return Response(
@@ -2790,6 +2812,8 @@ def plant_info():
 
 @main_bp.route('/api/raw-debug')
 def api_raw_debug():
+    if not is_system_admin() or not current_app.config.get('DEBUG_TOOLS_ENABLED'):
+        return {'ok': False, 'error': 'Debug tools are disabled.'}, 403
     latest = _latest_reading()
     if not latest:
         return {'ok': False, 'error': 'No reading found'}
@@ -2813,7 +2837,7 @@ def api_raw_debug():
     except Exception as e:
         device_list_result = [{'error': str(e)}]
 
-    return {
+    payload = {
         'created_at': latest.created_at.isoformat(),
         'daily_production_stored': latest.daily_production,
         'monthly_production_stored': latest.monthly_production,
@@ -2825,6 +2849,7 @@ def api_raw_debug():
         'top_level_keys': list(raw.keys()) if isinstance(raw, dict) else [],
         'raw': raw,
     }
+    return sanitize_response_payload(payload)
 
 
 @main_bp.errorhandler(404)

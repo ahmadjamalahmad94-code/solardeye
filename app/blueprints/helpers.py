@@ -13,6 +13,7 @@ from flask import current_app
 from ..extensions import db
 from ..models import EventLog, NotificationLog, Reading, Setting, SyncLog
 from ..services.scope import current_scope_ids, scoped_query
+from ..services.security import preserve_secret_form_value
 from ..services.utils import (
     format_local_datetime,
     human_duration_hours,
@@ -214,14 +215,20 @@ def _upsert_setting(key: str, value: str):
 
 
 def save_settings_from_form(form):
+    existing = load_settings()
     fields = [
         'deye_app_id', 'deye_app_secret', 'deye_email', 'deye_password',
         'deye_password_hash', 'deye_region', 'deye_plant_id', 'deye_device_sn',
         'deye_logger_sn', 'deye_plant_name', 'battery_capacity_kwh', 'battery_reserve_percent',
         'deye_battery_sn_main', 'deye_battery_sn_module',
     ]
+    sensitive_fields = {'deye_app_id', 'deye_app_secret', 'deye_email', 'deye_password', 'deye_password_hash', 'deye_plant_id', 'deye_device_sn', 'deye_logger_sn', 'deye_battery_sn_main', 'deye_battery_sn_module'}
     for field in fields:
-        _upsert_setting(field, form.get(field, '').strip())
+        if field in sensitive_fields:
+            value = preserve_secret_form_value(form, field, existing.get(field, ''))
+        else:
+            value = form.get(field, '').strip()
+        _upsert_setting(field, value)
     db.session.commit()
 
 

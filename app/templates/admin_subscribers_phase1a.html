@@ -15,7 +15,7 @@
             {% for row in rows %}
             {% set sub = row.subscription %}
             <tr>
-              <td><strong>{{ row.user.full_name or row.user.username }}</strong><div class="table-sub">{{ row.user.email or '@' ~ row.user.username }}</div></td>
+              <td><strong>{{ row.user.full_name or row.user.username }}</strong><div class="table-sub">{{ mask_email(row.user.email) if row.user.email else '@' ~ row.user.username }}</div></td>
               <td>{{ row.tenant.display_name if row.tenant else '-' }}<div class="table-sub">{{ sub.plan_id if sub else '-' }}</div></td>
               <td><span class="status-pill {% if sub and sub.status in ['active','trial'] %}success{% elif sub and sub.status in ['expired','suspended'] %}danger{% else %}warning{% endif %}">{{ sub.status if sub else '-' }}</span></td>
               <td>{{ sub.ends_at.strftime('%Y-%m-%d') if sub and sub.ends_at else '-' }}</td>

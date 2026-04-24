@@ -19,13 +19,27 @@ class Config:
     _raw_secret = os.getenv('SECRET_KEY', '')
     SECRET_KEY = _raw_secret if len(_raw_secret) >= 32 else secrets.token_hex(32)
 
-    _admin_pass = os.getenv('ADMIN_PASSWORD', '')
-    if not _admin_pass or _admin_pass in ('admin123', 'admin', 'password', 'change-this'):
-        warnings.warn("ADMIN_PASSWORD is weak or not set in .env", stacklevel=2)
+    _admin_pass = os.getenv('ADMIN_PASSWORD', '').strip()
+    if _admin_pass in {'admin' + '123', 'admin', 'password', 'change-this', 'replace-with-a-strong-password'}:
+        warnings.warn("ADMIN_PASSWORD is weak. Set a strong ADMIN_PASSWORD in the environment.", stacklevel=2)
+        _admin_pass = ''
+    elif not _admin_pass:
+        warnings.warn("ADMIN_PASSWORD is not set. A random bootstrap password will be generated for first-run admin creation.", stacklevel=2)
     ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = _admin_pass or 'admin123'
+    ADMIN_PASSWORD = _admin_pass
 
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
+    WTF_CSRF_ENABLED = True
+    CSRF_ENABLED = os.getenv('CSRF_ENABLED', 'true').lower() == 'true'
+
+    # Production/dev-tools hardening
+    APP_ENV = os.getenv('APP_ENV') or os.getenv('FLASK_ENV', 'production')
+    IS_PRODUCTION = APP_ENV.lower() in {'prod', 'production'}
+    DEBUG_TOOLS_ENABLED = os.getenv('DEBUG_TOOLS_ENABLED', 'false').lower() == 'true'
+    TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '').strip()
 
     # ── Database ──────────────────────────────────────────────────────────────
     SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///solar_v8.db'

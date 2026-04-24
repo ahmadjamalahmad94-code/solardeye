@@ -14,7 +14,7 @@
     <section class="notification-center-grid">
       {% for item in items %}
       <a class="notification-center-card kind-{{ item.kind }} status-{{ item.status|replace(' ', '-') }}" href="{{ item.url }}" id="{{ item.kind }}-{{ item.id }}">
-        <div class="notification-card-topline"><span class="notification-kind">{{ 'Ticket' if item.kind == 'ticket' and is_en else ('تذكرة' if item.kind == 'ticket' else ('Message' if is_en else 'رسالة')) }}</span><span class="notification-status">{{ item.status }}</span></div>
+        <div class="notification-card-topline"><span class="notification-kind">{{ 'Ticket' if item.kind == 'ticket' and is_en else ('تذكرة' if item.kind == 'ticket' else ('Message' if is_en else 'رسالة')) }}</span><span class="notification-status">{{ ui_label(item.status, 'status', ui_lang) }}</span></div>
         <h3>{{ item.title }}</h3>
         <p>{{ item.details }}</p>
         <div class="notification-card-footer"><span>{{ 'From' if is_en else 'من' }}: {{ item.sender }}</span><small>{{ item.created_at or '' }}</small></div>

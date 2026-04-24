@@ -153,7 +153,7 @@
             <div class="load-item-main">
               <span class="load-item-name">{{ row.name }}</span>
               <strong>{{ row.power_w|round(0)|int }} W</strong>
-              <small>{% if ui_lang == 'en' %}Priority{% else %}الأولوية{% endif %}: {{ row.priority }}</small>
+              <small>{% if ui_lang == 'en' %}Priority{% else %}الأولوية{% endif %}: {{ ui_label(row.priority, 'priority', ui_lang) }}</small>
             </div>
             <div class="load-item-actions">
               <form method="post">

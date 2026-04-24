@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
   <main class="content-area">
@@ -7,96 +8,41 @@
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
         <div>
-          <h1>إعدادات ربط Deye</h1>
-          <p class="mb-0">إعدادات الربط الحقيقي + سعة البطارية + المنطقة الزمنية المحلية</p>
+          <span class="eyebrow">{{ 'Private connection' if is_en else 'ربط خاص وآمن' }}</span>
+          <h1>{{ 'Deye connection settings' if is_en else 'إعدادات ربط Deye' }}</h1>
+          <p class="mb-0">{{ 'Sensitive values are masked. Leave a field blank to keep the saved value.' if is_en else 'القيم الخاصة مخفية. اترك الحقل فارغًا للاحتفاظ بالقيمة المحفوظة.' }}</p>
         </div>
       </div>
     </header>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} mt-2">{{ message }}</div>
-        {% endfor %}
+        {% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}
       {% endif %}
     {% endwith %}
 
     <div class="panel-card">
       <form method="post" class="settings-form">
-        <div>
-          <label>App ID</label>
-          <input name="deye_app_id" value="{{ settings.deye_app_id or '' }}" class="form-control" required>
-        </div>
-        <div>
-          <label>App Secret</label>
-          <input name="deye_app_secret" value="{{ settings.deye_app_secret or '' }}" class="form-control" required>
-        </div>
-        <div>
-          <label>بريد Deye</label>
-          <input name="deye_email" value="{{ settings.deye_email or '' }}" class="form-control" required>
-        </div>
-        <div>
-          <label>كلمة المرور العادية</label>
-          <input name="deye_password" value="{{ settings.deye_password or '' }}" class="form-control">
-        </div>
-        <div>
-          <label>أو كلمة المرور المشفرة SHA-256</label>
-          <input name="deye_password_hash" value="{{ settings.deye_password_hash or '' }}" class="form-control">
-        </div>
-        <div>
-          <label>Plant ID</label>
-          <input name="deye_plant_id" value="{{ settings.deye_plant_id or '' }}" class="form-control" required>
-        </div>
-        <div>
-          <label>Inverter SN <small style="color:var(--color-text-secondary)">(رقم الانفيرتر)</small></label>
-          <input name="deye_device_sn" value="{{ settings.deye_device_sn or '' }}" class="form-control" placeholder="مثال: 2504265119">
-        </div>
-        <div>
-          <label>Logger SN <small style="color:var(--color-text-success)">★ مهم — رقم الـ Logger</small></label>
-          <input name="deye_logger_sn" value="{{ settings.deye_logger_sn or '' }}" class="form-control" placeholder="مثال: 3434586752">
-          <small style="color:var(--color-text-secondary)">رقم Logger الموجود في صفحة الأجهزة على موقع Deye — ضروري لجلب بيانات PV والانفيرتر</small>
-        </div>
-        <div>
-          <label>اسم المحطة</label>
-          <input name="deye_plant_name" value="{{ settings.deye_plant_name or '' }}" class="form-control">
-        </div>
-        <div>
-          <label>المنطقة</label>
-          <input name="deye_region" value="{{ settings.deye_region or '' }}" class="form-control">
-        </div>
-        <div>
-          <label>سعة البطارية kWh</label>
-          <input name="battery_capacity_kwh" value="{{ settings.battery_capacity_kwh or '5' }}" 
-                 class="form-control" type="number" step="0.1" min="0.1"
-                 placeholder="مثال: 5 لبطارية 5 kWh">
-          <small style="color:var(--color-text-secondary)">
-            احسبها: سعة البطارية (Ah) × جهد البطارية (V) ÷ 1000 — مثال: 200Ah × 53V = 10.6 kWh
-          </small>
-        </div>
-        <div>
-          <label>الاحتياطي المحمي للبطارية %</label>
-          <input name="battery_reserve_percent" value="{{ settings.battery_reserve_percent or '20' }}" class="form-control">
-        </div>
-        <div>
-          <label>Battery SN الرئيسي</label>
-          <input name="deye_battery_sn_main" value="{{ settings.deye_battery_sn_main or '' }}" class="form-control">
-        </div>
-        <div>
-          <label>Battery SN الفرعي / الموديول</label>
-          <input name="deye_battery_sn_module" value="{{ settings.deye_battery_sn_module or '' }}" class="form-control">
-        </div>
-        <div class="settings-actions">
-          <button class="btn btn-solar">💾 حفظ الإعدادات</button>
-        </div>
+        <div><label>App ID</label><input name="deye_app_id" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_app_id) if settings.deye_app_id else ('Enter App ID' if is_en else 'أدخل App ID') }}"><small class="secret-field-hint">{{ 'Blank keeps saved value.' if is_en else 'تركه فارغًا يحافظ على القيمة المحفوظة.' }}</small></div>
+        <div><label>App Secret</label><input type="password" name="deye_app_secret" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_app_secret) if settings.deye_app_secret else ('Enter App Secret' if is_en else 'أدخل App Secret') }}"></div>
+        <div><label>{{ 'Deye email' if is_en else 'بريد Deye' }}</label><input name="deye_email" value="" class="form-control" placeholder="{{ mask_email(settings.deye_email) if settings.deye_email else ('Enter Deye email' if is_en else 'أدخل بريد Deye') }}"></div>
+        <div><label>{{ 'Plain password' if is_en else 'كلمة المرور العادية' }}</label><input type="password" name="deye_password" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_password) if settings.deye_password else ('Enter password' if is_en else 'أدخل كلمة المرور') }}"></div>
+        <div><label>{{ 'SHA-256 password hash' if is_en else 'أو كلمة المرور المشفرة SHA-256' }}</label><input type="password" name="deye_password_hash" value="" class="form-control" placeholder="{{ mask_secret(settings.deye_password_hash) if settings.deye_password_hash else ('Enter hash' if is_en else 'أدخل الهاش') }}"></div>
+        <div><label>Plant ID</label><input name="deye_plant_id" value="" class="form-control" placeholder="{{ mask_identifier(settings.deye_plant_id) if settings.deye_plant_id else ('Enter Plant ID' if is_en else 'أدخل Plant ID') }}"></div>
+        <div><label>Inverter SN <small style="color:var(--color-text-secondary)">{{ '(inverter serial)' if is_en else '(رقم الانفيرتر)' }}</small></label><input name="deye_device_sn" value="" class="form-control" placeholder="{{ mask_identifier(settings.deye_device_sn) if settings.deye_device_sn else ('Enter inverter SN' if is_en else 'أدخل رقم الانفيرتر') }}"></div>
+        <div><label>Logger SN <small style="color:var(--color-text-success)">★ {{ 'Important' if is_en else 'مهم' }}</small></label><input name="deye_logger_sn" value="" class="form-control" placeholder="{{ mask_identifier(settings.deye_logger_sn) if settings.deye_logger_sn else ('Enter Logger SN' if is_en else 'أدخل رقم Logger') }}"><small class="secret-field-hint">{{ 'Needed for detailed PV/inverter readings.' if is_en else 'ضروري لجلب بيانات PV والانفيرتر التفصيلية.' }}</small></div>
+        <div><label>{{ 'Plant name' if is_en else 'اسم المحطة' }}</label><input name="deye_plant_name" value="{{ settings.deye_plant_name or '' }}" class="form-control"></div>
+        <div><label>{{ 'Region' if is_en else 'المنطقة' }}</label><input name="deye_region" value="{{ settings.deye_region or '' }}" class="form-control"></div>
+        <div><label>{{ 'Battery capacity kWh' if is_en else 'سعة البطارية kWh' }}</label><input name="battery_capacity_kwh" value="{{ settings.battery_capacity_kwh or '5' }}" class="form-control" type="number" step="0.1" min="0.1" placeholder="{{ 'Example: 5' if is_en else 'مثال: 5' }}"><small class="secret-field-hint">{{ 'Formula: Ah × V ÷ 1000.' if is_en else 'احسبها: السعة Ah × الجهد V ÷ 1000.' }}</small></div>
+        <div><label>{{ 'Protected battery reserve %' if is_en else 'الاحتياطي المحمي للبطارية %' }}</label><input name="battery_reserve_percent" value="{{ settings.battery_reserve_percent or '20' }}" class="form-control"></div>
+        <div><label>{{ 'Main battery SN' if is_en else 'Battery SN الرئيسي' }}</label><input name="deye_battery_sn_main" value="" class="form-control" placeholder="{{ mask_identifier(settings.deye_battery_sn_main) if settings.deye_battery_sn_main else ('Enter main battery SN' if is_en else 'أدخل رقم البطارية الرئيسي') }}"></div>
+        <div><label>{{ 'Module battery SN' if is_en else 'Battery SN الفرعي / الموديول' }}</label><input name="deye_battery_sn_module" value="" class="form-control" placeholder="{{ mask_identifier(settings.deye_battery_sn_module) if settings.deye_battery_sn_module else ('Enter module battery SN' if is_en else 'أدخل رقم موديول البطارية') }}"></div>
+        <div class="settings-actions"><button class="btn btn-solar">💾 {{ 'Save settings' if is_en else 'حفظ الإعدادات' }}</button></div>
       </form>
 
       <div class="mt-4 d-flex gap-2 flex-wrap">
-        <form method="post" action="{{ url_for('main.test_connection') }}">
-          <button class="btn btn-outline-primary">اختبار الاتصال</button>
-        </form>
-        <form method="post" action="{{ url_for('main.sync_now') }}">
-          <button class="btn btn-outline-success">جلب قراءة حقيقية الآن</button>
-        </form>
+        <form method="post" action="{{ url_for('main.test_connection', lang=ui_lang) }}"><button class="btn btn-outline-primary">{{ 'Test connection' if is_en else 'اختبار الاتصال' }}</button></form>
+        <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}"><button class="btn btn-outline-success">{{ 'Fetch live reading now' if is_en else 'جلب قراءة حقيقية الآن' }}</button></form>
       </div>
     </div>
   </main>

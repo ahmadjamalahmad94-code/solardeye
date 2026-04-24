@@ -6,16 +6,26 @@ import time
 from datetime import datetime
 
 import requests
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, current_app
 
 from .helpers import load_settings
 from ..services.utils import sha256_hex
+from ..services.scope import is_system_admin
+from ..services.security import sanitize_response_payload
 
 probe_bp = Blueprint('probe', __name__)
 
 _EU   = 'https://eu1-developer.deyecloud.com/v1.0'
 _DEV  = 'https://www.deyecloud.com/device-s'
 _GLOB = 'https://developer.deyecloud.com/v1.0'
+
+
+def _debug_tools_guard():
+    if not is_system_admin():
+        return False, ("Debug tools require an administrator account.", 403)
+    if not current_app.config.get('DEBUG_TOOLS_ENABLED'):
+        return False, ("Debug tools are disabled in this environment. Set DEBUG_TOOLS_ENABLED=true to enable them temporarily.", 403)
+    return True, None
 
 
 def _call(session, method, url, token=None, body=None, params=None, timeout=12):
@@ -232,16 +242,24 @@ def _summary(results):
 
 @probe_bp.route('/api-probe')
 def api_probe_page():
+    ok, guard = _debug_tools_guard()
+    if not ok:
+        message, status = guard
+        return render_template('error.html', code=status, message=message), status
     settings = load_settings()
     probe_data = None
     if request.args.get('run') == '1':
-        probe_data = run_probe(settings)
+        probe_data = sanitize_response_payload(run_probe(settings))
     return render_template('api_probe.html', settings=settings, probe=probe_data)
 
 
 @probe_bp.route('/api/device-inspect')
 def device_inspect():
     """Full data dump from all working device endpoints — use this to find field names."""
+    ok, guard = _debug_tools_guard()
+    if not ok:
+        message, status = guard
+        return {'ok': False, 'error': message}, status
     settings = load_settings()
     device_sn = (settings.get('deye_device_sn') or '').strip()
     logger_sn  = (settings.get('deye_logger_sn') or '').strip()
@@ -266,7 +284,7 @@ def device_inspect():
                  (td.get('data') or {}).get('token'))
 
         if not token:
-            return {'error': 'Token failed', 'response': td}
+            return sanitize_response_payload({'error': 'Token failed', 'response': td})
 
         headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {token}'}
 
@@ -349,4 +367,4 @@ def device_inspect():
     finally:
         session.close()
 
-    return result
+    return sanitize_response_payload(result)

@@ -11,9 +11,9 @@
           <p class="mb-0">ما يُعيده Deye API لحسابك</p>
         </div>
       </div>
-      <div class="topbar-actions">
+      {% if debug_tools_enabled %}<div class="topbar-actions">
         <a href="{{ url_for('main.api_raw_debug') }}" target="_blank" class="btn btn-outline-primary">Raw JSON</a>
-      </div>
+      </div>{% endif %}
     </header>
 
     {% if latest %}

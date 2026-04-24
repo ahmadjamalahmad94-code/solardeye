@@ -101,7 +101,8 @@ def login():
         app_user = AppUser.query.filter_by(username=username, is_active=True).first()
         password_ok = False
 
-        if username == current_app.config['ADMIN_USERNAME'] and password == current_app.config['ADMIN_PASSWORD']:
+        configured_admin_password = (current_app.config.get('ADMIN_PASSWORD') or '').strip()
+        if configured_admin_password and username == current_app.config['ADMIN_USERNAME'] and password == configured_admin_password:
             password_ok = True
         elif app_user and app_user.password_hash:
             try:

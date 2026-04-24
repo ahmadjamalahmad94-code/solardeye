@@ -1,5 +1,6 @@
 import json
 import logging
+import secrets
 from datetime import datetime
 
 from flask import Flask
@@ -9,10 +10,20 @@ from .config import Config
 from .extensions import db
 from .models import AppDevice, AppUser, Setting, DeviceType
 from .services.subscriptions import seed_default_plans
-from .services.support_ops import seed_canned_replies
+from .services.support_ops import seed_canned_replies, sync_existing_cases
+from .services.security import register_security
+from .services.labels import register_template_helpers
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
+
+
+def _default_admin_password(app):
+    password = (app.config.get('ADMIN_PASSWORD') or '').strip()
+    if password:
+        return password
+    logger.warning('ADMIN_PASSWORD is not configured. Generated a random bootstrap admin password. Set ADMIN_PASSWORD and reset the admin password immediately.')
+    return secrets.token_urlsafe(24)
 
 
 def create_app():
@@ -22,6 +33,8 @@ def create_app():
     app.config.from_object(Config)
 
     db.init_app(app)
+    register_security(app)
+    register_template_helpers(app)
 
     from .blueprints.auth import auth_bp
     from .blueprints.main import main_bp
@@ -34,9 +47,14 @@ def create_app():
     with app.app_context():
         db.create_all()
         _migrate_database()
+        _ensure_database_indexes()
         _ensure_default_settings()
         seed_default_plans()
         seed_canned_replies()
+        try:
+            sync_existing_cases(commit=True)
+        except Exception as exc:
+            logger.warning('Support case startup sync skipped: %s', exc)
         default_user = _ensure_default_app_user(app)
         default_device = _ensure_default_app_device(app, default_user)
         if default_user.preferred_device_id != default_device.id:
@@ -266,6 +284,58 @@ def _migrate_database():
         conn.close()
 
 
+
+def _ensure_database_indexes():
+    """Create low-risk indexes and de-duplicate support cases.
+
+    This keeps startup migrations backward-compatible while avoiding repeated
+    support_case rows and speeding up the new mailbox/notification flows.
+    """
+    conn = db.engine.raw_connection()
+    dialect = getattr(db.engine.dialect, 'name', '').lower()
+    placeholder = '%s' if dialect == 'postgresql' else '?'
+    try:
+        cursor = conn.cursor()
+        # Remove duplicate support_case rows before creating the unique index.
+        try:
+            cursor.execute("""
+                SELECT case_type, source_id, MIN(id) AS keep_id, COUNT(*) AS row_count
+                FROM support_case
+                GROUP BY case_type, source_id
+                HAVING COUNT(*) > 1
+            """)
+            duplicates = cursor.fetchall()
+            for case_type, source_id, keep_id, _count in duplicates:
+                cursor.execute(
+                    f"DELETE FROM support_case WHERE case_type = {placeholder} AND source_id = {placeholder} AND id <> {placeholder}",
+                    (case_type, source_id, keep_id),
+                )
+        except Exception as exc:
+            logger.warning('Support case de-duplication skipped: %s', exc)
+
+        index_statements = [
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_support_case_case_type_source_id ON support_case (case_type, source_id)",
+            "CREATE INDEX IF NOT EXISTS ix_notification_event_target_read_created ON notification_event (target_user_id, is_read, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_notification_event_source ON notification_event (source_type, source_id)",
+            "CREATE INDEX IF NOT EXISTS ix_support_case_status_assignee_updated ON support_case (status, assigned_admin_user_id, updated_at)",
+            "CREATE INDEX IF NOT EXISTS ix_support_case_tenant_user ON support_case (tenant_id, user_id)",
+            "CREATE INDEX IF NOT EXISTS ix_support_case_sla_due_at ON support_case (sla_due_at)",
+            "CREATE INDEX IF NOT EXISTS ix_support_ticket_tenant_status_updated ON support_ticket (tenant_id, status, updated_at)",
+            "CREATE INDEX IF NOT EXISTS ix_internal_mail_thread_tenant_status_updated ON internal_mail_thread (tenant_id, status, updated_at)",
+            "CREATE INDEX IF NOT EXISTS ix_support_ticket_message_ticket_created ON support_ticket_message (ticket_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_internal_mail_message_thread_created ON internal_mail_message (thread_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_reading_device_created ON reading (device_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_reading_user_created ON reading (user_id, created_at)",
+        ]
+        for ddl in index_statements:
+            try:
+                cursor.execute(ddl)
+            except Exception as exc:
+                logger.warning('Index DDL skipped: %s', exc)
+        conn.commit()
+    finally:
+        conn.close()
+
 def _ensure_default_settings():
     defaults = {
         'deye_plant_id': '',
@@ -345,7 +415,7 @@ def _ensure_default_app_user(app):
     if user:
         changed = False
         if not user.password_hash:
-            user.password_hash = generate_password_hash(app.config.get('ADMIN_PASSWORD') or 'admin123')
+            user.password_hash = generate_password_hash(_default_admin_password(app))
             changed = True
         if not user.role:
             user.role = 'admin'
@@ -363,7 +433,7 @@ def _ensure_default_app_user(app):
 
     user = AppUser(
         username=username,
-        password_hash=generate_password_hash(app.config.get('ADMIN_PASSWORD') or 'admin123'),
+        password_hash=generate_password_hash(_default_admin_password(app)),
         full_name='مدير النظام',
         email='',
         role='admin',
