@@ -3341,4 +3341,4 @@ def notification_center():
     if guard:
         return guard
     items = _support_notification_payload(limit=200, include_closed=True)
-    return render_template('notification_center.html', items=items, ui_lang=_lang())
+    return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))

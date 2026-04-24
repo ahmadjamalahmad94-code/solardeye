@@ -357,3 +357,24 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) refresh(); });
 
 })();
+
+// Heavy v5.5 unified support workspace filtering
+(function(){
+  function initWorkspace(root){
+    const buttons = root.querySelectorAll('[data-filter]');
+    const cards = root.querySelectorAll('[data-kind]');
+    if(!buttons.length || !cards.length) return;
+    function apply(filter){
+      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
+      cards.forEach(card => {
+        const show = filter === 'all' || card.dataset.kind === filter;
+        card.style.display = show ? '' : 'none';
+      });
+    }
+    buttons.forEach(btn => btn.addEventListener('click', () => apply(btn.dataset.filter || 'all')));
+    apply('all');
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-support-workspace]').forEach(initWorkspace);
+  });
+})();
