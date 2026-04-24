@@ -1300,20 +1300,32 @@ def _admin_user_payload(user: AppUser):
     tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(_active_user(), 'id', None))
     devices = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.updated_at.desc(), AppDevice.id.desc()).all()
     plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
-    tenant_threads = InternalMailThread.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
+    tenant_id = getattr(tenant, 'id', None)
+    # Defensive ownership: older support rows may have tenant_id but missing created_by/opened_by, or the opposite.
+    all_threads = InternalMailThread.query.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
+    tenant_threads = [t for t in all_threads if (tenant_id and t.tenant_id == tenant_id) or t.created_by_user_id == user.id]
+    seen_thread_ids = set()
     thread_rows = []
     for thread in tenant_threads:
+        if thread.id in seen_thread_ids:
+            continue
+        seen_thread_ids.add(thread.id)
         thread_rows.append({
             'thread': thread,
-            'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all(),
+            'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all(),
             'assignee': AppUser.query.get(thread.assigned_admin_user_id) if thread.assigned_admin_user_id else None,
         })
-    tenant_tickets = SupportTicket.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all()
+    all_tickets = SupportTicket.query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all()
+    tenant_tickets = [t for t in all_tickets if (tenant_id and t.tenant_id == tenant_id) or t.opened_by_user_id == user.id]
+    seen_ticket_ids = set()
     ticket_rows = []
     for ticket in tenant_tickets:
+        if ticket.id in seen_ticket_ids:
+            continue
+        seen_ticket_ids.add(ticket.id)
         ticket_rows.append({
             'ticket': ticket,
-            'messages': SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all(),
+            'messages': SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all(),
             'assignee': AppUser.query.get(ticket.assigned_admin_user_id) if ticket.assigned_admin_user_id else None,
             'device': AppDevice.query.get(ticket.related_device_id) if ticket.related_device_id else None,
         })
@@ -1452,20 +1464,81 @@ def admin_user_profile(user_id: int):
     return render_template('admin_user_profile.html', user_obj=user, tab=tab, admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), role_badge=_role_badge, ui_lang=_lang(), **payload)
 
 
-@main_bp.route('/admin/users')
+@main_bp.route('/admin/users', methods=['GET', 'POST'])
 def admin_users():
     guard = _admin_guard('can_view_logs')
     if guard:
         return guard
+    actor = _active_user()
+    if request.method == 'POST':
+        action = (request.form.get('bulk_action') or '').strip()
+        selected_ids = []
+        for raw in request.form.getlist('user_ids'):
+            try:
+                selected_ids.append(int(raw))
+            except Exception:
+                pass
+        selected_ids = sorted(set(selected_ids))
+        if not selected_ids:
+            flash('اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.', 'warning')
+            return redirect(url_for('main.admin_users', lang=_lang()))
+        if action not in {'activate', 'disable', 'soft_delete'}:
+            flash('إجراء جماعي غير معروف.', 'warning')
+            return redirect(url_for('main.admin_users', lang=_lang()))
+        changed = 0
+        skipped = 0
+        for user in AppUser.query.filter(AppUser.id.in_(selected_ids)).all():
+            if actor and user.id == actor.id and action in {'disable', 'soft_delete'}:
+                skipped += 1
+                continue
+            if action == 'activate':
+                user.is_active = True
+                changed += 1
+            elif action == 'disable':
+                user.is_active = False
+                changed += 1
+            elif action == 'soft_delete':
+                # حذف آمن: نخفي الحساب بدون كسر علاقات التذاكر والمالية والأجهزة.
+                user.is_active = False
+                if not (user.username or '').startswith('deleted_'):
+                    user.username = f'deleted_{user.id}_{user.username or "user"}'[:80]
+                if user.email and not user.email.startswith('deleted_'):
+                    user.email = f'deleted_{user.id}_{user.email}'[:120]
+                changed += 1
+        db.session.commit()
+        _admin_write_log('users.bulk', f'Bulk action {action} on users', 'app_user', None, {'action': action, 'user_ids': selected_ids, 'changed': changed, 'skipped': skipped})
+        flash(f'تم تنفيذ العملية على {changed} مستخدم. تم تخطي {skipped}.', 'success')
+        return redirect(url_for('main.admin_users', lang=_lang()))
+
     users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
     device_map = {}
     for dev in devices:
         device_map.setdefault(dev.owner_user_id, []).append(dev)
+
+    tenants = TenantAccount.query.all()
+    tenant_owner = {t.id: t.owner_user_id for t in tenants}
+    support_map = {}
+    for thread in InternalMailThread.query.filter(InternalMailThread.status != 'closed').all():
+        last_msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
+        if not last_msg or last_msg.sender_scope != 'user':
+            continue
+        owner_id = thread.created_by_user_id or tenant_owner.get(thread.tenant_id)
+        if owner_id:
+            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['mail'] += 1
+    for ticket in SupportTicket.query.filter(SupportTicket.status != 'closed').all():
+        last_msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
+        if not last_msg or last_msg.sender_scope != 'user':
+            continue
+        owner_id = ticket.opened_by_user_id or tenant_owner.get(ticket.tenant_id)
+        if owner_id:
+            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['tickets'] += 1
+
     return render_template(
         'admin_users.html',
         users=users,
         device_map=device_map,
+        support_map=support_map,
         role_badge=_role_badge,
         ui_lang=_lang(),
     )
@@ -3120,7 +3193,7 @@ def _support_notification_items(limit=5, include_closed=False):
                     continue
                 sender = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
                 tenant = TenantAccount.query.get(thread.tenant_id) if thread.tenant_id else None
-                owner_id = thread.created_by_user_id or getattr(sender, 'id', None)
+                owner_id = thread.created_by_user_id or getattr(tenant, 'owner_user_id', None) or getattr(sender, 'id', None)
                 items.append({'kind':'mail','id':thread.id,'title':thread.subject,'status':thread.status or 'open','priority':thread.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#thread-{thread.id}') if owner_id else (url_for('main.admin_internal_mail', lang=_lang()) + f'#thread-{thread.id}')})
             for ticket in ticket_q.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(50).all():
                 msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
@@ -3128,7 +3201,7 @@ def _support_notification_items(limit=5, include_closed=False):
                     continue
                 sender = AppUser.query.get(ticket.opened_by_user_id) if ticket.opened_by_user_id else None
                 tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
-                owner_id = ticket.opened_by_user_id or getattr(sender, 'id', None)
+                owner_id = ticket.opened_by_user_id or getattr(tenant, 'owner_user_id', None) or getattr(sender, 'id', None)
                 items.append({'kind':'ticket','id':ticket.id,'title':ticket.subject,'status':ticket.status or 'open','priority':ticket.priority or 'normal','sender':(getattr(sender,'full_name',None) or getattr(sender,'username',None) or getattr(tenant,'display_name',None) or 'مشترك'),'details':msg.body,'created_at':msg.created_at,'url':(url_for('main.admin_user_profile', user_id=owner_id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}') if owner_id else (url_for('main.admin_tickets', lang=_lang()) + f'#ticket-{ticket.id}')})
         else:
             thread_q = InternalMailThread.query.filter_by(created_by_user_id=user.id)
@@ -3173,4 +3246,4 @@ def notification_center():
     guard = _login_guard()
     if guard:
         return guard
-    return render_template('notification_center.html', items=_support_notification_items(limit=200, include_closed=True), ui_lang=_lang())
+    return render_template('notification_center.html', items=_support_notification_items(limit=200, include_closed=True), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))

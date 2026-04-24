@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">{{ 'User management' if is_en else 'إدارة المستخدمين' }}</span>
         <h1>{{ 'Users hub and customer 360 pages' if is_en else 'مركز المستخدمين وصفحات المشترك الكاملة' }}</h1>
-        <p>{{ 'Every account now opens into a complete subscriber profile with personal, subscription, support, finance, quota, and device sections.' if is_en else 'كل حساب يفتح الآن كصفحة مشترك كاملة فيها البيانات الشخصية والاشتراك والدعم والمالية والكوتا والأجهزة.' }}</p>
+        <p>{{ 'Every account opens into a full subscriber profile with personal, subscription, support, finance, quota, and device sections.' if is_en else 'كل حساب يفتح كصفحة مشترك كاملة فيها البيانات الشخصية والاشتراك والدعم والمالية والكوتا والأجهزة.' }}</p>
       </div>
       <div class="admin-head-actions">
         <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
@@ -16,18 +16,31 @@
     </header>
 
     <section class="admin-layout-v2 single">
-      <div class="admin-card-v2 ui-reactive" data-hover-card>
-        <div class="section-heading-inline">
+      <form method="post" id="usersBulkForm" class="admin-card-v2 ui-reactive" data-hover-card>
+        <div class="users-toolbar-v5">
           <div>
             <small>{{ users|length }} {{ 'accounts' if is_en else 'حساب' }}</small>
             <h3>{{ 'All users' if is_en else 'كل المستخدمين' }}</h3>
+            <p>{{ 'Select subscribers then apply a bulk action.' if is_en else 'حدد المشتركين ثم نفّذ إجراءً جماعيًا عليهم.' }}</p>
+          </div>
+          <div class="users-toolbar-actions-v5">
+            <label class="select-all-v5"><input type="checkbox" id="selectAllUsers"> {{ 'Select all' if is_en else 'تحديد الكل' }}</label>
+            <select name="bulk_action" class="form-control bulk-select-v5">
+              <option value="">{{ 'Choose action' if is_en else 'اختر إجراء' }}</option>
+              <option value="activate">{{ 'Activate selected' if is_en else 'تفعيل المحدد' }}</option>
+              <option value="disable">{{ 'Disable selected' if is_en else 'تعطيل المحدد' }}</option>
+              <option value="soft_delete">{{ 'Safe delete selected' if is_en else 'حذف آمن للمحدد' }}</option>
+            </select>
+            <button class="btn btn-solar" type="submit">{{ 'Apply' if is_en else 'تنفيذ' }}</button>
           </div>
         </div>
         <div class="table-shell-v2">
-          <table class="admin-table-v2">
+          <table class="admin-table-v2 users-table-v5">
             <thead>
               <tr>
+                <th></th>
                 <th>{{ 'User' if is_en else 'المستخدم' }}</th>
+                <th>{{ 'Support' if is_en else 'الدعم' }}</th>
                 <th>{{ 'Role' if is_en else 'الدور' }}</th>
                 <th>{{ 'Status' if is_en else 'الحالة' }}</th>
                 <th>{{ 'Owned devices' if is_en else 'الأجهزة التابعة' }}</th>
@@ -38,11 +51,26 @@
             {% for u in users %}
               {% set badge = role_badge(u.role, u.is_active) %}
               {% set devs = device_map.get(u.id, []) %}
-              <tr>
+              {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
+              <tr class="{% if support.mail or support.tickets %}has-open-support{% endif %}">
+                <td><input type="checkbox" class="user-row-checkbox" name="user_ids" value="{{ u.id }}"></td>
                 <td>
                   <strong>{{ u.full_name or u.username }}</strong>
+                  {% if support.mail or support.tickets %}
+                    <div class="support-alert-v5">
+                      {% if support.tickets %}<span class="support-badge-v5 ticket">🎫 {{ support.tickets }} {{ 'open' if is_en else 'مفتوحة' }}</span>{% endif %}
+                      {% if support.mail %}<span class="support-badge-v5 mail">✉️ {{ support.mail }} {{ 'new' if is_en else 'جديدة' }}</span>{% endif %}
+                    </div>
+                  {% endif %}
                   <div class="table-sub">@{{ u.username }}</div>
                   {% if u.email %}<div class="table-sub">{{ u.email }}</div>{% endif %}
+                </td>
+                <td>
+                  {% if support.mail or support.tickets %}
+                    <a class="support-open-link-v5" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, tab='support') }}">{{ 'Open support' if is_en else 'فتح الدعم' }}</a>
+                  {% else %}
+                    <span class="table-sub">{{ 'No open items' if is_en else 'لا يوجد مفتوح' }}</span>
+                  {% endif %}
                 </td>
                 <td><span class="status-pill {{ 'warning' if badge[0] == 'مستخدم' or badge[0] == 'User' else 'success' }}">{{ badge[0] }}</span></td>
                 <td><span class="status-pill {{ 'success' if u.is_active else 'danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span></td>
@@ -69,8 +97,14 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </form>
     </section>
   </main>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const all = document.getElementById('selectAllUsers');
+  if(all){ all.addEventListener('change', function(){ document.querySelectorAll('.user-row-checkbox').forEach(cb => cb.checked = all.checked); }); }
+});
+</script>
 {% endblock %}
