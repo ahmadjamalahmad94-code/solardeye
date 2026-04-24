@@ -10,7 +10,7 @@
         <h1>{{ 'Create user' if is_en and mode == 'create' else ('Edit user' if is_en else ('إنشاء مستخدم' if mode == 'create' else 'تعديل المستخدم')) }}</h1>
         <p>{{ 'Account setup, role, activation state, and owned devices.' if is_en else 'إعداد الحساب والدور وحالة التفعيل والأجهزة التابعة للمستخدم.' }}</p>
       </div>
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
 
     <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
@@ -59,7 +59,7 @@
 
       <div class="action-row-v2 mt-3">
         <button class="btn btn-solar" type="submit">{{ 'Save changes' if is_en and mode == 'edit' else ('Create user' if is_en else ('حفظ التعديلات' if mode == 'edit' else 'إنشاء المستخدم')) }}</button>
-        <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
       </div>
     </form>
   </main>

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'Subscribers' if is_en else 'المشتركون' }}{% endblock %}
+{% block title %}{{ 'Subscribers' if (ui_lang or 'ar') == 'en' else 'المشتركون' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
@@ -13,7 +13,7 @@
       </div>
       <div class="admin-head-actions subscriber-quick-actions-v71">
         <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">＋ {{ 'New subscriber' if is_en else 'مشترك جديد' }}</a>
-        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">👥 {{ 'Users hub' if is_en else 'مركز المستخدمين' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">👤 {{ 'System users' if is_en else 'مستخدمو النظام' }}</a>
         <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
         <a class="btn btn-outline-success" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ' }}</a>
       </div>
@@ -66,8 +66,8 @@
                   <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">{{ '360' if is_en else 'ملف' }}</a>
                   <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">{{ 'Activate' if is_en else 'تفعيل' }}</a>
                   <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">{{ 'Support' if is_en else 'دعم' }}</a>
-                  <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}"><button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if is_en and row.user.is_active else ('Enable' if is_en else ('تعطيل' if row.user.is_active else 'تفعيل')) }}</button></form>
-                  {% if not row.user.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')"><button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button></form>{% endif %}
+                  <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if is_en and row.user.is_active else ('Enable' if is_en else ('تعطيل' if row.user.is_active else 'تفعيل')) }}</button></form>
+                  {% if not row.user.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button></form>{% endif %}
                 </div>
               </td>
             </tr>

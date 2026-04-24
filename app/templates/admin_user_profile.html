@@ -10,7 +10,7 @@
   </div>
   <div class="admin-head-actions">
     <span class="status-pill {{ 'success' if user_obj.is_active else 'danger' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
-    <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users', lang=ui_lang) }}">{{ 'Back to users' if is_en else 'العودة لإدارة المستخدمين' }}</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back to subscribers' if is_en else 'العودة لإدارة المشتركين' }}</a>
   </div>
 </header>
 

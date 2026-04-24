@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from urllib.parse import urlparse
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -131,6 +132,17 @@ def _admin_guard(permission: str = 'can_manage_users'):
 
 
 
+
+
+
+def _safe_admin_redirect(default_endpoint: str = 'main.admin_subscribers'):
+    """Redirect back to the same admin screen after a POST, falling back safely."""
+    target = (request.form.get('next') or request.args.get('next') or request.referrer or '').strip()
+    if target:
+        parsed = urlparse(target)
+        if not parsed.netloc or parsed.netloc == request.host:
+            return redirect(target)
+    return redirect(url_for(default_endpoint, lang=_lang()))
 
 def _redirect_by_role(user=None):
     user = user or _active_user()
@@ -1687,6 +1699,15 @@ def admin_user_profile(user_id: int):
 
 @main_bp.route('/admin/users', methods=['GET', 'POST'])
 def admin_users():
+    # v7.2.1: Subscribers CRM is the primary daily management screen.
+    # Keep legacy POST compatibility for old bookmarked forms.
+    if request.method == 'POST':
+        return admin_users_legacy()
+    return redirect(url_for('main.admin_subscribers', lang=_lang()))
+
+
+@main_bp.route('/admin/users/legacy', methods=['GET', 'POST'])
+def admin_users_legacy():
     guard = _admin_guard('can_manage_users')
     if guard:
         return guard
@@ -1702,10 +1723,10 @@ def admin_users():
         selected_ids = sorted(set(selected_ids))
         if not selected_ids:
             flash('اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.', 'warning')
-            return redirect(url_for('main.admin_users', lang=_lang()))
+            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
         if action not in {'activate', 'disable', 'soft_delete', 'hard_delete'}:
             flash('إجراء جماعي غير معروف.', 'warning')
-            return redirect(url_for('main.admin_users', lang=_lang()))
+            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
         changed = 0
         skipped = 0
         if action == 'hard_delete':
@@ -1740,7 +1761,7 @@ def admin_users():
         db.session.commit()
         _admin_write_log('users.bulk', f'Bulk action {action} on users', 'app_user', None, {'action': action, 'user_ids': selected_ids, 'changed': changed, 'skipped': skipped})
         flash(f'تم تنفيذ العملية على {changed} مستخدم. تم تخطي {skipped}.', 'success')
-        return redirect(url_for('main.admin_users', lang=_lang()))
+        return redirect(url_for('main.admin_users_legacy', lang=_lang()))
 
     users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
@@ -1813,7 +1834,7 @@ def admin_user_create():
             _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم إنشاء المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_users', lang=_lang()))
+            return redirect(url_for('main.admin_subscribers', lang=_lang()))
 
     return render_template('admin_user_form.html', mode='create', user_obj=None, devices=devices, selected_device_ids=[], ui_lang=_lang())
 
@@ -1855,7 +1876,7 @@ def admin_user_edit(user_id: int):
             _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم تحديث المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_users', lang=_lang()))
+            return redirect(url_for('main.admin_subscribers', lang=_lang()))
 
     return render_template('admin_user_form.html', mode='edit', user_obj=user, devices=devices, selected_device_ids=owned_ids, ui_lang=_lang())
 
@@ -1868,11 +1889,11 @@ def admin_user_toggle(user_id: int):
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     if user.username == current_app.config.get('ADMIN_USERNAME') and user.is_admin:
         flash('لا يمكن تعطيل مدير النظام الأساسي.', 'warning')
-        return redirect(url_for('main.admin_users', lang=_lang()))
+        return _safe_admin_redirect()
     user.is_active = not bool(user.is_active)
     db.session.commit()
     flash('تم تحديث حالة المستخدم.', 'success')
-    return redirect(url_for('main.admin_users', lang=_lang()))
+    return _safe_admin_redirect()
 
 
 
@@ -1885,10 +1906,10 @@ def admin_user_delete(user_id: int):
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     if actor and user.id == actor.id:
         flash('لا يمكن حذف حسابك الحالي.', 'warning')
-        return redirect(url_for('main.admin_users', lang=_lang()))
+        return _safe_admin_redirect()
     if user.is_admin or user.username == current_app.config.get('ADMIN_USERNAME'):
         flash('لا يمكن حذف مدير النظام الأساسي.', 'warning')
-        return redirect(url_for('main.admin_users', lang=_lang()))
+        return _safe_admin_redirect()
     try:
         # Keep a local restore point before destructive deletion.
         create_backup(reason=f'pre_delete_user_{user.id}', upload_drive=False)
@@ -1907,7 +1928,7 @@ def admin_user_delete(user_id: int):
             user.is_active = False
             db.session.commit()
         flash('تعذر حذف المستخدم بسبب بيانات مرتبطة. تم تعطيله بدلًا من ذلك حفاظًا على السجلات.', 'warning')
-    return redirect(url_for('main.admin_users', lang=_lang()))
+    return _safe_admin_redirect()
 
 @main_bp.route('/devices/select/<int:device_id>', methods=['POST'])
 def select_device(device_id: int):

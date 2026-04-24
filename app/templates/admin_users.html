@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}{{ 'System Users' if (ui_lang or 'ar') == 'en' else 'مستخدمو النظام' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
@@ -6,12 +7,12 @@
   <main class="content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div>
-        <span class="eyebrow">{{ 'User management' if is_en else 'إدارة المستخدمين' }}</span>
-        <h1>{{ 'Users hub and customer 360 pages' if is_en else 'مركز المستخدمين وصفحات المشترك الكاملة' }}</h1>
-        <p>{{ 'Every account opens into a full subscriber profile with personal, subscription, support, finance, quota, and device sections.' if is_en else 'كل حساب يفتح كصفحة مشترك كاملة فيها البيانات الشخصية والاشتراك والدعم والمالية والكوتا والأجهزة.' }}</p>
+        <span class="eyebrow">{{ 'System users' if is_en else 'مستخدمو النظام' }}</span>
+        <h1>{{ 'Legacy user tools and admin accounts' if is_en else 'أدوات المستخدمين القديمة وحسابات الإدارة' }}</h1>
+        <p>{{ 'Use Subscribers CRM for daily subscriber management; keep this screen for system/admin-level maintenance.' if is_en else 'استخدم إدارة المشتركين للعمل اليومي، واترك هذه الصفحة لصيانة حسابات النظام والإدارة.' }}</p>
       </div>
       <div class="admin-head-actions">
-        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
+        <a class="btn btn-solar" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Open Subscribers CRM' if is_en else 'فتح إدارة المشتركين' }}</a><a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
       </div>
     </header>
 
@@ -88,11 +89,11 @@
                   <div class="action-row-v2">
                     <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">{{ 'Open 360 page' if is_en else 'فتح صفحة المشترك' }}</a>
                     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
-                    <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}">
+                    <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}"><input type="hidden" name="next" value="{{ request.full_path }}">
                       <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
                     </form>
                     {% if not u.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=u.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
-                      <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
+                      <input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
                     </form>{% endif %}
                   </div>
                 </td>

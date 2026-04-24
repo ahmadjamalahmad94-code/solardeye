@@ -97,7 +97,7 @@
           <h3>{{ 'Operate the platform faster' if is_en else 'تحكم أسرع بالمنصة' }}</h3>
           <div class="quick-links-v2">
             <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">{{ 'Support Command Center' if is_en else 'مركز قيادة الدعم' }}</a>
-            <a href="{{ url_for('main.admin_users', lang=ui_lang) }}">{{ 'Users and roles' if is_en else 'المستخدمون والصلاحيات' }}</a>
+            <a href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">{{ 'System users and roles' if is_en else 'مستخدمو النظام والصلاحيات' }}</a>
             <a href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Plans and packages' if is_en else 'الخطط والباقات' }}</a>
             <a href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Subscribers and activation' if is_en else 'المشتركون والتفعيل' }}</a>
             <a href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ 'System logs' if is_en else 'سجل النظام' }}</a>
