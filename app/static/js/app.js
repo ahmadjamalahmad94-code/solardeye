@@ -348,22 +348,28 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
 
   function esc(s){return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
   function kindLabel(kind){ return kind === 'ticket' ? 'تذكرة' : 'رسالة'; }
+  function statusLabel(status){
+    return ({new:'جديد', open:'مفتوح', assigned:'مخصص', pending:'قيد الانتظار', in_progress:'قيد المتابعة', waiting_user:'بانتظار المستخدم', resolved:'تم الحل', closed:'مغلق', read:'مقروء'}[status]) || status || '';
+  }
   function toast(message){
     let root = document.getElementById('clientToastStackV61');
     if(!root){ root = document.createElement('div'); root.id = 'clientToastStackV61'; root.className = 'client-toast-stack-v61'; document.body.appendChild(root); }
+    const existing = Array.from(root.querySelectorAll('.client-toast-v61 p')).some(p => (p.textContent || '').trim() === String(message || '').trim());
+    if(existing) return;
+    while(root.children.length >= 2) root.children[0].remove();
     const el = document.createElement('div');
     el.className = 'client-toast-v61';
     el.innerHTML = `<span>🔔</span><p>${esc(message)}</p>`;
     root.appendChild(el);
     setTimeout(() => el.classList.add('show'), 20);
-    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 260); }, 4200);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 260); }, 3000);
   }
   function render(items){
     if(!list) return;
     if(!items || !items.length){ list.innerHTML = '<div class="notification-empty">لا توجد إشعارات مفتوحة حاليًا.</div>'; return; }
     list.innerHTML = items.map(item => {
       const kind = item.kind === 'ticket' ? 'ticket' : 'message';
-      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(item.status)}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
+      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
     }).join('');
   }
   function updateCounts(data){
@@ -397,29 +403,142 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) refresh(); });
 })();
 
-// Heavy v6.1 command center interactions
+// Heavy v6.2 support mailbox interactions
 (function(){
   document.addEventListener('DOMContentLoaded', () => {
-    const search = document.getElementById('supportQueueSearch');
-    const cards = Array.from(document.querySelectorAll('[data-case-card]'));
-    if(search && cards.length){
-      search.addEventListener('input', () => {
-        const q = (search.value || '').trim().toLowerCase();
-        cards.forEach(card => {
-          const haystack = `${card.dataset.title || ''} ${card.dataset.owner || ''} ${card.dataset.status || ''}`;
-          card.classList.toggle('is-hidden-by-search', q && !haystack.includes(q));
+    function escText(s){ return String(s || '').trim(); }
+
+    // Flash/toast dedupe: keep the UI calm even if a route flashes the same message repeatedly.
+    document.querySelectorAll('.flash-stack-v61').forEach(stack => {
+      const seen = new Set();
+      const items = Array.from(stack.querySelectorAll('.flash-toast-v61'));
+      let visible = 0;
+      items.forEach(item => {
+        const text = escText(item.textContent);
+        if(seen.has(text) || visible >= 2){ item.remove(); return; }
+        seen.add(text); visible += 1;
+        setTimeout(() => {
+          item.style.opacity = '0';
+          item.style.transform = 'translateY(-8px) scale(.98)';
+          setTimeout(() => item.remove(), 260);
+        }, 3200);
+      });
+    });
+
+    document.querySelectorAll('[data-support-mailbox]').forEach(mailbox => {
+      const rows = Array.from(mailbox.querySelectorAll('[data-case-row]'));
+      const panels = Array.from(mailbox.querySelectorAll('[data-case-panel]'));
+      const inspectors = Array.from(mailbox.querySelectorAll('[data-inspector-panel]'));
+      const search = document.getElementById('supportQueueSearch') || document.getElementById('profileSupportSearch');
+
+      function activate(key, pushHash=true){
+        if(!key) return;
+        rows.forEach(row => row.classList.toggle('is-active', row.dataset.caseTarget === key));
+        panels.forEach(panel => panel.classList.toggle('is-active', panel.dataset.casePanel === key));
+        inspectors.forEach(panel => panel.classList.toggle('is-active', panel.dataset.inspectorPanel === key));
+        const activePanel = panels.find(panel => panel.dataset.casePanel === key);
+        if(activePanel){
+          activePanel.querySelectorAll('[data-thread-scroll]').forEach(scroller => { scroller.scrollTop = scroller.scrollHeight; });
+        }
+        if(pushHash && history.replaceState){ history.replaceState(null, '', `${location.pathname}${location.search}#case-${key}`); }
+      }
+
+      rows.forEach(row => row.addEventListener('click', () => activate(row.dataset.caseTarget)));
+      const hashKey = (location.hash || '').replace('#case-', '').replace('#', '');
+      if(hashKey && rows.some(row => row.dataset.caseTarget === hashKey)) activate(hashKey, false);
+      else {
+        const active = rows.find(row => row.classList.contains('is-active')) || rows[0];
+        if(active) activate(active.dataset.caseTarget, false);
+      }
+
+      const localSearch = mailbox.closest('.support-mailbox-page-v62') ? document.getElementById('supportQueueSearch') : null;
+      const searchInput = localSearch || search;
+      if(searchInput && rows.length){
+        searchInput.addEventListener('input', () => {
+          const q = escText(searchInput.value).toLowerCase();
+          rows.forEach(row => {
+            const haystack = `${row.dataset.title || ''} ${row.dataset.owner || ''} ${row.dataset.status || ''}`.toLowerCase();
+            row.classList.toggle('is-hidden-by-search', Boolean(q && !haystack.includes(q)));
+          });
+        });
+      }
+
+    });
+
+    document.querySelectorAll('[data-mailbox-view-toggle]').forEach(toggle => {
+      const mailbox = toggle.closest('[data-support-mailbox]') || document.querySelector('[data-support-mailbox]');
+      if(!mailbox) return;
+      toggle.querySelectorAll('[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const view = btn.dataset.view || 'list';
+          mailbox.dataset.view = view;
+          toggle.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b === btn));
         });
       });
-    }
-    document.querySelectorAll('[data-canned-text]').forEach(btn => {
+    });
+
+    document.querySelectorAll('[data-canned-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const text = btn.dataset.cannedText || '';
-        if(navigator.clipboard && text){
-          navigator.clipboard.writeText(text).then(() => {
-            btn.classList.add('copied');
-            setTimeout(() => btn.classList.remove('copied'), 1200);
-          }).catch(() => {});
+        const form = btn.closest('[data-support-reply-form]');
+        const drawer = form && form.querySelector('[data-canned-drawer]');
+        if(drawer) drawer.hidden = !drawer.hidden;
+      });
+    });
+    document.querySelectorAll('[data-canned-close]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const drawer = btn.closest('[data-canned-drawer]');
+        if(drawer) drawer.hidden = true;
+      });
+    });
+
+    document.querySelectorAll('[data-canned-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('[data-canned-card]');
+        const form = btn.closest('[data-support-reply-form]');
+        if(!card || !form) return;
+        const textarea = form.querySelector('[data-reply-textarea]');
+        const statusSelect = form.querySelector('[data-status-select]');
+        const text = card.dataset.cannedText || '';
+        const status = card.dataset.cannedStatus || '';
+        const action = btn.dataset.cannedAction;
+        if(textarea && !textarea.disabled){
+          textarea.value = text;
+          textarea.focus();
         }
+        if((action === 'insert-status' || action === 'send') && status && statusSelect){
+          statusSelect.value = status;
+        }
+        if(action === 'send'){
+          const ok = window.confirm(document.body.dataset.lang === 'en' ? 'Send this canned reply now?' : 'هل تريد إرسال هذا الرد الجاهز الآن؟');
+          if(!ok) return;
+          const sendButton = form.querySelector('button[name="case_action"][value="send_reply"]') || form.querySelector('[data-default-submit]') || form.querySelector('button[type="submit"]');
+          if(sendButton){ form.requestSubmit ? form.requestSubmit(sendButton) : sendButton.click(); }
+          else { form.submit(); }
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-support-reply-form]').forEach(form => {
+      form.addEventListener('submit', (event) => {
+        if(form.dataset.submitted === '1'){
+          event.preventDefault();
+          return;
+        }
+        const submitter = event.submitter;
+        if(submitter && submitter.name && submitter.value){
+          const hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = submitter.name;
+          hidden.value = submitter.value;
+          hidden.dataset.submitterClone = '1';
+          form.appendChild(hidden);
+        }
+        form.dataset.submitted = '1';
+        form.querySelectorAll('button[type="submit"]').forEach(button => {
+          button.disabled = true;
+          button.dataset.originalText = button.textContent;
+          button.textContent = document.body.dataset.lang === 'en' ? 'Saving…' : 'جاري الحفظ…';
+        });
       });
     });
   });

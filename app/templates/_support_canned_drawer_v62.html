@@ -1,0 +1,19 @@
+<div class="canned-drawer-v62" data-canned-drawer hidden>
+  <div class="canned-drawer-head-v62"><strong>{{ 'Choose a reply' if is_en else 'اختر ردًا جاهزًا' }}</strong><button type="button" data-canned-close>×</button></div>
+  <div class="canned-grid-v62">
+    {% for cr in canned_rows %}
+      {% set reply = cr.item %}
+      <article class="canned-card-v62" data-canned-card data-canned-text="{{ reply.body|e }}" data-canned-status="{{ cr.suggested_status }}">
+        <strong>{{ reply.title }}</strong>
+        <p>{{ reply.body }}</p>
+        <div>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-canned-action="insert">{{ 'Insert' if is_en else 'إدراج' }}</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-canned-action="insert-status">{{ 'Insert + status' if is_en else 'إدراج + حالة' }}</button>
+          <button type="button" class="btn btn-sm btn-solar" data-canned-action="send">{{ 'Send now' if is_en else 'إرسال مباشر' }}</button>
+        </div>
+      </article>
+    {% else %}
+      <p class="empty-mini-v61">{{ 'No canned replies yet.' if is_en else 'لا توجد ردود جاهزة بعد.' }}</p>
+    {% endfor %}
+  </div>
+</div>

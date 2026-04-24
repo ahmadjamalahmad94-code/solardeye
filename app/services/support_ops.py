@@ -183,6 +183,33 @@ def support_queue_stats(actor_id=None):
     return stats
 
 
+def _source_for_case(case: SupportCase):
+    if not case:
+        return None
+    if case.case_type == 'message':
+        return InternalMailThread.query.get(case.source_id)
+    if case.case_type == 'ticket':
+        return SupportTicket.query.get(case.source_id)
+    return None
+
+
+def _messages_for_case(case: SupportCase):
+    if not case:
+        return []
+    if case.case_type == 'message':
+        return InternalMailMessage.query.filter_by(thread_id=case.source_id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
+    if case.case_type == 'ticket':
+        return SupportTicketMessage.query.filter_by(ticket_id=case.source_id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
+    return []
+
+
+def _preview(text: str | None, limit: int = 150) -> str:
+    text = ' '.join((text or '').split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + '…'
+
+
 def build_support_queue(filter_key='all', actor_id=None, lang='ar'):
     sync_existing_cases(commit=True)
     q = _filtered_query(filter_key, actor_id)
@@ -190,22 +217,37 @@ def build_support_queue(filter_key='all', actor_id=None, lang='ar'):
     now = datetime.utcnow()
     cases = q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc()).all()
     for case in cases:
+        source = _source_for_case(case)
+        messages = _messages_for_case(case)
+        last_message = messages[-1] if messages else None
         user = AppUser.query.get(case.user_id) if case.user_id else None
         assignee = AppUser.query.get(case.assigned_admin_user_id) if case.assigned_admin_user_id else None
         tenant = TenantAccount.query.get(case.tenant_id) if case.tenant_id else None
+        audits = SupportAuditLog.query.filter_by(case_type=case.case_type, source_id=case.source_id).order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(10).all()
         overdue = bool(case.sla_due_at and case.sla_due_at < now and case.status not in CLOSED_STATUSES)
         age_hours = round(((now - (case.created_at or now)).total_seconds() / 3600), 1)
+        updated_at = case.updated_at or case.last_reply_at or case.created_at
+        updated_hours = round(((now - (updated_at or now)).total_seconds() / 3600), 1)
         until_sla_hours = None
         if case.sla_due_at and case.status not in CLOSED_STATUSES:
             until_sla_hours = round(((case.sla_due_at - now).total_seconds() / 3600), 1)
         rows.append({
             'case': case,
+            'case_key': f'{case.case_type}-{case.source_id}',
+            'source': source,
+            'messages': messages,
+            'last_message': last_message,
+            'last_preview': _preview(getattr(last_message, 'body', '') if last_message else ''),
+            'last_sender_scope': getattr(last_message, 'sender_scope', None) if last_message else None,
             'user': user,
             'assignee': assignee,
             'tenant': tenant,
+            'audits': audits,
             'overdue': overdue,
             'age_hours': age_hours,
+            'updated_hours': updated_hours,
             'until_sla_hours': until_sla_hours,
             'url': case_url(case.case_type, case.source_id, case.user_id, lang=lang),
+            'portal_url': portal_case_url(case.case_type, case.source_id, lang=lang),
         })
     return rows

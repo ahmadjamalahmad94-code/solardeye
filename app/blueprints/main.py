@@ -1491,7 +1491,7 @@ def admin_user_profile(user_id: int):
                     thread.created_by_user_id = user.id
                 old_status = (thread.status or 'open').strip()
                 new_status = (request.form.get('status') or old_status or 'open').strip()
-                if old_status == 'closed':
+                if old_status in ('closed', 'resolved'):
                     flash('هذه المحادثة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
                     return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#thread-{thread.id}')
                 old_assignee_id = thread.assigned_admin_user_id
@@ -1513,13 +1513,13 @@ def admin_user_profile(user_id: int):
                         flash('هذا المدير معتمد مسبقًا لهذه المحادثة.', 'info')
                 elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(thread_messages):
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
-                if new_status == 'closed' and old_status != 'closed':
+                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
                 thread.status = new_status
                 thread.assigned_admin_user_id = final_assignee_id
                 thread.last_reply_at = datetime.utcnow()
                 thread.updated_at = datetime.utcnow()
-                upsert_support_case('message', thread, 'admin')
+                upsert_support_case('message', thread, None if (bool(request.form.get('is_internal_note')) and body) else 'admin')
                 notify_user(user.id, source_type='message', source_id=thread.id, tenant_id=thread.tenant_id, title='تحديث على رسالة الدعم', message=thread.subject, direct_url=portal_case_url('message', thread.id, _lang()))
                 audit_case('message', thread.id, getattr(actor, 'id', None), 'message.admin_update', 'Admin updated support message', {'status': thread.status}, commit=False)
                 db.session.commit()
@@ -1542,7 +1542,7 @@ def admin_user_profile(user_id: int):
                     ticket.opened_by_user_id = user.id
                 old_status = (ticket.status or 'open').strip()
                 new_status = (request.form.get('status') or old_status or 'open').strip()
-                if old_status == 'closed':
+                if old_status in ('closed', 'resolved'):
                     flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
                     return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#ticket-{ticket.id}')
                 old_assignee_id = ticket.assigned_admin_user_id
@@ -1564,13 +1564,13 @@ def admin_user_profile(user_id: int):
                         flash('هذا المدير معتمد مسبقًا لهذه التذكرة.', 'info')
                 elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
-                if new_status == 'closed' and old_status != 'closed':
+                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
                 ticket.status = new_status
                 ticket.assigned_admin_user_id = final_assignee_id
                 ticket.last_reply_at = datetime.utcnow()
                 ticket.updated_at = datetime.utcnow()
-                upsert_support_case('ticket', ticket, 'admin')
+                upsert_support_case('ticket', ticket, None if (bool(request.form.get('is_internal_note')) and body) else 'admin')
                 notify_user(user.id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تحديث على التذكرة', message=ticket.subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
                 audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_update', 'Admin updated support ticket', {'status': ticket.status}, commit=False)
                 db.session.commit()
@@ -1584,7 +1584,24 @@ def admin_user_profile(user_id: int):
 
     payload = _admin_user_payload(user)
     tab = (request.args.get('tab') or 'profile').strip()
-    return render_template('admin_user_profile.html', user_obj=user, tab=tab, admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), role_badge=_role_badge, ui_lang=_lang(), **payload)
+    is_en = _lang() == 'en'
+    canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
+    canned_rows = [{'item': r, 'suggested_status': _suggest_status_for_canned(r.title, r.body)} for r in canned_replies]
+    return render_template(
+        'admin_user_profile.html',
+        user_obj=user,
+        tab=tab,
+        admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(),
+        role_badge=_role_badge,
+        canned_replies=canned_replies,
+        canned_rows=canned_rows,
+        labels=_support_label_maps(is_en),
+        status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
+        priority_options=['low', 'normal', 'high', 'urgent'],
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        **payload,
+    )
 
 
 @main_bp.route('/admin/users', methods=['GET', 'POST'])
@@ -3065,7 +3082,7 @@ def admin_internal_mail():
                     assigned_admin = AppUser.query.get(final_assignee_id)
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
                     thread.last_reply_at = datetime.utcnow()
-                if new_status == 'closed' and old_status != 'closed':
+                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
                     thread.last_reply_at = datetime.utcnow()
                 thread.status = new_status
@@ -3183,7 +3200,7 @@ def admin_tickets():
             if ticket:
                 old_status = (ticket.status or 'open').strip()
                 new_status = (request.form.get('status') or old_status).strip() or old_status
-                if old_status == 'closed':
+                if old_status in ('closed', 'resolved'):
                     flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
                     return redirect(url_for('main.admin_tickets', lang=_lang()))
                 old_assignee_id = ticket.assigned_admin_user_id
@@ -3195,7 +3212,7 @@ def admin_tickets():
                 if final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
                     assigned_admin = AppUser.query.get(final_assignee_id)
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
-                if new_status == 'closed' and old_status != 'closed':
+                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
                 ticket.status = new_status
                 ticket.assigned_admin_user_id = final_assignee_id
@@ -3558,15 +3575,60 @@ def _support_owner_id_for_source(case_type: str, source):
     return getattr(tenant, 'owner_user_id', None)
 
 
-def _support_add_public_message(case_type: str, source, body: str, actor_id: int | None):
+def _support_messages_for_source(case_type: str, source):
+    if not source:
+        return []
+    if case_type == 'message':
+        return InternalMailMessage.query.filter_by(thread_id=source.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
+    if case_type == 'ticket':
+        return SupportTicketMessage.query.filter_by(ticket_id=source.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
+    return []
+
+
+def _support_add_admin_message(case_type: str, source, body: str, actor_id: int | None, *, is_internal_note: bool = False):
     body = (body or '').strip()
     if not source or not body:
-        return
+        return None
     if case_type == 'message':
-        db.session.add(InternalMailMessage(thread_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=False, body=body))
+        msg = InternalMailMessage(thread_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=is_internal_note, body=body)
     elif case_type == 'ticket':
-        db.session.add(SupportTicketMessage(ticket_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=False, body=body))
+        msg = SupportTicketMessage(ticket_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=is_internal_note, body=body)
+    else:
+        return None
+    db.session.add(msg)
     source.last_reply_at = datetime.utcnow()
+    return msg
+
+
+def _support_add_public_message(case_type: str, source, body: str, actor_id: int | None):
+    return _support_add_admin_message(case_type, source, body, actor_id, is_internal_note=False)
+
+
+def _support_label_maps(is_en: bool = False):
+    if is_en:
+        return {
+            'status': {'new': 'New', 'open': 'Open', 'assigned': 'Assigned', 'pending': 'Pending', 'in_progress': 'In progress', 'waiting_user': 'Waiting user', 'resolved': 'Resolved', 'closed': 'Closed'},
+            'priority': {'low': 'Low', 'normal': 'Normal', 'high': 'High', 'urgent': 'Urgent'},
+            'type': {'message': 'Message', 'ticket': 'Ticket'},
+        }
+    return {
+        'status': {'new': 'جديد', 'open': 'مفتوح', 'assigned': 'مخصص', 'pending': 'قيد الانتظار', 'in_progress': 'قيد المتابعة', 'waiting_user': 'بانتظار المستخدم', 'resolved': 'تم الحل', 'closed': 'مغلق'},
+        'priority': {'low': 'منخفض', 'normal': 'عادي', 'high': 'مهم', 'urgent': 'عاجل'},
+        'type': {'message': 'رسالة', 'ticket': 'تذكرة'},
+    }
+
+
+def _suggest_status_for_canned(title: str, body: str):
+    haystack = f'{title or ""} {body or ""}'
+    if 'معلومات' in haystack or 'بانتظار' in haystack:
+        return 'waiting_user'
+    if 'إغلاق' in haystack or 'اغلاق' in haystack:
+        return 'closed'
+    if 'حل' in haystack:
+        return 'resolved'
+    if 'تحويل' in haystack or 'استلام' in haystack:
+        return 'assigned'
+    return ''
 
 
 @main_bp.route('/admin/support-command-center')
@@ -3576,11 +3638,18 @@ def admin_support_command_center():
         return guard
     actor = _active_user()
     filter_key = (request.args.get('filter') or 'all').strip()
-    stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
     rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang())
+    stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
     canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
+    canned_rows = [{'item': r, 'suggested_status': _suggest_status_for_canned(r.title, r.body)} for r in canned_replies]
     audits = SupportAuditLog.query.order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(80).all()
     admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
+    is_en = _lang() == 'en'
+    labels = _support_label_maps(is_en)
+    selected_key = (request.args.get('case') or '').strip()
+    available_keys = {row.get('case_key') for row in rows}
+    if not selected_key or selected_key not in available_keys:
+        selected_key = rows[0].get('case_key') if rows else ''
     filter_defs = [
         ('all', 'كل الدعم', 'All support', stats.get('all', 0)),
         ('mine', 'المخصص لي', 'Assigned to me', stats.get('mine', 0)),
@@ -3596,9 +3665,14 @@ def admin_support_command_center():
         stats=stats,
         filter_defs=filter_defs,
         filter_key=filter_key,
+        selected_key=selected_key,
         canned_replies=canned_replies,
+        canned_rows=canned_rows,
         audits=audits,
         admin_users=admin_users,
+        labels=labels,
+        status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
+        priority_options=['low', 'normal', 'high', 'urgent'],
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
@@ -3614,36 +3688,85 @@ def admin_support_command_action():
     case_type = (request.form.get('case_type') or '').strip()
     source_id = int(request.form.get('source_id') or 0)
     action = (request.form.get('case_action') or '').strip()
+    filter_key = (request.args.get('filter') or request.form.get('filter_key') or 'all').strip()
+    case_key = f'{case_type}-{source_id}' if case_type and source_id else ''
     source = _support_source_for(case_type, source_id)
     if not source:
         flash('تعذر العثور على عنصر الدعم.', 'danger')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
 
     old_status = (getattr(source, 'status', None) or 'open').strip()
-    if old_status in ('closed', 'resolved') and action != 'reopen':
+    if old_status in ('closed', 'resolved') and action not in ('reopen',):
         flash('هذا الطلب مغلق ومجمّد. استخدم إعادة فتح أولًا.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=request.args.get('filter') or 'all'))
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
 
     owner_id = _support_owner_id_for_source(case_type, source)
     title = getattr(source, 'subject', '') or 'طلب دعم'
     audit_action = 'case.update'
     notification_title = 'تحديث على طلب الدعم'
+    should_notify = True
+
+    if action in ('send_reply', 'save_update'):
+        body = (request.form.get('body') or '').strip()
+        is_internal_note = bool(request.form.get('is_internal_note'))
+        requested_status = (request.form.get('status') or old_status or 'open').strip()
+        requested_priority = (request.form.get('priority') or getattr(source, 'priority', None) or 'normal').strip()
+        requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or getattr(source, 'assigned_admin_user_id', None) or None
+        changed = False
+
+        if requested_status and requested_status != old_status:
+            source.status = requested_status
+            changed = True
+        if requested_priority and requested_priority != getattr(source, 'priority', None):
+            source.priority = requested_priority
+            changed = True
+        if requested_assignee_id != getattr(source, 'assigned_admin_user_id', None):
+            source.assigned_admin_user_id = requested_assignee_id
+            changed = True
+
+        msg = None
+        if body:
+            msg = _support_add_admin_message(case_type, source, body, actor_id, is_internal_note=is_internal_note)
+            changed = True
+
+        if not changed:
+            flash('لا يوجد رد أو تغيير جديد للحفظ.', 'warning')
+            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+
+        source.updated_at = datetime.utcnow()
+        last_reply_by = None if is_internal_note else ('admin' if msg else None)
+        upsert_support_case(case_type, source, last_reply_by)
+        audit_action = 'case.internal_note' if is_internal_note and msg else 'case.reply'
+        audit_case(case_type, source_id, actor_id, audit_action, f'{audit_action} for {case_type} #{source_id}', {'status': getattr(source, 'status', None), 'priority': getattr(source, 'priority', None), 'internal_note': is_internal_note}, commit=False)
+        if msg and not is_internal_note:
+            notification_title = 'رد جديد من الدعم'
+            notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
+        elif changed and not is_internal_note:
+            notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تم تحديث حالة طلب الدعم', message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
+        db.session.commit()
+        flash('تم حفظ الرد وتحديث المحادثة.', 'success')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
 
     if action == 'assign_me':
         assigned_admin = actor
         source.assigned_admin_user_id = actor_id
         if old_status in ('new', 'open', 'pending'):
             source.status = 'assigned'
-        _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
+        existing_messages = _support_messages_for_source(case_type, source)
+        if not _support_has_assignment_notice_for(existing_messages, assigned_admin):
+            _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
         audit_action = 'case.assign_me'
         notification_title = 'تم اعتماد المدير المسؤول'
         flash('تم اعتمادك كمدير مسؤول وإشعار المشترك.', 'success')
     elif action == 'waiting_user':
-        source.status = 'waiting_user'
-        _support_add_public_message(case_type, source, 'نحتاج منك معلومات إضافية حتى نكمل معالجة الطلب.', actor_id)
+        if old_status != 'waiting_user':
+            source.status = 'waiting_user'
+            _support_add_public_message(case_type, source, 'نحتاج منك معلومات إضافية حتى نكمل معالجة الطلب.', actor_id)
+            flash('تم نقل الطلب إلى بانتظار المستخدم.', 'success')
+        else:
+            flash('الطلب موجود مسبقًا في حالة بانتظار المستخدم.', 'info')
         audit_action = 'case.waiting_user'
         notification_title = 'نحتاج معلومات إضافية'
-        flash('تم نقل الطلب إلى بانتظار المستخدم.', 'success')
     elif action == 'close':
         source.status = 'closed'
         _support_add_public_message(case_type, source, 'تم إغلاق الطلب بعد الحل. يمكنك طلب إعادة فتحه عند الحاجة.', actor_id)
@@ -3658,16 +3781,17 @@ def admin_support_command_action():
         flash('تمت إعادة فتح الطلب.', 'success')
     else:
         flash('الإجراء غير معروف.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
 
     source.updated_at = datetime.utcnow()
     if not getattr(source, 'last_reply_at', None):
         source.last_reply_at = datetime.utcnow()
     upsert_support_case(case_type, source, 'admin')
     audit_case(case_type, source_id, actor_id, audit_action, f'{audit_action} for {case_type} #{source_id}', {'status': getattr(source, 'status', None)}, commit=False)
-    notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
+    if should_notify:
+        notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
     db.session.commit()
-    return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=request.args.get('filter') or 'all'))
+    return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
 
 
 @main_bp.route('/admin/support-command-center/reopen', methods=['POST'])

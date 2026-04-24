@@ -49,87 +49,80 @@
 <div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></div>
 <div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button></div></form></div></section>
 {% elif tab == 'support' %}
-{% set open_threads = thread_rows|rejectattr('thread.status','equalto','closed')|list %}
-{% set closed_threads = thread_rows|selectattr('thread.status','equalto','closed')|list %}
-{% set open_tickets = ticket_rows|rejectattr('ticket.status','equalto','closed')|list %}
-{% set closed_tickets = ticket_rows|selectattr('ticket.status','equalto','closed')|list %}
-<section class="support-control-v56" data-support-workspace>
-  <div class="support-command-head-v55 support-command-head-v56">
+{% set open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
+{% set closed_threads = thread_rows|selectattr('thread.status','in',['closed','resolved'])|list %}
+{% set open_tickets = ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list %}
+{% set closed_tickets = ticket_rows|selectattr('ticket.status','in',['closed','resolved'])|list %}
+{% set selected_key = '' %}
+{% if open_threads|length %}{% set selected_key = 'mail-' ~ open_threads[0].thread.id %}{% elif open_tickets|length %}{% set selected_key = 'ticket-' ~ open_tickets[0].ticket.id %}{% elif closed_threads|length %}{% set selected_key = 'mail-' ~ closed_threads[0].thread.id %}{% elif closed_tickets|length %}{% set selected_key = 'ticket-' ~ closed_tickets[0].ticket.id %}{% endif %}
+<section class="profile-support-mailbox-v62" data-support-mailbox data-view="list">
+  <div class="profile-support-head-v62">
     <div>
-      <span class="eyebrow">{{ 'Unified support workspace' if is_en else 'مساحة الدعم الموحدة' }}</span>
+      <span class="eyebrow">{{ 'Mailbox workspace' if is_en else 'مساحة دعم بنمط البريد' }}</span>
       <h2>{{ 'Open support conversations' if is_en else 'الدعم المفتوح والقابل للرد' }}</h2>
-      <p>{{ 'Closed items are archived below and cannot receive new replies.' if is_en else 'العناصر المغلقة تُنقل للأسفل وتتجمد ولا تقبل ردودًا جديدة.' }}</p>
+      <p>{{ 'Compact list, conversation preview, inline canned replies, and quick status updates.' if is_en else 'قائمة مضغوطة، معاينة محادثة، ردود جاهزة داخلية، وتحديث حالة سريع.' }}</p>
     </div>
-    <div class="support-segment-v55" role="tablist">
-      <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
-      <button type="button" data-filter="mail">✉️ {{ 'Messages' if is_en else 'رسائل' }} <b>{{ open_threads|length }}</b></button>
-      <button type="button" data-filter="ticket">🎫 {{ 'Tickets' if is_en else 'تذاكر دعم' }} <b>{{ open_tickets|length }}</b></button>
+    <div class="profile-support-actions-v62">
+      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}">{{ 'Open command center' if is_en else 'فتح مركز القيادة' }}</a>
+      <div class="mailbox-view-toggle-v62" data-mailbox-view-toggle><button type="button" class="active" data-view="list">☰ {{ 'List' if is_en else 'قائمة' }}</button><button type="button" data-view="cards">▦ {{ 'Cards' if is_en else 'بطاقات' }}</button></div>
     </div>
   </div>
 
-  <div class="support-board-v55 support-board-v56">
-    {% for row in open_threads %}
-    <article class="support-card-v55 support-card-v56 kind-mail status-{{ row.thread.status }}" data-kind="mail" id="thread-{{ row.thread.id }}">
-      <div class="support-card-glow-v55"></div>
-      <div class="support-card-head-v55">
-        <div><span class="support-type-v55 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3><p>{{ row.thread.category }} • {{ row.thread.priority }}{% if row.assignee %}<span class="support-assignee-chip-v57">👤 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}</p></div>
-        <span class="support-status-v55 {{ row.thread.status }}">{{ row.thread.status }}</span>
+  <div class="profile-mailbox-grid-v62">
+    <aside class="mailbox-list-panel-v62 profile-mail-list-v62">
+      <div class="mailbox-panel-head-v62"><div><small>{{ 'Subscriber queue' if is_en else 'قائمة المشترك' }}</small><h2>{{ (open_threads|length + open_tickets|length) }} {{ 'open' if is_en else 'مفتوح' }}</h2></div></div>
+      <div class="mailbox-list-v62" id="profileSupportQueueList">
+        {% for row in open_threads %}
+          {% set key = 'mail-' ~ row.thread.id %}{% set last_msg = row.messages|last %}{% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}{% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
+          <button type="button" class="mailbox-row-v62 kind-message status-{{ row.thread.status }} {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.thread.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="{{ status_label|lower }}">
+            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-{{ row.thread.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ row.thread.priority }}">{{ priority_label }}</span></span>
+            <strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else ('No messages yet' if is_en else 'لا توجد رسائل بعد') }}</span><span class="mailbox-row-meta-v62"><span>👤 {{ user_obj.full_name or user_obj.username }}</span><span>🧑‍💼 {{ row.assignee.full_name or row.assignee.username if row.assignee else ('بدون مدير' if not is_en else 'Unassigned') }}</span></span>
+          </button>
+        {% endfor %}
+        {% for row in open_tickets %}
+          {% set key = 'ticket-' ~ row.ticket.id %}{% set last_msg = row.messages|last %}{% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}{% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
+          <button type="button" class="mailbox-row-v62 kind-ticket status-{{ row.ticket.status }} {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.ticket.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="{{ status_label|lower }}">
+            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-{{ row.ticket.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ row.ticket.priority }}">{{ priority_label }}</span></span>
+            <strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else ('No ticket messages yet' if is_en else 'لا توجد رسائل في التذكرة بعد') }}</span><span class="mailbox-row-meta-v62"><span>👤 {{ user_obj.full_name or user_obj.username }}</span><span>🧑‍💼 {{ row.assignee.full_name or row.assignee.username if row.assignee else ('بدون مدير' if not is_en else 'Unassigned') }}</span></span>
+          </button>
+        {% endfor %}
+        {% for row in closed_threads %}
+          {% set key = 'mail-' ~ row.thread.id %}{% set last_msg = row.messages|last %}
+          <button type="button" class="mailbox-row-v62 kind-message status-closed is-closed {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.thread.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="closed مغلق">
+            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></span><strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else '' }}</span><span class="mailbox-row-meta-v62"><span>🔒 {{ 'Frozen archive' if is_en else 'أرشيف مجمّد' }}</span></span>
+          </button>
+        {% endfor %}
+        {% for row in closed_tickets %}
+          {% set key = 'ticket-' ~ row.ticket.id %}{% set last_msg = row.messages|last %}
+          <button type="button" class="mailbox-row-v62 kind-ticket status-closed is-closed {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.ticket.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="closed مغلق">
+            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></span><strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else '' }}</span><span class="mailbox-row-meta-v62"><span>🔒 {{ 'Frozen archive' if is_en else 'أرشيف مجمّد' }}</span></span>
+          </button>
+        {% endfor %}
+        {% if (open_threads|length + open_tickets|length + closed_threads|length + closed_tickets|length) == 0 %}<div class="empty-state-card-v61 mailbox-empty-v62"><div>📭</div><h3>{{ 'No support items' if is_en else 'لا توجد عناصر دعم' }}</h3></div>{% endif %}
       </div>
-      <div class="support-thread-v55">
-        {% for msg in row.messages %}
-        <div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}">
-          <div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div>
-          <p>{{ msg.body }}</p>
-        </div>{% else %}<div class="empty-box-v2">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>{% endfor %}
-      </div>
-      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#thread-{{ row.thread.id }}" class="support-reply-form-v55 support-live-form-v56">
-        <input type="hidden" name="action" value="mail_reply"><input type="hidden" name="thread_id" value="{{ row.thread.id }}">
-        <div class="support-form-grid-v55"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','pending','waiting_user','closed'] %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label><label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label></div>
-        <textarea class="form-control" name="body" rows="3" placeholder="{{ 'Write a clear reply to the subscriber...' if is_en else 'اكتب رد واضح للمشترك...' }}"></textarea>
-        <div class="support-assignment-hint-v57">{{ 'Choose an assigned manager, then save assignment to notify the subscriber automatically once.' if is_en else 'اختر المدير المسؤول ثم اضغط اعتماد المدير لإرسال رسالة تلقائية للمشترك أول مرة.' }}</div>
-        <div class="support-action-row-v55 support-action-row-v57"><label class="switch-row"><span>{{ 'Internal note only' if is_en else 'ملاحظة داخلية فقط' }}</span><input type="checkbox" name="is_internal_note" value="1"></label><div class="support-buttons-v57"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير وإشعار المشترك' }}</button><button class="btn btn-solar" type="submit">{{ 'Send reply / update' if is_en else 'إرسال الرد / تحديث الحالة' }}</button></div></div>
-      </form>
-    </article>
-    {% endfor %}
+    </aside>
 
-    {% for row in open_tickets %}
-    <article class="support-card-v55 support-card-v56 kind-ticket status-{{ row.ticket.status }}" data-kind="ticket" id="ticket-{{ row.ticket.id }}">
-      <div class="support-card-glow-v55"></div>
-      <div class="support-card-head-v55">
-        <div><span class="support-type-v55 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</span><h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3><p>{{ row.ticket.category }} • {{ row.ticket.priority }}{% if row.device %} • {{ row.device.name }}{% endif %}{% if row.assignee %}<span class="support-assignee-chip-v57">👤 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}</p></div>
-        <span class="support-status-v55 {{ row.ticket.status }}">{{ row.ticket.status }}</span>
-      </div>
-      <div class="support-thread-v55">
-        {% for msg in row.messages %}
-        <div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}">
-          <div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div>
-          <p>{{ msg.body }}</p>
-        </div>{% else %}<div class="empty-box-v2">{{ 'No ticket messages yet.' if is_en else 'لا توجد رسائل في التذكرة بعد.' }}</div>{% endfor %}
-      </div>
-      <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#ticket-{{ row.ticket.id }}" class="support-reply-form-v55 support-live-form-v56">
-        <input type="hidden" name="action" value="ticket_reply"><input type="hidden" name="ticket_id" value="{{ row.ticket.id }}">
-        <div class="support-form-grid-v55"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status">{% for st in ['open','in_progress','waiting_user','closed'] %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label><label><span>{{ 'Assigned admin' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">-</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.username }}</option>{% endfor %}</select></label></div>
-        <textarea class="form-control" name="body" rows="3" placeholder="{{ 'Reply to the ticket and close it when solved...' if is_en else 'اكتب الرد ثم أغلق التذكرة عند الحل...' }}"></textarea>
-        <div class="support-assignment-hint-v57">{{ 'Choose an assigned manager, then save assignment to notify the subscriber automatically once.' if is_en else 'اختر المدير المسؤول ثم اضغط اعتماد المدير لإرسال رسالة تلقائية للمشترك أول مرة.' }}</div>
-        <div class="support-action-row-v55 support-action-row-v57"><label class="switch-row"><span>{{ 'Internal note only' if is_en else 'ملاحظة داخلية فقط' }}</span><input type="checkbox" name="is_internal_note" value="1"></label><div class="support-buttons-v57"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير وإشعار المشترك' }}</button><button class="btn btn-solar" type="submit">{{ 'Send reply / update' if is_en else 'إرسال الرد / تحديث الحالة' }}</button></div></div>
-      </form>
-    </article>
-    {% endfor %}
-
-    {% if (open_threads|length + open_tickets|length) == 0 %}<div class="empty-state-box">{{ 'No open support items.' if is_en else 'لا توجد رسائل أو تذاكر مفتوحة.' }}</div>{% endif %}
-  </div>
-
-  <div class="closed-support-section-v56">
-    <div class="closed-support-head-v56"><span>✅</span><div><h3>{{ 'Closed support archive' if is_en else 'الرسائل والتذاكر المغلقة' }}</h3><p>{{ 'Frozen history only. No replies can be added here.' if is_en else 'سجل محفوظ فقط. لا يمكن إضافة ردود بعد الإغلاق.' }}</p></div></div>
-    <div class="support-board-v55 support-board-v56 closed-board-v56">
+    <section class="mailbox-thread-panel-v62 profile-thread-panel-v62">
+      {% for row in open_threads %}
+        {% set key = 'mail-' ~ row.thread.id %}{% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}{% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
+        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-{{ row.thread.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ row.thread.priority }}">{{ priority_label }}</span></div><h2>#{{ row.thread.id }} — {{ row.thread.subject }}</h2><p>{{ row.thread.category }} · 👤 {{ user_obj.full_name or user_obj.username }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}{% elif msg.sender_scope == 'admin' %}{{ 'Admin' if is_en else 'الإدارة' }}{% else %}{{ 'Subscriber' if is_en else 'المشترك' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% else %}<div class="empty-box-v2">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>{% endfor %}</div>
+        <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#thread-{{ row.thread.id }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="action" value="mail_reply"><input type="hidden" name="thread_id" value="{{ row.thread.id }}"><div class="composer-tools-v62"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status" data-status-select>{% for st in status_options %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}</select></label><label><span>{{ 'Manager' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}</select></label></div><textarea class="form-control" name="body" rows="4" data-reply-textarea placeholder="{{ 'Write a reply...' if is_en else 'اكتب ردًا للمشترك...' }}"></textarea><div class="composer-footer-v62"><div class="composer-left-v62"><button type="button" class="btn btn-outline-primary" data-canned-toggle>⚡ {{ 'Canned replies' if is_en else 'الردود الجاهزة' }}</button><label class="switch-row compact-switch-v62"><span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span><input type="checkbox" name="is_internal_note" value="1"></label></div><div class="composer-actions-v62"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير' }}</button><button class="btn btn-solar" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div></div>{% include '_support_canned_drawer_v62.html' %}</form></article>
+      {% endfor %}
+      {% for row in open_tickets %}
+        {% set key = 'ticket-' ~ row.ticket.id %}{% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}{% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
+        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-{{ row.ticket.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ row.ticket.priority }}">{{ priority_label }}</span></div><h2>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h2><p>{{ row.ticket.category }}{% if row.device %} · {{ row.device.name }}{% endif %} · 👤 {{ user_obj.full_name or user_obj.username }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}{% elif msg.sender_scope == 'admin' %}{{ 'Admin' if is_en else 'الإدارة' }}{% else %}{{ 'Subscriber' if is_en else 'المشترك' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% else %}<div class="empty-box-v2">{{ 'No ticket messages yet.' if is_en else 'لا توجد رسائل في التذكرة بعد.' }}</div>{% endfor %}</div>
+        <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#ticket-{{ row.ticket.id }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="action" value="ticket_reply"><input type="hidden" name="ticket_id" value="{{ row.ticket.id }}"><div class="composer-tools-v62"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status" data-status-select>{% for st in status_options %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}</select></label><label><span>{{ 'Manager' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}</select></label></div><textarea class="form-control" name="body" rows="4" data-reply-textarea placeholder="{{ 'Reply to the ticket...' if is_en else 'اكتب ردًا على التذكرة...' }}"></textarea><div class="composer-footer-v62"><div class="composer-left-v62"><button type="button" class="btn btn-outline-primary" data-canned-toggle>⚡ {{ 'Canned replies' if is_en else 'الردود الجاهزة' }}</button><label class="switch-row compact-switch-v62"><span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span><input type="checkbox" name="is_internal_note" value="1"></label></div><div class="composer-actions-v62"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير' }}</button><button class="btn btn-solar" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div></div>{% include '_support_canned_drawer_v62.html' %}</form></article>
+      {% endfor %}
       {% for row in closed_threads %}
-      <article class="support-card-v55 support-card-v56 kind-mail status-closed is-frozen" data-kind="mail" id="thread-{{ row.thread.id }}"><div class="support-card-head-v55"><div><span class="support-type-v55 mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3><p>{{ row.thread.category }} • {{ row.thread.priority }}{% if row.assignee %}<span class="support-assignee-chip-v57">👤 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}</p></div><span class="support-status-v55 closed">closed</span></div><div class="support-thread-v55">{% for msg in row.messages %}<div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</div></article>
+        {% set key = 'mail-' ~ row.thread.id %}
+        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></div><h2>#{{ row.thread.id }} — {{ row.thread.subject }}</h2><p>🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{{ 'Admin' if msg.sender_scope == 'admin' else ('Subscriber' if is_en else 'المشترك') }}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Open from command center to reopen.' if is_en else 'افتحها من مركز القيادة لإعادة الفتح.' }}</div></article>
       {% endfor %}
       {% for row in closed_tickets %}
-      <article class="support-card-v55 support-card-v56 kind-ticket status-closed is-frozen" data-kind="ticket" id="ticket-{{ row.ticket.id }}"><div class="support-card-head-v55"><div><span class="support-type-v55 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة دعم' }}</span><h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3><p>{{ row.ticket.category }} • {{ row.ticket.priority }}{% if row.device %} • {{ row.device.name }}{% endif %}{% if row.assignee %}<span class="support-assignee-chip-v57">👤 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}</p></div><span class="support-status-v55 closed">closed</span></div><div class="support-thread-v55">{% for msg in row.messages %}<div class="support-bubble-v55 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="support-bubble-meta-v55"><strong>{{ 'Admin' if is_en and msg.sender_scope == 'admin' else ('User' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'المشترك')) }}</strong>{% if msg.is_internal_note %}<span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span>{% endif %}</div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</div></article>
+        {% set key = 'ticket-' ~ row.ticket.id %}
+        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></div><h2>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h2><p>🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{{ 'Admin' if msg.sender_scope == 'admin' else ('Subscriber' if is_en else 'المشترك') }}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Open from command center to reopen.' if is_en else 'افتحها من مركز القيادة لإعادة الفتح.' }}</div></article>
       {% endfor %}
-      {% if (closed_threads|length + closed_tickets|length) == 0 %}<div class="empty-state-box">{{ 'No closed items yet.' if is_en else 'لا توجد عناصر مغلقة بعد.' }}</div>{% endif %}
-    </div>
+      {% if selected_key == '' %}<div class="mailbox-no-thread-v62"><div>📭</div><h2>{{ 'No support history' if is_en else 'لا يوجد سجل دعم' }}</h2></div>{% endif %}
+    </section>
   </div>
 </section>
 {% elif tab == 'finance' %}
