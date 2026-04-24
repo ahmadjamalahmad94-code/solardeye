@@ -149,8 +149,12 @@ def get_user_permissions(user=None) -> dict:
         return {
             'can_manage_users': True,
             'can_manage_devices': True,
+            'can_manage_support': True,
+            'can_manage_finance': True,
+            'can_manage_subscriptions': True,
             'can_view_logs': True,
             'can_configure_integrations': True,
+            'can_manage_integrations': True,
         }
     if role == 'manager':
         return {
@@ -158,12 +162,14 @@ def get_user_permissions(user=None) -> dict:
             'can_manage_devices': True,
             'can_view_logs': True,
             'can_configure_integrations': False,
+            'can_manage_integrations': False,
         }
     return {
         'can_manage_users': False,
         'can_manage_devices': True,
         'can_view_logs': False,
         'can_configure_integrations': False,
+            'can_manage_integrations': False,
     }
 
 

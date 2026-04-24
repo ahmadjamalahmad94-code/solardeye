@@ -332,7 +332,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   });
 });
 
-// Heavy v5 notification dropdown
+// Heavy v6.1 notification dropdown + live polish
 (function(){
   const wrap = document.getElementById('notificationBellWrap');
   if(!wrap) return;
@@ -341,21 +341,88 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   const count = document.getElementById('notificationBellCount');
   const mailCount = document.getElementById('notificationMailCount');
   const ticketCount = document.getElementById('notificationTicketCount');
+  const markAll = document.getElementById('notificationMarkAllRead');
   const feedUrl = wrap.dataset.feedUrl;
+  const markReadUrl = wrap.dataset.markReadUrl;
+  let previousCount = null;
+
   function esc(s){return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+  function kindLabel(kind){ return kind === 'ticket' ? 'تذكرة' : 'رسالة'; }
+  function toast(message){
+    let root = document.getElementById('clientToastStackV61');
+    if(!root){ root = document.createElement('div'); root.id = 'clientToastStackV61'; root.className = 'client-toast-stack-v61'; document.body.appendChild(root); }
+    const el = document.createElement('div');
+    el.className = 'client-toast-v61';
+    el.innerHTML = `<span>🔔</span><p>${esc(message)}</p>`;
+    root.appendChild(el);
+    setTimeout(() => el.classList.add('show'), 20);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 260); }, 4200);
+  }
   function render(items){
     if(!list) return;
     if(!items || !items.length){ list.innerHTML = '<div class="notification-empty">لا توجد إشعارات مفتوحة حاليًا.</div>'; return; }
-    list.innerHTML = items.map(item => `<a class="notification-item kind-${esc(item.kind)} status-${esc(item.status)}" href="${esc(item.url)}"><div class="notif-row"><span class="notif-kind">${item.kind === 'ticket' ? 'تذكرة' : 'رسالة'}</span><span class="notif-status">${esc(item.status)}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>من: ${esc(item.sender)}</span><small>${esc(item.created_at)}</small></div></a>`).join('');
+    list.innerHTML = items.map(item => {
+      const kind = item.kind === 'ticket' ? 'ticket' : 'message';
+      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(item.status)}</span></div><h4>${esc(item.title)}</h4><p>${esc(item.details)}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
+    }).join('');
   }
-  function refresh(){ if(!feedUrl) return; fetch(feedUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.json()).then(data=>{ if(count) count.textContent = data.count || 0; if(mailCount) mailCount.textContent = data.mail_count || 0; if(ticketCount) ticketCount.textContent = data.ticket_count || 0; render(data.items || []); }).catch(()=>{}); }
+  function updateCounts(data){
+    const next = Number(data.count || 0);
+    if(count) { count.textContent = next; count.classList.toggle('is-zero', next <= 0); }
+    if(mailCount) mailCount.textContent = data.mail_count || 0;
+    if(ticketCount) ticketCount.textContent = data.ticket_count || 0;
+    if(previousCount !== null && next > previousCount) toast('وصل تحديث دعم جديد');
+    previousCount = next;
+  }
+  function refresh(){
+    if(!feedUrl) return Promise.resolve();
+    return fetch(feedUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(r=>r.json())
+      .then(data=>{ updateCounts(data); render(data.items || []); return data; })
+      .catch(()=>{});
+  }
   btn && btn.addEventListener('click', function(e){ e.preventDefault(); wrap.classList.toggle('open'); if(wrap.classList.contains('open')) refresh(); });
+  markAll && markAll.addEventListener('click', function(){
+    if(!markReadUrl) return;
+    const form = new FormData();
+    fetch(markReadUrl, {method:'POST', body:form, headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(r=>r.json())
+      .then(data=>{ updateCounts(data); render([]); })
+      .catch(()=>{});
+  });
   document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) wrap.classList.remove('open'); });
-  
+
   refresh();
   setInterval(refresh, 10000);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) refresh(); });
+})();
 
+// Heavy v6.1 command center interactions
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    const search = document.getElementById('supportQueueSearch');
+    const cards = Array.from(document.querySelectorAll('[data-case-card]'));
+    if(search && cards.length){
+      search.addEventListener('input', () => {
+        const q = (search.value || '').trim().toLowerCase();
+        cards.forEach(card => {
+          const haystack = `${card.dataset.title || ''} ${card.dataset.owner || ''} ${card.dataset.status || ''}`;
+          card.classList.toggle('is-hidden-by-search', q && !haystack.includes(q));
+        });
+      });
+    }
+    document.querySelectorAll('[data-canned-text]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.cannedText || '';
+        if(navigator.clipboard && text){
+          navigator.clipboard.writeText(text).then(() => {
+            btn.classList.add('copied');
+            setTimeout(() => btn.classList.remove('copied'), 1200);
+          }).catch(() => {});
+        }
+      });
+    });
+  });
 })();
 
 // Heavy v5.5 unified support workspace filtering

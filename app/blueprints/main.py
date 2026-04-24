@@ -32,7 +32,7 @@ from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
 from ..services.support_ops import (
     audit_case, build_support_queue, case_url, notify_user, portal_case_url,
-    sync_existing_cases, unread_counts, upsert_support_case, notification_items_for,
+    sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
 )
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
@@ -192,17 +192,23 @@ def _device_collection():
 
 
 def _admin_write_log(action: str, summary: str, target_type: str | None = None, target_id: int | None = None, details: dict | None = None):
+    """Write an admin activity row without allowing logging to break the user flow."""
     actor = _active_user()
-    row = AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply(
+    row = AdminActivityLog(
         actor_user_id=getattr(actor, 'id', None),
         action=action,
         target_type=target_type,
         target_id=target_id,
         summary=summary,
         details_json=json.dumps(details or {}, ensure_ascii=False),
+        created_at=datetime.utcnow(),
     )
     db.session.add(row)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception('admin activity log failed: %s', exc)
 
 
 def _admin_counts_snapshot():
@@ -1365,7 +1371,10 @@ def _admin_user_payload(user: AppUser):
         })
     finance_rows = WalletLedger.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all()
     quota_rows = TenantQuota.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all()
-    activity_rows = AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.query.order_by(AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.created_at.desc(), AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.id.desc()).limit(150).all()
+    activity_rows = AdminActivityLog.query.order_by(
+        AdminActivityLog.created_at.desc(),
+        AdminActivityLog.id.desc(),
+    ).limit(150).all()
     related_activities = []
     for item in activity_rows:
         details = {}
@@ -1393,7 +1402,8 @@ def _admin_user_payload(user: AppUser):
 
 @main_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
 def admin_user_profile(user_id: int):
-    guard = _admin_guard()
+    requested_tab = (request.args.get('tab') or 'profile').strip()
+    guard = _admin_guard('can_manage_support' if requested_tab == 'support' else 'can_manage_users')
     if guard:
         return guard
     user = AppUser.query.filter_by(id=user_id).first_or_404()
@@ -1579,7 +1589,7 @@ def admin_user_profile(user_id: int):
 
 @main_bp.route('/admin/users', methods=['GET', 'POST'])
 def admin_users():
-    guard = _admin_guard('can_view_logs')
+    guard = _admin_guard('can_manage_users')
     if guard:
         return guard
     actor = _active_user()
@@ -3111,7 +3121,7 @@ def admin_activity_log():
     if guard:
         return guard
     rows = []
-    for item in AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.query.order_by(AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.created_at.desc(), AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.id.desc()).all():
+    for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).all():
         actor = AppUser.query.get(item.actor_user_id) if item.actor_user_id else None
         rows.append({'item': item, 'actor': actor})
     return render_template('admin_activity_log.html', rows=rows, ui_lang=_lang())
@@ -3529,17 +3539,135 @@ def notification_center():
         flash('تعذر تحميل مركز الإشعارات، تم فتح الصفحة بوضع آمن.', 'warning')
     return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
 
-# --- Heavy v6: Support & Operations Command Center ---
+# --- Heavy v6.1: Support & Operations Command Center ---
+def _support_source_for(case_type: str, source_id: int):
+    if case_type == 'message':
+        return InternalMailThread.query.get(source_id)
+    if case_type == 'ticket':
+        return SupportTicket.query.get(source_id)
+    return None
+
+
+def _support_owner_id_for_source(case_type: str, source):
+    if not source:
+        return None
+    owner_id = getattr(source, 'created_by_user_id', None) if case_type == 'message' else getattr(source, 'opened_by_user_id', None)
+    if owner_id:
+        return owner_id
+    tenant = TenantAccount.query.get(getattr(source, 'tenant_id', None)) if getattr(source, 'tenant_id', None) else None
+    return getattr(tenant, 'owner_user_id', None)
+
+
+def _support_add_public_message(case_type: str, source, body: str, actor_id: int | None):
+    body = (body or '').strip()
+    if not source or not body:
+        return
+    if case_type == 'message':
+        db.session.add(InternalMailMessage(thread_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=False, body=body))
+    elif case_type == 'ticket':
+        db.session.add(SupportTicketMessage(ticket_id=source.id, sender_user_id=actor_id, sender_scope='admin', is_internal_note=False, body=body))
+    source.last_reply_at = datetime.utcnow()
+
+
 @main_bp.route('/admin/support-command-center')
 def admin_support_command_center():
     guard = _admin_guard('can_manage_support')
     if guard:
         return guard
+    actor = _active_user()
     filter_key = (request.args.get('filter') or 'all').strip()
-    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(_active_user(), 'id', None))
+    stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
+    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang())
     canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
     audits = SupportAuditLog.query.order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(80).all()
-    return render_template('admin_support_command_center.html', rows=rows, filter_key=filter_key, canned_replies=canned_replies, audits=audits, admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
+    filter_defs = [
+        ('all', 'كل الدعم', 'All support', stats.get('all', 0)),
+        ('mine', 'المخصص لي', 'Assigned to me', stats.get('mine', 0)),
+        ('unassigned', 'بدون مدير', 'Unassigned', stats.get('unassigned', 0)),
+        ('urgent', 'عاجل', 'Urgent', stats.get('urgent', 0)),
+        ('waiting_user', 'بانتظار المستخدم', 'Waiting user', stats.get('waiting_user', 0)),
+        ('unanswered', 'لم يتم الرد عليه', 'Unanswered', stats.get('unanswered', 0)),
+        ('closed', 'مغلق', 'Closed', stats.get('closed', 0)),
+    ]
+    return render_template(
+        'admin_support_command_center.html',
+        rows=rows,
+        stats=stats,
+        filter_defs=filter_defs,
+        filter_key=filter_key,
+        canned_replies=canned_replies,
+        audits=audits,
+        admin_users=admin_users,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+    )
+
+
+@main_bp.route('/admin/support-command-center/action', methods=['POST'])
+def admin_support_command_action():
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return guard
+    actor = _active_user()
+    actor_id = getattr(actor, 'id', None)
+    case_type = (request.form.get('case_type') or '').strip()
+    source_id = int(request.form.get('source_id') or 0)
+    action = (request.form.get('case_action') or '').strip()
+    source = _support_source_for(case_type, source_id)
+    if not source:
+        flash('تعذر العثور على عنصر الدعم.', 'danger')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+
+    old_status = (getattr(source, 'status', None) or 'open').strip()
+    if old_status in ('closed', 'resolved') and action != 'reopen':
+        flash('هذا الطلب مغلق ومجمّد. استخدم إعادة فتح أولًا.', 'warning')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=request.args.get('filter') or 'all'))
+
+    owner_id = _support_owner_id_for_source(case_type, source)
+    title = getattr(source, 'subject', '') or 'طلب دعم'
+    audit_action = 'case.update'
+    notification_title = 'تحديث على طلب الدعم'
+
+    if action == 'assign_me':
+        assigned_admin = actor
+        source.assigned_admin_user_id = actor_id
+        if old_status in ('new', 'open', 'pending'):
+            source.status = 'assigned'
+        _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
+        audit_action = 'case.assign_me'
+        notification_title = 'تم اعتماد المدير المسؤول'
+        flash('تم اعتمادك كمدير مسؤول وإشعار المشترك.', 'success')
+    elif action == 'waiting_user':
+        source.status = 'waiting_user'
+        _support_add_public_message(case_type, source, 'نحتاج منك معلومات إضافية حتى نكمل معالجة الطلب.', actor_id)
+        audit_action = 'case.waiting_user'
+        notification_title = 'نحتاج معلومات إضافية'
+        flash('تم نقل الطلب إلى بانتظار المستخدم.', 'success')
+    elif action == 'close':
+        source.status = 'closed'
+        _support_add_public_message(case_type, source, 'تم إغلاق الطلب بعد الحل. يمكنك طلب إعادة فتحه عند الحاجة.', actor_id)
+        audit_action = 'case.close'
+        notification_title = 'تم إغلاق طلب الدعم'
+        flash('تم إغلاق الطلب وتجميده.', 'success')
+    elif action == 'reopen':
+        source.status = 'open'
+        _support_add_public_message(case_type, source, 'تمت إعادة فتح الطلب وسيتم متابعته من جديد.', actor_id)
+        audit_action = 'case.reopen'
+        notification_title = 'تمت إعادة فتح طلب الدعم'
+        flash('تمت إعادة فتح الطلب.', 'success')
+    else:
+        flash('الإجراء غير معروف.', 'warning')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+
+    source.updated_at = datetime.utcnow()
+    if not getattr(source, 'last_reply_at', None):
+        source.last_reply_at = datetime.utcnow()
+    upsert_support_case(case_type, source, 'admin')
+    audit_case(case_type, source_id, actor_id, audit_action, f'{audit_action} for {case_type} #{source_id}', {'status': getattr(source, 'status', None)}, commit=False)
+    notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
+    db.session.commit()
+    return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=request.args.get('filter') or 'all'))
 
 
 @main_bp.route('/admin/support-command-center/reopen', methods=['POST'])
@@ -3550,19 +3678,16 @@ def admin_support_reopen():
     case_type = (request.form.get('case_type') or '').strip()
     source_id = int(request.form.get('source_id') or 0)
     actor = _active_user()
-    if case_type == 'message':
-        source = InternalMailThread.query.get(source_id)
-    else:
-        source = SupportTicket.query.get(source_id)
+    source = _support_source_for(case_type, source_id)
     if not source:
         flash('تعذر العثور على عنصر الدعم.', 'danger')
         return redirect(url_for('main.admin_support_command_center', lang=_lang()))
     source.status = 'open'
     source.updated_at = datetime.utcnow()
-    source.last_reply_at = datetime.utcnow()
+    _support_add_public_message(case_type, source, 'تمت إعادة فتح الطلب وسيتم متابعته من جديد.', getattr(actor, 'id', None))
     upsert_support_case(case_type, source, 'admin')
     audit_case(case_type, source_id, getattr(actor, 'id', None), 'case.reopen', 'Reopened closed support case', commit=False)
-    owner_id = getattr(source, 'created_by_user_id', None) if case_type == 'message' else getattr(source, 'opened_by_user_id', None)
+    owner_id = _support_owner_id_for_source(case_type, source)
     notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تمت إعادة فتح طلب الدعم', message=getattr(source, 'subject', ''), direct_url=portal_case_url(case_type, source_id, _lang()))
     db.session.commit()
     flash('تمت إعادة فتح الطلب وتسجيل الحركة.', 'success')

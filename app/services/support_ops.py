@@ -11,7 +11,7 @@ from ..models import (
     SupportAuditLog, SupportCase, SupportTicket, SupportTicketMessage, TenantAccount,
 )
 
-OPEN_STATUSES = {'open', 'assigned', 'waiting_user', 'pending', 'new'}
+OPEN_STATUSES = {'new', 'open', 'assigned', 'in_progress', 'waiting_user', 'pending'}
 CLOSED_STATUSES = {'resolved', 'closed'}
 DEFAULT_REPLIES = [
     ('تم استلام طلبك', 'تم استلام طلبك وتحويله للمتابعة. سنعود إليك بالتحديثات قريبًا.'),
@@ -19,16 +19,22 @@ DEFAULT_REPLIES = [
     ('نحتاج معلومات إضافية', 'نحتاج منك معلومات إضافية حتى نستطيع معالجة الطلب بدقة.'),
     ('تم حل المشكلة', 'تم حل المشكلة. يرجى إبلاغنا إن ظهرت لديك أي ملاحظة إضافية.'),
     ('تم إغلاق التذكرة', 'تم إغلاق الطلب بعد الحل. يمكن إعادة فتحه عند الحاجة بإجراء واضح.'),
+    ('تحديث متابعة', 'نعمل على متابعة طلبك حاليًا، وسنرسل لك تحديثًا بمجرد توفر نتيجة جديدة.'),
+    ('بانتظار ردك', 'بانتظار تزويدنا بالمعلومة المطلوبة حتى نكمل معالجة الطلب.'),
 ]
 
 
 def seed_canned_replies():
-    if CannedReply.query.count():
-        return
+    existing_titles = {row.title for row in CannedReply.query.all()}
     now = datetime.utcnow()
+    changed = False
     for title, body in DEFAULT_REPLIES:
+        if title in existing_titles:
+            continue
         db.session.add(CannedReply(title=title, body=body, category='support', created_at=now, updated_at=now))
-    db.session.commit()
+        changed = True
+    if changed:
+        db.session.commit()
 
 
 def case_url(case_type: str, source_id: int, owner_id: int | None = None, lang: str = 'ar') -> str:
@@ -65,16 +71,19 @@ def upsert_support_case(case_type: str, source, last_reply_by: str | None = None
         created = True
     case.tenant_id = getattr(source, 'tenant_id', None)
     case.user_id = getattr(source, 'created_by_user_id', None) if case_type == 'message' else getattr(source, 'opened_by_user_id', None)
+    if not case.user_id:
+        case.user_id = _owner_id_for(case_type, source)
     case.assigned_admin_user_id = getattr(source, 'assigned_admin_user_id', None)
     case.subject = getattr(source, 'subject', '') or ''
     case.priority = getattr(source, 'priority', 'normal') or 'normal'
     case.status = getattr(source, 'status', 'open') or 'open'
-    case.is_frozen = case.status == 'closed'
+    case.is_frozen = case.status in CLOSED_STATUSES
     case.last_reply_at = getattr(source, 'last_reply_at', None) or getattr(source, 'updated_at', None) or getattr(source, 'created_at', None)
-    case.last_reply_by = last_reply_by or case.last_reply_by
+    if last_reply_by:
+        case.last_reply_by = last_reply_by
     case.updated_at = getattr(source, 'updated_at', None) or datetime.utcnow()
     if not case.sla_due_at:
-        hours = 8 if case.priority in {'urgent', 'high'} else 24
+        hours = 6 if case.priority == 'urgent' else (8 if case.priority == 'high' else 24)
         case.sla_due_at = (getattr(source, 'created_at', None) or datetime.utcnow()) + timedelta(hours=hours)
     if created:
         audit_case(case_type, source.id, None, 'case.create', f'Created support case for {case_type} #{source.id}', commit=False)
@@ -97,13 +106,18 @@ def notify_user(target_user_id: int | None, *, event_type='support', source_type
     return ev
 
 
-def sync_existing_cases():
+def sync_existing_cases(commit: bool = False):
+    changed = False
     for thread in InternalMailThread.query.all():
         msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
-        upsert_support_case('message', thread, getattr(msg, 'sender_scope', None))
+        case = upsert_support_case('message', thread, getattr(msg, 'sender_scope', None))
+        changed = bool(case) or changed
     for ticket in SupportTicket.query.all():
         msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
-        upsert_support_case('ticket', ticket, getattr(msg, 'sender_scope', None))
+        case = upsert_support_case('ticket', ticket, getattr(msg, 'sender_scope', None))
+        changed = bool(case) or changed
+    if commit and changed:
+        db.session.commit()
 
 
 def notification_items_for(user, is_admin: bool, limit=5, include_read=False, lang='ar'):
@@ -111,9 +125,16 @@ def notification_items_for(user, is_admin: bool, limit=5, include_read=False, la
     if not include_read:
         q = q.filter_by(is_read=False)
     rows = q.order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc()).limit(limit or 200).all()
+    now = datetime.utcnow()
+    changed = False
     for ev in rows:
-        ev.appeared_in_bell = True
-    db.session.commit()
+        if not ev.appeared_in_bell:
+            ev.appeared_in_bell = True
+            ev.delivered_to_user = True
+            ev.result = ev.result or 'shown_in_bell'
+            changed = True
+    if changed:
+        db.session.commit()
     return rows
 
 
@@ -125,30 +146,66 @@ def unread_counts(user):
     return total, mail, ticket
 
 
-def build_support_queue(filter_key='all', actor_id=None):
-    sync_existing_cases()
+def _filtered_query(filter_key='all', actor_id=None):
     q = SupportCase.query
     if filter_key == 'mine' and actor_id:
         q = q.filter_by(assigned_admin_user_id=actor_id)
     elif filter_key == 'unassigned':
-        q = q.filter(SupportCase.assigned_admin_user_id.is_(None))
+        q = q.filter(SupportCase.assigned_admin_user_id.is_(None)).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'urgent':
-        q = q.filter(SupportCase.priority.in_(['urgent', 'high']))
+        q = q.filter(SupportCase.priority.in_(['urgent', 'high'])).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'waiting_user':
         q = q.filter_by(status='waiting_user')
     elif filter_key == 'closed':
-        q = q.filter(SupportCase.status.in_(['closed', 'resolved']))
+        q = q.filter(SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'unanswered':
-        q = q.filter(SupportCase.last_reply_by == 'user')
+        q = q.filter(SupportCase.last_reply_by == 'user').filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key != 'all':
-        q = q.filter(~SupportCase.status.in_(['closed', 'resolved']))
+        q = q.filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
+    return q
+
+
+def support_queue_stats(actor_id=None):
+    sync_existing_cases(commit=False)
+    now = datetime.utcnow()
+    active_q = SupportCase.query.filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
+    stats = {
+        'all': SupportCase.query.count(),
+        'active': active_q.count(),
+        'mine': SupportCase.query.filter_by(assigned_admin_user_id=actor_id).filter(~SupportCase.status.in_(list(CLOSED_STATUSES))).count() if actor_id else 0,
+        'unassigned': active_q.filter(SupportCase.assigned_admin_user_id.is_(None)).count(),
+        'urgent': active_q.filter(SupportCase.priority.in_(['urgent', 'high'])).count(),
+        'waiting_user': SupportCase.query.filter_by(status='waiting_user').count(),
+        'unanswered': active_q.filter(SupportCase.last_reply_by == 'user').count(),
+        'closed': SupportCase.query.filter(SupportCase.status.in_(list(CLOSED_STATUSES))).count(),
+        'overdue': active_q.filter(SupportCase.sla_due_at.isnot(None), SupportCase.sla_due_at < now).count(),
+    }
+    return stats
+
+
+def build_support_queue(filter_key='all', actor_id=None, lang='ar'):
+    sync_existing_cases(commit=True)
+    q = _filtered_query(filter_key, actor_id)
     rows = []
     now = datetime.utcnow()
-    for case in q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc()).all():
+    cases = q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc()).all()
+    for case in cases:
         user = AppUser.query.get(case.user_id) if case.user_id else None
         assignee = AppUser.query.get(case.assigned_admin_user_id) if case.assigned_admin_user_id else None
         tenant = TenantAccount.query.get(case.tenant_id) if case.tenant_id else None
         overdue = bool(case.sla_due_at and case.sla_due_at < now and case.status not in CLOSED_STATUSES)
         age_hours = round(((now - (case.created_at or now)).total_seconds() / 3600), 1)
-        rows.append({'case': case, 'user': user, 'assignee': assignee, 'tenant': tenant, 'overdue': overdue, 'age_hours': age_hours, 'url': case_url(case.case_type, case.source_id, case.user_id, lang='ar')})
+        until_sla_hours = None
+        if case.sla_due_at and case.status not in CLOSED_STATUSES:
+            until_sla_hours = round(((case.sla_due_at - now).total_seconds() / 3600), 1)
+        rows.append({
+            'case': case,
+            'user': user,
+            'assignee': assignee,
+            'tenant': tenant,
+            'overdue': overdue,
+            'age_hours': age_hours,
+            'until_sla_hours': until_sla_hours,
+            'url': case_url(case.case_type, case.source_id, case.user_id, lang=lang),
+        })
     return rows
