@@ -21,7 +21,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, TenantQuota, WalletLedger, AdminActivityLog
+from ..models import AppDevice, AppUser, EventLog, NotificationLog, Reading, ServiceHeartbeat, Setting, SyncLog, UserLoad, SubscriptionPlan, TenantAccount, TenantSubscription, DeviceType, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, TenantQuota, WalletLedger, AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply
 from ..services.deye_client import DeyeClient
 from ..services.scope import current_scope_ids, get_current_device, get_current_user, has_permission, is_system_admin, scoped_query, is_admin_scope
 from ..services.utils import (
@@ -30,6 +30,10 @@ from ..services.utils import (
 )
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
+from ..services.support_ops import (
+    audit_case, build_support_queue, case_url, notify_user, portal_case_url,
+    sync_existing_cases, unread_counts, upsert_support_case, notification_items_for,
+)
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
@@ -189,7 +193,7 @@ def _device_collection():
 
 def _admin_write_log(action: str, summary: str, target_type: str | None = None, target_id: int | None = None, details: dict | None = None):
     actor = _active_user()
-    row = AdminActivityLog(
+    row = AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply(
         actor_user_id=getattr(actor, 'id', None),
         action=action,
         target_type=target_type,
@@ -1361,7 +1365,7 @@ def _admin_user_payload(user: AppUser):
         })
     finance_rows = WalletLedger.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all()
     quota_rows = TenantQuota.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all()
-    activity_rows = AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).limit(150).all()
+    activity_rows = AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.query.order_by(AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.created_at.desc(), AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.id.desc()).limit(150).all()
     related_activities = []
     for item in activity_rows:
         details = {}
@@ -1505,6 +1509,9 @@ def admin_user_profile(user_id: int):
                 thread.assigned_admin_user_id = final_assignee_id
                 thread.last_reply_at = datetime.utcnow()
                 thread.updated_at = datetime.utcnow()
+                upsert_support_case('message', thread, 'admin')
+                notify_user(user.id, source_type='message', source_id=thread.id, tenant_id=thread.tenant_id, title='تحديث على رسالة الدعم', message=thread.subject, direct_url=portal_case_url('message', thread.id, _lang()))
+                audit_case('message', thread.id, getattr(actor, 'id', None), 'message.admin_update', 'Admin updated support message', {'status': thread.status}, commit=False)
                 db.session.commit()
                 _admin_write_log('mail.profile.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': thread.status})
                 flash('تم إرسال الرد وتحديث المحادثة.', 'success')
@@ -1553,6 +1560,9 @@ def admin_user_profile(user_id: int):
                 ticket.assigned_admin_user_id = final_assignee_id
                 ticket.last_reply_at = datetime.utcnow()
                 ticket.updated_at = datetime.utcnow()
+                upsert_support_case('ticket', ticket, 'admin')
+                notify_user(user.id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تحديث على التذكرة', message=ticket.subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
+                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_update', 'Admin updated support ticket', {'status': ticket.status}, commit=False)
                 db.session.commit()
                 _admin_write_log('ticket.profile.reply', f'Updated ticket #{ticket.id}', 'support_ticket', ticket.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': ticket.status})
                 flash('تم إرسال الرد وتحديث التذكرة.', 'success')
@@ -3101,7 +3111,7 @@ def admin_activity_log():
     if guard:
         return guard
     rows = []
-    for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).all():
+    for item in AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.query.order_by(AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.created_at.desc(), AdminActivityLog, NotificationEvent, SupportCase, SupportAuditLog, CannedReply.id.desc()).all():
         actor = AppUser.query.get(item.actor_user_id) if item.actor_user_id else None
         rows.append({'item': item, 'actor': actor})
     return render_template('admin_activity_log.html', rows=rows, ui_lang=_lang())
@@ -3148,6 +3158,11 @@ def admin_tickets():
                 db.session.add(ticket)
                 db.session.flush()
                 db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
+                upsert_support_case('ticket', ticket, 'admin')
+                if ticket.tenant_id:
+                    tenant = TenantAccount.query.get(ticket.tenant_id)
+                    notify_user(getattr(tenant, 'owner_user_id', None), source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تذكرة جديدة من الإدارة', message=subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
+                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_create', 'Admin created ticket', commit=False)
                 db.session.commit()
                 _admin_write_log('ticket.create', f'Created ticket #{ticket.id}', 'support_ticket', ticket.id, {'subject': ticket.subject})
                 flash('تم إنشاء التذكرة', 'success')
@@ -3176,6 +3191,12 @@ def admin_tickets():
                 ticket.assigned_admin_user_id = final_assignee_id
                 ticket.last_reply_at = datetime.utcnow()
                 ticket.updated_at = datetime.utcnow()
+                upsert_support_case('ticket', ticket, 'admin')
+                target_id = ticket.opened_by_user_id
+                if not target_id and ticket.tenant_id:
+                    target_id = getattr(TenantAccount.query.get(ticket.tenant_id), 'owner_user_id', None)
+                notify_user(target_id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تحديث على التذكرة', message=ticket.subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
+                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_reply', 'Admin replied to ticket', {'status': ticket.status}, commit=False)
                 db.session.commit()
                 _admin_write_log('ticket.reply', f'Replied to ticket #{ticket.id}', 'support_ticket', ticket.id, {'status': ticket.status})
                 flash('تم تحديث التذكرة', 'success')
@@ -3312,6 +3333,10 @@ def portal_support():
                     db.session.add(ticket)
                     db.session.flush()
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
+                    upsert_support_case('ticket', ticket, 'user')
+                    for admin in AppUser.query.filter_by(is_admin=True).all():
+                        notify_user(admin.id, source_type='ticket', source_id=ticket.id, tenant_id=getattr(tenant, 'id', None), title='تذكرة جديدة', message=subject, direct_url=case_url('ticket', ticket.id, user.id, _lang()))
+                    audit_case('ticket', ticket.id, user.id, 'ticket.create', 'Subscriber opened a ticket', commit=False)
                     db.session.commit()
                     flash('تم فتح التذكرة بنجاح' if _lang() != 'en' else 'Ticket opened successfully', 'success')
                     return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
@@ -3319,6 +3344,10 @@ def portal_support():
                 db.session.add(thread)
                 db.session.flush()
                 db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
+                upsert_support_case('message', thread, 'user')
+                for admin in AppUser.query.filter_by(is_admin=True).all():
+                    notify_user(admin.id, source_type='message', source_id=thread.id, tenant_id=getattr(tenant, 'id', None), title='رسالة دعم جديدة', message=subject, direct_url=case_url('message', thread.id, user.id, _lang()))
+                audit_case('message', thread.id, user.id, 'message.create', 'Subscriber opened a support message', commit=False)
                 db.session.commit()
                 flash('تم إرسال الرسالة للإدارة' if _lang() != 'en' else 'Message sent to management', 'success')
                 return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
@@ -3337,6 +3366,11 @@ def portal_support():
                     db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
                     ticket.last_reply_at = datetime.utcnow()
                     ticket.updated_at = datetime.utcnow()
+                    upsert_support_case('ticket', ticket, 'user')
+                    targets = [ticket.assigned_admin_user_id] if ticket.assigned_admin_user_id else [a.id for a in AppUser.query.filter_by(is_admin=True).all()]
+                    for target_id in set([t for t in targets if t]):
+                        notify_user(target_id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='رد جديد من المشترك', message=ticket.subject, direct_url=case_url('ticket', ticket.id, user.id, _lang()))
+                    audit_case('ticket', ticket.id, user.id, 'ticket.user_reply', 'Subscriber replied to ticket', commit=False)
                     db.session.commit()
                     flash('تمت إضافة الرد على التذكرة' if _lang() != 'en' else 'Ticket reply added', 'success')
                     return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#ticket-{ticket.id}')
@@ -3354,6 +3388,11 @@ def portal_support():
                     db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
                     thread.last_reply_at = datetime.utcnow()
                     thread.updated_at = datetime.utcnow()
+                    upsert_support_case('message', thread, 'user')
+                    targets = [thread.assigned_admin_user_id] if thread.assigned_admin_user_id else [a.id for a in AppUser.query.filter_by(is_admin=True).all()]
+                    for target_id in set([t for t in targets if t]):
+                        notify_user(target_id, source_type='message', source_id=thread.id, tenant_id=thread.tenant_id, title='رد جديد من المشترك', message=thread.subject, direct_url=case_url('message', thread.id, user.id, _lang()))
+                    audit_case('message', thread.id, user.id, 'message.user_reply', 'Subscriber replied to message', commit=False)
                     db.session.commit()
                     flash('تمت إضافة الرد' if _lang() != 'en' else 'Reply added', 'success')
                     return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#thread-{thread.id}')
@@ -3430,10 +3469,35 @@ def _support_notification_items(limit=5, include_closed=False):
 
 
 def _support_notification_payload(limit=5, include_closed=False):
+    user = _active_user()
+    if user is None:
+        return []
+    try:
+        rows = notification_items_for(user, is_system_admin(), limit=limit or 200, include_read=include_closed, lang=_lang())
+        payload = []
+        for ev in rows:
+            payload.append({
+                'event_id': ev.id,
+                'kind': ev.source_type or ev.event_type or 'support',
+                'id': ev.source_id,
+                'title': ev.title or '',
+                'status': ev.status or 'new',
+                'priority': '',
+                'sender': '',
+                'details': (ev.message or '')[:240],
+                'created_at': format_local_datetime(ev.created_at) if ev.created_at else '',
+                'url': ev.direct_url or '#',
+                'is_read': bool(ev.is_read),
+            })
+        if payload or not include_closed:
+            return payload
+    except Exception:
+        pass
+    # Safe fallback for older data before notification_event is populated.
     payload = []
     for item in _support_notification_items(limit=limit, include_closed=include_closed):
         created = item.get('created_at')
-        payload.append({'kind':item.get('kind'),'id':item.get('id'),'title':item.get('title') or '','status':item.get('status') or 'open','priority':item.get('priority') or 'normal','sender':item.get('sender') or '','details':(item.get('details') or '')[:240],'created_at':format_local_datetime(created) if created else '','url':item.get('url') or '#'})
+        payload.append({'kind':item.get('kind'),'id':item.get('id'),'title':item.get('title') or '','status':item.get('status') or 'open','priority':item.get('priority') or 'normal','sender':item.get('sender') or '','details':(item.get('details') or '')[:240],'created_at':format_local_datetime(created) if created else '','url':item.get('url') or '#', 'is_read': False})
     return payload
 
 
@@ -3442,7 +3506,14 @@ def notifications_feed():
     if not session.get('logged_in'):
         return jsonify({'count': 0, 'items': []})
     items = _support_notification_payload(limit=5, include_closed=False)
-    return jsonify({'count': (getattr(g, 'mail_notification_count', 0) or 0) + (getattr(g, 'ticket_notification_count', 0) or 0), 'mail_count': getattr(g, 'mail_notification_count', 0) or 0, 'ticket_count': getattr(g, 'ticket_notification_count', 0) or 0, 'items': items})
+    user = _active_user()
+    try:
+        total, mail_count, ticket_count = unread_counts(user)
+    except Exception:
+        total = (getattr(g, 'mail_notification_count', 0) or 0) + (getattr(g, 'ticket_notification_count', 0) or 0)
+        mail_count = getattr(g, 'mail_notification_count', 0) or 0
+        ticket_count = getattr(g, 'ticket_notification_count', 0) or 0
+    return jsonify({'count': total, 'mail_count': mail_count, 'ticket_count': ticket_count, 'items': items})
 
 
 @main_bp.route('/notification-center')
@@ -3457,3 +3528,63 @@ def notification_center():
         items = []
         flash('تعذر تحميل مركز الإشعارات، تم فتح الصفحة بوضع آمن.', 'warning')
     return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+
+# --- Heavy v6: Support & Operations Command Center ---
+@main_bp.route('/admin/support-command-center')
+def admin_support_command_center():
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return guard
+    filter_key = (request.args.get('filter') or 'all').strip()
+    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(_active_user(), 'id', None))
+    canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
+    audits = SupportAuditLog.query.order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(80).all()
+    return render_template('admin_support_command_center.html', rows=rows, filter_key=filter_key, canned_replies=canned_replies, audits=audits, admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+
+
+@main_bp.route('/admin/support-command-center/reopen', methods=['POST'])
+def admin_support_reopen():
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return guard
+    case_type = (request.form.get('case_type') or '').strip()
+    source_id = int(request.form.get('source_id') or 0)
+    actor = _active_user()
+    if case_type == 'message':
+        source = InternalMailThread.query.get(source_id)
+    else:
+        source = SupportTicket.query.get(source_id)
+    if not source:
+        flash('تعذر العثور على عنصر الدعم.', 'danger')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+    source.status = 'open'
+    source.updated_at = datetime.utcnow()
+    source.last_reply_at = datetime.utcnow()
+    upsert_support_case(case_type, source, 'admin')
+    audit_case(case_type, source_id, getattr(actor, 'id', None), 'case.reopen', 'Reopened closed support case', commit=False)
+    owner_id = getattr(source, 'created_by_user_id', None) if case_type == 'message' else getattr(source, 'opened_by_user_id', None)
+    notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تمت إعادة فتح طلب الدعم', message=getattr(source, 'subject', ''), direct_url=portal_case_url(case_type, source_id, _lang()))
+    db.session.commit()
+    flash('تمت إعادة فتح الطلب وتسجيل الحركة.', 'success')
+    return redirect(url_for('main.admin_support_command_center', lang=_lang()))
+
+
+@main_bp.route('/notifications/mark-read', methods=['POST'])
+def notifications_mark_read():
+    if not session.get('logged_in'):
+        return jsonify({'ok': False}), 401
+    user = _active_user()
+    now = datetime.utcnow()
+    event_id = int(request.form.get('event_id') or 0)
+    q = NotificationEvent.query.filter_by(target_user_id=getattr(user, 'id', None), is_read=False)
+    if event_id:
+        q = q.filter_by(id=event_id)
+    changed = 0
+    for ev in q.all():
+        ev.is_read = True
+        ev.read_at = now
+        ev.status = 'read'
+        changed += 1
+    db.session.commit()
+    total, mail, ticket = unread_counts(user)
+    return jsonify({'ok': True, 'changed': changed, 'count': total, 'mail_count': mail, 'ticket_count': ticket})

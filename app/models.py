@@ -317,6 +317,72 @@ class SupportTicketMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
+class NotificationEvent(db.Model):
+    __tablename__ = 'notification_event'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(40), nullable=False, default='support', index=True)
+    target_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
+    source_type = db.Column(db.String(40), nullable=True, index=True)
+    source_id = db.Column(db.Integer, nullable=True, index=True)
+    title = db.Column(db.String(220), nullable=False, default='')
+    message = db.Column(db.Text, nullable=False, default='')
+    direct_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(30), nullable=False, default='new', index=True)
+    result = db.Column(db.Text, nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    appeared_in_bell = db.Column(db.Boolean, default=False, nullable=False)
+    delivered_to_user = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+
+class SupportCase(db.Model):
+    __tablename__ = 'support_case'
+
+    id = db.Column(db.Integer, primary_key=True)
+    case_type = db.Column(db.String(30), nullable=False, index=True)
+    source_id = db.Column(db.Integer, nullable=False, index=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    assigned_admin_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    subject = db.Column(db.String(220), nullable=False, default='')
+    priority = db.Column(db.String(30), nullable=False, default='normal', index=True)
+    status = db.Column(db.String(30), nullable=False, default='open', index=True)
+    is_frozen = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    sla_due_at = db.Column(db.DateTime, nullable=True, index=True)
+    last_reply_at = db.Column(db.DateTime, nullable=True, index=True)
+    last_reply_by = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
+
+
+class SupportAuditLog(db.Model):
+    __tablename__ = 'support_audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    case_type = db.Column(db.String(30), nullable=False, index=True)
+    source_id = db.Column(db.Integer, nullable=False, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    action = db.Column(db.String(80), nullable=False, index=True)
+    summary = db.Column(db.String(255), nullable=False, default='')
+    details_json = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class CannedReply(db.Model):
+    __tablename__ = 'canned_reply'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), nullable=False, default='support')
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class TenantQuota(db.Model):
     __tablename__ = 'tenant_quota'
 

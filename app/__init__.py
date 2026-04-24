@@ -9,6 +9,7 @@ from .config import Config
 from .extensions import db
 from .models import AppDevice, AppUser, Setting, DeviceType
 from .services.subscriptions import seed_default_plans
+from .services.support_ops import seed_canned_replies
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ def create_app():
         _migrate_database()
         _ensure_default_settings()
         seed_default_plans()
+        seed_canned_replies()
         default_user = _ensure_default_app_user(app)
         default_device = _ensure_default_app_device(app, default_user)
         if default_user.preferred_device_id != default_device.id:
@@ -176,6 +178,10 @@ def _migrate_database():
             'predicted_risk_level': "VARCHAR(30) DEFAULT 'unknown'",
             'raw_json': 'TEXT',
         },
+        'notification_event': {'event_type': "VARCHAR(40) DEFAULT 'support'", 'target_user_id': 'INTEGER', 'tenant_id': 'INTEGER', 'source_type': 'VARCHAR(40)', 'source_id': 'INTEGER', 'title': "VARCHAR(220) DEFAULT ''", 'message': 'TEXT', 'direct_url': 'VARCHAR(500)', 'status': "VARCHAR(30) DEFAULT 'new'", 'result': 'TEXT', 'is_read': 'BOOLEAN DEFAULT FALSE', 'appeared_in_bell': 'BOOLEAN DEFAULT FALSE', 'delivered_to_user': 'BOOLEAN DEFAULT FALSE', 'created_at': 'TIMESTAMP', 'read_at': 'TIMESTAMP'},
+        'support_case': {'case_type': 'VARCHAR(30)', 'source_id': 'INTEGER', 'tenant_id': 'INTEGER', 'user_id': 'INTEGER', 'assigned_admin_user_id': 'INTEGER', 'subject': "VARCHAR(220) DEFAULT ''", 'priority': "VARCHAR(30) DEFAULT 'normal'", 'status': "VARCHAR(30) DEFAULT 'open'", 'is_frozen': 'BOOLEAN DEFAULT FALSE', 'sla_due_at': 'TIMESTAMP', 'last_reply_at': 'TIMESTAMP', 'last_reply_by': 'VARCHAR(20)', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
+        'support_audit_log': {'case_type': 'VARCHAR(30)', 'source_id': 'INTEGER', 'actor_user_id': 'INTEGER', 'action': 'VARCHAR(80)', 'summary': "VARCHAR(255) DEFAULT ''", 'details_json': 'TEXT', 'created_at': 'TIMESTAMP'},
+        'canned_reply': {'title': 'VARCHAR(120)', 'body': 'TEXT', 'category': "VARCHAR(50) DEFAULT 'support'", 'is_active': 'BOOLEAN DEFAULT TRUE', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
     }
 
 
@@ -192,6 +198,10 @@ def _migrate_database():
         """CREATE TABLE IF NOT EXISTS tenant_quota (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, quota_key VARCHAR(80), quota_label VARCHAR(120), limit_value FLOAT DEFAULT 0.0, used_value FLOAT DEFAULT 0.0, reset_period VARCHAR(30) DEFAULT 'manual', status VARCHAR(30) DEFAULT 'active', notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS wallet_ledger (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, actor_user_id INTEGER, entry_type VARCHAR(30) DEFAULT 'credit', amount FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', note TEXT, reference VARCHAR(120), created_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS admin_activity_log (id INTEGER PRIMARY KEY, actor_user_id INTEGER, action VARCHAR(120) NOT NULL, target_type VARCHAR(80), target_id INTEGER, summary VARCHAR(255) NOT NULL, details_json TEXT, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS notification_event (id INTEGER PRIMARY KEY, event_type VARCHAR(40) DEFAULT 'support', target_user_id INTEGER, tenant_id INTEGER, source_type VARCHAR(40), source_id INTEGER, title VARCHAR(220) DEFAULT '', message TEXT DEFAULT '', direct_url VARCHAR(500), status VARCHAR(30) DEFAULT 'new', result TEXT, is_read BOOLEAN DEFAULT FALSE, appeared_in_bell BOOLEAN DEFAULT FALSE, delivered_to_user BOOLEAN DEFAULT FALSE, created_at TIMESTAMP, read_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS support_case (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, tenant_id INTEGER, user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(220) DEFAULT '', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', is_frozen BOOLEAN DEFAULT FALSE, sla_due_at TIMESTAMP, last_reply_at TIMESTAMP, last_reply_by VARCHAR(20), created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS support_audit_log (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, actor_user_id INTEGER, action VARCHAR(80) NOT NULL, summary VARCHAR(255) DEFAULT '', details_json TEXT, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS canned_reply (id INTEGER PRIMARY KEY, title VARCHAR(120) NOT NULL, body TEXT NOT NULL, category VARCHAR(50) DEFAULT 'support', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()
@@ -461,6 +471,10 @@ def _backfill_foundation_ids(user_id, device_id):
         """CREATE TABLE IF NOT EXISTS tenant_quota (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, quota_key VARCHAR(80), quota_label VARCHAR(120), limit_value FLOAT DEFAULT 0.0, used_value FLOAT DEFAULT 0.0, reset_period VARCHAR(30) DEFAULT 'manual', status VARCHAR(30) DEFAULT 'active', notes TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS wallet_ledger (id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, actor_user_id INTEGER, entry_type VARCHAR(30) DEFAULT 'credit', amount FLOAT DEFAULT 0.0, currency VARCHAR(10) DEFAULT 'USD', note TEXT, reference VARCHAR(120), created_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS admin_activity_log (id INTEGER PRIMARY KEY, actor_user_id INTEGER, action VARCHAR(120) NOT NULL, target_type VARCHAR(80), target_id INTEGER, summary VARCHAR(255) NOT NULL, details_json TEXT, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS notification_event (id INTEGER PRIMARY KEY, event_type VARCHAR(40) DEFAULT 'support', target_user_id INTEGER, tenant_id INTEGER, source_type VARCHAR(40), source_id INTEGER, title VARCHAR(220) DEFAULT '', message TEXT DEFAULT '', direct_url VARCHAR(500), status VARCHAR(30) DEFAULT 'new', result TEXT, is_read BOOLEAN DEFAULT FALSE, appeared_in_bell BOOLEAN DEFAULT FALSE, delivered_to_user BOOLEAN DEFAULT FALSE, created_at TIMESTAMP, read_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS support_case (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, tenant_id INTEGER, user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(220) DEFAULT '', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', is_frozen BOOLEAN DEFAULT FALSE, sla_due_at TIMESTAMP, last_reply_at TIMESTAMP, last_reply_by VARCHAR(20), created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS support_audit_log (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, actor_user_id INTEGER, action VARCHAR(80) NOT NULL, summary VARCHAR(255) DEFAULT '', details_json TEXT, created_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS canned_reply (id INTEGER PRIMARY KEY, title VARCHAR(120) NOT NULL, body TEXT NOT NULL, category VARCHAR(50) DEFAULT 'support', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()
