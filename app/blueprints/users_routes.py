@@ -207,6 +207,10 @@ def admin_user_profile(user_id: int):
                 user.username = username
                 user.full_name = (request.form.get('full_name') or '').strip()
                 user.email = (request.form.get('email') or '').strip()
+                user.country = (request.form.get('country') or '').strip() or None
+                user.city = (request.form.get('city') or '').strip() or None
+                user.timezone = (request.form.get('timezone') or 'Asia/Hebron').strip() or 'Asia/Hebron'
+                user.preferred_language = (request.form.get('preferred_language') or 'ar').strip() or 'ar'
                 user.is_active = request.form.get('is_active') == 'on'
                 role = (request.form.get('role') or user.role or 'user').strip().lower()
                 user.role = role or 'user'
