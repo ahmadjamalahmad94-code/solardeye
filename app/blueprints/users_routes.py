@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
 # window. This keeps behavior stable while main.py shrinks safely.
@@ -22,16 +24,107 @@ def _is_admin_role_code(role: str | None) -> bool:
 def _quota_key_options(lang: str = 'ar'):
     is_en = (lang or 'ar') == 'en'
     rows = [
-        ('sms_limit', 'حد رسائل SMS', 'SMS messages limit'),
-        ('telegram_limit', 'حد رسائل Telegram', 'Telegram messages limit'),
-        ('devices_limit', 'حد الأجهزة', 'Devices limit'),
-        ('reports_limit', 'حد التقارير', 'Reports limit'),
-        ('support_cases_limit', 'حد طلبات الدعم', 'Support cases limit'),
-        ('api_calls_limit', 'حد استدعاءات API', 'API calls limit'),
-        ('storage_limit', 'حد التخزين', 'Storage limit'),
-        ('custom', 'مفتاح مخصص', 'Custom key'),
+        {
+            'key': 'sms_limit',
+            'label_ar': 'حد رسائل SMS',
+            'label_en': 'SMS messages limit',
+            'description_ar': 'عدد رسائل SMS المسموح للمشترك استخدامها ضمن الفترة المحددة.',
+            'description_en': 'How many SMS messages this subscriber can use during the selected period.',
+            'unit_ar': 'رسالة',
+            'unit_en': 'messages',
+            'default_limit': 50,
+            'reset_period': 'monthly',
+        },
+        {
+            'key': 'telegram_limit',
+            'label_ar': 'حد رسائل Telegram',
+            'label_en': 'Telegram messages limit',
+            'description_ar': 'عدد رسائل أو تنبيهات Telegram المسموحة لهذا المشترك.',
+            'description_en': 'Allowed Telegram messages or alerts for this subscriber.',
+            'unit_ar': 'رسالة',
+            'unit_en': 'messages',
+            'default_limit': 100,
+            'reset_period': 'monthly',
+        },
+        {
+            'key': 'devices_limit',
+            'label_ar': 'حد الأجهزة',
+            'label_en': 'Devices limit',
+            'description_ar': 'أقصى عدد أجهزة يستطيع المشترك إضافتها أو ربطها.',
+            'description_en': 'Maximum number of devices the subscriber can add or connect.',
+            'unit_ar': 'جهاز',
+            'unit_en': 'devices',
+            'default_limit': 1,
+            'reset_period': 'manual',
+        },
+        {
+            'key': 'reports_limit',
+            'label_ar': 'حد التقارير',
+            'label_en': 'Reports limit',
+            'description_ar': 'عدد التقارير أو ملفات التصدير المسموحة خلال الفترة.',
+            'description_en': 'Allowed report or export generation during the period.',
+            'unit_ar': 'تقرير',
+            'unit_en': 'reports',
+            'default_limit': 10,
+            'reset_period': 'monthly',
+        },
+        {
+            'key': 'support_cases_limit',
+            'label_ar': 'حد طلبات الدعم',
+            'label_en': 'Support cases limit',
+            'description_ar': 'عدد طلبات الدعم التي يمكن فتحها خلال الفترة.',
+            'description_en': 'How many support cases can be opened during the period.',
+            'unit_ar': 'طلب',
+            'unit_en': 'cases',
+            'default_limit': 5,
+            'reset_period': 'monthly',
+        },
+        {
+            'key': 'api_calls_limit',
+            'label_ar': 'حد استدعاءات API',
+            'label_en': 'API calls limit',
+            'description_ar': 'عدد استدعاءات API المسموح بها لهذا المشترك.',
+            'description_en': 'Allowed API calls for this subscriber.',
+            'unit_ar': 'استدعاء',
+            'unit_en': 'calls',
+            'default_limit': 1000,
+            'reset_period': 'monthly',
+        },
+        {
+            'key': 'storage_limit',
+            'label_ar': 'حد التخزين',
+            'label_en': 'Storage limit',
+            'description_ar': 'حجم التخزين أو الملفات المسموح بها لهذا المشترك.',
+            'description_en': 'Storage or file allowance for this subscriber.',
+            'unit_ar': 'ميجابايت',
+            'unit_en': 'MB',
+            'default_limit': 500,
+            'reset_period': 'manual',
+        },
+        {
+            'key': 'custom',
+            'label_ar': 'كوتا مخصصة',
+            'label_en': 'Custom quota',
+            'description_ar': 'استخدمها فقط عندما تحتاج حدًا خاصًا غير موجود في القائمة.',
+            'description_en': 'Use only when you need a special limit that is not listed.',
+            'unit_ar': 'وحدة',
+            'unit_en': 'units',
+            'default_limit': 0,
+            'reset_period': 'manual',
+        },
     ]
-    return [{'key': k, 'label': en if is_en else ar, 'label_ar': ar, 'label_en': en} for k, ar, en in rows]
+    normalized = []
+    for row in rows:
+        item = dict(row)
+        item['label'] = item['label_en'] if is_en else item['label_ar']
+        item['description'] = item['description_en'] if is_en else item['description_ar']
+        item['unit'] = item['unit_en'] if is_en else item['unit_ar']
+        normalized.append(item)
+    return normalized
+
+
+def _quota_option_map(lang: str = 'ar'):
+    return {row['key']: row for row in _quota_key_options(lang)}
 
 
 def _activity_summary_label(item, lang: str = 'ar') -> str:
@@ -147,41 +240,41 @@ def admin_user_profile(user_id: int):
                 _admin_write_log('finance.profile', f'Added finance entry for tenant #{tenant.id}', 'wallet_ledger', entry.id, {'tenant_id': tenant.id, 'user_id': user.id, 'entry_type': entry.entry_type})
                 flash('تمت إضافة حركة مالية للمشترك.', 'success')
         elif action == 'quota_entry':
-            quota_id = int(request.form.get('quota_id') or 0)
+            lang = _lang()
+            options = _quota_option_map(lang)
             preset_key = (request.form.get('quota_key_preset') or '').strip()
             custom_key = (request.form.get('quota_key_custom') or request.form.get('quota_key') or '').strip()
-            quota_key = custom_key if preset_key == 'custom' else (preset_key or custom_key)
-            quota_key = quota_key.strip().lower().replace(' ', '_')
+            quota_key = custom_key if preset_key == 'custom' else preset_key
+            quota_key = (quota_key or '').strip().lower().replace(' ', '_')
+            quota_key = re.sub(r'[^a-z0-9_\-]', '', quota_key)
             if not quota_key:
-                flash('اختر مفتاح الكوتا أو اكتب مفتاحًا مخصصًا.', 'warning')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
+                flash('اختر نوع الكوتا أو اكتب مفتاحًا مخصصًا صحيحًا.' if lang != 'en' else 'Choose a quota type or enter a valid custom key.', 'warning')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, tab='quotas'))
             try:
                 limit_value = float(request.form.get('limit_value') or 0)
-                used_value = float(request.form.get('used_value') or 0)
             except Exception:
-                flash('قيمة الحد أو المستخدم غير صحيحة.', 'danger')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
-            quota = TenantQuota.query.get(quota_id) if quota_id else None
+                flash('قيمة الحد غير صحيحة. أدخل رقمًا واضحًا مثل 50 أو 100.' if lang != 'en' else 'Invalid limit value. Enter a clear number like 50 or 100.', 'danger')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, tab='quotas'))
+            if limit_value < 0:
+                flash('الحد لا يمكن أن يكون رقمًا سالبًا.' if lang != 'en' else 'Limit cannot be negative.', 'danger')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, tab='quotas'))
+            selected = options.get(preset_key) or options.get(quota_key) or {}
+            quota = TenantQuota.query.filter_by(tenant_id=tenant.id, quota_key=quota_key).first()
             created = False
-            if quota and quota.tenant_id != tenant.id:
-                flash('تعذر تحديث الكوتا: السجل لا يخص هذا المشترك.', 'danger')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
             if quota is None:
-                quota = TenantQuota.query.filter_by(tenant_id=tenant.id, quota_key=quota_key).first()
-            if quota is None:
-                quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key)
+                quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key, used_value=0)
                 db.session.add(quota)
                 created = True
             quota.quota_key = quota_key
-            quota.quota_label = (request.form.get('quota_label') or quota_key).strip()
+            quota.quota_label = (request.form.get('quota_label') or selected.get('label_ar') or selected.get('label') or quota_key).strip()
             quota.limit_value = limit_value
-            quota.used_value = used_value
             quota.status = (request.form.get('status') or quota.status or 'active').strip()
-            quota.reset_period = (request.form.get('reset_period') or quota.reset_period or 'manual').strip()
-            quota.notes = (request.form.get('notes') or quota.notes or '').strip() or None
+            quota.reset_period = (request.form.get('reset_period') or selected.get('reset_period') or quota.reset_period or 'manual').strip()
+            notes = (request.form.get('notes') or '').strip()
+            quota.notes = notes or (selected.get('description_ar') if lang != 'en' else selected.get('description_en')) or quota.notes
             db.session.commit()
             _admin_write_log('quota.profile.create' if created else 'quota.profile.update', ('Created' if created else 'Updated') + f' quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': quota.quota_key})
-            flash('تم حفظ الكوتا بنجاح.' if created else 'تم تحديث الكوتا بنجاح.', 'success')
+            flash('تم إنشاء الكوتا بنجاح.' if created and lang != 'en' else ('تم تحديث الكوتا بنجاح.' if lang != 'en' else ('Quota created successfully.' if created else 'Quota updated successfully.')), 'success')
         elif action == 'portal_visibility':
             visible_keys = set(request.form.getlist('visible_pages'))
             save_user_portal_visibility(user.id, visible_keys)

@@ -192,27 +192,153 @@
   </div>
 </section>
 {% elif tab == 'quotas' %}
-<section class="subscriber360-quotas-v108">
-  <div class="subscriber360-section-head-v108">
-    <div><small>{{ 'Quotas' if is_en else 'الكوتا' }}</small><h3>{{ 'Usage limits and service quotas' if is_en else 'حدود الاستخدام والكوتا' }}</h3><p>{{ 'Quotas control limits such as SMS usage, monthly requests, device limits, or any paid service allowance.' if is_en else 'الكوتا تستخدم لضبط حدود مثل رسائل SMS، الطلبات الشهرية، عدد الأجهزة، أو أي رصيد خدمة مدفوع.' }}</p></div>
-    <span class="subscriber360-state-v108 is-info">{{ quota_rows|length }} {{ 'rows' if is_en else 'بند' }}</span>
+<section class="subscriber360-quotas-v111">
+  <div class="subscriber360-section-head-v108 quota-hero-v111">
+    <div>
+      <small>{{ 'Quotas' if is_en else 'الكوتا' }}</small>
+      <h3>{{ 'Usage limits and service quotas' if is_en else 'حدود الاستخدام والكوتا' }}</h3>
+      <p>{{ 'Choose a quota type, set the limit, period, and status. The subscriber is already selected from this 360 profile.' if is_en else 'اختر نوع الكوتا وحدد الحد والفترة والحالة. لا تحتاج كتابة اسم المشترك لأنك داخل ملفه الشخصي.' }}</p>
+    </div>
+    <span class="subscriber360-state-v108 is-info">{{ quota_rows|length }} {{ 'quota items' if is_en else 'بند كوتا' }}</span>
   </div>
-  <div class="admin-layout-v2 two subscriber360-two-col-v108">
-    <div class="admin-card-v2 subscriber360-card-v108"><h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3><form method="post" class="subscriber360-form-v108"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="quota_entry">
-      <label class="subscriber360-field-v108"><span>{{ 'Quota ID' if is_en else 'رقم الكوتا للتحديث' }}</span><input class="form-control" name="quota_id" placeholder="{{ 'Leave empty for new quota' if is_en else 'اتركه فارغًا لإضافة جديد' }}"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Quota key' if is_en else 'مفتاح الكوتا' }}</span><select class="form-control" name="quota_key_preset">{% for opt in quota_key_options %}<option value="{{ opt.key }}">{{ opt.label }}</option>{% endfor %}</select></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Custom key' if is_en else 'مفتاح مخصص' }}</span><input class="form-control ltr-field-v108" name="quota_key_custom" placeholder="custom_limit"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Label' if is_en else 'الاسم الظاهر' }}</span><input class="form-control" name="quota_label"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Limit' if is_en else 'الحد' }}</span><input class="form-control" name="limit_value"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Used' if is_en else 'المستخدم' }}</span><input class="form-control" name="used_value"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span><select class="form-control" name="reset_period"><option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option><option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option><option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option><option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option></select></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status"><option value="active">{{ ui_label('active', 'status', ui_lang) }}</option><option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option><option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option></select></label>
-      <label class="subscriber360-field-v108 full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control" name="notes" rows="3"></textarea></label>
-      <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button></div>
-    </form></div>
-    <div class="admin-card-v2 subscriber360-card-v108"><h3>{{ 'Quota summary' if is_en else 'ملخص الكوتا' }}</h3><div class="quota-list-v108">{% for row in quota_rows %}{% set pct = ((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0 %}<article class="quota-row-v108"><div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }}</small></div><span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span><div class="quota-meter-v108"><i style="width:{{ 100 if pct > 100 else pct }}%"></i></div><small>{{ row.used_value }} / {{ row.limit_value }}{% if row.notes %} · {{ row.notes }}{% endif %}</small></article>{% else %}<div class="empty-box-v2">{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</div>{% endfor %}</div></div>
+
+  <div class="quota-explainer-grid-v111">
+    <article><b>1</b><strong>{{ 'Choose the service' if is_en else 'اختر الخدمة' }}</strong><small>{{ 'SMS, devices, reports, support, API, storage, or custom.' if is_en else 'رسائل، أجهزة، تقارير، دعم، API، تخزين، أو كوتا مخصصة.' }}</small></article>
+    <article><b>2</b><strong>{{ 'Set the allowance' if is_en else 'حدد الحد' }}</strong><small>{{ 'The maximum the subscriber can use during the selected period.' if is_en else 'أقصى كمية يستطيع المشترك استخدامها خلال الفترة.' }}</small></article>
+    <article><b>3</b><strong>{{ 'Watch usage' if is_en else 'راقب الاستهلاك' }}</strong><small>{{ 'The summary shows used, remaining, and percentage clearly.' if is_en else 'الملخص يعرض المستخدم والمتبقي والنسبة بشكل واضح.' }}</small></article>
+  </div>
+
+  <div class="admin-layout-v2 two subscriber360-two-col-v108 quota-layout-v111">
+    <div class="admin-card-v2 subscriber360-card-v108 quota-form-card-v111">
+      <h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
+      <p class="quota-help-v111">{{ 'If the same quota already exists, this form updates it automatically.' if is_en else 'إذا كانت الكوتا موجودة مسبقًا سيتم تحديثها تلقائيًا بدل إنشاء بند مكرر.' }}</p>
+      <form method="post" class="quota-form-v111" id="quotaFormV111">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="quota_entry">
+
+        <label class="subscriber360-field-v108 full">
+          <span>{{ 'Quota type' if is_en else 'نوع الكوتا' }}</span>
+          <select class="form-control quota-preset-v111" name="quota_key_preset" id="quotaPresetV111">
+            {% for opt in quota_key_options %}
+            <option value="{{ opt.key }}" data-label="{{ opt.label_ar if not is_en else opt.label_en }}" data-limit="{{ opt.default_limit }}" data-period="{{ opt.reset_period }}" data-description="{{ opt.description_ar if not is_en else opt.description_en }}" data-unit="{{ opt.unit_ar if not is_en else opt.unit_en }}">{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+          <small id="quotaPresetHintV111">{{ quota_key_options[0].description if quota_key_options else '' }}</small>
+        </label>
+
+        <label class="subscriber360-field-v108 quota-custom-field-v111" id="quotaCustomWrapV111">
+          <span>{{ 'Custom key' if is_en else 'مفتاح مخصص' }}</span>
+          <input class="form-control ltr-field-v108" name="quota_key_custom" id="quotaCustomKeyV111" placeholder="custom_limit" pattern="[a-zA-Z0-9_\-]+">
+          <small>{{ 'English letters, numbers, underscore only.' if is_en else 'حروف إنجليزية وأرقام وشرطة سفلية فقط.' }}</small>
+        </label>
+
+        <label class="subscriber360-field-v108">
+          <span>{{ 'Display name' if is_en else 'الاسم الظاهر' }}</span>
+          <input class="form-control" name="quota_label" id="quotaLabelV111" placeholder="{{ 'Shown in summaries' if is_en else 'يظهر في الملخصات' }}">
+        </label>
+
+        <label class="subscriber360-field-v108">
+          <span>{{ 'Limit' if is_en else 'الحد' }}</span>
+          <input class="form-control" name="limit_value" id="quotaLimitV111" type="number" min="0" step="1" inputmode="numeric" required placeholder="50">
+          <small>{{ 'Example: 50 SMS per month.' if is_en else 'مثال: 50 رسالة شهريًا.' }}</small>
+        </label>
+
+        <label class="subscriber360-field-v108">
+          <span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span>
+          <select class="form-control" name="reset_period" id="quotaResetV111">
+            <option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option>
+            <option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option>
+            <option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option>
+            <option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option>
+          </select>
+          <small>{{ 'Manual means it does not reset automatically.' if is_en else 'يدوي يعني لا يتصفر تلقائيًا.' }}</small>
+        </label>
+
+        <label class="subscriber360-field-v108">
+          <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+          <select class="form-control" name="status">
+            <option value="active">{{ ui_label('active', 'status', ui_lang) }}</option>
+            <option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option>
+            <option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option>
+          </select>
+          <small>{{ 'Paused keeps the row but stops applying it.' if is_en else 'الإيقاف يبقي البند محفوظًا لكنه لا يطبقه.' }}</small>
+        </label>
+
+        <label class="subscriber360-field-v108 full">
+          <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+          <textarea class="form-control" name="notes" id="quotaNotesV111" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+        </label>
+
+        <div class="quota-preview-v111 full">
+          <strong>{{ 'Preview' if is_en else 'معاينة' }}</strong>
+          <span id="quotaPreviewV111">{{ 'Choose a quota and set the limit.' if is_en else 'اختر الكوتا وحدد الحد ليظهر الملخص.' }}</span>
+        </div>
+
+        <div class="subscriber360-actions-v108 full">
+          <button class="btn btn-solar">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-card-v2 subscriber360-card-v108 quota-summary-card-v111">
+      <div class="quota-card-head-v111">
+        <div><small>{{ 'Current quotas' if is_en else 'الكوتا الحالية' }}</small><h3>{{ 'Usage summary' if is_en else 'ملخص الاستخدام' }}</h3></div>
+      </div>
+      <div class="quota-list-v111">
+        {% for row in quota_rows %}
+        {% set pct = ((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0 %}
+        {% set remaining = (row.limit_value or 0) - (row.used_value or 0) %}
+        <article class="quota-row-v111 {{ 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') }}">
+          <div class="quota-row-top-v111">
+            <div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }}</small></div>
+            <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+          </div>
+          <div class="quota-stats-v111">
+            <span><b>{{ row.used_value|round(0) }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
+            <span><b>{{ row.limit_value|round(0) }}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
+            <span><b>{{ 0 if remaining < 0 else remaining|round(0) }}</b><small>{{ 'Remaining' if is_en else 'متبقي' }}</small></span>
+          </div>
+          <div class="quota-meter-v111"><i style="width:{{ 100 if pct > 100 else pct }}%"></i></div>
+          <div class="quota-row-foot-v111"><small>{{ pct|round(1) }}%</small>{% if row.notes %}<small>{{ row.notes }}</small>{% endif %}</div>
+        </article>
+        {% else %}
+        <div class="quota-empty-v111">
+          <strong>{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</strong>
+          <small>{{ 'Add the first quota from the form. Start with SMS or devices limit.' if is_en else 'أضف أول كوتا من النموذج. ابدأ بحد الرسائل أو حد الأجهزة.' }}</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </section>
+<script>
+(function(){
+  const preset = document.getElementById('quotaPresetV111');
+  const hint = document.getElementById('quotaPresetHintV111');
+  const label = document.getElementById('quotaLabelV111');
+  const limit = document.getElementById('quotaLimitV111');
+  const reset = document.getElementById('quotaResetV111');
+  const notes = document.getElementById('quotaNotesV111');
+  const preview = document.getElementById('quotaPreviewV111');
+  const customWrap = document.getElementById('quotaCustomWrapV111');
+  function syncQuotaPreset(){
+    if(!preset) return;
+    const opt = preset.options[preset.selectedIndex];
+    const isCustom = opt && opt.value === 'custom';
+    if(customWrap) customWrap.style.display = isCustom ? 'grid' : 'none';
+    if(hint) hint.textContent = opt?.dataset.description || '';
+    if(label && !label.value) label.value = opt?.dataset.label || '';
+    if(limit && (!limit.value || limit.value === '0')) limit.value = opt?.dataset.limit || '';
+    if(reset && opt?.dataset.period) reset.value = opt.dataset.period;
+    if(notes && !notes.value) notes.placeholder = opt?.dataset.description || notes.placeholder;
+    const unit = opt?.dataset.unit || '';
+    const limitText = limit?.value || opt?.dataset.limit || '0';
+    if(preview) preview.textContent = (label?.value || opt?.dataset.label || '') + ' — ' + limitText + ' ' + unit + ' / ' + (reset?.options[reset.selectedIndex]?.text || '');
+  }
+  ['change','input'].forEach(evt => { preset?.addEventListener(evt, syncQuotaPreset); label?.addEventListener(evt, syncQuotaPreset); limit?.addEventListener(evt, syncQuotaPreset); reset?.addEventListener(evt, syncQuotaPreset); });
+  syncQuotaPreset();
+})();
+</script>
 {% elif tab == 'devices' %}
 <section class="subscriber360-devices-v108">
   <div class="subscriber360-section-head-v108">
