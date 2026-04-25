@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 
 from .config import Config
 from .extensions import db
-from .models import AppDevice, AppUser, Setting, DeviceType, AppRole, PortalPageSetting
+from .models import AppDevice, AppUser, Setting, DeviceType, AppRole, PortalPageSetting, MobileRefreshToken, MobilePushToken
 from .services.subscriptions import seed_default_plans
 from .services.support_ops import seed_canned_replies, sync_existing_cases
 from .services.security import register_security
@@ -48,6 +48,17 @@ def create_app():
     from .blueprints.admin_ops import admin_ops_bp
     from .blueprints.access_control import access_control_bp
     from .blueprints.mobile_api import mobile_api_bp
+    from .blueprints.mobile_auth_api import mobile_auth_api_bp
+    from .blueprints.mobile_devices_api import mobile_devices_api_bp
+    from .blueprints.mobile_support_api import mobile_support_api_bp
+    from .blueprints.mobile_notifications_api import mobile_notifications_api_bp
+    from .blueprints.openapi_api import openapi_api_bp
+    from .blueprints.energy import energy_bp
+    from .blueprints.devices_routes import devices_bp
+    from .blueprints.support import support_bp
+    from .blueprints.billing import billing_bp
+    from .blueprints.notifications_routes import notifications_routes_bp
+    from .blueprints.users_routes import users_bp
     from .blueprints.main import main_bp
     from .blueprints.api_probe import probe_bp
 
@@ -57,8 +68,19 @@ def create_app():
     app.register_blueprint(admin_ops_bp)
     app.register_blueprint(access_control_bp)
     app.register_blueprint(mobile_api_bp)
+    app.register_blueprint(mobile_auth_api_bp)
+    app.register_blueprint(mobile_devices_api_bp)
+    app.register_blueprint(mobile_support_api_bp)
+    app.register_blueprint(mobile_notifications_api_bp)
+    app.register_blueprint(openapi_api_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(platform_bp)
+    app.register_blueprint(energy_bp)
+    app.register_blueprint(devices_bp)
+    app.register_blueprint(support_bp)
+    app.register_blueprint(billing_bp)
+    app.register_blueprint(notifications_routes_bp)
+    app.register_blueprint(users_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(probe_bp)
 
@@ -222,6 +244,8 @@ def _migrate_database():
         'canned_reply': {'title': 'VARCHAR(120)', 'body': 'TEXT', 'category': "VARCHAR(50) DEFAULT 'support'", 'is_active': 'BOOLEAN DEFAULT TRUE', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
         'app_role': {'code': 'VARCHAR(60)', 'name_ar': "VARCHAR(120) DEFAULT ''", 'name_en': "VARCHAR(120) DEFAULT ''", 'summary_ar': 'VARCHAR(255)', 'summary_en': 'VARCHAR(255)', 'permissions_json': 'TEXT', 'is_system': 'BOOLEAN DEFAULT FALSE', 'is_active': 'BOOLEAN DEFAULT TRUE', 'sort_order': 'INTEGER DEFAULT 100', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
         'portal_page_setting': {'page_key': 'VARCHAR(80)', 'endpoint': "VARCHAR(120) DEFAULT ''", 'label_ar': "VARCHAR(120) DEFAULT ''", 'label_en': "VARCHAR(120) DEFAULT ''", 'icon': "VARCHAR(20) DEFAULT '•'", 'group_key': "VARCHAR(40) DEFAULT 'portal'", 'is_visible': 'BOOLEAN DEFAULT TRUE', 'is_locked': 'BOOLEAN DEFAULT FALSE', 'sort_order': 'INTEGER DEFAULT 100', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
+        'mobile_refresh_token': {'user_id': 'INTEGER', 'token_hash': 'VARCHAR(128)', 'device_label': 'VARCHAR(160)', 'ip_address': 'VARCHAR(80)', 'user_agent': 'VARCHAR(255)', 'created_at': 'TIMESTAMP', 'last_used_at': 'TIMESTAMP', 'expires_at': 'TIMESTAMP', 'revoked_at': 'TIMESTAMP'},
+        'mobile_push_token': {'user_id': 'INTEGER', 'platform': "VARCHAR(30) DEFAULT 'android'", 'token': 'TEXT', 'token_hash': 'VARCHAR(128)', 'device_label': 'VARCHAR(160)', 'app_version': 'VARCHAR(60)', 'is_active': 'BOOLEAN DEFAULT TRUE', 'created_at': 'TIMESTAMP', 'last_seen_at': 'TIMESTAMP', 'revoked_at': 'TIMESTAMP'},
     }
 
 
@@ -244,6 +268,8 @@ def _migrate_database():
         """CREATE TABLE IF NOT EXISTS canned_reply (id INTEGER PRIMARY KEY, title VARCHAR(120) NOT NULL, body TEXT NOT NULL, category VARCHAR(50) DEFAULT 'support', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS app_role (id INTEGER PRIMARY KEY, code VARCHAR(60) UNIQUE NOT NULL, name_ar VARCHAR(120) DEFAULT '', name_en VARCHAR(120) DEFAULT '', summary_ar VARCHAR(255), summary_en VARCHAR(255), permissions_json TEXT, is_system BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS portal_page_setting (id INTEGER PRIMARY KEY, page_key VARCHAR(80) UNIQUE NOT NULL, endpoint VARCHAR(120) DEFAULT '', label_ar VARCHAR(120) DEFAULT '', label_en VARCHAR(120) DEFAULT '', icon VARCHAR(20) DEFAULT '•', group_key VARCHAR(40) DEFAULT 'portal', is_visible BOOLEAN DEFAULT TRUE, is_locked BOOLEAN DEFAULT FALSE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS mobile_refresh_token (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, token_hash VARCHAR(128) UNIQUE NOT NULL, device_label VARCHAR(160), ip_address VARCHAR(80), user_agent VARCHAR(255), created_at TIMESTAMP, last_used_at TIMESTAMP, expires_at TIMESTAMP, revoked_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS mobile_push_token (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, platform VARCHAR(30) DEFAULT 'android', token TEXT NOT NULL, token_hash VARCHAR(128) UNIQUE NOT NULL, device_label VARCHAR(160), app_version VARCHAR(60), is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, last_seen_at TIMESTAMP, revoked_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()
@@ -352,6 +378,8 @@ def _ensure_database_indexes():
             "CREATE INDEX IF NOT EXISTS ix_reading_user_created ON reading (user_id, created_at)",
             "CREATE INDEX IF NOT EXISTS ix_app_role_code_created ON app_role (code, created_at)",
             "CREATE INDEX IF NOT EXISTS ix_portal_page_setting_visible_order ON portal_page_setting (is_visible, sort_order)",
+            "CREATE INDEX IF NOT EXISTS ix_mobile_refresh_user_expires ON mobile_refresh_token (user_id, expires_at, revoked_at)",
+            "CREATE INDEX IF NOT EXISTS ix_mobile_push_user_active ON mobile_push_token (user_id, is_active, last_seen_at)",
         ]
         for ddl in index_statements:
             try:

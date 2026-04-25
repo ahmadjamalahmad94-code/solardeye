@@ -1856,7 +1856,7 @@ body.heavy-v90 .portal-support-mailbox-page-v63,body.heavy-v90 .mailbox-shell-v6
 @media(max-width:720px){.heavy-v90 .content-area{padding-inline:12px}.heavy-v90 .admin-table-v2 td,.heavy-v90 .admin-table-v2 th{max-width:240px}.heavy-v90 .btn{white-space:normal}.heavy-v90 .device-test-row-v90{align-items:flex-start;flex-direction:column}.heavy-v90 .subscriber-kpi-grid-v71,.heavy-v90 .integration-kpi-grid-v90{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.heavy-v90 *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heavy-v90 .btn:hover{transform:none}}
 
-/* Heavy v10.0 — global comfort, fixed navigation, stable cards, Android readiness */
+/* Heavy v10.1 — global comfort, fixed navigation, stable cards, Android readiness */
 :root{
   --ui-gap-xs:6px;--ui-gap-sm:10px;--ui-gap:16px;--ui-gap-lg:22px;--ui-gap-xl:30px;
   --ui-radius:22px;--ui-radius-lg:28px;--sidebar-w-v10:286px;

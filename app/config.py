@@ -34,6 +34,8 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
     WTF_CSRF_ENABLED = True
     CSRF_ENABLED = os.getenv('CSRF_ENABLED', 'true').lower() == 'true'
+    MOBILE_ACCESS_TOKEN_SECONDS = int(os.getenv('MOBILE_ACCESS_TOKEN_SECONDS', '900') or '900')
+    MOBILE_REFRESH_TOKEN_DAYS = int(os.getenv('MOBILE_REFRESH_TOKEN_DAYS', '30') or '30')
 
     # Production/dev-tools hardening
     APP_ENV = os.getenv('APP_ENV') or os.getenv('FLASK_ENV', 'production')

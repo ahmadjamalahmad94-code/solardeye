@@ -458,3 +458,34 @@ class AdminActivityLog(db.Model):
     summary = db.Column(db.String(255), nullable=False)
     details_json = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class MobileRefreshToken(db.Model):
+    __tablename__ = 'mobile_refresh_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False, index=True)
+    token_hash = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    device_label = db.Column(db.String(160), nullable=True)
+    ip_address = db.Column(db.String(80), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    last_used_at = db.Column(db.DateTime, nullable=True, index=True)
+    expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    revoked_at = db.Column(db.DateTime, nullable=True, index=True)
+
+
+class MobilePushToken(db.Model):
+    __tablename__ = 'mobile_push_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False, index=True)
+    platform = db.Column(db.String(30), nullable=False, default='android', index=True)
+    token = db.Column(db.Text, nullable=False)
+    token_hash = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    device_label = db.Column(db.String(160), nullable=True)
+    app_version = db.Column(db.String(60), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True, index=True)
+    revoked_at = db.Column(db.DateTime, nullable=True, index=True)

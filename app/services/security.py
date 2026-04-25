@@ -11,6 +11,7 @@ from flask import abort, current_app, jsonify, request, session
 CSRF_SESSION_KEY = '_csrf_token_v70'
 CSRF_EXEMPT_ENDPOINTS = {
     'main.telegram_webhook',
+    'notifications_routes.telegram_webhook',
     'main.telegram_multilink_webhook',
 }
 
@@ -105,6 +106,10 @@ def register_security(app):
         if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
             return None
         if request.endpoint in CSRF_EXEMPT_ENDPOINTS:
+            return None
+        # Mobile/API clients authenticate with bearer/refresh tokens instead of browser cookies.
+        # They are intentionally CSRF-exempt so Android can call JSON endpoints cleanly.
+        if (request.path or '').startswith('/api/v1/'):
             return None
         expected = session.get(CSRF_SESSION_KEY)
         supplied = _csrf_from_request()

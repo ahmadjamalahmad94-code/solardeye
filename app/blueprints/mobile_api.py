@@ -5,9 +5,11 @@ from flask import Blueprint, jsonify, request, session
 from ..models import NotificationEvent, Reading
 from ..services.energy_integrations import provider_catalog
 from ..services.rbac import portal_pages, portal_page_visible, role_label
-from ..services.scope import get_current_device, get_current_user, get_user_permissions
+from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
 from ..services.utils import format_local_datetime
+from ..services.mobile_auth import user_from_bearer_or_session
+from ..services.api_responses import api_error
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 
@@ -18,9 +20,10 @@ def _lang() -> str:
 
 
 def _require_login():
-    user = get_current_user()
-    if not session.get('logged_in') or not user:
-        return None, jsonify({'ok': False, 'message': 'Authentication required'}), 401
+    user = user_from_bearer_or_session()
+    if not user:
+        response, status = api_error('Authentication required.', code='auth_required', status=401)
+        return None, response, status
     return user, None, None
 
 
@@ -65,7 +68,7 @@ def bootstrap():
     providers = [{'code': p.code, 'name': p.name, 'auth_mode': p.auth_mode, 'category': p.category, 'status': p.status} for p in provider_catalog()]
     return jsonify({
         'ok': True,
-        'version': '10.0',
+        'version': '10.1',
         'csrf_token': csrf_token(),
         'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name, 'role': user.role, 'role_label': role_label(user.role, lang)},
         'permissions': get_user_permissions(user),
@@ -100,4 +103,4 @@ def notifications():
 
 @mobile_api_bp.get('/health')
 def health():
-    return jsonify({'ok': True, 'version': '10.0', 'message': 'SolarDeye mobile API is ready'})
+    return jsonify({'ok': True, 'version': '10.1', 'message': 'SolarDeye mobile API is ready'})

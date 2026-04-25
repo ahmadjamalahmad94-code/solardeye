@@ -87,3 +87,18 @@ AR_TO_EN.update({
     'لا توجد أجهزة للفحص بعد.': 'No devices to test yet.',
     'تم تشغيل الجدولة وتسجيل المهام.': 'Scheduler started and jobs are registered.',
 })
+
+# Heavy v10.1 additions — mobile API and blueprint split.
+AR_TO_EN.update({
+    '📱 توثيق تطبيق الموبايل': '📱 Mobile API Docs',
+    'تطبيق الموبايل': 'Mobile App',
+    'توثيق تطبيق الموبايل': 'Mobile API Docs',
+    'واجهة تطبيق الموبايل': 'Mobile API',
+    'تسجيل دخول الموبايل': 'Mobile login',
+    'رمز التحديث': 'Refresh token',
+    'قائمة الأجهزة': 'Device list',
+    'قراءات الجهاز': 'Device readings',
+    'حالات الدعم': 'Support cases',
+    'تسجيل رمز الإشعارات': 'Register push token',
+    'إلغاء رمز الإشعارات': 'Unregister push token',
+})

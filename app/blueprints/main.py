@@ -560,185 +560,12 @@ def _smart_load_suggestions(latest, settings=None):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@main_bp.route('/')
-def index():
-    if session.get('logged_in'):
-        user = _active_user()
-        if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
-            return redirect(url_for('main.admin_dashboard', lang=_lang()))
-        return redirect(url_for('main.dashboard', lang=_lang()))
-    return render_template('landing.html', ui_lang=_lang())
 
 
-@main_bp.route('/admin/dashboard')
-def admin_dashboard():
-    guard = _admin_guard()
-    if guard:
-        return guard
-    total_users = AppUser.query.filter_by(is_admin=False).count()
-    total_tenants = TenantAccount.query.count()
-    active_subs = TenantSubscription.query.filter(TenantSubscription.status.in_(['active', 'trial'])).count()
-    total_plans = SubscriptionPlan.query.filter_by(is_active=True).count()
-    total_devices = AppDevice.query.filter_by(is_active=True).count()
-    recent_subscribers = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).limit(8).all()
-    heartbeat_rows = ServiceHeartbeat.query.order_by(ServiceHeartbeat.updated_at.desc()).limit(6).all()
-    return render_template('admin_dashboard.html', total_users=total_users, total_tenants=total_tenants, active_subs=active_subs, total_plans=total_plans, total_devices=total_devices, recent_subscribers=recent_subscribers, heartbeat_rows=heartbeat_rows)
 
 
-@main_bp.route('/dashboard')
-def dashboard():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    from datetime import UTC, datetime, timedelta
-    from ..services.utils import utc_to_local
-    from zoneinfo import ZoneInfo
-    active_device = _active_device()
-    settings = _device_runtime_settings(active_device, allow_global_connection=False)
-    device_ready, device_ready_message = _device_sync_ready(active_device)
-    latest = _latest_reading() if device_ready else None
-    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(8).all() if active_device else []
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-
-    # اختيار اليوم من المعامل — افتراضياً اليوم الحالي
-    selected_day_str = request.args.get('day', '')
-    now_local = utc_to_local(datetime.now(UTC), tz_name) or datetime.now(UTC)
-    if selected_day_str:
-        try:
-            from datetime import date
-            sel = date.fromisoformat(selected_day_str)
-            day_local = datetime(sel.year, sel.month, sel.day, tzinfo=ZoneInfo(tz_name))
-        except Exception:
-            day_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        day_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    day_start_utc = day_local.astimezone(UTC).replace(tzinfo=None)
-    day_end_utc = (day_local + timedelta(days=1)).astimezone(UTC).replace(tzinfo=None)
-
-    # كل قراءات اليوم المختار
-    day_readings = (scoped_query(Reading)
-                    .filter(Reading.created_at >= day_start_utc, Reading.created_at < day_end_utc)
-                    .order_by(Reading.created_at.asc()).all())
-
-    # تصفية كل ساعة — نأخذ أقرب قراءة لكل ساعة
-    def _hourly_sample(rows):
-        if not rows: return []
-        buckets = {}
-        for r in rows:
-            local_t = utc_to_local(r.created_at, tz_name)
-            if local_t:
-                h = local_t.replace(minute=0, second=0, microsecond=0)
-                buckets[h] = r  # آخر قراءة في الساعة
-        return [v for _, v in sorted(buckets.items())]
-
-    readings_hourly = _hourly_sample(day_readings)
-    # احتياط: خذ آخر 24 قراءة فقط إذا كان الجهاز الحالي صالحًا وله قراءات داخل نطاقه
-    if not readings_hourly and active_device and device_ready:
-        readings_hourly = scoped_query(Reading).order_by(Reading.created_at.desc()).limit(24).all()[::-1]
-
-    labels = [format_time_short(r.created_at, tz_name) for r in readings_hourly]
-    solar_values = [r.solar_power for r in readings_hourly]
-    load_values = [r.home_load for r in readings_hourly]
-    battery_soc_values = [r.battery_soc for r in readings_hourly]
-    grid_values = [r.grid_power for r in readings_hourly]
-
-    # battery power للرسم البياني
-    battery_power_values = [r.battery_power for r in readings_hourly]
-
-    selected_day_label = day_local.strftime('%Y-%m-%d')
-
-    flow = build_flow(latest)
-    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
-    battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
-    system_status = build_system_status(latest, battery_insights)
-    system_state = system_status['title']
-    battery_details = build_battery_details(latest)
-    weather = get_weather_for_latest(latest)
-    weather_insight = build_weather_insight(weather, battery_insights)
-    solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
-    smart_overview = get_latest_historical_overview(latest, weather=weather, settings=settings, context='dashboard')
-
-    production_summary = get_production_summary(tz_name)
-    smart_loads = _smart_load_suggestions(latest)
-    actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
-    recent_events = get_recent_event_logs(8)
-
-    return render_template(
-        'dashboard.html',
-        latest=latest, settings=settings, labels=labels,
-        solar_values=solar_values, load_values=load_values,
-        battery_soc_values=battery_soc_values, grid_values=grid_values,
-        battery_power_values=battery_power_values,
-        selected_day_label=selected_day_label,
-        logs=logs, flow=flow, battery_insights=battery_insights,
-        battery_details=battery_details, battery_capacity_kwh=battery_capacity_kwh,
-        battery_reserve_percent=battery_reserve_percent, system_state=system_state, system_status=system_status,
-        weather=weather, weather_insight=weather_insight, solar_prediction=solar_prediction, smart_overview=smart_overview,
-        production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events,
-        human_duration_hours=human_duration_hours, format_energy=format_energy,
-        format_power=format_power, _to_12h_label=_to_12h_label,
-        format_local=lambda dt: format_local_datetime(dt, tz_name),
-        ui_lang=_lang(), active_device=active_device,
-        device_ready=device_ready, device_ready_message=device_ready_message,
-    )
 
 
-@main_bp.route('/api/live')
-def api_live():
-    device = _active_device()
-    ready, _ = _device_sync_ready(device)
-    latest = _latest_reading() if ready else None
-    if not latest:
-        return {'ok': False, 'empty': True}
-    weather = get_weather_for_latest(latest)
-    settings = load_settings()
-    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
-    battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
-    system_status = build_system_status(latest, battery_insights)
-    system_state = system_status['title']
-    solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
-    actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    return {
-        'ok': True,
-        'latest': {
-            'solar_power': latest.solar_power, 'home_load': latest.home_load,
-            'battery_soc': latest.battery_soc, 'grid_power': latest.grid_power,
-            'daily_production': latest.daily_production, 'total_production': latest.total_production,
-            'status_text': latest.status_text,
-            'created_at': format_local_datetime(latest.created_at, tz_name),
-            'pv1_power': latest.pv1_power,
-            'pv2_power': latest.pv2_power,
-            'inverter_temp': latest.inverter_temp,
-            'grid_voltage': latest.grid_voltage,
-            'grid_frequency': latest.grid_frequency,
-        },
-        'battery': battery_insights,
-        'system_state': system_state,
-        'system_status': system_status,
-        'weather': None if not weather else {
-            'icon': weather.icon, 'condition_ar': weather.condition_ar,
-            'temperature': weather.temperature, 'cloud_cover': weather.cloud_cover,
-            'next_hour': weather.next_hour, 'morning': weather.morning,
-            'noon': weather.noon, 'afternoon': weather.afternoon, 'timeline': weather.timeline,
-            'sunset_time': weather.sunset_time, 'effective_sunset_time': weather.effective_sunset_time,
-        },
-        'actual_surplus': actual_surplus,
-        'solar_prediction': None if not solar_prediction else {
-            'sunset_time': _to_12h_label(solar_prediction.get('sunset_time')),
-            'effective_sunset_time': _to_12h_label(solar_prediction.get('effective_sunset_time')),
-            'remaining_hours_text': solar_prediction.get('remaining_label'),
-            'time_to_full_text': human_duration_hours(solar_prediction.get('time_to_full_hours')),
-            'verdict': solar_prediction.get('verdict'),
-            'will_full_before_sunset': solar_prediction.get('will_full_before_sunset'),
-            'advice': solar_prediction.get('advice'),
-            'weather_advice': solar_prediction.get('weather_advice'),
-        },
-    }
 
 
 def _get_stats_context(request_args, tz_name):
@@ -780,453 +607,16 @@ def _get_stats_context(request_args, tz_name):
     return selected_view, selected_date, filtered_rows, title_hint, prev_date, next_date, can_go_next
 
 
-@main_bp.route('/statistics')
-def statistics():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    selected_view, selected_date, filtered_rows, title_hint, prev_date, next_date, can_go_next = _get_stats_context(request.args, tz_name)
-    stats = compute_energy_stats(filtered_rows)
-    chart = build_period_chart(filtered_rows, tz_name, selected_view)
-    table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-    summary_chart = build_summary_chart(table_rows)
-    return render_template(
-        'statistics.html',
-        selected_view=selected_view, selected_date=selected_date, title_hint=title_hint,
-        stats=stats, chart=chart, table_rows=table_rows, summary_chart=summary_chart,
-        prev_date=prev_date, next_date=next_date, can_go_next=can_go_next,
-        format_energy=format_energy, format_power=format_power,
-        format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang(),
-    )
 
 
-@main_bp.route('/reports')
-def reports():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    selected_view, selected_date, filtered_rows, title_hint, prev_date, next_date, can_go_next = _get_stats_context(request.args, tz_name)
-    stats = compute_energy_stats(filtered_rows)
-    chart = build_period_chart(filtered_rows, tz_name, selected_view)
-    table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-    latest = _latest_reading()
-    weather = get_weather_for_latest(latest)
-
-    home = max(stats['home_consumed_kwh'], 0.01)
-    # Total energy that fed the home: solar direct + battery discharge
-    solar_to_home  = stats['solar_to_home_kwh']
-    battery_to_home = stats['battery_to_home_kwh']
-    grid_to_home   = stats['grid_to_home_kwh']
-    total_supplied = solar_to_home + battery_to_home + grid_to_home
-    total_supplied = max(total_supplied, 0.01)
-
-    # Shares as % of what actually fed the home (not of consumption which may differ due to measurement)
-    solar_share      = round(min((solar_to_home  / total_supplied) * 100, 100), 1)
-    battery_share    = round(min((battery_to_home / total_supplied) * 100, 100), 1)
-    grid_share       = round(min((grid_to_home   / total_supplied) * 100, 100), 1)
-    # Self-sufficiency = % of home energy NOT from grid
-    self_sufficiency = round(max(0.0, 100.0 - grid_share), 1)
-    avg_load = round((stats['home_consumed_kwh'] / max(len(filtered_rows), 1)) * 1000, 1) if filtered_rows else 0.0
-    solar_surplus = round(max(stats['solar_generated_kwh'] - stats['solar_to_home_kwh'], 0.0), 2)
-
-    smart_loads = _smart_load_suggestions(latest)
-    return render_template(
-        'reports.html',
-        selected_view=selected_view, selected_date=selected_date, title_hint=title_hint,
-        stats=stats, chart=chart, table_rows=table_rows,
-        prev_date=prev_date, next_date=next_date, can_go_next=can_go_next,
-        latest=latest, weather=weather,
-        solar_share=solar_share, battery_share=battery_share, grid_share=grid_share,
-        self_sufficiency=self_sufficiency, avg_load=avg_load, solar_surplus=solar_surplus,
-        smart_loads=smart_loads,
-        format_energy=format_energy, format_power=format_power,
-        format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang(),
-    )
 
 
-@main_bp.route('/statistics/export/csv')
-def export_statistics_csv():
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    selected_view, selected_date, filtered_rows, title_hint, *_ = _get_stats_context(request.args, tz_name)
-    stats = compute_energy_stats(filtered_rows)
-    table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-
-    sio = io.StringIO()
-    writer = csv.writer(sio)
-    writer.writerow(['النطاق', title_hint])
-    writer.writerow([])
-    writer.writerow(['المؤشر', 'القيمة'])
-    for label, key in [
-        ('إنتاج الشمس kWh', 'solar_generated_kwh'), ('استهلاك المنزل kWh', 'home_consumed_kwh'),
-        ('من الشمس إلى البيت kWh', 'solar_to_home_kwh'), ('من الشمس إلى البطارية kWh', 'solar_to_battery_kwh'),
-        ('من البطارية إلى البيت kWh', 'battery_to_home_kwh'), ('من الشبكة إلى البيت kWh', 'grid_to_home_kwh'),
-        ('متوسط البطارية %', 'avg_battery_soc'), ('أعلى إنتاج لحظي W', 'max_solar_w'),
-    ]:
-        writer.writerow([label, stats[key]])
-    writer.writerow([])
-    writer.writerow(['الفترة', 'شمس kWh', 'منزل kWh', 'شمس→بيت', 'شمس→بطارية', 'بطارية→بيت', 'شبكة→بيت', 'متوسط SOC'])
-    for row in table_rows:
-        writer.writerow([row['label'], row['solar_generated_kwh'], row['home_consumed_kwh'],
-                         row['solar_to_home_kwh'], row['solar_to_battery_kwh'],
-                         row['battery_to_home_kwh'], row['grid_to_home_kwh'], row['avg_battery_soc']])
-    output = sio.getvalue().encode('utf-8-sig')
-    filename = f"statistics_{selected_view}_{selected_date.strftime('%Y-%m-%d')}.csv"
-    return Response(output, mimetype='text/csv; charset=utf-8', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 
-@main_bp.route('/statistics/export/pdf')
-def export_statistics_pdf():
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    selected_view, selected_date, filtered_rows, title_hint, *_ = _get_stats_context(request.args, tz_name)
-    stats = compute_energy_stats(filtered_rows)
-    table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
-
-    def ar(text):
-        try:
-            return get_display(arabic_reshaper.reshape(str(text)))
-        except Exception:
-            return str(text)
-
-    def _register_pdf_fonts():
-        from pathlib import Path
-        base_dir = Path(current_app.root_path)
-        candidates = [
-            (
-                'NotoArabic',
-                'NotoArabicBold',
-                base_dir / 'static' / 'fonts' / 'NotoSansArabic-Regular.ttf',
-                base_dir / 'static' / 'fonts' / 'NotoSansArabic-Bold.ttf',
-            ),
-            (
-                'NotoArabic',
-                'NotoArabicBold',
-                Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf'),
-                Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf'),
-            ),
-            (
-                'Amiri',
-                'AmiriBold',
-                Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Regular.ttf'),
-                Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Bold.ttf'),
-            ),
-        ]
-        for regular_name, bold_name, regular_path, bold_path in candidates:
-            try:
-                if regular_path.exists() and bold_path.exists():
-                    try:
-                        pdfmetrics.getFont(regular_name)
-                    except Exception:
-                        pdfmetrics.registerFont(TTFont(regular_name, str(regular_path)))
-                    try:
-                        pdfmetrics.getFont(bold_name)
-                    except Exception:
-                        pdfmetrics.registerFont(TTFont(bold_name, str(bold_path)))
-                    return regular_name, bold_name
-            except Exception:
-                continue
-        return 'Helvetica', 'Helvetica-Bold'
-
-    font_name, font_bold = _register_pdf_fonts()
-
-    def fmt_energy_plain(v):
-        try:
-            v = float(v or 0)
-        except Exception:
-            v = 0.0
-        if abs(v) >= 1000:
-            return f"{v/1000:.2f} MWh"
-        return f"{v:.2f} kWh"
-
-    def fmt_percent_plain(v):
-        try:
-            return f"{float(v or 0):.1f}%"
-        except Exception:
-            return "0.0%"
-
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf,
-        pagesize=A4,
-        rightMargin=1.4 * cm,
-        leftMargin=1.4 * cm,
-        topMargin=1.2 * cm,
-        bottomMargin=1.2 * cm,
-        title='تقرير منصة الطاقة الشمسية',
-    )
-    width, height = A4
-    content_width = width - doc.leftMargin - doc.rightMargin
-
-    base_styles = getSampleStyleSheet()
-    styles = {
-        'title': ParagraphStyle(
-            'ArabicTitle',
-            parent=base_styles['Title'],
-            fontName=font_bold,
-            fontSize=24,
-            leading=30,
-            textColor=colors.HexColor('#14284b'),
-            alignment=1,
-            spaceAfter=4,
-        ),
-        'subtitle': ParagraphStyle(
-            'ArabicSubtitle',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11,
-            leading=16,
-            textColor=colors.HexColor('#62748b'),
-            alignment=1,
-            spaceAfter=12,
-        ),
-        'section': ParagraphStyle(
-            'ArabicSection',
-            parent=base_styles['Heading2'],
-            fontName=font_bold,
-            fontSize=16,
-            leading=22,
-            textColor=colors.HexColor('#14284b'),
-            alignment=2,
-            spaceAfter=8,
-        ),
-        'body': ParagraphStyle(
-            'ArabicBody',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11.5,
-            leading=18,
-            textColor=colors.HexColor('#22324d'),
-            alignment=2,
-        ),
-        'body_bold': ParagraphStyle(
-            'ArabicBodyBold',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=11.5,
-            leading=18,
-            textColor=colors.HexColor('#14284b'),
-            alignment=2,
-        ),
-        'card_title': ParagraphStyle(
-            'CardTitle',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor('#5b6b84'),
-            alignment=1,
-        ),
-        'card_value': ParagraphStyle(
-            'CardValue',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=20,
-            leading=24,
-            textColor=colors.HexColor('#14284b'),
-            alignment=1,
-        ),
-        'card_hint': ParagraphStyle(
-            'CardHint',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=8.5,
-            leading=10,
-            textColor=colors.HexColor('#8a97ab'),
-            alignment=1,
-        ),
-        'table_header': ParagraphStyle(
-            'TableHeader',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=9.2,
-            leading=12,
-            textColor=colors.HexColor('#173057'),
-            alignment=1,
-        ),
-        'table_cell': ParagraphStyle(
-            'TableCell',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=9.4,
-            leading=12,
-            textColor=colors.HexColor('#26354d'),
-            alignment=1,
-        ),
-    }
-
-    def P(text, style='body'):
-        return Paragraph(ar(text), styles[style])
-
-    def metric_card(title, value, hint='', bg='#f3f7fd', accent='#8ab4f8'):
-        card = Table(
-            [[P(title, 'card_title')], [P(value, 'card_value')], [P(hint or ' ', 'card_hint')]],
-            colWidths=[4.35 * cm],
-            rowHeights=[0.7 * cm, 0.95 * cm, 0.45 * cm],
-        )
-        card.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(bg)),
-            ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor(accent)),
-            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#d7e3f4')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('ROUNDEDCORNERS', [12, 12, 12, 12]),
-        ]))
-        return card
-
-    story = []
-    story.append(P('تقرير منصة الطاقة الشمسية', 'title'))
-    story.append(P(f'التاريخ: {selected_date.strftime("%Y-%m-%d")}   •   الفترة: {title_hint}', 'subtitle'))
-
-    cards = [
-        metric_card('إنتاج الشمس', fmt_energy_plain(stats['solar_generated_kwh']), 'إجمالي التوليد خلال الفترة', '#eef6ff', '#f59e0b'),
-        metric_card('استهلاك المنزل', fmt_energy_plain(stats['home_consumed_kwh']), 'إجمالي الاستهلاك خلال الفترة', '#fdf2f8', '#ec4899'),
-        metric_card('شحن البطارية من الشمس', fmt_energy_plain(stats['solar_to_battery_kwh']), 'الطاقة المخزنة في البطارية', '#effaf6', '#10b981'),
-        metric_card('متوسط البطارية', fmt_percent_plain(stats['avg_battery_soc']), 'متوسط نسبة الشحن', '#f5f3ff', '#8b5cf6'),
-    ]
-    cards_table = Table([cards], colWidths=[4.35 * cm] * 4, hAlign='CENTER')
-    cards_table.setStyle(TableStyle([
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    story.append(cards_table)
-    story.append(Spacer(1, 0.45 * cm))
-
-    summary_items = [
-        f"• من الشمس إلى البيت: {fmt_energy_plain(stats['solar_to_home_kwh'])}",
-        f"• من الشبكة إلى البيت: {fmt_energy_plain(stats['grid_to_home_kwh'])}",
-        f"• من البطارية إلى البيت: {fmt_energy_plain(stats['battery_to_home_kwh'])}",
-        f"• أعلى إنتاج لحظي: {format_power(stats['max_solar_w'])} واط",
-    ]
-    summary_rows = [[P('ملخص الفترة', 'section')]] + [[P(item, 'body')] for item in summary_items]
-    summary_block = Table(summary_rows, colWidths=[content_width])
-    summary_block.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('BOX', (0, 0), (-1, -1), 0.7, colors.HexColor('#d9e4f2')),
-        ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor('#c7d8ee')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 16),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 16),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('ROUNDEDCORNERS', [12, 12, 12, 12]),
-    ]))
-    story.append(summary_block)
-    story.append(Spacer(1, 0.4 * cm))
-
-    story.append(P('الجدول التحليلي', 'section'))
-
-    headers = ['SOC', 'شبكة ← بيت', 'بطارية ← بيت', 'شمس ← بطارية', 'شمس ← بيت', 'المنزل', 'الشمس', 'الفترة']
-    table_data = [[P(h, 'table_header') for h in headers]]
-    for row in table_rows[:24]:
-        table_data.append([
-            P(f"{row['avg_battery_soc']}%", 'table_cell'),
-            P(f"{float(row['grid_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['battery_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_to_battery_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['home_consumed_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_generated_kwh'] or 0):.2f}", 'table_cell'),
-            P(str(row['label']), 'table_cell'),
-        ])
-
-    analytic_table = Table(
-        table_data,
-        colWidths=[1.7 * cm, 2.15 * cm, 2.15 * cm, 2.15 * cm, 2.15 * cm, 1.85 * cm, 1.85 * cm, 2.35 * cm],
-        repeatRows=1,
-        hAlign='CENTER',
-    )
-    analytic_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e9f1fb')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#173057')),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fbff')]),
-        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#d3deed')),
-        ('INNERGRID', (0, 0), (-1, -1), 0.45, colors.HexColor('#dce5f2')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('ROUNDEDCORNERS', [10, 10, 10, 10]),
-    ]))
-    story.append(analytic_table)
-
-    def _paint_page(canv, _doc):
-        canv.saveState()
-        canv.setFillColor(colors.HexColor('#f8fbff'))
-        canv.rect(0, 0, width, height, stroke=0, fill=1)
-        canv.setFillColor(colors.HexColor('#dbe8f7'))
-        canv.roundRect(doc.leftMargin, height - 1.0 * cm, content_width, 0.08 * cm, 0.04 * cm, stroke=0, fill=1)
-        canv.setStrokeColor(colors.HexColor('#e6eef9'))
-        canv.setLineWidth(0.8)
-        canv.line(doc.leftMargin, 1.0 * cm, width - doc.rightMargin, 1.0 * cm)
-        canv.setFont(font_name, 8)
-        canv.setFillColor(colors.HexColor('#7b8aa4'))
-        footer = ar('منصة الطاقة الشمسية • تقرير تحليلي')
-        canv.drawRightString(width - doc.rightMargin, 0.62 * cm, footer)
-        canv.restoreState()
-
-    doc.build(story, onFirstPage=_paint_page, onLaterPages=_paint_page)
-    buf.seek(0)
-    filename = f"taqrir_{selected_view}_{selected_date.strftime('%Y-%m-%d')}.pdf"
-    return Response(buf.getvalue(), mimetype='application/pdf', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 
-@main_bp.route('/deye', methods=['GET', 'POST'])
-def deye_settings():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    device = _active_device()
-    if device is None:
-        flash('لا يوجد جهاز مربوط بهذا الحساب بعد. أضف جهازك أولًا.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-    settings = _device_runtime_settings(device, allow_global_connection=False)
-    ready, ready_message = _device_sync_ready(device)
-    if request.method == 'POST':
-        _save_deye_settings_to_device(device, request.form)
-        db.session.commit()
-        flash('تم حفظ إعدادات الربط لهذا الجهاز.', 'success')
-        return redirect(url_for('main.deye_settings', lang=_lang()))
-    return render_template('deye_settings.html', settings=settings, current_device=device, device_ready=ready, device_ready_message=ready_message, ui_lang=_lang())
 
 
-@main_bp.route('/test-connection', methods=['POST'])
-def test_connection():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    device = _active_device()
-    ready, ready_message = _device_sync_ready(device)
-    if not ready:
-        flash(ready_message, 'warning')
-        return redirect(url_for('main.deye_settings', lang=_lang()))
-    client = DeyeClient(_device_runtime_settings(device, allow_global_connection=False))
-    try:
-        token = client.obtain_token()
-        account = client.account_info(token)
-        stations = client.station_list(token)
-        log_event('success', 'تم اختبار الاتصال مع Deye بنجاح', {'account': account, 'stations_count': len(stations)})
-        flash(f'تم الاتصال بنجاح. عدد المحطات: {len(stations)}', 'success')
-    except Exception as exc:
-        log_event('danger', f'فشل اختبار الاتصال: {exc}')
-        flash(f'فشل اختبار الاتصال: {exc}', 'danger')
-    return redirect(url_for('main.deye_settings', lang=_lang()))
 
 
 def sync_now_internal(trigger='manual'):
@@ -1329,113 +719,10 @@ def sync_now_internal(trigger='manual'):
     return reading
 
 
-@main_bp.route('/sync-now', methods=['POST'])
-def sync_now():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    try:
-        sync_now_internal(trigger='manual')
-        flash('تمت المزامنة وجلب البيانات بنجاح', 'success')
-    except ValueError as exc:
-        flash(str(exc), 'warning')
-    except Exception as exc:
-        log_event('danger', f'فشلت المزامنة: {exc}')
-        flash(f'فشلت المزامنة: {exc}', 'danger')
-    return redirect(url_for('main.dashboard', lang=_lang()))
 
 
-@main_bp.route('/diagnostics')
-def diagnostics():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    latest = _latest_reading()
-    raw_data = {}
-    raw_text = '{}'
-    if latest and latest.raw_json:
-        try:
-            raw_data = json.loads(latest.raw_json)
-            raw_text = to_json(raw_data)
-        except Exception:
-            raw_data = {'raw_text': latest.raw_json}
-            raw_text = latest.raw_json
-    raw_data = sanitize_response_payload(raw_data)
-    return render_template('diagnostics.html', latest=latest, raw_data=raw_data, raw_text=raw_text, debug_tools_enabled=current_app.config.get('DEBUG_TOOLS_ENABLED') and is_system_admin(),
-                           format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']), ui_lang=_lang())
 
 
-@main_bp.route('/live-data')
-def live_data():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    from datetime import UTC, datetime, timedelta
-    from ..services.utils import utc_to_local
-    latest = _latest_reading()
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    settings = load_settings()
-
-    # استخراج device_data من raw_json
-    d = {}
-    if latest and latest.raw_json:
-        try:
-            raw = json.loads(latest.raw_json)
-            d = raw.get('device_data') or {}
-        except Exception:
-            pass
-
-    # حساب الاستهلاك اليومي من القراءات المحلية — آخر 30 يوم
-    daily_consumption_history = []
-    try:
-        now_local = utc_to_local(datetime.now(UTC), tz_name)
-        for days_ago in range(0, 30):
-            day = (now_local - timedelta(days=days_ago)).replace(
-                hour=0, minute=0, second=0, microsecond=0)
-            day_end = day + timedelta(days=1)
-            # تحويل للـ UTC
-            from zoneinfo import ZoneInfo
-            day_utc = day.replace(tzinfo=ZoneInfo(tz_name)).astimezone(UTC).replace(tzinfo=None)
-            day_end_utc = day_end.replace(tzinfo=ZoneInfo(tz_name)).astimezone(UTC).replace(tzinfo=None)
-            rows = (scoped_query(Reading)
-                    .filter(Reading.created_at >= day_utc, Reading.created_at < day_end_utc)
-                    .order_by(Reading.created_at.asc()).all())
-            if not rows:
-                continue
-            # استخدام القيم اليومية من أحدث قراءة في اليوم (من device/latest مباشرة)
-            last_row = rows[-1]
-            last_d = {}
-            if last_row.raw_json:
-                try:
-                    last_d = json.loads(last_row.raw_json).get('device_data') or {}
-                except Exception:
-                    pass
-            prod = last_d.get('dailyProductionActive') or 0
-            cons = last_d.get('dailyConsumption') or 0
-            chg  = last_d.get('dailyChargingEnergy') or 0
-            dis  = last_d.get('dailyDischargingEnergy') or 0
-            daily_consumption_history.append({
-                'date': day.strftime('%Y-%m-%d'),
-                'production': format_energy(float(prod)),
-                'consumption': format_energy(float(cons)),
-                'charging': format_energy(float(chg)),
-                'discharging': format_energy(float(dis)),
-            })
-    except Exception:
-        daily_consumption_history = []
-
-    return render_template('live_data.html',
-                           latest=latest, d=d, settings=settings,
-                           daily_consumption_history=daily_consumption_history,
-                           format_energy=format_energy,
-                           format_power=format_power,
-                           format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
 
@@ -1527,454 +814,20 @@ def _admin_user_payload(user: AppUser):
     }
 
 
-@main_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
-def admin_user_profile(user_id: int):
-    requested_tab = (request.args.get('tab') or 'profile').strip()
-    guard = _admin_guard('can_manage_support' if requested_tab == 'support' else 'can_manage_users')
-    if guard:
-        return guard
-    user = AppUser.query.filter_by(id=user_id).first_or_404()
-    actor = _active_user()
-    tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(actor, 'id', None))
-
-    if request.method == 'POST':
-        action = (request.form.get('action') or '').strip()
-        if action == 'save_profile':
-            username = (request.form.get('username') or user.username or '').strip()
-            other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
-            if other:
-                flash('اسم المستخدم مستخدم من قبل.', 'danger')
-            else:
-                user.username = username
-                user.full_name = (request.form.get('full_name') or '').strip()
-                user.email = (request.form.get('email') or '').strip()
-                user.is_active = request.form.get('is_active') == 'on'
-                role = (request.form.get('role') or user.role or 'user').strip().lower()
-                user.role = role or 'user'
-                user.is_admin = (user.role != 'user')
-                if request.form.get('password'):
-                    user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
-                db.session.commit()
-                _admin_write_log('user.profile', f'Updated profile for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'tenant_id': tenant.id})
-                flash('تم تحديث البيانات الشخصية.', 'success')
-        elif action == 'save_subscription':
-            plan_id = int(request.form.get('plan_id') or 0) or None
-            sub_status = (request.form.get('subscription_status') or getattr(subscription, 'status', 'trial')).strip()
-            tenant.status = (request.form.get('tenant_status') or tenant.status or 'trial').strip()
-            tenant.max_devices_override = int(request.form.get('max_devices_override') or 0) or None
-            if plan_id:
-                tenant.plan_id = plan_id
-                if subscription:
-                    subscription.plan_id = plan_id
-            if subscription:
-                subscription.status = sub_status
-                subscription.starts_at = _parse_dt_local(request.form.get('starts_at')) or subscription.starts_at
-                subscription.ends_at = _parse_dt_local(request.form.get('ends_at')) or subscription.ends_at
-                subscription.trial_ends_at = _parse_dt_local(request.form.get('trial_ends_at')) or subscription.trial_ends_at
-                subscription.notes = (request.form.get('subscription_notes') or subscription.notes or '').strip() or None
-            db.session.commit()
-            _admin_write_log('subscription.profile', f'Updated subscription for tenant #{tenant.id}', 'tenant_subscription', getattr(subscription, 'id', None), {'tenant_id': tenant.id, 'user_id': user.id})
-            flash('تم تحديث بيانات الاشتراك.', 'success')
-        elif action == 'finance_entry':
-            amount = float(request.form.get('amount') or 0)
-            if amount:
-                entry = WalletLedger(tenant_id=tenant.id, actor_user_id=getattr(actor, 'id', None), entry_type=(request.form.get('entry_type') or 'credit').strip(), amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip() or None, reference=(request.form.get('reference') or '').strip() or None)
-                db.session.add(entry)
-                db.session.commit()
-                _admin_write_log('finance.profile', f'Added finance entry for tenant #{tenant.id}', 'wallet_ledger', entry.id, {'tenant_id': tenant.id, 'user_id': user.id, 'entry_type': entry.entry_type})
-                flash('تمت إضافة حركة مالية للمشترك.', 'success')
-        elif action == 'quota_entry':
-            quota_id = int(request.form.get('quota_id') or 0)
-            if quota_id:
-                quota = TenantQuota.query.get(quota_id)
-                if quota and quota.tenant_id == tenant.id:
-                    quota.limit_value = float(request.form.get('limit_value') or quota.limit_value or 0)
-                    quota.used_value = float(request.form.get('used_value') or quota.used_value or 0)
-                    quota.status = (request.form.get('status') or quota.status).strip()
-                    quota.reset_period = (request.form.get('reset_period') or quota.reset_period).strip()
-                    quota.notes = (request.form.get('notes') or quota.notes or '').strip() or None
-                    db.session.commit()
-                    _admin_write_log('quota.profile.update', f'Updated quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id})
-                    flash('تم تحديث الكوتا.', 'success')
-            else:
-                quota_key = (request.form.get('quota_key') or '').strip()
-                if quota_key:
-                    quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key, quota_label=(request.form.get('quota_label') or quota_key).strip(), limit_value=float(request.form.get('limit_value') or 0), used_value=float(request.form.get('used_value') or 0), reset_period=(request.form.get('reset_period') or 'manual').strip(), status=(request.form.get('status') or 'active').strip(), notes=(request.form.get('notes') or '').strip() or None)
-                    db.session.add(quota)
-                    db.session.commit()
-                    _admin_write_log('quota.profile.create', f'Created quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': quota.quota_key})
-                    flash('تمت إضافة كوتا جديدة.', 'success')
-        elif action == 'mail_reply':
-            thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
-            body = (request.form.get('body') or '').strip()
-            belongs_to_user = bool(thread and (
-                (getattr(thread, 'tenant_id', None) and thread.tenant_id == tenant.id) or
-                getattr(thread, 'created_by_user_id', None) == user.id
-            ))
-            if thread and belongs_to_user:
-                if not thread.tenant_id:
-                    thread.tenant_id = tenant.id
-                if not thread.created_by_user_id:
-                    thread.created_by_user_id = user.id
-                old_status = (thread.status or 'open').strip()
-                new_status = (request.form.get('status') or old_status or 'open').strip()
-                if old_status in ('closed', 'resolved'):
-                    flash('هذه المحادثة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
-                old_assignee_id = thread.assigned_admin_user_id
-                assignment_only = bool(request.form.get('assignment_only'))
-                requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
-                if assignment_only and not requested_assignee_id:
-                    flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
-                final_assignee_id = requested_assignee_id or thread.assigned_admin_user_id or getattr(actor, 'id', None)
-                thread_messages = InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
-                assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
-                if body and not assignment_only:
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                if assignment_only:
-                    if final_assignee_id and (old_assignee_id != final_assignee_id or not _support_has_assignment_notice_for(thread_messages, assigned_admin)):
-                        db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
-                        flash('تم اعتماد المدير المسؤول وإشعار المشترك.', 'success')
-                    elif final_assignee_id:
-                        flash('هذا المدير معتمد مسبقًا لهذه المحادثة.', 'info')
-                elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(thread_messages):
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
-                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
-                thread.status = new_status
-                thread.assigned_admin_user_id = final_assignee_id
-                thread.last_reply_at = datetime.utcnow()
-                thread.updated_at = datetime.utcnow()
-                upsert_support_case('message', thread, None if (bool(request.form.get('is_internal_note')) and body) else 'admin')
-                notify_user(user.id, source_type='message', source_id=thread.id, tenant_id=thread.tenant_id, title='تحديث على رسالة الدعم', message=thread.subject, direct_url=portal_case_url('message', thread.id, _lang()))
-                audit_case('message', thread.id, getattr(actor, 'id', None), 'message.admin_update', 'Admin updated support message', {'status': thread.status}, commit=False)
-                db.session.commit()
-                _admin_write_log('mail.profile.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': thread.status})
-                flash('تم إرسال الرد وتحديث المحادثة.', 'success')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-mail-{thread.id}')
-            flash('تعذر إرسال الرد: المحادثة غير مرتبطة بهذا المشترك.', 'danger')
-            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
-        elif action == 'ticket_reply':
-            ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
-            body = (request.form.get('body') or '').strip()
-            belongs_to_user = bool(ticket and (
-                (getattr(ticket, 'tenant_id', None) and ticket.tenant_id == tenant.id) or
-                getattr(ticket, 'opened_by_user_id', None) == user.id
-            ))
-            if ticket and belongs_to_user:
-                if not ticket.tenant_id:
-                    ticket.tenant_id = tenant.id
-                if not ticket.opened_by_user_id:
-                    ticket.opened_by_user_id = user.id
-                old_status = (ticket.status or 'open').strip()
-                new_status = (request.form.get('status') or old_status or 'open').strip()
-                if old_status in ('closed', 'resolved'):
-                    flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
-                old_assignee_id = ticket.assigned_admin_user_id
-                assignment_only = bool(request.form.get('assignment_only'))
-                requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
-                if assignment_only and not requested_assignee_id:
-                    flash('اختر المدير المسؤول أولًا ثم اضغط اعتماد المدير.', 'warning')
-                    return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
-                final_assignee_id = requested_assignee_id or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
-                ticket_messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
-                assigned_admin = AppUser.query.get(final_assignee_id) if final_assignee_id else None
-                if body and not assignment_only:
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=bool(request.form.get('is_internal_note')), body=body))
-                if assignment_only:
-                    if final_assignee_id and (old_assignee_id != final_assignee_id or not _support_has_assignment_notice_for(ticket_messages, assigned_admin)):
-                        db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
-                        flash('تم اعتماد المدير المسؤول وإشعار المشترك.', 'success')
-                    elif final_assignee_id:
-                        flash('هذا المدير معتمد مسبقًا لهذه التذكرة.', 'info')
-                elif final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
-                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
-                ticket.status = new_status
-                ticket.assigned_admin_user_id = final_assignee_id
-                ticket.last_reply_at = datetime.utcnow()
-                ticket.updated_at = datetime.utcnow()
-                upsert_support_case('ticket', ticket, None if (bool(request.form.get('is_internal_note')) and body) else 'admin')
-                notify_user(user.id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تحديث على التذكرة', message=ticket.subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
-                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_update', 'Admin updated support ticket', {'status': ticket.status}, commit=False)
-                db.session.commit()
-                _admin_write_log('ticket.profile.reply', f'Updated ticket #{ticket.id}', 'support_ticket', ticket.id, {'tenant_id': tenant.id, 'user_id': user.id, 'status': ticket.status})
-                flash('تم إرسال الرد وتحديث التذكرة.', 'success')
-                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support') + f'#case-ticket-{ticket.id}')
-            flash('تعذر إرسال الرد: التذكرة غير مرتبطة بهذا المشترك.', 'danger')
-            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='support'))
-
-        return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab=request.args.get('tab') or 'profile'))
-
-    payload = _admin_user_payload(user)
-    tab = (request.args.get('tab') or 'profile').strip()
-    is_en = _lang() == 'en'
-    canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
-    canned_rows = [{'item': r, 'suggested_status': _suggest_status_for_canned(r.title, r.body)} for r in canned_replies]
-    return render_template(
-        'admin_user_profile.html',
-        user_obj=user,
-        tab=tab,
-        admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(),
-        role_badge=_role_badge,
-        canned_replies=canned_replies,
-        canned_rows=canned_rows,
-        labels=_support_label_maps(is_en),
-        status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
-        priority_options=['low', 'normal', 'high', 'urgent'],
-        ui_lang=_lang(),
-        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
-        **payload,
-    )
-
-
-@main_bp.route('/admin/users', methods=['GET', 'POST'])
-def admin_users():
-    # v7.2.1: Subscribers CRM is the primary daily management screen.
-    # Keep legacy POST compatibility for old bookmarked forms.
-    if request.method == 'POST':
-        return admin_users_legacy()
-    return redirect(url_for('main.admin_subscribers', lang=_lang()))
-
-
-@main_bp.route('/admin/users/legacy', methods=['GET', 'POST'])
-def admin_users_legacy():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    actor = _active_user()
-    if request.method == 'POST':
-        action = (request.form.get('bulk_action') or '').strip()
-        selected_ids = []
-        for raw in request.form.getlist('user_ids'):
-            try:
-                selected_ids.append(int(raw))
-            except Exception:
-                pass
-        selected_ids = sorted(set(selected_ids))
-        if not selected_ids:
-            flash('اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.', 'warning')
-            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
-        if action not in {'activate', 'disable', 'soft_delete', 'hard_delete'}:
-            flash('إجراء جماعي غير معروف.', 'warning')
-            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
-        changed = 0
-        skipped = 0
-        if action == 'hard_delete':
-            try:
-                create_backup(reason='pre_bulk_hard_delete', upload_drive=False)
-            except Exception as exc:
-                current_app.logger.warning('Pre-bulk-delete backup skipped: %s', exc)
-        for user in AppUser.query.filter(AppUser.id.in_(selected_ids)).all():
-            if actor and user.id == actor.id and action in {'disable', 'soft_delete', 'hard_delete'}:
-                skipped += 1
-                continue
-            if action == 'hard_delete':
-                if user.is_admin or user.username == current_app.config.get('ADMIN_USERNAME'):
-                    skipped += 1
-                    continue
-                _hard_delete_user_account(user, getattr(actor, 'id', None))
-                changed += 1
-            elif action == 'activate':
-                user.is_active = True
-                changed += 1
-            elif action == 'disable':
-                user.is_active = False
-                changed += 1
-            elif action == 'soft_delete':
-                # حذف آمن: نخفي الحساب بدون كسر علاقات التذاكر والمالية والأجهزة.
-                user.is_active = False
-                if not (user.username or '').startswith('deleted_'):
-                    user.username = f'deleted_{user.id}_{user.username or "user"}'[:80]
-                if user.email and not user.email.startswith('deleted_'):
-                    user.email = f'deleted_{user.id}_{user.email}'[:120]
-                changed += 1
-        db.session.commit()
-        _admin_write_log('users.bulk', f'Bulk action {action} on users', 'app_user', None, {'action': action, 'user_ids': selected_ids, 'changed': changed, 'skipped': skipped})
-        flash(f'تم تنفيذ العملية على {changed} مستخدم. تم تخطي {skipped}.', 'success')
-        return redirect(url_for('main.admin_users_legacy', lang=_lang()))
-
-    users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
-    devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
-    device_map = {}
-    for dev in devices:
-        device_map.setdefault(dev.owner_user_id, []).append(dev)
-
-    tenants = TenantAccount.query.all()
-    tenant_owner = {t.id: t.owner_user_id for t in tenants}
-    support_map = {}
-    for thread in InternalMailThread.query.filter(InternalMailThread.status != 'closed').all():
-        last_msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
-        if not last_msg or last_msg.sender_scope != 'user':
-            continue
-        owner_id = thread.created_by_user_id or tenant_owner.get(thread.tenant_id)
-        if owner_id:
-            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['mail'] += 1
-    for ticket in SupportTicket.query.filter(SupportTicket.status != 'closed').all():
-        last_msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
-        if not last_msg or last_msg.sender_scope != 'user':
-            continue
-        owner_id = ticket.opened_by_user_id or tenant_owner.get(ticket.tenant_id)
-        if owner_id:
-            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['tickets'] += 1
-
-    return render_template(
-        'admin_users.html',
-        users=users,
-        device_map=device_map,
-        support_map=support_map,
-        role_badge=_role_badge,
-        ui_lang=_lang(),
-    )
-
-
-@main_bp.route('/admin/users/new', methods=['GET', 'POST'])
-def admin_user_create():
-    guard = _admin_guard()
-    if guard:
-        return guard
-    devices = _available_devices_for_admin()
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
-        role = (request.form.get('role', 'user') or 'user').strip().lower()
-        is_active = request.form.get('is_active') == 'on'
-        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
-        preferred_device_id = request.form.get('preferred_device_id', '').strip()
-        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
-
-        if not username or not password:
-            flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
-        elif AppUser.query.filter_by(username=username).first():
-            flash('اسم المستخدم مستخدم من قبل.', 'danger')
-        else:
-            user = AppUser(
-                username=username,
-                password_hash=generate_password_hash(password),
-                full_name=full_name,
-                email=email,
-                role=role or 'user',
-                preferred_device_type='deye',
-                is_active=is_active,
-                is_admin=(role != 'user'),
-            )
-            db.session.add(user)
-            db.session.flush()
-            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
-            db.session.commit()
-            flash('تم إنشاء المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_subscribers', lang=_lang()))
-
-    return render_template('admin_user_form.html', mode='create', user_obj=None, devices=devices, selected_device_ids=[], ui_lang=_lang())
-
-
-@main_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-def admin_user_edit(user_id: int):
-    guard = _admin_guard()
-    if guard:
-        return guard
-    user = AppUser.query.filter_by(id=user_id).first_or_404()
-    devices = _available_devices_for_admin(user)
-    owned_ids = [d.id for d in devices if d.owner_user_id == user.id]
-
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
-        role = (request.form.get('role', 'user') or 'user').strip().lower()
-        is_active = request.form.get('is_active') == 'on'
-        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
-        preferred_device_id = request.form.get('preferred_device_id', '').strip()
-        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
-
-        other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
-        if not username:
-            flash('اسم المستخدم مطلوب.', 'warning')
-        elif other:
-            flash('اسم المستخدم مستخدم من قبل.', 'danger')
-        else:
-            user.username = username
-            user.full_name = full_name
-            user.email = email
-            user.role = role or 'user'
-            user.is_admin = (user.role != 'user')
-            user.is_active = is_active
-            if password:
-                user.password_hash = generate_password_hash(password)
-            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
-            db.session.commit()
-            flash('تم تحديث المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_subscribers', lang=_lang()))
-
-    return render_template('admin_user_form.html', mode='edit', user_obj=user, devices=devices, selected_device_ids=owned_ids, ui_lang=_lang())
-
-
-@main_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])
-def admin_user_toggle(user_id: int):
-    guard = _admin_guard()
-    if guard:
-        return guard
-    user = AppUser.query.filter_by(id=user_id).first_or_404()
-    if user.username == current_app.config.get('ADMIN_USERNAME') and user.is_admin:
-        flash('لا يمكن تعطيل مدير النظام الأساسي.', 'warning')
-        return _safe_admin_redirect()
-    user.is_active = not bool(user.is_active)
-    db.session.commit()
-    flash('تم تحديث حالة المستخدم.', 'success')
-    return _safe_admin_redirect()
 
 
 
-@main_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-def admin_user_delete(user_id: int):
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    actor = _active_user()
-    user = AppUser.query.filter_by(id=user_id).first_or_404()
-    if actor and user.id == actor.id:
-        flash('لا يمكن حذف حسابك الحالي.', 'warning')
-        return _safe_admin_redirect()
-    if user.is_admin or user.username == current_app.config.get('ADMIN_USERNAME'):
-        flash('لا يمكن حذف مدير النظام الأساسي.', 'warning')
-        return _safe_admin_redirect()
-    try:
-        # Keep a local restore point before destructive deletion.
-        create_backup(reason=f'pre_delete_user_{user.id}', upload_drive=False)
-    except Exception as exc:
-        current_app.logger.warning('Pre-delete backup skipped: %s', exc)
-    try:
-        result = _hard_delete_user_account(user, getattr(actor, 'id', None))
-        db.session.commit()
-        _admin_write_log('user.hard_delete', f'Hard deleted user account', 'app_user', None, result)
-        flash('تم حذف المستخدم نهائيًا.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        current_app.logger.exception('Hard delete user failed: %s', exc)
-        user = AppUser.query.filter_by(id=user_id).first()
-        if user:
-            user.is_active = False
-            db.session.commit()
-        flash('تعذر حذف المستخدم بسبب بيانات مرتبطة. تم تعطيله بدلًا من ذلك حفاظًا على السجلات.', 'warning')
-    return _safe_admin_redirect()
 
-@main_bp.route('/devices/select/<int:device_id>', methods=['POST'])
-def select_device(device_id: int):
-    device = AppDevice.query.filter_by(id=device_id, is_active=True).first()
-    user = _active_user()
-    if not device or (user and device.owner_user_id != user.id and not is_system_admin()):
-        flash('الجهاز المطلوب غير متاح ضمن حسابك.', 'warning')
-        return redirect(url_for('main.devices', lang=_lang()))
-    session['current_device_id'] = device.id
-    session['current_device_type'] = device.device_type or 'deye'
-    flash(f'تم اختيار الجهاز: {device.name}', 'success')
-    return redirect(request.referrer or url_for('main.dashboard', lang=_lang()))
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2166,338 +1019,24 @@ def _save_device_fields(device: AppDevice, owner_user_id: int):
     device.updated_at = datetime.utcnow()
 
 
-@main_bp.route('/devices/manage', methods=['GET', 'POST'])
-def devices_manage():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    user = _active_user()
-    if user is None:
-        flash('يجب تسجيل الدخول أولًا.', 'warning')
-        return redirect(url_for('auth.login'))
-
-    if request.method == 'POST':
-        device = AppDevice(owner_user_id=user.id)
-        _save_device_fields(device, user.id)
-        db.session.add(device)
-        db.session.flush()
-        if not user.preferred_device_id:
-            user.preferred_device_id = device.id
-            session['current_device_id'] = device.id
-            session['current_device_type'] = device.device_type or 'deye'
-        db.session.commit()
-        flash('تمت إضافة الجهاز بنجاح.', 'success')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
-    return render_template('devices_manage.html', devices_list=devices_list, ui_lang=_lang(), current_device_id=session.get('current_device_id'))
-
-
-@main_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
-def device_edit(device_id: int):
-    user = _active_user()
-    device = AppDevice.query.filter_by(id=device_id).first_or_404()
-    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
-        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    if request.method == 'POST':
-        _save_device_fields(device, device.owner_user_id or (user.id if user else None))
-        db.session.commit()
-        flash('تم تحديث الجهاز بنجاح.', 'success')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    creds, device_settings = _device_payload(device)
-    return render_template('device_form.html', device=device, device_creds=creds, device_settings=device_settings, mode='edit', ui_lang=_lang())
-
-
-@main_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
-def device_toggle(device_id: int):
-    user = _active_user()
-    device = AppDevice.query.filter_by(id=device_id).first_or_404()
-    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
-        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-    device.is_active = not bool(device.is_active)
-    db.session.commit()
-    flash('تم تحديث حالة الجهاز.', 'success')
-    return redirect(url_for('main.devices_manage', lang=_lang()))
-
-
-@main_bp.route('/onboarding', methods=['GET', 'POST'])
-def onboarding_wizard():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    user = _active_user()
-    if user is None:
-        return redirect(url_for('auth.login'))
-
-    step = (request.args.get('step') or request.form.get('step') or getattr(user, 'onboarding_step', None) or 'welcome').strip().lower()
-    allowed_steps = ['welcome', 'device', 'notifications', 'finish']
-    if step not in allowed_steps:
-        step = 'welcome'
-
-    if request.method == 'POST':
-        action = (request.form.get('action') or 'next').strip().lower()
-        if step == 'device' and action in {'next', 'save'}:
-            existing = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).first()
-            if existing is None:
-                existing = AppDevice(owner_user_id=user.id)
-                db.session.add(existing)
-                db.session.flush()
-            _save_device_fields(existing, user.id)
-            if not user.preferred_device_id:
-                user.preferred_device_id = existing.id
-            session['current_device_id'] = user.preferred_device_id or existing.id
-            session['current_device_type'] = existing.device_type or 'deye'
-        elif step == 'notifications' and action in {'next', 'save'}:
-            if request.form.get('enable_notifications') == 'on':
-                _save_setting_value('notifications_enabled', 'true')
-            elif request.form.get('disable_notifications') == 'on':
-                _save_setting_value('notifications_enabled', 'false')
-
-        if action == 'skip':
-            next_step = {'welcome': 'device', 'device': 'notifications', 'notifications': 'finish', 'finish': 'finish'}.get(step, 'finish')
-        elif action == 'back':
-            next_step = {'finish': 'notifications', 'notifications': 'device', 'device': 'welcome', 'welcome': 'welcome'}.get(step, 'welcome')
-        else:
-            next_step = {'welcome': 'device', 'device': 'notifications', 'notifications': 'finish', 'finish': 'finish'}.get(step, 'finish')
-
-        if step == 'finish' or action == 'complete':
-            user.onboarding_completed = True
-            user.onboarding_step = 'done'
-            db.session.commit()
-            flash('اكتمل الإعداد الأولي بنجاح ✨', 'success')
-            return redirect(url_for('main.dashboard', lang=_lang()))
-
-        user.onboarding_step = next_step
-        db.session.commit()
-        return redirect(url_for('main.onboarding_wizard', step=next_step, lang=_lang()))
-
-    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).all()
-    wizard_device = devices_list[0] if devices_list else None
-    wizard_creds, wizard_device_settings = _device_payload(wizard_device)
-    settings = load_settings()
-    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, wizard_device=wizard_device, wizard_creds=wizard_creds, wizard_device_settings=wizard_device_settings, settings=settings, ui_lang=_lang())
-
-
-@main_bp.route('/onboarding/skip', methods=['POST'])
-def onboarding_skip():
-    user = _active_user()
-    if user is None:
-        return redirect(url_for('auth.login'))
-    user.onboarding_completed = True
-    user.onboarding_step = 'done'
-    db.session.commit()
-    flash('تم تخطي الإعداد الأولي، ويمكنك الرجوع إليه لاحقًا.', 'info')
-    return redirect(url_for('main.dashboard', lang=_lang()))
-
-@main_bp.route('/admin/system-logs')
-def admin_system_logs():
-    guard = _admin_guard()
-    if guard:
-        return guard
-    settings = load_settings()
-    health = _service_health_snapshot(settings)
-    service_logs = SyncLog.query.order_by(SyncLog.created_at.desc()).limit(200).all()
-    event_logs = EventLog.query.order_by(EventLog.created_at.desc()).limit(200).all()
-    notification_logs = NotificationLog.query.order_by(NotificationLog.created_at.desc()).limit(200).all()
-    return render_template(
-        'admin_system_logs.html',
-        settings=settings,
-        health=health,
-        service_logs=service_logs,
-        event_logs=event_logs,
-        notification_logs=notification_logs,
-        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
-        ui_lang=_lang(),
-    )
-
-@main_bp.route('/devices')
-def devices():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    latest = _latest_reading()
-    devices_list = _device_collection()
-    active_device = _active_device()
-    settings = load_settings()
-    battery_details = build_battery_details(latest)
-    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
-    battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
-    system_status = build_system_status(latest, battery_insights)
-    system_state = system_status['title']
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    production_summary = get_production_summary(tz_name)
-    return render_template('devices.html', latest=latest, settings=settings, devices_list=devices_list, active_device=active_device,
-                           battery_details=battery_details,
-                           battery_insights=battery_insights,
-                           system_state=system_state,
-                           production_summary=production_summary,
-                           format_energy=format_energy,
-                           format_power=format_power,
-                           format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
-
-
-@main_bp.route('/battery-lab')
-def battery_lab():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    latest = _latest_reading()
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    battery_details = build_battery_details(latest)
-    settings = load_settings()
-    battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
-    battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
-
-    # نجمع القراءات على مستوى الساعة بدل كل 5-10 دقائق حتى يكون الرسم أهدأ وأسهل للقراءة.
-    local_tz = ZoneInfo(tz_name)
-    now_local = datetime.now(local_tz)
-    since_utc = now_local.replace(minute=0, second=0, microsecond=0).astimezone(UTC) - timedelta(hours=47)
-    hourly_rows = (
-        scoped_query(Reading)
-        .filter(Reading.created_at >= since_utc)
-        .order_by(Reading.created_at.asc())
-        .all()
-    )
-
-    grouped_by_hour = {}
-    for row in hourly_rows:
-        local_dt = utc_to_local(row.created_at, tz_name)
-        hour_key = local_dt.strftime('%Y-%m-%d %H:00')
-        grouped_by_hour[hour_key] = row  # نحتفظ بآخر قراءة داخل كل ساعة
-
-    hourly_points = list(grouped_by_hour.values())[-48:]
-    labels = [utc_to_local(r.created_at, tz_name).strftime('%I:%M %p').lstrip('0').replace('AM', 'ص').replace('PM', 'م') for r in hourly_points]
-    soc_values = [round(float(r.battery_soc or 0), 1) for r in hourly_points]
-    power_values = [round(float(r.battery_power or 0), 1) for r in hourly_points]
-
-    voltage_values, current_values = [], []
-    for r in hourly_points:
-        d = build_battery_details(r)
-        voltage_values.append(d.get('battery_voltage'))
-        current_values.append(d.get('battery_current'))
-
-    return render_template(
-        'battery_lab.html',
-        latest=latest, battery_details=battery_details, battery_insights=battery_insights,
-        labels=labels, soc_values=soc_values, power_values=power_values,
-        voltage_values=voltage_values, current_values=current_values,
-        format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang(),
-    )
 
 
 
 
-@main_bp.route('/loads', methods=['GET', 'POST'])
-def loads_page():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    latest = _latest_reading()
-    weather = get_weather_for_latest(latest)
-    settings = load_settings()
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    now_local = utc_to_local(datetime.now(UTC), tz_name) or datetime.now(UTC)
-    saved_night_max_w = safe_float(settings.get('night_max_load_w'), 500)
-    raw_sim = request.form.get('simulate_max_w') if request.method == 'POST' else request.args.get('simulate_max_w')
-    simulate_max_w = safe_float(raw_sim, saved_night_max_w)
-    simulation = _manual_load_planner(latest, simulate_max_w, weather=weather, now_local=now_local) if simulate_max_w > 0 else None
-
-    if request.method == 'POST':
-        action = (request.form.get('action') or 'add').strip()
-        if action == 'add':
-            name = (request.form.get('name') or '').strip()
-            power_w = safe_float(request.form.get('power_w'), 0)
-            priority = int(safe_float(request.form.get('priority'), 1) or 1)
-            if name and power_w > 0:
-                db.session.add(UserLoad(name=name, power_w=power_w, priority=max(priority, 1), is_enabled=True))
-                db.session.commit()
-                flash('تمت إضافة الحمل بنجاح', 'success')
-            else:
-                flash('أدخل اسم الجهاز والقدرة بشكل صحيح', 'warning')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-        elif action == 'toggle':
-            row = UserLoad.query.get(int(request.form.get('load_id') or 0))
-            if row:
-                row.is_enabled = not row.is_enabled
-                db.session.commit()
-                flash('تم تحديث حالة الحمل', 'success')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-        elif action == 'delete':
-            row = UserLoad.query.get(int(request.form.get('load_id') or 0))
-            if row:
-                db.session.delete(row)
-                db.session.commit()
-                flash('تم حذف الحمل', 'success')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-        elif action == 'save_night_limit':
-            save_value = safe_float(request.form.get('night_max_w'), 0)
-            if save_value > 0:
-                _save_setting_value('night_max_load_w', str(int(round(save_value))))
-                db.session.commit()
-                saved_night_max_w = save_value
-                simulate_max_w = save_value
-                simulation = _manual_load_planner(latest, simulate_max_w, weather=weather, now_local=now_local)
-                flash('تم حفظ أقصى حمل ليلي بنجاح', 'success')
-            else:
-                flash('أدخل قيمة صحيحة للحمل الليلي', 'warning')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-        elif action == 'simulate':
-            if simulate_max_w <= 0:
-                flash('حدد قيمة أقصى حمل للتجربة أولاً', 'warning')
-            else:
-                flash('تم تحديث تجربة اقتراح الأحمال', 'success')
-        elif action == 'send_telegram_loads':
-            settings = load_settings()
-            title = '⚡ اقتراح الأحمال الآن'
-            if simulation and simulate_max_w > 0:
-                lines = [
-                    '🧪 تجربة اقتراح الأحمال',
-                    simulation.get('mode_ar', ''),
-                    f"🔌 الحد المحدد: {int(round(simulation.get('max_allowed_w', 0)))}W" if simulation.get('mode') == 'night' else f"☀️ الفائض الشمسي: {int(round(simulation.get('available_w', 0)))}W",
-                    f"🏠 الحمل الحالي: {int(round(simulation.get('current_load_w', 0)))}W",
-                    f"⚡ المتاح: {int(round(simulation.get('available_w', 0)))}W",
-                    '',
-                ]
-                fit = simulation.get('fit') or []
-                if fit:
-                    lines.append('يمكنك تشغيل الآن فقط الأجهزة الأقل من المتاح:')
-                    for row in fit[:8]:
-                        lines.append(f"✔ {row.get('name')} — {int(round(float(row.get('power_w') or 0)))}W")
-                else:
-                    lines.append('⚠️ لا يوجد جهاز مناسب ضمن هذا الحد حاليًا.')
-                message = '\n'.join(lines)
-            else:
-                message = build_telegram_quick_reply('loads', latest, weather)
-            ok, _resp = send_telegram_message(settings, title, message)
-            if ok:
-                send_telegram_menu(settings)
-                flash('تم إرسال اقتراح الأحمال إلى Telegram', 'success')
-            else:
-                flash('فشل إرسال اقتراح الأحمال إلى Telegram. راجع إعدادات البوت.', 'warning')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-
-    loads = _serialize_loads()
-    smart_loads = _smart_load_suggestions(latest, settings=settings)
-    return render_template('loads.html', latest=latest, loads=loads, smart_loads=smart_loads, simulation=simulation,
-                           saved_night_max_w=saved_night_max_w,
-                           format_power=format_power, format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
-@main_bp.route('/alerts')
-def alerts():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    logs = scoped_query(SyncLog).order_by(SyncLog.created_at.desc()).limit(200).all()
-    return render_template('alerts.html', logs=logs,
-                           format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']), ui_lang=_lang())
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2656,389 +1195,18 @@ def _build_notification_test_payload(section: str, settings: dict, latest, weath
 def _store_notification_preview(payload: dict):
     session['notification_preview'] = {'section':payload.get('section',''),'title':payload.get('title',''),'message':payload.get('message',''),'channel':payload.get('channel','telegram')}
 
-@main_bp.route('/notifications/action', methods=['POST'])
-def notifications_action():
-    action = (request.args.get('action') or request.form.get('notification_action') or '').strip().lower()
-    section = (request.args.get('section') or request.form.get('section') or '').strip().lower()
-    if not action:
-        flash('الإجراء المطلوب غير محدد.', 'warning')
-        return redirect(url_for('main.notifications_settings'))
-    try:
-        settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = _latest_reading()
-        weather = get_weather_for_latest(latest)
-        if section == 'quick_telegram':
-            payload = {'section':'quick_telegram','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'telegram','rule_name':'اختبار Telegram','event_key':f"test-telegram-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار Telegram بنجاح','preview_message':'هذه رسالة الاختبار السريعة لقناة Telegram'}
-        elif section == 'quick_both':
-            payload = {'section':'quick_both','title':'اختبار إشعار','message':'هذه رسالة اختبار من منصة الطاقة الشمسية.','channel':'both','rule_name':'اختبار القناتين','event_key':f"test-both-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال اختبار القناتين','preview_message':'هذه رسالة الاختبار السريعة للقناتين'}
-        elif section == 'telegram_menu':
-            payload = {'section':'telegram_menu','title':'📋 قائمة Telegram','message':'اختر ما تريد فحصه الآن من الأزرار التالية:','channel':'telegram','rule_name':'قائمة Telegram','event_key':f"test-telegram-menu-{int(datetime.now(UTC).timestamp())}",'level':'info','success_message':'تم إرسال قائمة Telegram بنجاح','preview_message':'سيتم إرسال قائمة أزرار Telegram التفاعلية إلى المحادثة.'}
-        else:
-            payload = _build_notification_test_payload(section, settings, latest, weather)
-        if action == 'preview':
-            _store_notification_preview(payload)
-            flash(payload.get('preview_message') or 'تم تحديث المعاينة بنجاح', 'info')
-            return redirect(url_for('main.notifications_settings'))
-        if action != 'send':
-            flash('الإجراء غير معروف.', 'warning')
-            return redirect(url_for('main.notifications_settings'))
-        if section == 'telegram_menu':
-            ok, resp = send_telegram_menu(settings)
-            flash(payload.get('success_message') if ok else f'فشل إرسال قائمة Telegram: {resp}', 'success' if ok else 'danger')
-            log_notification(payload['event_key'], payload['rule_name'], payload['title'], payload['message'], 'telegram', 'success' if ok else 'danger', resp, force=True)
-            return redirect(url_for('main.notifications_settings'))
-        dispatch_notification(settings, payload['event_key'], payload['rule_name'], payload['title'], payload['message'], payload.get('channel','telegram'), payload.get('level','info'), dedupe_minutes=0)
-        _store_notification_preview(payload)
-        flash(payload.get('success_message') or 'تم إرسال الاختبار بنجاح', 'success')
-        return redirect(url_for('main.notifications_settings'))
-    except Exception as exc:
-        flash(f'خطأ أثناء تنفيذ الطلب: {exc}', 'danger')
-        return redirect(url_for('main.notifications_settings'))
 
 
-@main_bp.route('/channels', methods=['GET', 'POST'])
-def channels():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    lang = request.args.get('lang') or request.form.get('lang')
-    if request.method == 'POST':
-        action = (request.form.get('channel_action') or '').strip().lower()
-        section = (request.form.get('channel_section') or '').strip().lower()
-        if action.startswith('save_'):
-            section = action.removeprefix('save_')
-        if section in CHANNEL_FORM_FIELDS:
-            _save_channels_settings_from_form(request.form, section=section)
-        settings = load_settings()
-
-        if action == 'save_telegram':
-            flash('تم حفظ إعدادات Telegram بنجاح', 'success')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'save_telegram_buttons':
-            flash('تم حفظ أزرار Telegram بنجاح', 'success')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'save_sms':
-            flash('تم حفظ إعدادات SMS بنجاح', 'success')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'set_webhook':
-            ok, msg = _telegram_set_webhook(settings)
-            flash(('تم تفعيل Webhook بنجاح' if ok else f'فشل تفعيل Webhook: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'check_webhook':
-            info = _telegram_webhook_info(settings)
-            if info.get('ok'):
-                extra = info.get('url') or 'لا يوجد رابط'
-                flash(f"حالة Webhook سليمة. الرابط الحالي: {extra}", 'info')
-            else:
-                flash(f"فشل فحص Webhook: {info.get('description') or info.get('last_error_message') or 'خطأ غير معروف'}", 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'delete_webhook':
-            ok, msg = _telegram_delete_webhook(settings)
-            flash(('تم إلغاء Webhook بنجاح' if ok else f'فشل إلغاء Webhook: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'telegram_test':
-            ok, msg = send_telegram_message(settings, 'اختبار Telegram', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
-            flash(('تم إرسال اختبار Telegram بنجاح' if ok else f'فشل إرسال اختبار Telegram: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'telegram_menu':
-            ok, msg = send_telegram_menu(settings)
-            flash(('تم إرسال القائمة التفاعلية بنجاح' if ok else f'فشل إرسال القائمة التفاعلية: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        if action == 'sms_test':
-            ok, msg = send_sms_message(settings, 'اختبار SMS', 'هذه رسالة اختبار من صفحة ربط Telegram وSMS.')
-            flash(('تم إرسال اختبار SMS بنجاح' if ok else f'فشل إرسال اختبار SMS: {msg}'), 'success' if ok else 'danger')
-            return redirect(url_for('main.channels', lang=lang))
-
-        flash('الإجراء المطلوب غير معروف', 'warning')
-        return redirect(url_for('main.channels', lang=lang))
-
-    latest = _latest_reading()
-    settings = load_settings()
-    weather = get_weather_for_latest(latest) if latest else None
-    telegram_webhook_url = _telegram_webhook_target_url()
-    webhook_info = _telegram_webhook_info(settings)
-
-    return render_template(
-        'channels.html',
-        title='ربط Telegram و SMS',
-        latest=latest,
-        settings=settings,
-        weather=weather,
-        telegram_webhook_url=telegram_webhook_url,
-        webhook_info=webhook_info,
-    )
-@main_bp.route('/notifications', methods=['GET', 'POST'])
-def notifications_settings():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    settings = load_settings()
-    if request.method == 'POST':
-        section = (request.args.get('section') or request.form.get('settings_section') or '').strip().lower()
-        try:
-            if section:
-                save_notification_settings_from_form(request.form, section=section)
-                success_message = 'تم حفظ هذا القسم بنجاح'
-            else:
-                save_all_notification_settings_from_form(request.form)
-                success_message = 'تم حفظ جميع إعدادات الإشعارات بنجاح'
-        except Exception as exc:
-            if _is_ajax_request():
-                return _json_response(False, f'فشل حفظ الإعدادات: {exc}'), 400
-            flash(f'فشل حفظ الإعدادات: {exc}', 'danger')
-            return redirect(url_for('main.notifications_settings', tab=section or 'general'))
-
-        if _is_ajax_request():
-            return _json_response(True, success_message, saved_section=section or 'all')
-        flash(success_message, 'success')
-        return redirect(url_for('main.notifications_settings', tab=section or 'general'))
-
-    settings = load_settings()
-    rules = load_notification_rules(settings)
-    recent_notifications = scoped_query(NotificationLog).order_by(NotificationLog.created_at.desc()).limit(30).all()
-    notification_preview = session.pop('notification_preview', None)
-    latest = _latest_reading()
-    weather = get_weather_for_latest(latest) if latest else None
-    telegram_webhook_url = _telegram_webhook_target_url()
-    webhook_info = _telegram_webhook_info(settings)
-    return render_template(
-        'notifications.html', settings=settings, rules=rules,
-        recent_notifications=recent_notifications,
-        notification_preview=notification_preview,
-        latest=latest,
-        weather=weather,
-        telegram_webhook_url=telegram_webhook_url,
-        webhook_info=webhook_info,
-        active_tab=(request.args.get('tab') or 'general'),
-        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
-    )
 
 
-@main_bp.route('/notifications/test', methods=['POST'])
-def notifications_test_send():
-    try:
-        settings = load_settings()
-        channel = request.form.get('channel', 'telegram').strip().lower()
-        title = 'اختبار إشعار'
-        message = 'هذه رسالة اختبار من منصة الطاقة الشمسية.'
-        results = []
-        if channel in {'telegram', 'both'}:
-            ok, resp = send_telegram_message(settings, title, message)
-            results.append(f"Telegram: {'نجح' if ok else 'فشل'}")
-            log_notification('test_telegram', 'اختبار Telegram', title, message, 'telegram', 'success' if ok else 'danger', resp, force=True)
-        if channel in {'sms', 'both'}:
-            ok, resp = send_sms_message(settings, title, message)
-            results.append(f"SMS: {'نجح' if ok else 'فشل'}")
-            log_notification('test_sms', 'اختبار SMS', title, message, 'sms', 'success' if ok else 'danger', resp, force=True)
-        message = ' | '.join(results) if results else 'لم يتم اختيار قناة'
-        if _is_ajax_request():
-            return _json_response(bool(results), message)
-        flash(message, 'info' if results else 'warning')
-        return redirect(url_for('main.notifications_settings'))
-    except Exception as exc:
-        if _is_ajax_request():
-            return _json_response(False, f'خطأ أثناء اختبار الإشعار: {exc}'), 500
-        flash(f'خطأ أثناء اختبار الإشعار: {exc}', 'danger')
-        return redirect(url_for('main.notifications_settings'))
 
 
-@main_bp.route('/notifications/test-section', methods=['POST'])
-def notifications_test_section():
-    try:
-        section = request.form.get('section', 'periodic').strip().lower()
-        settings = apply_form_settings_overrides(load_settings(), request.form)
-        latest = _latest_reading()
-        weather = get_weather_for_latest(latest)
-        now_ts = int(datetime.now(UTC).timestamp())
-        sent_message = ''
-        sent_title = ''
-        sent_channel = 'telegram'
-
-        if section in ('periodic', 'periodic_day'):
-            sent_title, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
-            sent_channel = settings.get('periodic_day_channel', 'telegram')
-            dispatch_notification(settings, f'test-periodic-day-{now_ts}', 'اختبار دوري نهاري', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار التحديث الدوري النهاري'
-        elif section in ('periodic_night', 'night'):
-            sent_title, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
-            sent_channel = settings.get('periodic_night_channel', 'telegram')
-            dispatch_notification(settings, f'test-periodic-night-{now_ts}', 'اختبار دوري ليلي', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار التحديث الدوري الليلي'
-        elif section in ('charge', 'battery'):
-            sent_title = '🧪 اختبار حالة البطارية'
-            sent_channel = settings.get('battery_test_channel', 'telegram')
-            _sent_title2, base_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
-            sent_message = base_message
-            dispatch_notification(settings, f'test-battery-{now_ts}', 'اختبار البطارية', sent_title, sent_message, sent_channel, 'warning', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار حالة البطارية'
-        elif section == 'weather':
-            from ..blueprints.notifications import _format_weather_check
-            sent_title = '☁️ اختبار تنبيه الطقس'
-            sent_message = _format_weather_check(latest, weather, settings=settings)
-            sent_channel = settings.get('weather_test_channel', 'telegram')
-            dispatch_notification(settings, f'test-weather-{now_ts}', 'اختبار الطقس', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار تنبيه الطقس'
-        elif section == 'sunset':
-            sent_title, sent_message, level = build_pre_sunset_message(latest, weather, settings=settings)
-            sent_channel = settings.get('pre_sunset_channel', 'telegram')
-            dispatch_notification(settings, f'test-sunset-{now_ts}', 'اختبار الغروب', sent_title, sent_message, sent_channel, level, dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار تحليل الغروب'
-        elif section == 'daily_report':
-            sent_title, sent_message = build_daily_morning_report_message(latest, settings=settings)
-            sent_channel = settings.get('daily_report_channel', 'telegram')
-            dispatch_notification(settings, f'test-daily-report-{now_ts}', 'اختبار تقرير الصباح', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
-            result_message = 'تم إرسال تقرير الصباح التجريبي'
-        elif section == 'discharge':
-            sent_title = '🌙 تنبيه التفريغ الليلي'
-            _sent_title2, sent_message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
-            sent_channel = settings.get('night_discharge_channel', 'telegram')
-            dispatch_notification(settings, f'test-discharge-{now_ts}', 'اختبار التفريغ', sent_title, sent_message, sent_channel, 'warning', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار التفريغ الليلي'
-        elif section == 'load':
-            sent_title = '⚡ إشعار الأحمال القابلة للتشغيل والممنوعة'
-            sent_message = build_telegram_quick_reply('loads', latest, weather, settings=settings)
-            sent_channel = settings.get('load_alert_channel', 'telegram')
-            dispatch_notification(settings, f'test-load-{now_ts}', 'اختبار الأحمال', sent_title, sent_message, sent_channel, 'info', dedupe_minutes=0)
-            result_message = 'تم إرسال اختبار إشعار الأحمال'
-        else:
-            if _is_ajax_request():
-                return _json_response(False, 'قسم الاختبار غير معروف'), 400
-            flash('قسم الاختبار غير معروف', 'warning')
-            return redirect(url_for('main.notifications_settings'))
-
-        if _is_ajax_request():
-            return _json_response(True, result_message, title=sent_title, preview=sent_message, channel=sent_channel)
-        flash(result_message, 'success')
-        return redirect(url_for('main.notifications_settings'))
-    except Exception as exc:
-        if _is_ajax_request():
-            return _json_response(False, f'خطأ أثناء اختبار القسم: {exc}'), 500
-        flash(f'خطأ أثناء اختبار القسم: {exc}', 'danger')
-        return redirect(url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/menu/send', methods=['POST'])
-def telegram_send_menu_route():
-    try:
-        settings = load_settings()
-        ok, _resp = send_telegram_menu(settings)
-        message = 'تم إرسال قائمة الأزرار إلى Telegram' if ok else 'فشل إرسال قائمة Telegram'
-        if _is_ajax_request():
-            return _json_response(ok, message)
-        flash(message, 'success' if ok else 'warning')
-        return redirect(request.referrer or url_for('main.notifications_settings'))
-    except Exception as exc:
-        if _is_ajax_request():
-            return _json_response(False, f'خطأ أثناء إرسال القائمة: {exc}'), 500
-        flash(f'خطأ أثناء إرسال القائمة: {exc}', 'danger')
-        return redirect(request.referrer or url_for('main.notifications_settings'))
 
 
-@main_bp.route('/telegram/webhook', methods=['GET', 'POST'], strict_slashes=False)
-def telegram_webhook():
-    if request.method == 'GET':
-        return Response(
-            json.dumps({'ok': True, 'message': 'Telegram webhook is ready'}, ensure_ascii=False),
-            status=200,
-            mimetype='application/json'
-        )
-
-    secret = (current_app.config.get('TELEGRAM_WEBHOOK_SECRET') or '').strip()
-    if secret:
-        supplied = (request.headers.get('X-Telegram-Bot-Api-Secret-Token') or request.args.get('secret') or '').strip()
-        if supplied != secret:
-            return Response(
-                json.dumps({'ok': False, 'error': 'invalid webhook secret'}, ensure_ascii=False),
-                status=403,
-                mimetype='application/json'
-            )
-
-    data = request.get_json(silent=True) or {}
-    if not data:
-        return Response(
-            json.dumps({'ok': True, 'message': 'No update payload'}, ensure_ascii=False),
-            status=200,
-            mimetype='application/json'
-        )
-
-    settings = load_settings()
-    try:
-        ok, resp = process_telegram_update(settings, data)
-        return Response(
-            json.dumps({'ok': bool(ok), 'message': str(resp)}, ensure_ascii=False),
-            status=200,
-            mimetype='application/json'
-        )
-    except Exception as exc:
-        current_app.logger.exception('Telegram webhook processing failed')
-        return Response(
-            json.dumps({'ok': False, 'error': str(exc)}, ensure_ascii=False),
-            status=200,
-            mimetype='application/json'
-        )
-@main_bp.route('/plant-info')
-def plant_info():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    latest = _latest_reading()
-    settings = load_settings()
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    production_summary = get_production_summary(tz_name)
-    return render_template('plant_info.html', latest=latest, settings=settings,
-                           production_summary=production_summary,
-                           format_energy=format_energy,
-                           format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
-@main_bp.route('/api/raw-debug')
-def api_raw_debug():
-    if not is_system_admin() or not current_app.config.get('DEBUG_TOOLS_ENABLED'):
-        return {'ok': False, 'error': 'Debug tools are disabled.'}, 403
-    latest = _latest_reading()
-    if not latest:
-        return {'ok': False, 'error': 'No reading found'}
-    try:
-        raw = json.loads(latest.raw_json) if latest.raw_json else {}
-    except Exception:
-        raw = {'raw_text': latest.raw_json}
-
-    # Also try live device list call for debugging
-    device_list_result = []
-    device_detail_test = {}
-    try:
-        from ..services.deye_client import DeyeClient
-        settings = load_settings()
-        client = DeyeClient(settings)
-        token = client.obtain_token()
-        device_list_result = client.station_device_list(token)
-        # Try device_sn directly
-        if client.device_sn:
-            device_detail_test = client.device_original_data(token, client.device_sn)
-    except Exception as e:
-        device_list_result = [{'error': str(e)}]
-
-    payload = {
-        'created_at': latest.created_at.isoformat(),
-        'daily_production_stored': latest.daily_production,
-        'monthly_production_stored': latest.monthly_production,
-        'total_production_stored': latest.total_production,
-        'solar_power': latest.solar_power,
-        'battery_soc': latest.battery_soc,
-        'device_list_live': device_list_result,
-        'device_detail_test': device_detail_test,
-        'top_level_keys': list(raw.keys()) if isinstance(raw, dict) else [],
-        'raw': raw,
-    }
-    return sanitize_response_payload(payload)
 
 
 @main_bp.errorhandler(404)
@@ -3051,403 +1219,30 @@ def server_error(e):
     return render_template('error.html', code=500, message='حدث خطأ في الخادم'), 500
 
 
-@main_bp.route('/admin/plans')
-def admin_plans():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
-    return render_template('admin_plans_phase1a.html', plans=plans, ui_lang=_lang())
 
 
-@main_bp.route('/admin/plans/new', methods=['GET','POST'])
-def admin_plan_create():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    plan = None
-    if request.method == 'POST':
-        plan = SubscriptionPlan(
-            code=request.form.get('code','').strip(),
-            name_ar=request.form.get('name_ar','').strip(),
-            name_en=request.form.get('name_en','').strip(),
-            price=float(request.form.get('price') or 0),
-            currency=request.form.get('currency','USD').strip() or 'USD',
-            duration_days_default=int(request.form.get('duration_days_default') or 30),
-            max_devices=int(request.form.get('max_devices') or 1),
-            is_active=request.form.get('is_active') == 'on',
-            sort_order=int(request.form.get('sort_order') or 0),
-            features_json=json.dumps({
-                'can_manage_devices': request.form.get('can_manage_devices') == 'on',
-                'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
-                'can_use_telegram': request.form.get('can_use_telegram') == 'on',
-                'can_use_sms': request.form.get('can_use_sms') == 'on',
-                'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
-                'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
-            }, ensure_ascii=False),
-        )
-        db.session.add(plan)
-        db.session.commit()
-        flash('تم إنشاء الخطة بنجاح', 'success')
-        return redirect(url_for('main.admin_plans', lang=_lang()))
-    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
 
 
-@main_bp.route('/admin/plans/<int:plan_id>/edit', methods=['GET','POST'])
-def admin_plan_edit(plan_id):
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    plan = SubscriptionPlan.query.get_or_404(plan_id)
-    if request.method == 'POST':
-        plan.code=request.form.get('code','').strip()
-        plan.name_ar=request.form.get('name_ar','').strip()
-        plan.name_en=request.form.get('name_en','').strip()
-        plan.price=float(request.form.get('price') or 0)
-        plan.currency=request.form.get('currency','USD').strip() or 'USD'
-        plan.duration_days_default=int(request.form.get('duration_days_default') or 30)
-        plan.max_devices=int(request.form.get('max_devices') or 1)
-        plan.is_active=request.form.get('is_active') == 'on'
-        plan.sort_order=int(request.form.get('sort_order') or 0)
-        plan.features_json=json.dumps({
-            'can_manage_devices': request.form.get('can_manage_devices') == 'on',
-            'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
-            'can_use_telegram': request.form.get('can_use_telegram') == 'on',
-            'can_use_sms': request.form.get('can_use_sms') == 'on',
-            'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
-            'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
-        }, ensure_ascii=False)
-        db.session.commit()
-        flash('تم تحديث الخطة', 'success')
-        return redirect(url_for('main.admin_plans', lang=_lang()))
-    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
 
 
-@main_bp.route('/admin/subscribers')
-def admin_subscribers():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    rows=[]
-    users=AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
-    plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
-    stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
-    now = datetime.utcnow()
-    for user in users:
-        tenant, sub = ensure_user_tenant_and_subscription(user)
-        status = (sub.status if sub else getattr(tenant, 'status', 'trial')) or 'trial'
-        stats['total'] += 1
-        if not user.is_active:
-            stats['disabled'] += 1
-        if status in stats:
-            stats[status] += 1
-        plan = plans.get(sub.plan_id) if sub and sub.plan_id else plans.get(getattr(tenant, 'plan_id', None))
-        days_left = None
-        if sub and sub.ends_at:
-            days_left = (sub.ends_at.date() - now.date()).days
-        rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
-    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, ui_lang=_lang())
 
 
-@main_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
-def admin_subscriber_activate(user_id):
-    admin_user = _active_user()
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    user = AppUser.query.get_or_404(user_id)
-    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=admin_user.id if admin_user else None)
-    plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc()).all()
-    if request.method == 'POST':
-        plan = SubscriptionPlan.query.get_or_404(int(request.form.get('plan_id')))
-        days = int(request.form.get('days') or plan.duration_days_default or 30)
-        activate_tenant_subscription(tenant, plan, days, activated_by_user_id=admin_user.id if admin_user else None, notes=request.form.get('notes','').strip())
-        flash('تم تفعيل اشتراك المشترك', 'success')
-        return redirect(url_for('main.admin_subscribers', lang=_lang()))
-    return render_template('admin_subscriber_activate_phase1a.html', user=user, tenant=tenant, subscription=sub, plans=plans, ui_lang=_lang())
 
 
-@main_bp.route('/account/subscription')
-def account_subscription():
-    user = _active_user()
-    if user is None:
-        return redirect(url_for('auth.login'))
-    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
-    plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
-    return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, ui_lang=_lang())
 
 
-@main_bp.route('/admin/subscriptions')
-def admin_subscriptions():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    rows = []
-    subscriptions = TenantSubscription.query.order_by(TenantSubscription.updated_at.desc(), TenantSubscription.id.desc()).all()
-    for sub in subscriptions:
-        tenant = TenantAccount.query.get(sub.tenant_id)
-        plan = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
-        owner = AppUser.query.get(tenant.owner_user_id) if tenant and tenant.owner_user_id else None
-        rows.append({'subscription': sub, 'tenant': tenant, 'plan': plan, 'owner': owner})
-    return render_template('admin_subscriptions.html', rows=rows, ui_lang=_lang(), summary=_admin_counts_snapshot())
 
 
-@main_bp.route('/admin/mail', methods=['GET', 'POST'])
-def admin_internal_mail():
-    guard = _admin_guard('can_manage_support')
-    if guard:
-        return guard
-    actor = _active_user()
-    if request.method == 'POST':
-        action = (request.form.get('action') or 'create').strip()
-        if action == 'create':
-            subject = (request.form.get('subject') or '').strip()
-            body = (request.form.get('body') or '').strip()
-            if subject and body:
-                thread = InternalMailThread(
-                    created_by_user_id=getattr(actor, 'id', None),
-                    assigned_admin_user_id=getattr(actor, 'id', None),
-                    subject=subject,
-                    category=(request.form.get('category') or 'general').strip(),
-                    priority=(request.form.get('priority') or 'normal').strip(),
-                    status='open',
-                    last_reply_at=datetime.utcnow(),
-                )
-                db.session.add(thread)
-                db.session.flush()
-                db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
-                db.session.commit()
-                _admin_write_log('mail.create', f'Created internal mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'subject': thread.subject})
-                flash('تم إنشاء رسالة داخلية جديدة', 'success')
-                return redirect(url_for('main.admin_internal_mail', lang=_lang()))
-        elif action == 'reply':
-            thread_id = int(request.form.get('thread_id') or 0)
-            body = (request.form.get('body') or '').strip()
-            thread = InternalMailThread.query.get(thread_id)
-            if thread:
-                old_status = (thread.status or 'open').strip()
-                new_status = (request.form.get('status') or old_status).strip() or old_status
-                if old_status == 'closed':
-                    flash('هذه الرسالة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_internal_mail', lang=_lang()))
-                old_assignee_id = thread.assigned_admin_user_id
-                requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
-                final_assignee_id = requested_assignee_id or thread.assigned_admin_user_id or getattr(actor, 'id', None)
-                thread_messages = InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
-                if body:
-                    db.session.add(InternalMailMessage(
-                        thread_id=thread.id,
-                        sender_user_id=getattr(actor, 'id', None),
-                        sender_scope='admin',
-                        is_internal_note=bool(request.form.get('is_internal_note')),
-                        body=body,
-                    ))
-                    thread.last_reply_at = datetime.utcnow()
-                if final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(thread_messages):
-                    assigned_admin = AppUser.query.get(final_assignee_id)
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('mail', assigned_admin)))
-                    thread.last_reply_at = datetime.utcnow()
-                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق المحادثة بعد حل الطلب.'))
-                    thread.last_reply_at = datetime.utcnow()
-                thread.status = new_status
-                thread.assigned_admin_user_id = final_assignee_id
-                db.session.commit()
-                _admin_write_log('mail.reply', f'Updated mail thread #{thread.id}', 'internal_mail_thread', thread.id, {'status': thread.status})
-                flash('تم تحديث الرسالة', 'success')
-                return redirect(url_for('main.admin_internal_mail', lang=_lang()))
-    rows = []
-    threads = InternalMailThread.query.order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all()
-    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
-    for thread in threads:
-        owner = AppUser.query.get(thread.created_by_user_id) if thread.created_by_user_id else None
-        assignee = AppUser.query.get(thread.assigned_admin_user_id) if thread.assigned_admin_user_id else None
-        rows.append({'thread': thread, 'owner': owner, 'assignee': assignee, 'messages': InternalMailMessage.query.filter_by(thread_id=thread.id).order_by(InternalMailMessage.created_at.asc()).all()})
-    return render_template('admin_internal_mail.html', rows=rows, admin_users=admin_users, ui_lang=_lang())
 
 
-@main_bp.route('/admin/finance', methods=['GET', 'POST'])
-def admin_finance():
-    guard = _admin_guard('can_manage_finance')
-    if guard:
-        return guard
-    if request.method == 'POST':
-        tenant_id = int(request.form.get('tenant_id') or 0)
-        amount = float(request.form.get('amount') or 0)
-        if tenant_id and amount:
-            actor = _active_user()
-            entry = WalletLedger(tenant_id=tenant_id, actor_user_id=getattr(actor, 'id', None), entry_type=(request.form.get('entry_type') or 'credit').strip(), amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip(), reference=(request.form.get('reference') or '').strip() or None)
-            db.session.add(entry)
-            db.session.commit()
-            _admin_write_log('finance.entry', f'Added finance entry {amount} {entry.currency}', 'wallet_ledger', entry.id, {'tenant_id': tenant_id, 'entry_type': entry.entry_type})
-            flash('تم حفظ الحركة المالية', 'success')
-            return redirect(url_for('main.admin_finance', lang=_lang()))
-    tenants = TenantAccount.query.order_by(TenantAccount.display_name.asc()).all()
-    rows = []
-    for entry in WalletLedger.query.order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all():
-        tenant = TenantAccount.query.get(entry.tenant_id)
-        actor = AppUser.query.get(entry.actor_user_id) if entry.actor_user_id else None
-        rows.append({'entry': entry, 'tenant': tenant, 'actor': actor})
-    totals = {}
-    for tenant in tenants:
-        total = 0.0
-        for entry in WalletLedger.query.filter_by(tenant_id=tenant.id).all():
-            total += entry.amount if entry.entry_type == 'credit' else -entry.amount
-        totals[tenant.id] = total
-    return render_template('admin_finance.html', rows=rows, tenants=tenants, totals=totals, ui_lang=_lang())
 
 
-@main_bp.route('/admin/activity-log')
-def admin_activity_log():
-    guard = _admin_guard('can_view_logs')
-    if guard:
-        return guard
-    rows = []
-    for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).all():
-        actor = AppUser.query.get(item.actor_user_id) if item.actor_user_id else None
-        rows.append({'item': item, 'actor': actor})
-    return render_template('admin_activity_log.html', rows=rows, ui_lang=_lang())
 
 
-@main_bp.route('/admin/roles')
-def admin_roles():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
-    role_matrix = [
-        {'role': 'super_admin', 'summary': 'Full platform control', 'perms': ['manage_users','manage_plans','manage_devices','manage_integrations','manage_finance','manage_support','view_logs']},
-        {'role': 'finance_admin', 'summary': 'Billing, quotas, and credits', 'perms': ['manage_finance','manage_subscriptions','view_logs']},
-        {'role': 'support_admin', 'summary': 'Internal mail, tickets, and replies', 'perms': ['manage_support','reply_messages','view_logs']},
-        {'role': 'integration_admin', 'summary': 'Devices, APIs, and service health', 'perms': ['manage_devices','manage_integrations','view_logs']},
-    ]
-    return render_template('admin_roles.html', admin_users=admin_users, role_matrix=role_matrix, ui_lang=_lang())
 
 
-@main_bp.route('/admin/tickets', methods=['GET', 'POST'])
-def admin_tickets():
-    guard = _admin_guard('can_manage_support')
-    if guard:
-        return guard
-    actor = _active_user()
-    if request.method == 'POST':
-        action = (request.form.get('action') or 'create').strip()
-        if action == 'create':
-            subject = (request.form.get('subject') or '').strip()
-            body = (request.form.get('body') or '').strip()
-            if subject and body:
-                ticket = SupportTicket(
-                    tenant_id=int(request.form.get('tenant_id') or 0) or None,
-                    opened_by_user_id=getattr(actor, 'id', None),
-                    assigned_admin_user_id=getattr(actor, 'id', None),
-                    subject=subject,
-                    category=(request.form.get('category') or 'support').strip(),
-                    priority=(request.form.get('priority') or 'normal').strip(),
-                    status='open',
-                    related_device_id=int(request.form.get('related_device_id') or 0) or None,
-                    last_reply_at=datetime.utcnow(),
-                )
-                db.session.add(ticket)
-                db.session.flush()
-                db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body))
-                upsert_support_case('ticket', ticket, 'admin')
-                if ticket.tenant_id:
-                    tenant = TenantAccount.query.get(ticket.tenant_id)
-                    notify_user(getattr(tenant, 'owner_user_id', None), source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تذكرة جديدة من الإدارة', message=subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
-                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_create', 'Admin created ticket', commit=False)
-                db.session.commit()
-                _admin_write_log('ticket.create', f'Created ticket #{ticket.id}', 'support_ticket', ticket.id, {'subject': ticket.subject})
-                flash('تم إنشاء التذكرة', 'success')
-        elif action == 'reply':
-            ticket_id = int(request.form.get('ticket_id') or 0)
-            body = (request.form.get('body') or '').strip()
-            ticket = SupportTicket.query.get(ticket_id)
-            if ticket:
-                old_status = (ticket.status or 'open').strip()
-                new_status = (request.form.get('status') or old_status).strip() or old_status
-                if old_status in ('closed', 'resolved'):
-                    flash('هذه التذكرة مغلقة ومجمّدة، لا يمكن إضافة ردود جديدة.', 'warning')
-                    return redirect(url_for('main.admin_tickets', lang=_lang()))
-                old_assignee_id = ticket.assigned_admin_user_id
-                requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or None
-                final_assignee_id = requested_assignee_id or ticket.assigned_admin_user_id or getattr(actor, 'id', None)
-                ticket_messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
-                if body:
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', body=body, is_internal_note=bool(request.form.get('is_internal_note'))))
-                if final_assignee_id and old_assignee_id != final_assignee_id and not _support_already_has_assignment_notice(ticket_messages):
-                    assigned_admin = AppUser.query.get(final_assignee_id)
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=final_assignee_id, sender_scope='admin', is_internal_note=False, body=_assignment_notice_body('ticket', assigned_admin)))
-                if new_status in ('closed', 'resolved') and old_status not in ('closed', 'resolved') and not body:
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=getattr(actor, 'id', None), sender_scope='admin', is_internal_note=False, body='تم إغلاق التذكرة بعد حل المشكلة.'))
-                ticket.status = new_status
-                ticket.assigned_admin_user_id = final_assignee_id
-                ticket.last_reply_at = datetime.utcnow()
-                ticket.updated_at = datetime.utcnow()
-                upsert_support_case('ticket', ticket, 'admin')
-                target_id = ticket.opened_by_user_id
-                if not target_id and ticket.tenant_id:
-                    target_id = getattr(TenantAccount.query.get(ticket.tenant_id), 'owner_user_id', None)
-                notify_user(target_id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='تحديث على التذكرة', message=ticket.subject, direct_url=portal_case_url('ticket', ticket.id, _lang()))
-                audit_case('ticket', ticket.id, getattr(actor, 'id', None), 'ticket.admin_reply', 'Admin replied to ticket', {'status': ticket.status}, commit=False)
-                db.session.commit()
-                _admin_write_log('ticket.reply', f'Replied to ticket #{ticket.id}', 'support_ticket', ticket.id, {'status': ticket.status})
-                flash('تم تحديث التذكرة', 'success')
-    tickets=[]
-    for ticket in SupportTicket.query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
-        opener = AppUser.query.get(ticket.opened_by_user_id) if ticket.opened_by_user_id else None
-        assignee = AppUser.query.get(ticket.assigned_admin_user_id) if ticket.assigned_admin_user_id else None
-        tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
-        device = AppDevice.query.get(ticket.related_device_id) if ticket.related_device_id else None
-        messages = SupportTicketMessage.query.filter_by(ticket_id=ticket.id).order_by(SupportTicketMessage.created_at.asc()).all()
-        tickets.append({'ticket': ticket, 'opener': opener, 'assignee': assignee, 'tenant': tenant, 'device': device, 'messages': messages})
-    return render_template('admin_tickets.html', rows=tickets, tenants=TenantAccount.query.order_by(TenantAccount.display_name.asc()).all(), devices=AppDevice.query.order_by(AppDevice.name.asc()).all(), admin_users=AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all(), ui_lang=_lang())
 
 
-@main_bp.route('/admin/quotas', methods=['GET', 'POST'])
-def admin_quotas():
-    guard = _admin_guard('can_manage_finance')
-    if guard:
-        return guard
-    actor = _active_user()
-    if request.method == 'POST':
-        quota_id = int(request.form.get('quota_id') or 0)
-        if quota_id:
-            quota = TenantQuota.query.get(quota_id)
-            if quota:
-                quota.limit_value = float(request.form.get('limit_value') or quota.limit_value or 0)
-                quota.used_value = float(request.form.get('used_value') or quota.used_value or 0)
-                quota.status = (request.form.get('status') or quota.status).strip()
-                quota.reset_period = (request.form.get('reset_period') or quota.reset_period).strip()
-                quota.notes = (request.form.get('notes') or quota.notes or '').strip()
-                db.session.commit()
-                _admin_write_log('quota.update', f'Updated quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': quota.tenant_id, 'quota_key': quota.quota_key})
-                flash('تم تحديث الكوتا', 'success')
-        else:
-            tenant_id = int(request.form.get('tenant_id') or 0)
-            quota_key = (request.form.get('quota_key') or '').strip()
-            if tenant_id and quota_key:
-                quota = TenantQuota(
-                    tenant_id=tenant_id,
-                    quota_key=quota_key,
-                    quota_label=(request.form.get('quota_label') or quota_key).strip(),
-                    limit_value=float(request.form.get('limit_value') or 0),
-                    used_value=float(request.form.get('used_value') or 0),
-                    reset_period=(request.form.get('reset_period') or 'manual').strip(),
-                    status=(request.form.get('status') or 'active').strip(),
-                    notes=(request.form.get('notes') or '').strip() or None,
-                )
-                db.session.add(quota)
-                db.session.commit()
-                _admin_write_log('quota.create', f'Created quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant_id, 'quota_key': quota_key})
-                flash('تم إنشاء الكوتا', 'success')
-    rows=[]
-    for quota in TenantQuota.query.order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all():
-        tenant = TenantAccount.query.get(quota.tenant_id)
-        percent = 0
-        if quota.limit_value and quota.limit_value > 0:
-            percent = round((quota.used_value / quota.limit_value) * 100, 1)
-        rows.append({'quota': quota, 'tenant': tenant, 'percent': percent})
-    return render_template('admin_quotas.html', rows=rows, tenants=TenantAccount.query.order_by(TenantAccount.display_name.asc()).all(), ui_lang=_lang())
 
 
 
@@ -3504,106 +1299,9 @@ def _portal_support_rows(user):
     return rows
 
 
-@main_bp.route('/support', methods=['GET', 'POST'])
-@main_bp.route('/portal/support', methods=['GET', 'POST'])
-def portal_support():
-    guard = _energy_portal_guard()
-    if guard:
-        return guard
-    user = _active_user()
-    tenant, _subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(user, 'id', None)) if user else (None, None)
-
-    if request.method == 'POST' and user is not None:
-        action = (request.form.get('action') or '').strip()
-        kind = (request.form.get('kind') or request.form.get('type') or 'mail').strip()
-        body = (request.form.get('body') or '').strip()
-        if action == 'create':
-            subject = (request.form.get('subject') or '').strip()
-            priority = (request.form.get('priority') or 'normal').strip()
-            category = (request.form.get('category') or ('support' if kind == 'ticket' else 'general')).strip()
-            if subject and body:
-                if kind == 'ticket':
-                    ticket = SupportTicket(tenant_id=getattr(tenant, 'id', None), opened_by_user_id=user.id, subject=subject, category=category, priority=priority, status='open', related_device_id=int(request.form.get('related_device_id') or 0) or getattr(_active_device(), 'id', None), last_reply_at=datetime.utcnow())
-                    db.session.add(ticket)
-                    db.session.flush()
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
-                    upsert_support_case('ticket', ticket, 'user')
-                    for admin in AppUser.query.filter_by(is_admin=True).all():
-                        notify_user(admin.id, source_type='ticket', source_id=ticket.id, tenant_id=getattr(tenant, 'id', None), title='تذكرة جديدة', message=subject, direct_url=case_url('ticket', ticket.id, user.id, _lang()))
-                    audit_case('ticket', ticket.id, user.id, 'ticket.create', 'Subscriber opened a ticket', commit=False)
-                    db.session.commit()
-                    flash('تم فتح التذكرة بنجاح' if _lang() != 'en' else 'Ticket opened successfully', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
-                thread = InternalMailThread(tenant_id=getattr(tenant, 'id', None), created_by_user_id=user.id, subject=subject, category=category, priority=priority, status='open', last_reply_at=datetime.utcnow())
-                db.session.add(thread)
-                db.session.flush()
-                db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
-                upsert_support_case('message', thread, 'user')
-                for admin in AppUser.query.filter_by(is_admin=True).all():
-                    notify_user(admin.id, source_type='message', source_id=thread.id, tenant_id=getattr(tenant, 'id', None), title='رسالة دعم جديدة', message=subject, direct_url=case_url('message', thread.id, user.id, _lang()))
-                audit_case('message', thread.id, user.id, 'message.create', 'Subscriber opened a support message', commit=False)
-                db.session.commit()
-                flash('تم إرسال الرسالة للإدارة' if _lang() != 'en' else 'Message sent to management', 'success')
-                return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
-        elif action == 'reply':
-            if kind == 'ticket':
-                ticket = SupportTicket.query.get(int(request.form.get('ticket_id') or 0))
-                belongs = bool(ticket and (ticket.opened_by_user_id == user.id or (getattr(tenant, 'id', None) and ticket.tenant_id == tenant.id)))
-                if ticket and belongs and body:
-                    if (ticket.status or '').strip() == 'closed':
-                        flash('هذه التذكرة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This ticket is closed and cannot receive new replies.', 'warning')
-                        return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
-                    if not ticket.opened_by_user_id:
-                        ticket.opened_by_user_id = user.id
-                    if not ticket.tenant_id and tenant:
-                        ticket.tenant_id = tenant.id
-                    db.session.add(SupportTicketMessage(ticket_id=ticket.id, sender_user_id=user.id, sender_scope='user', body=body))
-                    ticket.last_reply_at = datetime.utcnow()
-                    ticket.updated_at = datetime.utcnow()
-                    upsert_support_case('ticket', ticket, 'user')
-                    targets = [ticket.assigned_admin_user_id] if ticket.assigned_admin_user_id else [a.id for a in AppUser.query.filter_by(is_admin=True).all()]
-                    for target_id in set([t for t in targets if t]):
-                        notify_user(target_id, source_type='ticket', source_id=ticket.id, tenant_id=ticket.tenant_id, title='رد جديد من المشترك', message=ticket.subject, direct_url=case_url('ticket', ticket.id, user.id, _lang()))
-                    audit_case('ticket', ticket.id, user.id, 'ticket.user_reply', 'Subscriber replied to ticket', commit=False)
-                    db.session.commit()
-                    flash('تمت إضافة الرد على التذكرة' if _lang() != 'en' else 'Ticket reply added', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket') + f'#case-ticket-{ticket.id}')
-            else:
-                thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
-                belongs = bool(thread and (thread.created_by_user_id == user.id or (getattr(tenant, 'id', None) and thread.tenant_id == tenant.id)))
-                if thread and belongs and body:
-                    if (thread.status or '').strip() == 'closed':
-                        flash('هذه المحادثة مغلقة ولا يمكن إضافة ردود جديدة.' if _lang() != 'en' else 'This conversation is closed and cannot receive new replies.', 'warning')
-                        return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
-                    if not thread.created_by_user_id:
-                        thread.created_by_user_id = user.id
-                    if not thread.tenant_id and tenant:
-                        thread.tenant_id = tenant.id
-                    db.session.add(InternalMailMessage(thread_id=thread.id, sender_user_id=user.id, sender_scope='user', body=body))
-                    thread.last_reply_at = datetime.utcnow()
-                    thread.updated_at = datetime.utcnow()
-                    upsert_support_case('message', thread, 'user')
-                    targets = [thread.assigned_admin_user_id] if thread.assigned_admin_user_id else [a.id for a in AppUser.query.filter_by(is_admin=True).all()]
-                    for target_id in set([t for t in targets if t]):
-                        notify_user(target_id, source_type='message', source_id=thread.id, tenant_id=thread.tenant_id, title='رد جديد من المشترك', message=thread.subject, direct_url=case_url('message', thread.id, user.id, _lang()))
-                    audit_case('message', thread.id, user.id, 'message.user_reply', 'Subscriber replied to message', commit=False)
-                    db.session.commit()
-                    flash('تمت إضافة الرد' if _lang() != 'en' else 'Reply added', 'success')
-                    return redirect(url_for('main.portal_support', lang=_lang(), type='mail') + f'#case-mail-{thread.id}')
-            flash('تعذر حفظ الرد، تأكد من أن العنصر تابع لحسابك.' if _lang() != 'en' else 'Could not save reply for this account.', 'danger')
-
-    rows = _portal_support_rows(user)
-    selected_type = (request.args.get('type') or 'all').strip()
-    return render_template('portal_support.html', rows=rows, devices=_device_collection(), selected_type=selected_type, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
-
-@main_bp.route('/portal/messages', methods=['GET', 'POST'])
-def portal_messages():
-    return redirect(url_for('main.portal_support', lang=_lang(), type='mail'))
 
 
-@main_bp.route('/portal/tickets', methods=['GET', 'POST'])
-def portal_tickets():
-    return redirect(url_for('main.portal_support', lang=_lang(), type='ticket'))
+
 
 # --- Heavy v5: floating notification center for mail and tickets ---
 def _support_notification_items(limit=5, include_closed=False):
@@ -3695,33 +1393,8 @@ def _support_notification_payload(limit=5, include_closed=False):
     return payload
 
 
-@main_bp.route('/notifications/feed')
-def notifications_feed():
-    if not session.get('logged_in'):
-        return jsonify({'count': 0, 'items': []})
-    items = _support_notification_payload(limit=5, include_closed=False)
-    user = _active_user()
-    try:
-        total, mail_count, ticket_count = unread_counts(user)
-    except Exception:
-        total = (getattr(g, 'mail_notification_count', 0) or 0) + (getattr(g, 'ticket_notification_count', 0) or 0)
-        mail_count = getattr(g, 'mail_notification_count', 0) or 0
-        ticket_count = getattr(g, 'ticket_notification_count', 0) or 0
-    return jsonify({'count': total, 'mail_count': mail_count, 'ticket_count': ticket_count, 'items': items})
 
 
-@main_bp.route('/notification-center')
-@main_bp.route('/notifications/center')
-def notification_center():
-    if not session.get('logged_in'):
-        return redirect(url_for('auth.login', lang=_lang()))
-    try:
-        items = _support_notification_payload(limit=200, include_closed=True)
-    except Exception as exc:
-        current_app.logger.exception('notification_center failed: %s', exc)
-        items = []
-        flash('تعذر تحميل مركز الإشعارات، تم فتح الصفحة بوضع آمن.', 'warning')
-    return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
 
 # --- Heavy v6.1: Support & Operations Command Center ---
 def _support_source_for(case_type: str, source_id: int):
@@ -3798,209 +1471,316 @@ def _suggest_status_for_canned(title: str, body: str):
     return ''
 
 
-@main_bp.route('/admin/support-command-center')
-def admin_support_command_center():
-    guard = _admin_guard('can_manage_support')
-    if guard:
-        return guard
-    actor = _active_user()
-    filter_key = (request.args.get('filter') or 'all').strip()
-    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang())
-    stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
-    canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
-    canned_rows = [{'item': r, 'suggested_status': _suggest_status_for_canned(r.title, r.body)} for r in canned_replies]
-    audits = SupportAuditLog.query.order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(80).all()
-    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
-    is_en = _lang() == 'en'
-    labels = _support_label_maps(is_en)
-    selected_key = (request.args.get('case') or '').strip()
-    available_keys = {row.get('case_key') for row in rows}
-    if not selected_key or selected_key not in available_keys:
-        selected_key = rows[0].get('case_key') if rows else ''
-    filter_defs = [
-        ('all', 'كل الدعم', 'All support', stats.get('all', 0)),
-        ('mine', 'المخصص لي', 'Assigned to me', stats.get('mine', 0)),
-        ('unassigned', 'بدون مدير', 'Unassigned', stats.get('unassigned', 0)),
-        ('urgent', 'عاجل', 'Urgent', stats.get('urgent', 0)),
-        ('waiting_user', 'بانتظار المستخدم', 'Waiting user', stats.get('waiting_user', 0)),
-        ('unanswered', 'لم يتم الرد عليه', 'Unanswered', stats.get('unanswered', 0)),
-        ('closed', 'مغلق', 'Closed', stats.get('closed', 0)),
-    ]
-    return render_template(
-        'admin_support_command_center.html',
-        rows=rows,
-        stats=stats,
-        filter_defs=filter_defs,
-        filter_key=filter_key,
-        selected_key=selected_key,
-        canned_replies=canned_replies,
-        canned_rows=canned_rows,
-        audits=audits,
-        admin_users=admin_users,
-        labels=labels,
-        status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
-        priority_options=['low', 'normal', 'high', 'urgent'],
-        ui_lang=_lang(),
-        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
-    )
+# --- Heavy v10.1 compatibility route stubs ---
+@main_bp.route('/')
+def index(*args, **kwargs):
+    from .energy import index as _impl
+    return _impl(*args, **kwargs)
 
+@main_bp.route('/admin/dashboard')
+def admin_dashboard(*args, **kwargs):
+    from .energy import admin_dashboard as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/dashboard')
+def dashboard(*args, **kwargs):
+    from .energy import dashboard as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/api/live')
+def api_live(*args, **kwargs):
+    from .energy import api_live as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/statistics')
+def statistics(*args, **kwargs):
+    from .energy import statistics as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/reports')
+def reports(*args, **kwargs):
+    from .energy import reports as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/statistics/export/csv')
+def export_statistics_csv(*args, **kwargs):
+    from .energy import export_statistics_csv as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/statistics/export/pdf')
+def export_statistics_pdf(*args, **kwargs):
+    from .energy import export_statistics_pdf as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/deye', methods=['GET', 'POST'])
+def deye_settings(*args, **kwargs):
+    from .energy import deye_settings as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/test-connection', methods=['POST'])
+def test_connection(*args, **kwargs):
+    from .energy import test_connection as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/sync-now', methods=['POST'])
+def sync_now(*args, **kwargs):
+    from .energy import sync_now as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/diagnostics')
+def diagnostics(*args, **kwargs):
+    from .energy import diagnostics as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/live-data')
+def live_data(*args, **kwargs):
+    from .energy import live_data as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
+def admin_user_profile(*args, **kwargs):
+    from .users_routes import admin_user_profile as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users', methods=['GET', 'POST'])
+def admin_users(*args, **kwargs):
+    from .users_routes import admin_users as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/legacy', methods=['GET', 'POST'])
+def admin_users_legacy(*args, **kwargs):
+    from .users_routes import admin_users_legacy as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/new', methods=['GET', 'POST'])
+def admin_user_create(*args, **kwargs):
+    from .users_routes import admin_user_create as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+def admin_user_edit(*args, **kwargs):
+    from .users_routes import admin_user_edit as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])
+def admin_user_toggle(*args, **kwargs):
+    from .users_routes import admin_user_toggle as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+def admin_user_delete(*args, **kwargs):
+    from .users_routes import admin_user_delete as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/devices/select/<int:device_id>', methods=['POST'])
+def select_device(*args, **kwargs):
+    from .devices_routes import select_device as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/devices/manage', methods=['GET', 'POST'])
+def devices_manage(*args, **kwargs):
+    from .devices_routes import devices_manage as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
+def device_edit(*args, **kwargs):
+    from .devices_routes import device_edit as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
+def device_toggle(*args, **kwargs):
+    from .devices_routes import device_toggle as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/onboarding', methods=['GET', 'POST'])
+def onboarding_wizard(*args, **kwargs):
+    from .devices_routes import onboarding_wizard as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/onboarding/skip', methods=['POST'])
+def onboarding_skip(*args, **kwargs):
+    from .devices_routes import onboarding_skip as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/system-logs')
+def admin_system_logs(*args, **kwargs):
+    from .users_routes import admin_system_logs as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/devices')
+def devices(*args, **kwargs):
+    from .devices_routes import devices as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/battery-lab')
+def battery_lab(*args, **kwargs):
+    from .devices_routes import battery_lab as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/loads', methods=['GET', 'POST'])
+def loads_page(*args, **kwargs):
+    from .energy import loads_page as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/alerts')
+def alerts(*args, **kwargs):
+    from .notifications_routes import alerts as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notifications/action', methods=['POST'])
+def notifications_action(*args, **kwargs):
+    from .notifications_routes import notifications_action as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/channels', methods=['GET', 'POST'])
+def channels(*args, **kwargs):
+    from .notifications_routes import channels as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notifications', methods=['GET', 'POST'])
+def notifications_settings(*args, **kwargs):
+    from .notifications_routes import notifications_settings as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notifications/test', methods=['POST'])
+def notifications_test_send(*args, **kwargs):
+    from .notifications_routes import notifications_test_send as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notifications/test-section', methods=['POST'])
+def notifications_test_section(*args, **kwargs):
+    from .notifications_routes import notifications_test_section as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/telegram/menu/send', methods=['POST'])
+def telegram_send_menu_route(*args, **kwargs):
+    from .notifications_routes import telegram_send_menu_route as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/telegram/webhook', methods=['GET', 'POST'], strict_slashes=False)
+def telegram_webhook(*args, **kwargs):
+    from .notifications_routes import telegram_webhook as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/plant-info')
+def plant_info(*args, **kwargs):
+    from .energy import plant_info as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/api/raw-debug')
+def api_raw_debug(*args, **kwargs):
+    from .energy import api_raw_debug as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/plans')
+def admin_plans(*args, **kwargs):
+    from .billing import admin_plans as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/plans/new', methods=['GET','POST'])
+def admin_plan_create(*args, **kwargs):
+    from .billing import admin_plan_create as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/plans/<int:plan_id>/edit', methods=['GET','POST'])
+def admin_plan_edit(*args, **kwargs):
+    from .billing import admin_plan_edit as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/subscribers')
+def admin_subscribers(*args, **kwargs):
+    from .billing import admin_subscribers as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
+def admin_subscriber_activate(*args, **kwargs):
+    from .billing import admin_subscriber_activate as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/account/subscription')
+def account_subscription(*args, **kwargs):
+    from .billing import account_subscription as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/subscriptions')
+def admin_subscriptions(*args, **kwargs):
+    from .billing import admin_subscriptions as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/mail', methods=['GET', 'POST'])
+def admin_internal_mail(*args, **kwargs):
+    from .support import admin_internal_mail as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/finance', methods=['GET', 'POST'])
+def admin_finance(*args, **kwargs):
+    from .billing import admin_finance as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/activity-log')
+def admin_activity_log(*args, **kwargs):
+    from .users_routes import admin_activity_log as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/roles')
+def admin_roles(*args, **kwargs):
+    from .users_routes import admin_roles as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/tickets', methods=['GET', 'POST'])
+def admin_tickets(*args, **kwargs):
+    from .support import admin_tickets as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/quotas', methods=['GET', 'POST'])
+def admin_quotas(*args, **kwargs):
+    from .billing import admin_quotas as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/support', methods=['GET', 'POST'])
+@main_bp.route('/portal/support', methods=['GET', 'POST'])
+def portal_support(*args, **kwargs):
+    from .support import portal_support as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/portal/messages', methods=['GET', 'POST'])
+def portal_messages(*args, **kwargs):
+    from .support import portal_messages as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/portal/tickets', methods=['GET', 'POST'])
+def portal_tickets(*args, **kwargs):
+    from .support import portal_tickets as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notifications/feed')
+def notifications_feed(*args, **kwargs):
+    from .notifications_routes import notifications_feed as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/notification-center')
+@main_bp.route('/notifications/center')
+def notification_center(*args, **kwargs):
+    from .notifications_routes import notification_center as _impl
+    return _impl(*args, **kwargs)
+
+@main_bp.route('/admin/support-command-center')
+def admin_support_command_center(*args, **kwargs):
+    from .support import admin_support_command_center as _impl
+    return _impl(*args, **kwargs)
 
 @main_bp.route('/admin/support-command-center/action', methods=['POST'])
-def admin_support_command_action():
-    guard = _admin_guard('can_manage_support')
-    if guard:
-        return guard
-    actor = _active_user()
-    actor_id = getattr(actor, 'id', None)
-    case_type = (request.form.get('case_type') or '').strip()
-    source_id = int(request.form.get('source_id') or 0)
-    action = (request.form.get('case_action') or '').strip()
-    filter_key = (request.args.get('filter') or request.form.get('filter_key') or 'all').strip()
-    case_key = f'{case_type}-{source_id}' if case_type and source_id else ''
-    source = _support_source_for(case_type, source_id)
-    if not source:
-        flash('تعذر العثور على عنصر الدعم.', 'danger')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
-
-    old_status = (getattr(source, 'status', None) or 'open').strip()
-    if old_status in ('closed', 'resolved') and action not in ('reopen',):
-        flash('هذا الطلب مغلق ومجمّد. استخدم إعادة فتح أولًا.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
-
-    owner_id = _support_owner_id_for_source(case_type, source)
-    title = getattr(source, 'subject', '') or 'طلب دعم'
-    audit_action = 'case.update'
-    notification_title = 'تحديث على طلب الدعم'
-    should_notify = True
-
-    if action in ('send_reply', 'save_update'):
-        body = (request.form.get('body') or '').strip()
-        is_internal_note = bool(request.form.get('is_internal_note'))
-        requested_status = (request.form.get('status') or old_status or 'open').strip()
-        requested_priority = (request.form.get('priority') or getattr(source, 'priority', None) or 'normal').strip()
-        requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or getattr(source, 'assigned_admin_user_id', None) or None
-        changed = False
-
-        if requested_status and requested_status != old_status:
-            source.status = requested_status
-            changed = True
-        if requested_priority and requested_priority != getattr(source, 'priority', None):
-            source.priority = requested_priority
-            changed = True
-        if requested_assignee_id != getattr(source, 'assigned_admin_user_id', None):
-            source.assigned_admin_user_id = requested_assignee_id
-            changed = True
-
-        msg = None
-        if body:
-            msg = _support_add_admin_message(case_type, source, body, actor_id, is_internal_note=is_internal_note)
-            changed = True
-
-        if not changed:
-            flash('لا يوجد رد أو تغيير جديد للحفظ.', 'warning')
-            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
-
-        source.updated_at = datetime.utcnow()
-        last_reply_by = None if is_internal_note else ('admin' if msg else None)
-        upsert_support_case(case_type, source, last_reply_by)
-        audit_action = 'case.internal_note' if is_internal_note and msg else 'case.reply'
-        audit_case(case_type, source_id, actor_id, audit_action, f'{audit_action} for {case_type} #{source_id}', {'status': getattr(source, 'status', None), 'priority': getattr(source, 'priority', None), 'internal_note': is_internal_note}, commit=False)
-        if msg and not is_internal_note:
-            notification_title = 'رد جديد من الدعم'
-            notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
-        elif changed and not is_internal_note:
-            notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تم تحديث حالة طلب الدعم', message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
-        db.session.commit()
-        flash('تم حفظ الرد وتحديث المحادثة.', 'success')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
-
-    if action == 'assign_me':
-        assigned_admin = actor
-        source.assigned_admin_user_id = actor_id
-        if old_status in ('new', 'open', 'pending'):
-            source.status = 'assigned'
-        existing_messages = _support_messages_for_source(case_type, source)
-        if not _support_has_assignment_notice_for(existing_messages, assigned_admin):
-            _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
-        audit_action = 'case.assign_me'
-        notification_title = 'تم اعتماد المدير المسؤول'
-        flash('تم اعتمادك كمدير مسؤول وإشعار المشترك.', 'success')
-    elif action == 'waiting_user':
-        if old_status != 'waiting_user':
-            source.status = 'waiting_user'
-            _support_add_public_message(case_type, source, 'نحتاج منك معلومات إضافية حتى نكمل معالجة الطلب.', actor_id)
-            flash('تم نقل الطلب إلى بانتظار المستخدم.', 'success')
-        else:
-            flash('الطلب موجود مسبقًا في حالة بانتظار المستخدم.', 'info')
-        audit_action = 'case.waiting_user'
-        notification_title = 'نحتاج معلومات إضافية'
-    elif action == 'close':
-        source.status = 'closed'
-        _support_add_public_message(case_type, source, 'تم إغلاق الطلب بعد الحل. يمكنك طلب إعادة فتحه عند الحاجة.', actor_id)
-        audit_action = 'case.close'
-        notification_title = 'تم إغلاق طلب الدعم'
-        flash('تم إغلاق الطلب وتجميده.', 'success')
-    elif action == 'reopen':
-        source.status = 'open'
-        _support_add_public_message(case_type, source, 'تمت إعادة فتح الطلب وسيتم متابعته من جديد.', actor_id)
-        audit_action = 'case.reopen'
-        notification_title = 'تمت إعادة فتح طلب الدعم'
-        flash('تمت إعادة فتح الطلب.', 'success')
-    else:
-        flash('الإجراء غير معروف.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
-
-    source.updated_at = datetime.utcnow()
-    if not getattr(source, 'last_reply_at', None):
-        source.last_reply_at = datetime.utcnow()
-    upsert_support_case(case_type, source, 'admin')
-    audit_case(case_type, source_id, actor_id, audit_action, f'{audit_action} for {case_type} #{source_id}', {'status': getattr(source, 'status', None)}, commit=False)
-    if should_notify:
-        notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
-    db.session.commit()
-    return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
-
+def admin_support_command_action(*args, **kwargs):
+    from .support import admin_support_command_action as _impl
+    return _impl(*args, **kwargs)
 
 @main_bp.route('/admin/support-command-center/reopen', methods=['POST'])
-def admin_support_reopen():
-    guard = _admin_guard('can_manage_support')
-    if guard:
-        return guard
-    case_type = (request.form.get('case_type') or '').strip()
-    source_id = int(request.form.get('source_id') or 0)
-    actor = _active_user()
-    source = _support_source_for(case_type, source_id)
-    if not source:
-        flash('تعذر العثور على عنصر الدعم.', 'danger')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang()))
-    source.status = 'open'
-    source.updated_at = datetime.utcnow()
-    _support_add_public_message(case_type, source, 'تمت إعادة فتح الطلب وسيتم متابعته من جديد.', getattr(actor, 'id', None))
-    upsert_support_case(case_type, source, 'admin')
-    audit_case(case_type, source_id, getattr(actor, 'id', None), 'case.reopen', 'Reopened closed support case', commit=False)
-    owner_id = _support_owner_id_for_source(case_type, source)
-    notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تمت إعادة فتح طلب الدعم', message=getattr(source, 'subject', ''), direct_url=portal_case_url(case_type, source_id, _lang()))
-    db.session.commit()
-    flash('تمت إعادة فتح الطلب وتسجيل الحركة.', 'success')
-    return redirect(url_for('main.admin_support_command_center', lang=_lang()))
-
+def admin_support_reopen(*args, **kwargs):
+    from .support import admin_support_reopen as _impl
+    return _impl(*args, **kwargs)
 
 @main_bp.route('/notifications/mark-read', methods=['POST'])
-def notifications_mark_read():
-    if not session.get('logged_in'):
-        return jsonify({'ok': False}), 401
-    user = _active_user()
-    now = datetime.utcnow()
-    event_id = int(request.form.get('event_id') or 0)
-    q = NotificationEvent.query.filter_by(target_user_id=getattr(user, 'id', None), is_read=False)
-    if event_id:
-        q = q.filter_by(id=event_id)
-    changed = 0
-    for ev in q.all():
-        ev.is_read = True
-        ev.read_at = now
-        ev.status = 'read'
-        changed += 1
-    db.session.commit()
-    total, mail, ticket = unread_counts(user)
-    return jsonify({'ok': True, 'changed': changed, 'count': total, 'mail_count': mail, 'ticket_count': ticket})
+def notifications_mark_read(*args, **kwargs):
+    from .notifications_routes import notifications_mark_read as _impl
+    return _impl(*args, **kwargs)
+

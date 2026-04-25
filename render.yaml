@@ -28,6 +28,10 @@ services:
         value: false
       - key: TELEGRAM_WEBHOOK_SECRET
         generateValue: true
+      - key: MOBILE_ACCESS_TOKEN_SECONDS
+        value: 900
+      - key: MOBILE_REFRESH_TOKEN_DAYS
+        value: 30
       - key: BACKUP_ENABLED
         value: true
       - key: BACKUP_FREQUENCY
