@@ -64,23 +64,20 @@
           </div>
           <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Manage all' if is_en else 'إدارة الكل' }}</a>
         </div>
-        <div class="table-shell-v2">
-          <table class="admin-table-v2">
-            <thead>
-              <tr><th>{{ 'Name' if is_en else 'الاسم' }}</th><th>{{ 'Email' if is_en else 'البريد' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th></tr>
-            </thead>
-            <tbody>
-              {% for user in recent_subscribers %}
-              <tr>
-                <td><strong>{{ user.full_name or user.username }}</strong><div class="table-sub">@{{ user.username }}</div></td>
-                <td>{{ mask_email(user.email) if user.email else '-' }}</td>
-                <td><span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span></td>
-              </tr>
-              {% else %}
-              <tr><td colspan="3">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="subscriber-mini-list-v107">
+          {% for user in recent_subscribers %}
+          <a class="subscriber-mini-row-v107" href="{{ url_for('main.admin_user_profile', user_id=user.id, lang=ui_lang) }}">
+            <span class="subscriber-avatar-v107">{{ (user.full_name or user.username or 'U')[:1] }}</span>
+            <span class="subscriber-main-v107">
+              <strong>{{ user.full_name or user.username }}</strong>
+              <small>@{{ user.username }}</small>
+            </span>
+            <span class="subscriber-email-v107">{{ mask_email(user.email) if user.email else '-' }}</span>
+            <span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span>
+          </a>
+          {% else %}
+          <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
+          {% endfor %}
         </div>
       </div>
 
@@ -93,12 +90,41 @@
             </div>
             <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ 'Open logs' if is_en else 'فتح السجل' }}</a>
           </div>
-          <div class="activity-list-v2">
+          {% set service_names_ar = {
+            'scheduler': 'الجدولة الداخلية',
+            'deye_auto_sync': 'المزامنة التلقائية',
+            'app.blueprints.main.sync_now_internal': 'المزامنة التلقائية',
+            'advanced_notifications_check': 'الإشعارات المتقدمة',
+            'app.blueprints.notifications.run_advanced_notification_scheduler': 'الإشعارات المتقدمة',
+            'weather_change_check': 'فحص الطقس',
+            'app.blueprints.notifications.run_weather_checks': 'فحص الطقس',
+            'weather_daily_summary': 'ملخص الطقس اليومي',
+            'daily_morning_report': 'التقرير الصباحي',
+            'database_backup': 'النسخ الاحتياطي',
+            'database_backup_drive': 'رفع النسخ إلى Drive',
+            'database_backup_maintenance': 'صيانة النسخ الاحتياطي'
+          } %}
+          {% set service_names_en = {
+            'scheduler': 'Internal Scheduler',
+            'deye_auto_sync': 'Auto Sync',
+            'app.blueprints.main.sync_now_internal': 'Auto Sync',
+            'advanced_notifications_check': 'Advanced Notifications',
+            'app.blueprints.notifications.run_advanced_notification_scheduler': 'Advanced Notifications',
+            'weather_change_check': 'Weather Checks',
+            'app.blueprints.notifications.run_weather_checks': 'Weather Checks',
+            'weather_daily_summary': 'Daily Weather Summary',
+            'daily_morning_report': 'Morning Report',
+            'database_backup': 'Database Backup',
+            'database_backup_drive': 'Drive Upload',
+            'database_backup_maintenance': 'Backup Maintenance'
+          } %}
+          <div class="activity-list-v2 service-heartbeat-list-v107">
             {% for row in heartbeat_rows %}
-            <div class="activity-item-v2">
-              <div>
-                <strong>{{ row.service_label or row.service_key }}</strong>
-                <small>{{ row.updated_at or '-' }}</small>
+            {% set service_label = (service_names_en if is_en else service_names_ar).get(row.service_key, (row.service_label or row.service_key)) %}
+            <div class="activity-item-v2 service-heartbeat-row-v107">
+              <div class="service-heartbeat-main-v107">
+                <strong>{{ service_label }}</strong>
+                <small>{{ row.updated_at.strftime('%Y-%m-%d %H:%M') if row.updated_at else '-' }}</small>
               </div>
               <span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
             </div>

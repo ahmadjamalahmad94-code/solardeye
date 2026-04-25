@@ -33,7 +33,7 @@ def admin_dashboard():
     active_subs = TenantSubscription.query.filter(TenantSubscription.status.in_(['active', 'trial'])).count()
     total_plans = SubscriptionPlan.query.filter_by(is_active=True).count()
     total_devices = AppDevice.query.filter_by(is_active=True).count()
-    recent_subscribers = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).limit(8).all()
+    recent_subscribers = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).limit(5).all()
     heartbeat_rows = ServiceHeartbeat.query.order_by(ServiceHeartbeat.updated_at.desc()).limit(6).all()
     return render_template('admin_dashboard.html', total_users=total_users, total_tenants=total_tenants, active_subs=active_subs, total_plans=total_plans, total_devices=total_devices, recent_subscribers=recent_subscribers, heartbeat_rows=heartbeat_rows)
 
