@@ -2688,3 +2688,40 @@ body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin p{
 .quota-card-head-v111{display:flex;align-items:center;justify-content:space-between;gap:14px}.quota-card-head-v111 small{display:block;color:#7890b3;font-weight:900}.quota-card-head-v111 h3{margin:0;color:#0f172a;font-weight:950}.quota-list-v111{display:grid;gap:14px;overflow:visible!important}.quota-row-v111{border:1px solid #dfe8f5;background:linear-gradient(180deg,#fff,#f8fbff);border-radius:24px;padding:16px 18px;display:grid;gap:14px;box-shadow:0 12px 34px rgba(15,23,42,.055);overflow:hidden;min-width:0}.quota-row-v111.is-ok{border-inline-start:6px solid #22c55e}.quota-row-v111.is-warn{border-inline-start:6px solid #f59e0b}.quota-row-v111.is-danger{border-inline-start:6px solid #ef4444}.quota-row-top-v111{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;min-width:0}.quota-row-top-v111 strong{display:block;color:#0f172a;font-weight:950;overflow-wrap:anywhere}.quota-row-top-v111 small{display:block;color:#6b7d9b;font-weight:800;line-height:1.6;overflow-wrap:anywhere}.quota-stats-v111{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.quota-stats-v111 span{border-radius:18px;background:#f1f6ff;border:1px solid #e2eaf6;padding:11px 12px;text-align:center}.quota-stats-v111 b{display:block;color:#0f172a;font-size:1.25rem;font-weight:950}.quota-stats-v111 small{display:block;color:#7184a7;font-weight:850}.quota-meter-v111{height:11px;border-radius:999px;background:#e2e8f0;overflow:hidden}.quota-meter-v111 i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#22c55e,#fbbf24,#ef4444)}.quota-row-foot-v111{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.quota-row-foot-v111 small{color:#7184a7;font-weight:800;line-height:1.6}.quota-empty-v111{border:1px dashed #cbd5e1;border-radius:24px;background:#f8fbff;padding:22px;display:grid;gap:6px;text-align:center;color:#64748b}.quota-empty-v111 strong{color:#0f172a;font-weight:950}.quota-empty-v111 small{font-weight:750;line-height:1.7}
 @media(max-width:1100px){.quota-layout-v111{grid-template-columns:1fr!important}.quota-explainer-grid-v111{grid-template-columns:1fr}}
 @media(max-width:720px){.quota-form-v111{grid-template-columns:1fr}.quota-stats-v111{grid-template-columns:1fr}.quota-row-top-v111,.quota-preview-v111{flex-direction:column;align-items:flex-start}.quota-preview-v111{align-items:stretch}}
+
+
+/* Heavy v10.5.13 — quota card edit/delete controls */
+.subscriber360-quotas-v111 .quota-row-top-v113{
+  align-items:flex-start;
+  gap:14px;
+}
+.subscriber360-quotas-v111 .quota-row-actions-v113{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.subscriber360-quotas-v111 .quota-delete-form-v113{
+  margin:0;
+  display:inline-flex;
+}
+.subscriber360-quotas-v111 .quota-row-actions-v113 .btn{
+  min-height:34px;
+  border-radius:12px;
+  padding-inline:12px;
+}
+.subscriber360-quotas-v111 .subscriber360-actions-v108.full{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+}
+@media(max-width:720px){
+  .subscriber360-quotas-v111 .quota-row-top-v113{
+    flex-direction:column;
+  }
+  .subscriber360-quotas-v111 .quota-row-actions-v113{
+    justify-content:flex-start;
+  }
+}

@@ -210,11 +210,12 @@
 
   <div class="admin-layout-v2 two subscriber360-two-col-v108 quota-layout-v111">
     <div class="admin-card-v2 subscriber360-card-v108 quota-form-card-v111">
-      <h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
+      <h3 id="quotaFormTitleV113">{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
       <p class="quota-help-v111">{{ 'If the same quota already exists, this form updates it automatically.' if is_en else 'إذا كانت الكوتا موجودة مسبقًا سيتم تحديثها تلقائيًا بدل إنشاء بند مكرر.' }}</p>
       <form method="post" class="quota-form-v111" id="quotaFormV111">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="quota_entry">
+        <input type="hidden" name="quota_id" id="quotaIdV113" value="">
 
         <label class="subscriber360-field-v108 full">
           <span>{{ 'Quota type' if is_en else 'نوع الكوتا' }}</span>
@@ -275,7 +276,7 @@
         </div>
 
         <div class="subscriber360-actions-v108 full">
-          <button class="btn btn-solar">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button>
+          <button class="btn btn-solar" id="quotaSubmitV113">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button><button class="btn btn-outline-secondary" type="button" id="quotaResetFormV113">{{ 'New quota' if is_en else 'كوتا جديدة' }}</button>
         </div>
       </form>
     </div>
@@ -289,9 +290,26 @@
         {% set pct = ((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0 %}
         {% set remaining = (row.limit_value or 0) - (row.used_value or 0) %}
         <article class="quota-row-v111 {{ 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') }}">
-          <div class="quota-row-top-v111">
+          <div class="quota-row-top-v111 quota-row-top-v113">
             <div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }}</small></div>
-            <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+            <div class="quota-row-actions-v113">
+              <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+              <button class="btn btn-outline-primary btn-sm quota-edit-btn-v113" type="button"
+                data-id="{{ row.id }}"
+                data-key="{{ row.quota_key }}"
+                data-label="{{ row.quota_label or '' }}"
+                data-limit="{{ row.limit_value or 0 }}"
+                data-used="{{ row.used_value or 0 }}"
+                data-period="{{ row.reset_period or 'manual' }}"
+                data-status="{{ row.status or 'active' }}"
+                data-notes="{{ row.notes or '' }}">{{ 'Edit' if is_en else 'تعديل' }}</button>
+              <form method="post" class="quota-delete-form-v113" onsubmit="return confirm('{{ 'Delete this quota permanently?' if is_en else 'حذف هذا الحد نهائيًا؟' }}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="quota_delete">
+                <input type="hidden" name="quota_id" value="{{ row.id }}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
+              </form>
+            </div>
           </div>
           <div class="quota-stats-v111">
             <span><b>{{ row.used_value|round(0) }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
@@ -321,6 +339,30 @@
   const notes = document.getElementById('quotaNotesV111');
   const preview = document.getElementById('quotaPreviewV111');
   const customWrap = document.getElementById('quotaCustomWrapV111');
+  const quotaId = document.getElementById('quotaIdV113');
+  const title = document.getElementById('quotaFormTitleV113');
+  const resetBtn = document.getElementById('quotaResetFormV113');
+  const form = document.getElementById('quotaFormV111');
+  const statusSelect = form?.querySelector('[name="status"]');
+
+  function setCustomMode(key){
+    if(!preset) return;
+    let found = false;
+    Array.from(preset.options).forEach((o) => { if(o.value === key){ found = true; } });
+    preset.value = found ? key : 'custom';
+    if(!found){
+      const custom = document.getElementById('quotaCustomKeyV111');
+      if(custom) custom.value = key || '';
+    }
+  }
+  function resetQuotaForm(){
+    if(form) form.reset();
+    if(quotaId) quotaId.value = '';
+    if(title) title.textContent = {{ '"Create new quota"' if is_en else '"إنشاء كوتا جديدة"' }};
+    syncQuotaPreset();
+    form?.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
   function syncQuotaPreset(){
     if(!preset) return;
     const opt = preset.options[preset.selectedIndex];
@@ -336,6 +378,24 @@
     if(preview) preview.textContent = (label?.value || opt?.dataset.label || '') + ' — ' + limitText + ' ' + unit + ' / ' + (reset?.options[reset.selectedIndex]?.text || '');
   }
   ['change','input'].forEach(evt => { preset?.addEventListener(evt, syncQuotaPreset); label?.addEventListener(evt, syncQuotaPreset); limit?.addEventListener(evt, syncQuotaPreset); reset?.addEventListener(evt, syncQuotaPreset); });
+
+  document.querySelectorAll('.quota-edit-btn-v113').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if(quotaId) quotaId.value = btn.dataset.id || '';
+      setCustomMode(btn.dataset.key || '');
+      syncQuotaPreset();
+      if(label) label.value = btn.dataset.label || btn.dataset.key || '';
+      if(limit) limit.value = btn.dataset.limit || '0';
+      if(reset) reset.value = btn.dataset.period || 'manual';
+      if(statusSelect) statusSelect.value = btn.dataset.status || 'active';
+      if(notes) notes.value = btn.dataset.notes || '';
+      if(title) title.textContent = {{ '"Edit quota"' if is_en else '"تعديل الحد"' }};
+      syncQuotaPreset();
+      form?.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+  resetBtn?.addEventListener('click', resetQuotaForm);
+
   syncQuotaPreset();
 })();
 </script>

@@ -239,6 +239,18 @@ def admin_user_profile(user_id: int):
                 db.session.commit()
                 _admin_write_log('finance.profile', f'Added finance entry for tenant #{tenant.id}', 'wallet_ledger', entry.id, {'tenant_id': tenant.id, 'user_id': user.id, 'entry_type': entry.entry_type})
                 flash('تمت إضافة حركة مالية للمشترك.', 'success')
+        elif action == 'quota_delete':
+            lang = _lang()
+            quota_id = int(request.form.get('quota_id') or 0)
+            quota = TenantQuota.query.filter_by(id=quota_id, tenant_id=tenant.id).first() if quota_id else None
+            if not quota:
+                flash('لم يتم العثور على الحد المطلوب حذفه.' if lang != 'en' else 'Quota was not found.', 'warning')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, tab='quotas'))
+            deleted_key = quota.quota_key
+            db.session.delete(quota)
+            db.session.commit()
+            _admin_write_log('quota.profile.delete', f'Deleted quota #{quota_id}', 'tenant_quota', quota_id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': deleted_key})
+            flash('تم حذف الحد بنجاح.' if lang != 'en' else 'Quota deleted successfully.', 'success')
         elif action == 'quota_entry':
             lang = _lang()
             options = _quota_option_map(lang)
@@ -259,7 +271,10 @@ def admin_user_profile(user_id: int):
                 flash('الحد لا يمكن أن يكون رقمًا سالبًا.' if lang != 'en' else 'Limit cannot be negative.', 'danger')
                 return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, tab='quotas'))
             selected = options.get(preset_key) or options.get(quota_key) or {}
-            quota = TenantQuota.query.filter_by(tenant_id=tenant.id, quota_key=quota_key).first()
+            quota_id = int(request.form.get('quota_id') or 0)
+            quota = TenantQuota.query.filter_by(id=quota_id, tenant_id=tenant.id).first() if quota_id else None
+            if quota is None:
+                quota = TenantQuota.query.filter_by(tenant_id=tenant.id, quota_key=quota_key).first()
             created = False
             if quota is None:
                 quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key, used_value=0)
