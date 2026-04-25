@@ -929,3 +929,75 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     autoTranslateTextNodes();
   });
 })();
+
+// Heavy v10.5.19 — dynamic device provider forms
+(function(){
+  function initDynamicProviderForm(form){
+    const specs = window.SOLARDEYE_PROVIDER_SPECS || [];
+    const values = window.SOLARDEYE_DEVICE_VALUES || {creds:{}, settings:{}};
+    const select = form.querySelector('[data-provider-select]');
+    const fieldsBox = form.querySelector('[data-provider-fields]');
+    const note = form.querySelector('[data-provider-note]');
+    const baseUrl = form.querySelector('[data-provider-base-url]');
+    if(!select || !fieldsBox || !specs.length) return;
+    const lang = document.body.dataset.lang || 'ar';
+    const requiredText = lang === 'en' ? 'Required' : 'مطلوب';
+    const optionalText = lang === 'en' ? 'Optional' : 'اختياري';
+    const keepText = lang === 'en' ? 'Leave blank to keep saved value' : 'اتركه فارغًا للاحتفاظ بالقيمة المحفوظة';
+    const storedText = lang === 'en' ? 'Saved privately' : 'محفوظ بشكل مخفي';
+
+    function findSpec(code){ return specs.find(s => s.code === code) || specs[0]; }
+    function getExisting(field){
+      return (values.settings && values.settings[field]) || (values.creds && values.creds[field]) || '';
+    }
+    function render(){
+      const spec = findSpec(select.value);
+      if(note) note.textContent = spec.notes || '';
+      if(baseUrl && !baseUrl.value) baseUrl.value = spec.base_url || '';
+      fieldsBox.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'provider-field-grid-v10519';
+      (spec.fields || []).forEach(field => {
+        const wrap = document.createElement('div');
+        wrap.className = 'provider-field-card-v10519';
+        const id = 'pf_' + field.name + '_' + Math.random().toString(36).slice(2,7);
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.setAttribute('for', id);
+        label.innerHTML = '<span>' + (field.label || field.name) + '</span><small>' + (field.required ? requiredText : optionalText) + '</small>';
+        const input = document.createElement('input');
+        input.className = 'form-control form-control-lg';
+        input.id = id;
+        input.name = 'provider_field_' + field.name;
+        input.type = field.secret ? 'password' : 'text';
+        const existing = getExisting(field.name);
+        if(existing){ input.placeholder = field.secret ? keepText : String(existing); }
+        else { input.placeholder = field.secret ? storedText : ''; }
+        if(field.required && !existing) input.required = true;
+        const hint = document.createElement('div');
+        hint.className = 'field-hint-v10519';
+        hint.textContent = field.hint || (field.secret ? storedText : '');
+        wrap.appendChild(label);
+        wrap.appendChild(input);
+        if(hint.textContent) wrap.appendChild(hint);
+        grid.appendChild(wrap);
+      });
+      if(!(spec.fields || []).length){
+        const empty = document.createElement('div');
+        empty.className = 'empty-box-v2';
+        empty.textContent = lang === 'en' ? 'No special fields are required for this provider.' : 'لا توجد حقول خاصة مطلوبة لهذا النوع.';
+        grid.appendChild(empty);
+      }
+      fieldsBox.appendChild(grid);
+    }
+    select.addEventListener('change', () => {
+      const spec = findSpec(select.value);
+      if(baseUrl) baseUrl.value = spec.base_url || '';
+      render();
+    });
+    render();
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('[data-device-provider-form]').forEach(initDynamicProviderForm);
+  });
+})();

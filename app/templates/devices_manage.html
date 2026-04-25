@@ -1,66 +1,89 @@
 {% extends 'base.html' %}
 {% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set providers = provider_specs or [] %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area">
-    <header class="topbar">
+  <main class="content-area devices-dynamic-page-v10519">
+    <header class="topbar admin-page-head">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
         <div>
-          <h1>إدارة الأجهزة</h1>
-          <p class="mb-0">أضف أو عدّل أجهزتك واختر الجهاز الحالي بسهولة.</p>
+          <span class="eyebrow">{{ 'Device setup' if is_en else 'إعداد الأجهزة' }}</span>
+          <h1>{{ 'My devices' if is_en else 'إدارة الأجهزة' }}</h1>
+          <p class="mb-0">{{ 'Choose the device provider first, then fill only the required connection fields.' if is_en else 'اختر نوع الجهاز أولًا، وبعدها تظهر فقط بيانات الربط المطلوبة لهذا النوع.' }}</p>
         </div>
       </div>
     </header>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}{% endif %}
+      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ t(message) }}</div>{% endfor %}{% endif %}
     {% endwith %}
 
-    <div class="devices-manage-grid mt-4">
-      <form method="post" class="panel-card admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="full"><h3>إضافة جهاز جديد</h3></div>
-        <div><label class="form-label">اسم الجهاز</label><input class="form-control form-control-lg" name="name" required></div>
-        <div><label class="form-label">نوع الجهاز</label>
-          <select class="form-select form-select-lg" name="device_type"><option value="deye">Deye</option><option value="custom">Custom / مستقبلًا</option></select>
+    <div class="devices-manage-grid dynamic-devices-grid-v10519 mt-4">
+      <form method="post" class="panel-card dynamic-device-form-v10519" data-device-provider-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="dynamic-device-head-v10519 full">
+          <div>
+            <small>{{ 'New device' if is_en else 'جهاز جديد' }}</small>
+            <h3>{{ 'Add device by provider' if is_en else 'إضافة جهاز حسب نوعه' }}</h3>
+            <p>{{ 'Deye keeps the current live sync. Other providers are stored cleanly and ready for staged adapters.' if is_en else 'Deye يبقى مربوطًا بالمزامنة الحالية، وباقي الأنواع تحفظ بياناتها بشكل منظم وجاهز للمحوّلات.' }}</p>
+          </div>
         </div>
-        <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="deye"></div>
-        <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="https://eu1-developer.deyecloud.com/v1.0"></div>
-        <div><label class="form-label">Plant Name</label><input class="form-control form-control-lg" name="plant_name"></div>
-        <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id" placeholder="{{ 'Stored privately' if is_en else 'محفوظ بشكل مخفي' }}"></div>
-        <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid" placeholder="{{ 'Stored privately' if is_en else 'محفوظ بشكل مخفي' }}"></div>
-        <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email"></div>
-        <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password"></div>
-        <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id"></div>
-        <div><label class="form-label">Deye App Secret</label><input type="password" class="form-control form-control-lg" name="deye_app_secret"></div>
-        <div><label class="form-label">Deye Region</label><input class="form-control form-control-lg" name="deye_region" value="EMEA"></div>
-        <div class="full"><label class="form-label">ملاحظات</label><textarea class="form-control" rows="3" name="notes"></textarea></div>
-        <div class="full form-check form-switch"><input class="form-check-input" type="checkbox" name="is_active" id="newDeviceActive" checked><label class="form-check-label" for="newDeviceActive">الجهاز مفعل</label></div>
-        <div class="full"><button class="btn btn-solar" type="submit">إضافة الجهاز</button></div>
+
+        <div class="form-section-title full">{{ '1. Choose provider' if is_en else '1. اختر نوع الجهاز' }}</div>
+        <div class="full provider-picker-v10519">
+          <select class="form-select form-select-lg" name="device_type" data-provider-select>
+            {% for p in providers %}
+              <option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == 'deye' %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="provider-selected-note-v10519" data-provider-note>{{ providers[0].notes if providers else '' }}</div>
+        </div>
+
+        <div class="form-section-title full">{{ '2. Basic device info' if is_en else '2. بيانات الجهاز الأساسية' }}</div>
+        <div><label class="form-label">{{ 'Device name' if is_en else 'اسم الجهاز' }}</label><input class="form-control form-control-lg" name="name" required placeholder="{{ 'Home inverter' if is_en else 'انفيرتر البيت' }}"></div>
+        <div><label class="form-label">{{ 'Plant / site name' if is_en else 'اسم المحطة / الموقع' }}</label><input class="form-control form-control-lg" name="plant_name" placeholder="{{ 'Optional' if is_en else 'اختياري' }}"></div>
+        <div><label class="form-label">{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</label><input class="form-control form-control-lg" name="api_base_url" data-provider-base-url placeholder="{{ 'Filled automatically when available' if is_en else 'يُعبأ تلقائيًا إذا كان معروفًا' }}"></div>
+        <div><label class="form-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label><input class="form-control form-control-lg" name="timezone" value="Asia/Hebron"></div>
+
+        <div class="form-section-title full">{{ '3. Connection fields' if is_en else '3. بيانات الربط المطلوبة' }}</div>
+        <div class="dynamic-fields-v10519 full" data-provider-fields></div>
+
+        <div class="full"><label class="form-label">{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" rows="3" name="notes" placeholder="{{ 'Internal note about this device' if is_en else 'ملاحظة داخلية عن هذا الجهاز' }}"></textarea></div>
+        <div class="full form-check form-switch device-switch-v10519"><input class="form-check-input" type="checkbox" name="is_active" id="newDeviceActive" checked><label class="form-check-label" for="newDeviceActive">{{ 'Device enabled' if is_en else 'الجهاز مفعل' }}</label></div>
+        <div class="full d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit">{{ 'Add device' if is_en else 'إضافة الجهاز' }}</button></div>
       </form>
 
-      <div class="panel-card">
-        <div class="section-head"><h3>أجهزتي</h3></div>
+      <div class="panel-card dynamic-device-list-card-v10519">
+        <div class="section-head"><h3>{{ 'My devices' if is_en else 'أجهزتي' }}</h3></div>
         <div class="device-list-stack mt-3">
           {% for dev in devices_list %}
-          <div class="device-manage-card {% if current_device_id == dev.id %}current{% endif %}">
+          <div class="device-manage-card dynamic-device-card-v10519 {% if current_device_id == dev.id %}current{% endif %}">
             <div>
               <strong>{{ dev.name }}</strong>
-              <div class="device-meta-line">{{ dev.device_type|upper }}{% if dev.plant_name %} • {{ dev.plant_name }}{% endif %}{% if dev.station_id %} • {{ mask_identifier(dev.station_id) }}{% endif %}</div>
+              <div class="device-meta-line">
+                <span>{{ (dev.device_type or 'deye')|replace('_',' ')|title }}</span>
+                {% if dev.plant_name %}<span>• {{ dev.plant_name }}</span>{% endif %}
+                {% if dev.station_id %}<span>• {{ mask_identifier(dev.station_id) }}</span>{% endif %}
+              </div>
+              <small class="text-muted">{{ 'Connection' if is_en else 'حالة الربط' }}: {{ t(dev.connection_status or 'new') }}</small>
             </div>
             <div class="device-card-actions">
-              {% if current_device_id == dev.id %}<span class="smart-badge">الحالي</span>{% endif %}
-              <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary btn-sm">اختيار</button></form>
-              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.device_edit', device_id=dev.id, lang=ui_lang) }}">تعديل</a>
-              <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary btn-sm">{{ 'تعطيل' if dev.is_active else 'تفعيل' }}</button></form>
+              {% if current_device_id == dev.id %}<span class="smart-badge">{{ 'Current' if is_en else 'الحالي' }}</span>{% endif %}
+              <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary btn-sm">{{ 'Select' if is_en else 'اختيار' }}</button></form>
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.device_edit', device_id=dev.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
+              <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if (dev.is_active and is_en) else ('تعطيل' if dev.is_active else ('Enable' if is_en else 'تفعيل')) }}</button></form>
             </div>
           </div>
           {% else %}
-          <p class="text-muted mb-0">لا توجد أجهزة بعد.</p>
+          <div class="empty-box-v2">{{ 'No devices yet. Choose a provider and add your first device.' if is_en else 'لا توجد أجهزة بعد. اختر نوع الجهاز وأضف أول جهاز.' }}</div>
           {% endfor %}
         </div>
       </div>
     </div>
   </main>
 </div>
+<script>
+window.SOLARDEYE_PROVIDER_SPECS = {{ providers|tojson }};
+</script>
 {% endblock %}

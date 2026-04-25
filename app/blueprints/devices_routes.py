@@ -4,12 +4,190 @@ from __future__ import annotations
 # main.py while importing legacy helpers/services from main during the migration
 # window. This keeps behavior stable while main.py shrinks safely.
 from flask import Blueprint
+from ..services.energy_integrations import provider_catalog
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
 for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
+
+
+
+# Heavy v10.5.19 — dynamic device providers UI helpers.
+_DEVICE_FIELD_LABELS_AR = {
+    'deye_app_id': 'Deye App ID', 'deye_app_secret': 'Deye App Secret', 'deye_email': 'بريد Deye', 'deye_password_or_hash': 'كلمة مرور Deye أو SHA-256',
+    'deye_device_sn': 'Device SN', 'deye_logger_sn': 'Logger SN', 'deye_plant_id': 'Plant ID', 'battery_capacity_kwh': 'سعة البطارية kWh',
+    'site_id': 'Site ID', 'api_key': 'API Key', 'system_id': 'System ID', 'oauth_access_token': 'OAuth Access Token', 'installation_id': 'Installation ID',
+    'access_token': 'Access Token', 'local_base_url': 'الرابط المحلي للجهاز', 'client_id': 'Client ID', 'client_secret': 'Client Secret',
+    'energy_site_id': 'Energy Site ID', 'base_url': 'Base URL', 'username': 'اسم المستخدم', 'password': 'كلمة المرور', 'system_code': 'System Code', 'station_code': 'Station Code',
+    'app_id': 'App ID', 'app_secret': 'App Secret', 'logger_sn': 'Logger SN', 'device_sn': 'Device SN', 'station_id': 'Station ID',
+    'app_key': 'App Key', 'refresh_token': 'Refresh Token', 'region': 'المنطقة', 'account': 'الحساب', 'powerstation_id': 'Power Station ID',
+    'org_id': 'Organization ID', 'inverter_sn': 'Inverter SN', 'api_secret': 'API Secret', 'dtu_base_url': 'OpenDTU URL', 'mqtt_host': 'MQTT Host',
+    'mqtt_username': 'MQTT Username', 'mqtt_password': 'MQTT Password', 'entity_id': 'Entity ID', 'device_id': 'Device ID', 'serial_number': 'Serial Number',
+}
+_DEVICE_FIELD_LABELS_EN = {
+    'deye_app_id': 'Deye App ID', 'deye_app_secret': 'Deye App Secret', 'deye_email': 'Deye email', 'deye_password_or_hash': 'Deye password or SHA-256',
+    'deye_device_sn': 'Device SN', 'deye_logger_sn': 'Logger SN', 'deye_plant_id': 'Plant ID', 'battery_capacity_kwh': 'Battery capacity kWh',
+    'site_id': 'Site ID', 'api_key': 'API key', 'system_id': 'System ID', 'oauth_access_token': 'OAuth access token', 'installation_id': 'Installation ID',
+    'access_token': 'Access token', 'local_base_url': 'Local device URL', 'client_id': 'Client ID', 'client_secret': 'Client secret',
+    'energy_site_id': 'Energy site ID', 'base_url': 'Base URL', 'username': 'Username', 'password': 'Password', 'system_code': 'System code', 'station_code': 'Station code',
+    'app_id': 'App ID', 'app_secret': 'App secret', 'logger_sn': 'Logger SN', 'device_sn': 'Device SN', 'station_id': 'Station ID',
+    'app_key': 'App key', 'refresh_token': 'Refresh token', 'region': 'Region', 'account': 'Account', 'powerstation_id': 'Power station ID',
+    'org_id': 'Organization ID', 'inverter_sn': 'Inverter SN', 'api_secret': 'API secret', 'dtu_base_url': 'OpenDTU URL', 'mqtt_host': 'MQTT host',
+    'mqtt_username': 'MQTT username', 'mqtt_password': 'MQTT password', 'entity_id': 'Entity ID', 'device_id': 'Device ID', 'serial_number': 'Serial number',
+}
+_DEVICE_FIELD_HINTS_AR = {
+    'deye_password_or_hash': 'يمكنك إدخال كلمة المرور أو SHA-256 حسب طريقة الربط.',
+    'local_base_url': 'مثال: http://192.168.1.50 — يجب أن يكون الجهاز متاحًا من الشبكة.',
+    'base_url': 'رابط API الأساسي من شركة الجهاز أو مزود الخدمة.',
+    'oauth_access_token': 'يفضل أن يكون Token مخصص للقراءة فقط.',
+    'access_token': 'يفضل أن يكون Token مخصص للقراءة فقط.',
+    'api_key': 'لا يتم عرضه كاملًا لاحقًا للحفاظ على الخصوصية.',
+    'api_secret': 'سيتم حفظه بشكل مخفي ولا يظهر كاملًا.',
+    'app_secret': 'سيتم حفظه بشكل مخفي ولا يظهر كاملًا.',
+    'client_secret': 'سيتم حفظه بشكل مخفي ولا يظهر كاملًا.',
+}
+_DEVICE_FIELD_HINTS_EN = {
+    'deye_password_or_hash': 'Enter the Deye password or SHA-256 hash depending on your connection method.',
+    'local_base_url': 'Example: http://192.168.1.50 — device must be reachable from the network.',
+    'base_url': 'Base API URL from the provider.',
+    'oauth_access_token': 'Prefer a read-only token.',
+    'access_token': 'Prefer a read-only token.',
+    'api_key': 'Stored privately and masked later.',
+    'api_secret': 'Stored privately and masked later.',
+    'app_secret': 'Stored privately and masked later.',
+    'client_secret': 'Stored privately and masked later.',
+}
+
+
+def _provider_specs_for_ui(lang=None):
+    lang = 'en' if (lang or _lang()) == 'en' else 'ar'
+    labels = _DEVICE_FIELD_LABELS_EN if lang == 'en' else _DEVICE_FIELD_LABELS_AR
+    hints = _DEVICE_FIELD_HINTS_EN if lang == 'en' else _DEVICE_FIELD_HINTS_AR
+    items = []
+    for spec in provider_catalog():
+        fields = []
+        for name in list(spec.required_fields or ()) + list(spec.optional_fields or ()):  # keep provider ordering
+            fields.append({
+                'name': name,
+                'label': labels.get(name, name.replace('_', ' ').title()),
+                'required': name in (spec.required_fields or ()),
+                'secret': any(word in name.lower() for word in ['password', 'secret', 'token', 'key']),
+                'hint': hints.get(name, ''),
+            })
+        items.append({
+            'code': spec.code,
+            'name': spec.name,
+            'provider': spec.provider,
+            'auth_mode': spec.auth_mode,
+            'base_url': spec.base_url or '',
+            'category': spec.category,
+            'notes': spec.notes_en if lang == 'en' else spec.notes_ar,
+            'fields': fields,
+        })
+    return items
+
+
+def _device_provider_spec(code: str | None):
+    code = (code or 'deye').strip().lower()
+    for spec in provider_catalog():
+        if spec.code == code:
+            return spec
+    return next((s for s in provider_catalog() if s.code == 'deye'), None)
+
+
+def _save_device_fields(device: AppDevice, owner_user_id: int):
+    """Dynamic provider-aware device save. Keeps Deye compatibility intact."""
+    provider_code = (request.form.get('device_type') or request.form.get('provider_code') or device.device_type or 'deye').strip().lower()
+    spec = _device_provider_spec(provider_code)
+    device.name = (request.form.get('name', '') or '').strip() or device.name or (spec.name if spec else 'My Solar Device')
+    device.device_type = provider_code
+    device.api_provider = (getattr(spec, 'provider', None) or request.form.get('api_provider') or provider_code or 'custom').strip().lower()
+    device.api_base_url = (request.form.get('api_base_url', '') or getattr(spec, 'base_url', '') or device.api_base_url or '').strip() or None
+    device.timezone = (request.form.get('timezone', current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')) or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')).strip()
+    device.auth_mode = (getattr(spec, 'auth_mode', None) or request.form.get('auth_mode', 'wizard') or 'wizard').strip().lower()
+    device.notes = (request.form.get('notes', '') or '').strip()
+    device.owner_user_id = owner_user_id
+    device.is_active = request.form.get('is_active') == 'on'
+
+    existing_creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    existing_settings = _safe_json_loads(getattr(device, 'settings_json', None))
+    creds = dict(existing_creds)
+    settings = dict(existing_settings)
+    settings.update({
+        'provider_code': provider_code,
+        'provider_name': getattr(spec, 'name', provider_code) if spec else provider_code,
+        'api_provider': device.api_provider,
+        'api_base_url': device.api_base_url or '',
+        'auth_mode': device.auth_mode,
+        'timezone': device.timezone,
+    })
+
+    all_fields = []
+    if spec:
+        all_fields = list(spec.required_fields or ()) + list(spec.optional_fields or ())
+    # Also preserve common identifiers for older forms.
+    for extra in ['station_id', 'device_uid', 'external_device_id', 'plant_name', 'deye_plant_id', 'deye_device_sn', 'deye_logger_sn']:
+        if extra not in all_fields:
+            all_fields.append(extra)
+
+    for field in all_fields:
+        form_key = f'provider_field_{field}'
+        value = preserve_secret_form_value(request.form, form_key, settings.get(field) or creds.get(field) or '')
+        if value in (None, ''):
+            # fall back to legacy field names if they exist in older templates/postbacks
+            value = preserve_secret_form_value(request.form, field, settings.get(field) or creds.get(field) or '')
+        if any(word in field.lower() for word in ['password', 'secret', 'token', 'key']) or field in {'deye_email', 'username', 'account'}:
+            if value:
+                creds[field] = value
+        else:
+            if value:
+                settings[field] = value
+
+    # Deye compatibility mappings used by current sync engine.
+    if provider_code == 'deye':
+        if creds.get('deye_password_or_hash') and not creds.get('deye_password') and not creds.get('deye_password_hash'):
+            creds['deye_password'] = creds.get('deye_password_or_hash')
+        if settings.get('deye_plant_id'):
+            device.station_id = settings.get('deye_plant_id')
+        else:
+            device.station_id = preserve_secret_form_value(request.form, 'station_id', device.station_id or '') or device.station_id
+        if settings.get('deye_device_sn'):
+            device.device_uid = settings.get('deye_device_sn')
+        else:
+            device.device_uid = preserve_secret_form_value(request.form, 'device_uid', device.device_uid or '') or device.device_uid
+        device.plant_name = (request.form.get('plant_name', '') or settings.get('deye_plant_name') or device.plant_name or device.name).strip()
+    else:
+        device.station_id = settings.get('station_id') or settings.get('site_id') or settings.get('system_id') or settings.get('installation_id') or settings.get('powerstation_id') or device.station_id
+        device.device_uid = settings.get('device_uid') or settings.get('device_sn') or settings.get('inverter_sn') or settings.get('serial_number') or settings.get('device_id') or device.device_uid
+        device.external_device_id = settings.get('external_device_id') or settings.get('entity_id') or settings.get('energy_site_id') or device.external_device_id
+        device.plant_name = (request.form.get('plant_name', '') or settings.get('plant_name') or settings.get('station_name') or device.plant_name or device.name).strip()
+
+    device.credentials_json = json.dumps(creds, ensure_ascii=False)
+    device.settings_json = json.dumps(settings, ensure_ascii=False)
+    device.updated_at = datetime.utcnow()
+
+
+def _device_payload(device: AppDevice | None):
+    if device is None:
+        return {}, {}
+    creds = _safe_json_loads(getattr(device, 'credentials_json', None))
+    settings = _safe_json_loads(getattr(device, 'settings_json', None))
+    # Keep legacy keys for Deye templates and add generic provider payload for dynamic forms.
+    normalized_creds = {
+        **creds,
+        'deye_email': creds.get('deye_email') or creds.get('email') or '',
+        'deye_password': creds.get('deye_password') or creds.get('password') or '',
+        'deye_app_id': creds.get('deye_app_id') or creds.get('app_id') or '',
+        'deye_app_secret': creds.get('deye_app_secret') or creds.get('app_secret') or '',
+    }
+    normalized_settings = {
+        **settings,
+        'deye_region': settings.get('deye_region') or settings.get('region') or 'EMEA',
+        'api_base_url': settings.get('api_base_url') or getattr(device, 'api_base_url', '') or '',
+    }
+    return normalized_creds, normalized_settings
 
 devices_bp = Blueprint('devices_routes', __name__)
 
@@ -53,7 +231,7 @@ def devices_manage():
         return redirect(url_for('main.devices_manage', lang=_lang()))
 
     devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
-    return render_template('devices_manage.html', devices_list=devices_list, ui_lang=_lang(), current_device_id=session.get('current_device_id'))
+    return render_template('devices_manage.html', devices_list=devices_list, provider_specs=_provider_specs_for_ui(_lang()), ui_lang=_lang(), current_device_id=session.get('current_device_id'))
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
@@ -71,7 +249,7 @@ def device_edit(device_id: int):
         return redirect(url_for('main.devices_manage', lang=_lang()))
 
     creds, device_settings = _device_payload(device)
-    return render_template('device_form.html', device=device, device_creds=creds, device_settings=device_settings, mode='edit', ui_lang=_lang())
+    return render_template('device_form.html', device=device, device_creds=creds, device_settings=device_settings, provider_specs=_provider_specs_for_ui(_lang()), mode='edit', ui_lang=_lang())
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])

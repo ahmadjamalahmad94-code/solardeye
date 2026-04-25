@@ -1,33 +1,43 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set providers = provider_specs or [] %}
+{% set current_provider = device.device_type or 'deye' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area">
-    <header class="topbar">
-      <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><span class="eyebrow">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span><h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1><p class="mb-0">{{ 'Private IDs and credentials are masked. Leave blank to keep saved values.' if is_en else 'المعرّفات والبيانات الخاصة مخفية. اترك الحقول فارغة للاحتفاظ بالقيم المحفوظة.' }}</p></div></div>
+  <main class="content-area devices-dynamic-page-v10519">
+    <header class="topbar admin-page-head">
+      <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><span class="eyebrow">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span><h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1><p class="mb-0">{{ 'Choose the provider and keep secret fields blank to preserve saved values.' if is_en else 'اختر نوع الجهاز، واترك الحقول السرية فارغة للاحتفاظ بالقيم المحفوظة.' }}</p></div></div>
       <div><a class="btn btn-outline-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">↩ {{ 'Back' if is_en else 'الرجوع' }}</a></div>
     </header>
-    <form method="post" class="panel-card mt-4 admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="post" class="panel-card dynamic-device-form-v10519 mt-4" data-device-provider-form data-edit-device><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-section-title full">{{ '1. Provider' if is_en else '1. نوع الجهاز' }}</div>
+      <div class="full provider-picker-v10519">
+        <select class="form-select form-select-lg" name="device_type" data-provider-select>
+          {% for p in providers %}
+            <option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="provider-selected-note-v10519" data-provider-note></div>
+      </div>
+
+      <div class="form-section-title full">{{ '2. Basic device info' if is_en else '2. بيانات الجهاز الأساسية' }}</div>
       <div><label class="form-label">{{ 'Device name' if is_en else 'اسم الجهاز' }}</label><input class="form-control form-control-lg" name="name" value="{{ device.name }}" required></div>
-      <div><label class="form-label">{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><select class="form-select form-select-lg" name="device_type"><option value="deye" {% if device.device_type=='deye' %}selected{% endif %}>Deye</option><option value="custom" {% if device.device_type=='custom' %}selected{% endif %}>Custom</option></select></div>
-      <div><label class="form-label">API Provider</label><input class="form-control form-control-lg" name="api_provider" value="{{ device.api_provider or '' }}"></div>
-      <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or '' }}"></div>
-      <div><label class="form-label">Plant Name</label><input class="form-control form-control-lg" name="plant_name" value="{{ device.plant_name or '' }}"></div>
-      <div><label class="form-label">Station ID</label><input class="form-control form-control-lg" name="station_id" value="" placeholder="{{ mask_identifier(device.station_id) if device.station_id else ('Enter Station ID' if is_en else 'أدخل Station ID') }}"></div>
-      <div><label class="form-label">Device UID</label><input class="form-control form-control-lg" name="device_uid" value="" placeholder="{{ mask_identifier(device.device_uid) if device.device_uid else ('Enter Device UID' if is_en else 'أدخل Device UID') }}"></div>
-      <div><label class="form-label">External Device ID</label><input class="form-control form-control-lg" name="external_device_id" value="" placeholder="{{ mask_identifier(device.external_device_id) if device.external_device_id else ('Enter external ID' if is_en else 'أدخل المعرف الخارجي') }}"></div>
-      <div><label class="form-label">Timezone</label><input class="form-control form-control-lg" name="timezone" value="{{ device.timezone or 'Asia/Hebron' }}"></div>
-      <div><label class="form-label">Auth Mode</label><input class="form-control form-control-lg" name="auth_mode" value="{{ device.auth_mode or 'config' }}"></div>
-      <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email" value="" placeholder="{{ mask_email(device_creds.get('deye_email')) if device_creds.get('deye_email') else ('Enter Deye email' if is_en else 'أدخل بريد Deye') }}"></div>
-      <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password" value="" placeholder="{{ mask_secret(device_creds.get('deye_password')) if device_creds.get('deye_password') else '' }}"></div>
-      <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id" value="" placeholder="{{ mask_identifier(device_creds.get('deye_app_id')) if device_creds.get('deye_app_id') else ('Enter App ID' if is_en else 'أدخل App ID') }}"></div>
-      <div><label class="form-label">Deye App Secret</label><input type="password" class="form-control form-control-lg" name="deye_app_secret" value="" placeholder="{{ mask_secret(device_creds.get('deye_app_secret')) if device_creds.get('deye_app_secret') else '' }}"></div>
-      <div><label class="form-label">Deye Region</label><input class="form-control form-control-lg" name="deye_region" value="{{ device_settings.get('deye_region','EMEA') }}"></div>
+      <div><label class="form-label">{{ 'Plant / site name' if is_en else 'اسم المحطة / الموقع' }}</label><input class="form-control form-control-lg" name="plant_name" value="{{ device.plant_name or '' }}"></div>
+      <div><label class="form-label">{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</label><input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or device_settings.get('api_base_url','') or '' }}" data-provider-base-url></div>
+      <div><label class="form-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label><input class="form-control form-control-lg" name="timezone" value="{{ device.timezone or 'Asia/Hebron' }}"></div>
+
+      <div class="form-section-title full">{{ '3. Connection fields' if is_en else '3. بيانات الربط المطلوبة' }}</div>
+      <div class="dynamic-fields-v10519 full" data-provider-fields></div>
+
       <div class="full"><label class="form-label">{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" rows="4" name="notes">{{ device.notes or '' }}</textarea></div>
-      <div class="full form-check form-switch"><input class="form-check-input" type="checkbox" name="is_active" id="deviceActiveEdit" {% if device.is_active %}checked{% endif %}><label class="form-check-label" for="deviceActiveEdit">{{ 'Device enabled' if is_en else 'الجهاز مفعل' }}</label></div>
+      <div class="full form-check form-switch device-switch-v10519"><input class="form-check-input" type="checkbox" name="is_active" id="deviceActiveEdit" {% if device.is_active %}checked{% endif %}><label class="form-check-label" for="deviceActiveEdit">{{ 'Device enabled' if is_en else 'الجهاز مفعل' }}</label></div>
       <div class="full d-flex gap-2 flex-wrap"><button class="btn btn-solar" type="submit">{{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button><a class="btn btn-outline-secondary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a></div>
     </form>
   </main>
 </div>
+<script>
+window.SOLARDEYE_PROVIDER_SPECS = {{ providers|tojson }};
+window.SOLARDEYE_DEVICE_VALUES = {{ {'creds': device_creds, 'settings': device_settings}|tojson }};
+</script>
 {% endblock %}
