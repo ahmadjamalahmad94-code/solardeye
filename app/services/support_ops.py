@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlparse
 from datetime import datetime, timedelta
 
 from flask import url_for
@@ -96,10 +97,41 @@ def audit_case(case_type: str, source_id: int, actor_user_id: int | None, action
         db.session.commit()
 
 
+
+
+def _is_admin_like_user(user: AppUser | None) -> bool:
+    if not user:
+        return False
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    return bool(getattr(user, 'is_admin', False) or role not in {'', 'user', 'subscriber', 'customer'})
+
+
+def _safe_direct_url_for_user(user: AppUser | None, direct_url: str | None, *, source_type=None, source_id=None, lang='ar') -> str:
+    """Return a URL the target user is allowed to open.
+
+    Old notification rows may contain /admin links. Subscribers must be sent to
+    portal views only; admin/staff users may keep admin links.
+    """
+    raw = (direct_url or '#').strip() or '#'
+    if _is_admin_like_user(user):
+        return raw
+    parsed = urlparse(raw)
+    path = (parsed.path or raw or '').strip()
+    is_admin_url = path.startswith('/admin') or raw.startswith('/admin')
+    if is_admin_url:
+        if source_type in {'message', 'mail'} and source_id:
+            return portal_case_url('message', int(source_id), lang)
+        if source_type == 'ticket' and source_id:
+            return portal_case_url('ticket', int(source_id), lang)
+        return url_for('main.dashboard', lang=lang)
+    return raw
+
 def notify_user(target_user_id: int | None, *, event_type='support', source_type=None, source_id=None, tenant_id=None, title='', message='', direct_url='#', status='new', commit=False):
     if not target_user_id:
         return None
-    ev = NotificationEvent(event_type=event_type, target_user_id=target_user_id, tenant_id=tenant_id, source_type=source_type, source_id=source_id, title=title or '', message=message or '', direct_url=direct_url or '#', status=status, created_at=datetime.utcnow())
+    target_user = AppUser.query.get(target_user_id) if target_user_id else None
+    safe_url = _safe_direct_url_for_user(target_user, direct_url, source_type=source_type, source_id=source_id, lang='ar')
+    ev = NotificationEvent(event_type=event_type, target_user_id=target_user_id, tenant_id=tenant_id, source_type=source_type, source_id=source_id, title=title or '', message=message or '', direct_url=safe_url or '#', status=status, created_at=datetime.utcnow())
     db.session.add(ev)
     if commit:
         db.session.commit()
@@ -128,6 +160,10 @@ def notification_items_for(user, is_admin: bool, limit=5, include_read=False, la
     now = datetime.utcnow()
     changed = False
     for ev in rows:
+        safe_url = _safe_direct_url_for_user(user, ev.direct_url, source_type=ev.source_type, source_id=ev.source_id, lang=lang)
+        if safe_url != (ev.direct_url or '#'):
+            ev.direct_url = safe_url
+            changed = True
         if not ev.appeared_in_bell:
             ev.appeared_in_bell = True
             ev.delivered_to_user = True

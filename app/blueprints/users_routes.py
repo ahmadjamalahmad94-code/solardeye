@@ -13,6 +13,11 @@ for _legacy_name in dir(_legacy_main):
 
 users_bp = Blueprint('users_routes', __name__)
 
+def _is_admin_role_code(role: str | None) -> bool:
+    role = (role or '').strip().lower()
+    return role not in {'', 'user', 'subscriber', 'customer'}
+
+
 @users_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
 def admin_user_profile(user_id: int):
     requested_tab = (request.args.get('tab') or 'profile').strip()
@@ -37,7 +42,7 @@ def admin_user_profile(user_id: int):
                 user.is_active = request.form.get('is_active') == 'on'
                 role = (request.form.get('role') or user.role or 'user').strip().lower()
                 user.role = role or 'user'
-                user.is_admin = (user.role != 'user')
+                user.is_admin = _is_admin_role_code(user.role)
                 if request.form.get('password'):
                     user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
                 db.session.commit()
@@ -347,7 +352,7 @@ def admin_user_create():
                 role=role or 'user',
                 preferred_device_type='deye',
                 is_active=is_active,
-                is_admin=(role != 'user'),
+                is_admin=_is_admin_role_code(role),
             )
             db.session.add(user)
             db.session.flush()
@@ -389,7 +394,7 @@ def admin_user_edit(user_id: int):
             user.full_name = full_name
             user.email = email
             user.role = role or 'user'
-            user.is_admin = (user.role != 'user')
+            user.is_admin = _is_admin_role_code(user.role)
             user.is_active = is_active
             if password:
                 user.password_hash = generate_password_hash(password)

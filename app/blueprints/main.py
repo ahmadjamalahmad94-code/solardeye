@@ -60,6 +60,11 @@ from .notifications import (
 main_bp = Blueprint('main', __name__)
 
 
+def _is_admin_like_user(user) -> bool:
+    role = (getattr(user, 'role', '') or '').strip().lower() if user else ''
+    return bool(user and (getattr(user, 'is_admin', False) or role not in {'', 'user', 'subscriber', 'customer'}))
+
+
 def _support_admin_label(admin):
     if not admin:
         return 'الموظف المسؤول'
@@ -149,7 +154,7 @@ def _safe_admin_redirect(default_endpoint: str = 'main.admin_subscribers'):
 
 def _redirect_by_role(user=None):
     user = user or _active_user()
-    if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
+    if _is_admin_like_user(user):
         return redirect(admin_landing_url(_lang()))
     return redirect(url_for('main.dashboard', lang=_lang()))
 
@@ -158,7 +163,7 @@ def _energy_portal_guard():
     user = _active_user()
     if user is None:
         return redirect(url_for('auth.login'))
-    if getattr(user, 'is_admin', False) or (getattr(user, 'role', '') or '').strip().lower() != 'user':
+    if _is_admin_like_user(user):
         flash('Admin console is separate from the subscriber energy portal.' if _lang() == 'en' else 'لوحة الإدارة منفصلة عن بوابة الطاقة.', 'info')
         return redirect(admin_landing_url(_lang()))
     return None

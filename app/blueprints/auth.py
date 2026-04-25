@@ -30,6 +30,15 @@ from ..services.rbac import admin_landing_url
 auth_bp = Blueprint('auth', __name__)
 
 
+
+
+def _is_admin_like_user(user: AppUser | None) -> bool:
+    if not user:
+        return False
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    # Empty/unknown roles must NOT become admin. Only explicit staff roles do.
+    return bool(getattr(user, 'is_admin', False) or role not in {'', 'user', 'subscriber', 'customer'})
+
 def _login_user(app_user: AppUser):
     session.permanent = True
     session['logged_in'] = True
@@ -42,7 +51,7 @@ def _login_user(app_user: AppUser):
         device = AppDevice.query.filter_by(id=app_user.preferred_device_id, owner_user_id=app_user.id, is_active=True).first()
     if device is None:
         device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
-    if device and not bool(getattr(app_user, 'is_admin', False) or (getattr(app_user, 'role', '') or '').strip().lower() != 'user'):
+    if device and not _is_admin_like_user(app_user):
         session['current_device_id'] = device.id
         session['current_device_type'] = device.device_type or 'deye'
         if app_user.preferred_device_id != device.id:
@@ -86,7 +95,7 @@ def _random_username_from_email(email: str) -> str:
 def _login_after_social(user: AppUser):
     _login_user(user)
     flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
-    if getattr(user, 'is_admin', False) or (getattr(user, 'role', '') or '').strip().lower() != 'user':
+    if _is_admin_like_user(user):
         return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
     if not getattr(user, 'onboarding_completed', False):
         return redirect(url_for('main.onboarding_wizard'))
@@ -117,7 +126,7 @@ def login():
             if app_user:
                 _login_user(app_user)
                 flash('تم تسجيل الدخول بنجاح', 'success')
-                if getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin':
+                if _is_admin_like_user(app_user):
                     return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
                 if not getattr(app_user, 'onboarding_completed', False):
                     return redirect(url_for('main.onboarding_wizard'))
@@ -333,7 +342,7 @@ def protect_routes():
         if g.current_user is None and session.get('username'):
             g.current_user = AppUser.query.filter_by(username=session.get('username'), is_active=True).first()
         if session.get('current_device_id') and g.current_user is not None:
-            if bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user'):
+            if _is_admin_like_user(g.current_user):
                 g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
             else:
                 g.current_device = AppDevice.query.filter_by(
@@ -345,9 +354,9 @@ def protect_routes():
             g.current_device = AppDevice.query.filter_by(owner_user_id=g.current_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
             if g.current_device:
                 session['current_device_id'] = g.current_device.id
-            elif not bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user'):
+            elif not _is_admin_like_user(g.current_user):
                 session.pop('current_device_id', None)
-        g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user')
+        g.is_admin = _is_admin_like_user(g.current_user)
         if g.current_user and getattr(g.current_user, 'permissions_json', None):
             try:
                 import json as _json
@@ -372,6 +381,11 @@ def protect_routes():
                 # Fallback keeps older databases usable before Heavy v6 migration completes.
                 g.mail_notification_count = 0
                 g.ticket_notification_count = 0
+
+    # Security: subscriber sessions must never render /admin/* pages, even if a notification contains an old admin URL.
+    if session.get('logged_in') and g.current_user is not None and (request.path or '').startswith('/admin') and not g.is_admin:
+        flash('هذه الصفحة خاصة بالإدارة. تم تحويلك إلى بوابتك.', 'warning')
+        return redirect(url_for('main.dashboard', lang=session.get('ui_lang') or 'ar'))
 
     if not session.get('logged_in'):
         wants_json = (
