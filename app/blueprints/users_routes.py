@@ -14,7 +14,7 @@ for _legacy_name in dir(_legacy_main):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
 from ..services.rbac import portal_pages, user_portal_visibility_map, save_user_portal_visibility
-from ..services.quota_engine import apply_plan_quotas_to_tenant
+from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
 
 users_bp = Blueprint('users_routes', __name__)
 
@@ -193,6 +193,8 @@ def admin_user_profile(user_id: int):
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     actor = _active_user()
     tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(actor, 'id', None))
+    if tenant and getattr(tenant, 'plan_id', None):
+        ensure_plan_quotas_for_tenant(tenant, SubscriptionPlan.query.get(tenant.plan_id), commit=True)
 
     if request.method == 'POST':
         action = (request.form.get('action') or '').strip()
@@ -235,7 +237,7 @@ def admin_user_profile(user_id: int):
                 subscription.notes = (request.form.get('subscription_notes') or subscription.notes or '').strip() or None
             db.session.commit()
             _admin_write_log('subscription.profile', f'Updated subscription for tenant #{tenant.id}', 'tenant_subscription', getattr(subscription, 'id', None), {'tenant_id': tenant.id, 'user_id': user.id})
-            flash('تم تحديث بيانات الاشتراك.', 'success')
+            flash('تم تحديث بيانات الاشتراك وتطبيق حدود الخطة تلقائيًا.', 'success')
         elif action == 'finance_entry':
             amount = float(request.form.get('amount') or 0)
             if amount:

@@ -2739,3 +2739,27 @@ body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin p{
 .subscriber-quota-view-v114{margin-top:var(--ui-gap-lg)}.subscriber-quota-grid-v114{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}.subscriber-quota-card-v114{border:1px solid #e2eaf6;border-inline-end:6px solid #22c55e;background:#fff;border-radius:24px;padding:16px;display:grid;gap:12px;box-shadow:0 14px 42px rgba(15,23,42,.055)}.subscriber-quota-card-v114.is-warn{border-inline-end-color:#f59e0b}.subscriber-quota-card-v114.is-danger{border-inline-end-color:#ef4444}
 .quota-row-v111 .quota-row-actions-v113{align-items:center}.quota-row-v111 .status-pill{white-space:nowrap}.quota-row-v111 .quota-row-foot-v111 small{overflow:visible!important;max-height:none!important}.quota-row-v111 .quota-stats-v111 span{overflow:visible!important}
 @media(max-width:760px){.plan-quota-limits-v114{grid-template-columns:1fr}.plan-quota-card-head-v114{flex-direction:column}.subscriber-quota-grid-v114{grid-template-columns:1fr}}
+
+
+/* Heavy v10.5.15 — Plan quotas fixes */
+body.heavy-v100 .status-pill,
+body.heavy-v100 .ui-badge-v70,
+body.heavy-v100 .mini-switch-v114,
+body.heavy-v100 .quota-unlimited-v114{
+  white-space:nowrap!important;
+  word-break:normal!important;
+  overflow:visible!important;
+  min-width:max-content;
+}
+.plan-quota-card-head-v114{
+  align-items:center!important;
+}
+.mini-switch-v114{
+  flex:0 0 auto;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#eef6ff;
+  border:1px solid #dbeafe;
+}
+.plans-card-v115{overflow:visible!important}.plans-list-v115{display:grid;gap:12px}.plan-row-v115{display:grid;grid-template-columns:minmax(90px,.6fr) minmax(220px,2fr) repeat(3,minmax(110px,.75fr)) minmax(110px,.7fr) minmax(92px,.55fr);align-items:center;gap:14px;padding:18px;border-radius:26px;background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid #e2eaf6;box-shadow:0 12px 34px rgba(15,23,42,.055)}.plan-main-v115 strong{display:block;color:#0f172a;font-size:1.08rem}.plan-main-v115 small,.plan-meta-v115 small{display:block;color:#7b8eaf;font-weight:850;margin-top:4px}.plan-meta-v115 b{display:block;color:#111827}.plan-state-v115,.plan-actions-v115{display:flex;justify-content:center}.plan-apply-note-v115,.plan-change-callout-v115{margin-top:14px;border:1px dashed #b9d4ff;background:#f5f9ff;color:#16376b;border-radius:20px;padding:14px 16px;font-weight:850;line-height:1.8}.plan-change-callout-v115{margin-bottom:16px}.plan-change-callout-v115 strong{display:block;font-size:1.05rem;color:#0f172a}.plan-change-callout-v115 span{display:block;color:#64748b;margin-top:4px}
+@media(max-width:1100px){.plan-row-v115{grid-template-columns:1fr 1fr}.plan-state-v115,.plan-actions-v115{justify-content:flex-start}}@media(max-width:700px){.plan-row-v115{grid-template-columns:1fr}.plan-meta-v115{display:flex;justify-content:space-between;gap:12px}.plan-actions-v115 .btn{width:100%}}

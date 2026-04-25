@@ -14,6 +14,7 @@ for _legacy_name in dir(_legacy_main):
 from ..services.quota_engine import (
     apply_plan_quotas_to_plan_subscribers,
     apply_plan_quotas_to_tenant,
+    ensure_plan_quotas_for_tenant,
     merge_features_with_quota_rules,
     parse_plan_quota_rules_from_form,
     plan_quota_rows_for_template,
@@ -134,7 +135,8 @@ def admin_subscriber_activate(user_id):
         plan = SubscriptionPlan.query.get_or_404(int(request.form.get('plan_id')))
         days = int(request.form.get('days') or plan.duration_days_default or 30)
         activate_tenant_subscription(tenant, plan, days, activated_by_user_id=admin_user.id if admin_user else None, notes=request.form.get('notes','').strip())
-        flash('تم تفعيل اشتراك المشترك', 'success')
+        ensure_plan_quotas_for_tenant(tenant, plan, commit=True)
+        flash('تم تفعيل اشتراك المشترك وتطبيق حدود الخطة تلقائيًا', 'success')
         return redirect(url_for('main.admin_subscribers', lang=_lang()))
     return render_template('admin_subscriber_activate_phase1a.html', user=user, tenant=tenant, subscription=sub, plans=plans, ui_lang=_lang())
 
@@ -146,6 +148,7 @@ def account_subscription():
         return redirect(url_for('auth.login'))
     tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
     plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
+    ensure_plan_quotas_for_tenant(tenant, plan, commit=True)
     return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, quota_rows=quota_summary_rows(getattr(tenant, 'id', None), _lang()), ui_lang=_lang())
 
 

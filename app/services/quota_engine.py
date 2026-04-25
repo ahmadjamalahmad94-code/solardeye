@@ -324,6 +324,21 @@ def apply_plan_quotas_to_tenant(tenant: TenantAccount | None, plan: Subscription
     return touched
 
 
+
+def ensure_plan_quotas_for_tenant(tenant: TenantAccount | None, plan: SubscriptionPlan | None = None, *, commit: bool = False) -> list[TenantQuota]:
+    """Ensure the tenant has plan-generated quota rows for the current plan.
+
+    Safe to call on page load: it preserves used_value and manual/override rows.
+    It only creates/updates rows whose source is 'plan'.
+    """
+    if not tenant:
+        return []
+    if plan is None and getattr(tenant, 'plan_id', None):
+        plan = SubscriptionPlan.query.get(tenant.plan_id)
+    if not plan:
+        return []
+    return apply_plan_quotas_to_tenant(tenant, plan, commit=commit)
+
 def apply_plan_quotas_to_plan_subscribers(plan: SubscriptionPlan | None, *, commit: bool = False) -> int:
     if not plan:
         return 0
