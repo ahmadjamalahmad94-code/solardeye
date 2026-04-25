@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
+<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2 user-profile-polish-v1054">
 <header class="admin-page-head">
   <div>
     <span class="eyebrow">{{ 'Users hub' if is_en else 'مركز المستخدمين' }}</span>
@@ -16,7 +16,7 @@
 
 <section class="user360-hero">
   <div class="user360-kpi"><small>{{ 'Plan' if is_en else 'الخطة' }}</small><strong>{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else '-') }}</strong></div>
-  <div class="user360-kpi"><small>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</small><strong>{{ subscription.status if subscription else '-' }}</strong></div>
+  <div class="user360-kpi"><small>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</small><strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</strong></div>
   <div class="user360-kpi"><small>{{ 'Wallet balance' if is_en else 'الرصيد الحالي' }}</small><strong>{{ wallet_balance }} USD</strong></div>
   <div class="user360-kpi"><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><strong>{{ devices|length }}</strong></div>
   <div class="user360-kpi"><small>{{ 'Open support items' if is_en else 'الدعم المفتوح' }}</small><strong>{{ thread_rows|length + ticket_rows|length }}</strong></div>
@@ -29,25 +29,56 @@
 </div>
 
 {% if tab == 'profile' %}
-<section class="admin-layout-v2 single"><div class="admin-card-v2"><small>{{ 'Identity' if is_en else 'الهوية' }}</small><h3>{{ 'Personal account data' if is_en else 'البيانات الشخصية للحساب' }}</h3><form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_profile">
-<label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control" name="username" value="{{ user_obj.username }}" required></label>
-<label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
-<label><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control" name="email" value="{{ user_obj.email or '' }}"></label>
-<label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-control" name="role"><option value="user" {% if user_obj.role=='user' %}selected{% endif %}>User</option><option value="admin" {% if user_obj.role=='admin' %}selected{% endif %}>Admin</option></select></label>
-<label><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للاحتفاظ بالحالية' }}"></label>
-<label class="switch-row"><span>{{ 'Account enabled' if is_en else 'الحساب مفعل' }}</span><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}></label>
-<div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save profile' if is_en else 'حفظ البيانات' }}</button><a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_edit', user_id=user_obj.id, lang=ui_lang) }}">{{ 'Open full edit form' if is_en else 'فتح نموذج التعديل الكامل' }}</a></div></form></div></section>
+<section class="admin-layout-v2 single profile-tab-v1054">
+  <div class="admin-card-v2 user-profile-card-v1054">
+    <div class="section-heading-inline profile-heading-v1054">
+      <div>
+        <small>{{ 'Identity' if is_en else 'الهوية' }}</small>
+        <h3>{{ 'Personal account data' if is_en else 'البيانات الشخصية للحساب' }}</h3>
+      </div>
+      <span class="account-state-chip-v1054 {{ 'is-active' if user_obj.is_active else 'is-disabled' }}">{{ 'Active account' if is_en and user_obj.is_active else ('Disabled account' if is_en else ('الحساب مفعل' if user_obj.is_active else 'الحساب معطل')) }}</span>
+    </div>
+    <form method="post" class="form-grid-v2 two polished-form-v1054">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_profile">
+      <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control" name="username" value="{{ user_obj.username }}" required></label>
+      <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
+      <label class="full"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-safe-v1054" name="email" value="{{ user_obj.email or '' }}"></label>
+      <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-control" name="role"><option value="user" {% if user_obj.role=='user' %}selected{% endif %}>{{ 'User' if is_en else 'مستخدم' }}</option><option value="admin" {% if user_obj.role=='admin' %}selected{% endif %}>{{ 'Admin' if is_en else 'مدير' }}</option></select></label>
+      <label><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للاحتفاظ بالحالية' }}"></label>
+      <label class="switch-row compact-switch-v1054"><span>{{ 'Account enabled' if is_en else 'الحساب مفعل' }}</span><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}></label>
+      <div class="full action-row-v2 profile-actions-v1054"><button class="btn btn-solar">{{ 'Save profile' if is_en else 'حفظ البيانات' }}</button><a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_edit', user_id=user_obj.id, lang=ui_lang) }}">{{ 'Open full edit form' if is_en else 'فتح نموذج التعديل الكامل' }}</a></div>
+    </form>
+  </div>
+</section>
 {% elif tab == 'subscription' %}
-<section class="admin-layout-v2 single"><div class="admin-card-v2"><small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small><h3>{{ 'Plan, status, and lifecycle' if is_en else 'الخطة والحالة ودورة الاشتراك' }}</h3><form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_subscription">
-<label><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-control" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select></label>
-<label><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><select class="form-control" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
-<label><span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span><select class="form-control" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
-<label><span>{{ 'Max devices override' if is_en else 'تجاوز حد الأجهزة' }}</span><input class="form-control" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}"></label>
-<label><span>{{ 'Starts at' if is_en else 'تاريخ البداية' }}</span><input class="form-control" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}"></label>
-<label><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><input class="form-control" name="ends_at" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}"></label>
-<label><span>{{ 'Trial ends at' if is_en else 'نهاية التجربة' }}</span><input class="form-control" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}"></label>
-<div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></div>
-<div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button></div></form></div></section>
+<section class="admin-layout-v2 single subscription-tab-v1054">
+  <div class="admin-card-v2 subscription-card-v1054">
+    <div class="section-heading-inline profile-heading-v1054">
+      <div>
+        <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+        <h3>{{ 'Plan, status, and lifecycle' if is_en else 'الخطة والحالة ودورة الاشتراك' }}</h3>
+      </div>
+      <span class="account-state-chip-v1054 is-info">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else ('No subscription' if is_en else 'لا يوجد اشتراك') }}</span>
+    </div>
+    <div class="subscription-summary-v1054">
+      <div><small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small><strong>{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else '-') }}</strong></div>
+      <div><small>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</small><strong>{{ ui_label(tenant.status, 'status', ui_lang) }}</strong></div>
+      <div><small>{{ 'Devices limit' if is_en else 'حد الأجهزة' }}</small><strong>{{ tenant.max_devices_override or '-' }}</strong></div>
+    </div>
+    <form method="post" class="form-grid-v2 two polished-form-v1054 subscription-form-v1054">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_subscription">
+      <label><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-control" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select></label>
+      <label><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><select class="form-control" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
+      <label><span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span><select class="form-control" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
+      <label><span>{{ 'Max devices override' if is_en else 'تجاوز حد الأجهزة' }}</span><input class="form-control" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}"></label>
+      <label><span>{{ 'Starts at' if is_en else 'تاريخ البداية' }}</span><input class="form-control" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}"></label>
+      <label><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><input class="form-control" name="ends_at" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}"></label>
+      <label><span>{{ 'Trial ends at' if is_en else 'نهاية التجربة' }}</span><input class="form-control" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}"></label>
+      <div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></div>
+      <div class="full action-row-v2 profile-actions-v1054"><button class="btn btn-solar">{{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button></div>
+    </form>
+  </div>
+</section>
 {% elif tab == 'support' %}
 {% set open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
 {% set closed_threads = thread_rows|selectattr('thread.status','in',['closed','resolved'])|list %}
@@ -126,13 +157,67 @@
   </div>
 </section>
 {% elif tab == 'finance' %}
-<section class="admin-layout-v2 two"><div class="admin-card-v2"><small>{{ 'Wallet' if is_en else 'المحفظة' }}</small><h3>{{ 'Add credit or debit' if is_en else 'إضافة حركة مالية' }}</h3><form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="finance_entry"><label><span>{{ 'Type' if is_en else 'النوع' }}</span><select class="form-control" name="entry_type"><option value="credit">credit</option><option value="debit">debit</option></select></label><label><span>{{ 'Amount' if is_en else 'المبلغ' }}</span><input class="form-control" name="amount" required></label><label><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control" name="currency" value="USD"></label><label><span>{{ 'Reference' if is_en else 'المرجع' }}</span><input class="form-control" name="reference"></label><div class="full"><label>{{ 'Note' if is_en else 'ملاحظة' }}</label><textarea class="form-control" name="note" rows="3"></textarea></div><div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save finance entry' if is_en else 'حفظ الحركة المالية' }}</button></div></form></div><div class="admin-card-v2"><small>{{ 'Ledger' if is_en else 'السجل' }}</small><h3>{{ 'Recent finance movements' if is_en else 'آخر الحركات المالية' }}</h3><div class="activity-list-v2">{% for entry in finance_rows %}<div class="activity-item-v2"><div><strong>{{ entry.entry_type }}</strong><small>{{ entry.currency }} • {{ entry.reference or '-' }}</small></div><div><strong>{{ entry.amount }}</strong><small>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div></div>{% else %}<div class="empty-box-v2">{{ 'No finance entries yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</div>{% endfor %}</div></div></section>
+<section class="admin-layout-v2 two finance-tab-v1054">
+  <div class="admin-card-v2 finance-form-card-v1054">
+    <small>{{ 'Wallet' if is_en else 'المحفظة' }}</small><h3>{{ 'Add credit or debit' if is_en else 'إضافة حركة مالية' }}</h3>
+    <p class="helper-text-v1054">{{ 'Record customer wallet movements clearly and keep the ledger readable.' if is_en else 'سجّل حركات المحفظة بوضوح مع الحفاظ على سجل مالي مفهوم وسهل المراجعة.' }}</p>
+    <form method="post" class="form-grid-v2 two polished-form-v1054">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="finance_entry">
+      <label><span>{{ 'Type' if is_en else 'النوع' }}</span><select class="form-control" name="entry_type"><option value="credit">{{ 'Credit' if is_en else 'إضافة رصيد' }}</option><option value="debit">{{ 'Debit' if is_en else 'خصم رصيد' }}</option></select></label>
+      <label><span>{{ 'Amount' if is_en else 'المبلغ' }}</span><input class="form-control" name="amount" required></label>
+      <label><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control" name="currency" value="USD"></label>
+      <label><span>{{ 'Reference' if is_en else 'المرجع' }}</span><input class="form-control" name="reference"></label>
+      <div class="full"><label>{{ 'Note' if is_en else 'ملاحظة' }}</label><textarea class="form-control" name="note" rows="3"></textarea></div>
+      <div class="full action-row-v2 profile-actions-v1054"><button class="btn btn-solar">{{ 'Save finance entry' if is_en else 'حفظ الحركة المالية' }}</button></div>
+    </form>
+  </div>
+  <div class="admin-card-v2 finance-ledger-card-v1054">
+    <small>{{ 'Ledger' if is_en else 'السجل' }}</small><h3>{{ 'Recent finance movements' if is_en else 'آخر الحركات المالية' }}</h3>
+    <div class="activity-list-v2 finance-list-v1054">{% for entry in finance_rows %}<div class="activity-item-v2 finance-item-v1054"><div><strong>{{ ui_label(entry.entry_type, 'finance', ui_lang) }}</strong><small>{{ entry.reference or ('No reference' if is_en else 'بدون مرجع') }}</small></div><div><strong>{{ entry.amount }} {{ entry.currency }}</strong><small>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div></div>{% else %}<div class="empty-box-v2">{{ 'No finance entries yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</div>{% endfor %}</div>
+  </div>
+</section>
 {% elif tab == 'quotas' %}
-<section class="admin-layout-v2 two"><div class="admin-card-v2"><small>{{ 'Quotas' if is_en else 'الكوتا' }}</small><h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3><form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="quota_entry"><label><span>{{ 'Quota ID (optional for update)' if is_en else 'رقم الكوتا للتحديث' }}</span><input class="form-control" name="quota_id"></label><label><span>{{ 'Quota key' if is_en else 'مفتاح الكوتا' }}</span><input class="form-control" name="quota_key" placeholder="sms_limit"></label><label><span>{{ 'Label' if is_en else 'الاسم' }}</span><input class="form-control" name="quota_label"></label><label><span>{{ 'Limit' if is_en else 'الحد' }}</span><input class="form-control" name="limit_value"></label><label><span>{{ 'Used' if is_en else 'المستخدم' }}</span><input class="form-control" name="used_value"></label><label><span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span><select class="form-control" name="reset_period"><option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option><option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option><option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option><option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option></select></label><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status"><option value="active">{{ ui_label('active', 'status', ui_lang) }}</option><option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option><option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option></select></label><div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="notes" rows="3"></textarea></div><div class="full action-row-v2"><button class="btn btn-solar">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button></div></form></div><div class="admin-card-v2"><small>{{ 'Existing quotas' if is_en else 'الكوتا الحالية' }}</small><h3>{{ 'Quota summary' if is_en else 'ملخص الكوتا' }}</h3><div class="activity-list-v2">{% for row in quota_rows %}<div class="activity-item-v2 flex-column align-items-stretch"><div class="d-flex justify-content-between"><strong>{{ row.quota_label or row.quota_key }}</strong><span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span></div><div class="table-sub">{{ row.used_value }} / {{ row.limit_value }} • {{ ui_label(row.reset_period, 'status', ui_lang) }}</div><div class="table-sub">{{ row.notes or '-' }}</div></div>{% else %}<div class="empty-box-v2">{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</div>{% endfor %}</div></div></section>
+<section class="admin-layout-v2 two quotas-tab-v1054">
+  <div class="admin-card-v2 quota-form-card-v1054">
+    <small>{{ 'Quotas' if is_en else 'الكوتا' }}</small><h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
+    <div class="quota-explain-v1054">{{ 'Quotas control usage limits such as SMS messages, reports, device slots, or monthly automation capacity.' if is_en else 'الكوتا تُستخدم لتحديد حدود الاستخدام مثل عدد رسائل SMS، التقارير، الأجهزة المسموحة، أو سعة الأتمتة الشهرية.' }}</div>
+    <form method="post" class="form-grid-v2 two polished-form-v1054">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="quota_entry">
+      <label><span>{{ 'Quota ID (optional for update)' if is_en else 'رقم الكوتا للتحديث' }}</span><input class="form-control" name="quota_id"></label>
+      <label><span>{{ 'Quota key' if is_en else 'مفتاح الكوتا' }}</span><input class="form-control" name="quota_key" placeholder="sms_limit"></label>
+      <label><span>{{ 'Label' if is_en else 'الاسم الظاهر' }}</span><input class="form-control" name="quota_label"></label>
+      <label><span>{{ 'Limit' if is_en else 'الحد' }}</span><input class="form-control" name="limit_value"></label>
+      <label><span>{{ 'Used' if is_en else 'المستخدم' }}</span><input class="form-control" name="used_value"></label>
+      <label><span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span><select class="form-control" name="reset_period"><option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option><option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option><option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option><option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option></select></label>
+      <label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status"><option value="active">{{ ui_label('active', 'status', ui_lang) }}</option><option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option><option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option></select></label>
+      <div class="full"><label>{{ 'Notes' if is_en else 'ملاحظات' }}</label><textarea class="form-control" name="notes" rows="3"></textarea></div>
+      <div class="full action-row-v2 profile-actions-v1054"><button class="btn btn-solar">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button></div>
+    </form>
+  </div>
+  <div class="admin-card-v2 quota-list-card-v1054">
+    <small>{{ 'Existing quotas' if is_en else 'الكوتا الحالية' }}</small><h3>{{ 'Quota summary' if is_en else 'ملخص الكوتا' }}</h3>
+    <div class="activity-list-v2 quota-list-v1054">{% for row in quota_rows %}<div class="activity-item-v2 quota-item-v1054"><div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ ui_label(row.reset_period, 'status', ui_lang) }} • {{ row.notes or ('No notes' if is_en else 'بدون ملاحظات') }}</small></div><div class="quota-progress-v1054"><span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span><small>{{ row.used_value }} / {{ row.limit_value }}</small></div></div>{% else %}<div class="empty-box-v2">{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</div>{% endfor %}</div>
+  </div>
+</section>
 {% elif tab == 'devices' %}
-<section class="admin-layout-v2 single"><div class="admin-card-v2"><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><h3>{{ 'Owned devices' if is_en else 'الأجهزة التابعة للمستخدم' }}</h3><div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Device' if is_en else 'الجهاز' }}</th><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Tenant' if is_en else 'المشترك' }}</th></tr></thead><tbody>{% for device in devices %}<tr><td><strong>{{ device.name }}</strong><div class="table-sub">{{ device.plant_name or '-' }}</div></td><td>{{ device.device_type }}</td><td><span class="status-pill {{ 'success' if device.is_active else 'danger' }}">{{ device.connection_status or ('active' if device.is_active else 'disabled') }}</span></td><td>{{ tenant.display_name if tenant else '-' }}</td></tr>{% else %}<tr><td colspan="4">{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</td></tr>{% endfor %}</tbody></table></div></div></section>
+<section class="admin-layout-v2 single devices-tab-v1054">
+  <div class="admin-card-v2 devices-card-v1054">
+    <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><h3>{{ 'Owned devices' if is_en else 'الأجهزة التابعة للمستخدم' }}</h3>
+    <p class="helper-text-v1054">{{ 'Each card shows whether the device is added, connected, active, and ready for sync.' if is_en else 'كل بطاقة توضّح هل الجهاز مضاف، مربوط، مفعل، وجاهز للمزامنة.' }}</p>
+    <div class="device-list-v1054">{% for device in devices %}<article class="device-card-v1054"><div><strong>{{ device.name }}</strong><small>{{ device.plant_name or ('No plant name' if is_en else 'لا يوجد اسم محطة') }}</small></div><div class="device-meta-v1054"><span>{{ device.device_type or '-' }}</span><span>{{ tenant.display_name if tenant else '-' }}</span></div><div class="device-state-v1054"><span class="status-pill {{ 'success' if device.is_active else 'danger' }}">{{ 'Active' if is_en and device.is_active else ('Disabled' if is_en else ('مفعل' if device.is_active else 'معطل')) }}</span><span class="status-pill {{ 'success' if device.connection_status in ['connected','ready','ok','success'] else ('warning' if device.connection_status else 'danger') }}">{% if device.connection_status in ['connected','ready','ok','success'] %}{{ 'Connected' if is_en else 'تم الربط' }}{% elif device.connection_status %}{{ ui_label(device.connection_status, 'status', ui_lang) }}{% else %}{{ 'Needs setup' if is_en else 'يحتاج إعداد' }}{% endif %}</span></div></article>{% else %}<div class="empty-box-v2">{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</div>{% endfor %}</div>
+  </div>
+</section>
 {% elif tab == 'activity' %}
-<section class="admin-layout-v2 single"><div class="admin-card-v2"><small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h3><div class="activity-list-v2">{% for row in activity_rows %}<div class="activity-item-v2"><div><strong>{{ row.item.action }}</strong><small>{{ row.item.summary }}</small></div><div><strong>{{ row.actor.username if row.actor else 'system' }}</strong><small>{{ row.item.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div></div>{% else %}<div class="empty-box-v2">{{ 'No related activity yet.' if is_en else 'لا يوجد سجل نشاط مرتبط بعد.' }}</div>{% endfor %}</div></div></section>
+<section class="admin-layout-v2 single activity-tab-v1054">
+  <div class="admin-card-v2 activity-card-v1054">
+    <small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h3>
+    <p class="helper-text-v1054">{{ 'Showing the latest 10 actions to keep the page focused.' if is_en else 'يتم عرض آخر 10 عمليات فقط حتى تبقى الصفحة واضحة ومركزة.' }}</p>
+    <div class="activity-list-v2 activity-list-limited-v1054">
+      {% set action_ar = {'profile_update':'تحديث بيانات المشترك','subscription_update':'تحديث الاشتراك','finance_entry':'حركة مالية','quota_entry':'تحديث الكوتا','toggle_user':'تغيير حالة المستخدم','delete_user':'حذف مستخدم','support_reply':'رد دعم','support_close':'إغلاق دعم','support_reopen':'إعادة فتح دعم'} %}
+      {% for row in activity_rows[:10] %}<div class="activity-item-v2 activity-item-polished-v1054"><div><strong>{% if is_en %}{{ row.item.action|replace('_',' ')|title }}{% else %}{{ action_ar.get(row.item.action, row.item.summary or 'عملية على الحساب') }}{% endif %}</strong><small>{{ row.item.summary or '-' }}</small></div><div><strong>{{ row.actor.username if row.actor else ('system' if is_en else 'النظام') }}</strong><small>{{ row.item.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div></div>{% else %}<div class="empty-box-v2">{{ 'No related activity yet.' if is_en else 'لا يوجد سجل نشاط مرتبط بعد.' }}</div>{% endfor %}
+    </div>
+  </div>
+</section>
 {% endif %}
 
 </main></div>

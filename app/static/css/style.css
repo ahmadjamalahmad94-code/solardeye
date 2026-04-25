@@ -2376,3 +2376,42 @@ body.heavy-v100 :where(.highlight-card strong,.admin-kpi-card strong,.subscriber
   .heavy-v100 .subscriber-actions-v108 .btn,
   .heavy-v100 .subscriber-actions-v108 form{width:100%;}
 }
+
+/* Heavy v10.5.4 — Subscriber 360 tabs polish from review pack */
+.user-profile-polish-v1054 .admin-card-v2{overflow:hidden;}
+.user-profile-polish-v1054 .admin-layout-v2{gap:24px;}
+.user-profile-polish-v1054 .profile-heading-v1054{align-items:center;margin-bottom:18px;}
+.user-profile-polish-v1054 .profile-heading-v1054 h3{font-size:1.55rem;}
+.account-state-chip-v1054{display:inline-flex;align-items:center;justify-content:center;min-width:0;width:auto;white-space:nowrap;padding:9px 14px;border-radius:999px;font-weight:900;border:1px solid transparent;box-shadow:0 12px 26px rgba(15,23,42,.06)}
+.account-state-chip-v1054.is-active{background:#e9fbf0;color:#13743a;border-color:#bbf7d0}.account-state-chip-v1054.is-disabled{background:#feecec;color:#b42323;border-color:#fecaca}.account-state-chip-v1054.is-info{background:#eef6ff;color:#1d4ed8;border-color:#bfdbfe}
+.polished-form-v1054{gap:18px!important;align-items:start;}
+.polished-form-v1054 label{background:#f9fbff;border:1px solid #e5edf8;border-radius:20px;padding:13px 14px;display:grid;gap:8px;min-width:0;}
+.polished-form-v1054 label span,.polished-form-v1054 label>label{display:block;text-align:center;color:#617494;font-weight:950;margin:0;}
+.polished-form-v1054 .form-control,.polished-form-v1054 .form-select{min-height:46px;border-radius:15px;background:#fff;font-weight:800;color:#13213e;}
+.polished-form-v1054 textarea.form-control{min-height:100px;}
+.polished-form-v1054 .full{grid-column:1/-1;}
+.profile-actions-v1054{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:6px!important;}
+.compact-switch-v1054{display:flex!important;grid-template-columns:none!important;align-items:center!important;justify-content:space-between!important;flex-direction:row!important;background:#f5fff8!important;border-color:#bfdbfe!important;}
+.compact-switch-v1054 span{text-align:start!important;margin:0!important;}
+.ltr-safe-v1054{direction:ltr;text-align:left;unicode-bidi:plaintext;}
+.subscription-summary-v1054{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px;}
+.subscription-summary-v1054>div{background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid #e4ecf8;border-radius:22px;padding:16px;text-align:center;}
+.subscription-summary-v1054 small{display:block;color:#7b8eaf;font-weight:900;margin-bottom:7px}.subscription-summary-v1054 strong{font-size:1.15rem;color:#13213e;display:block;overflow-wrap:anywhere;}
+.helper-text-v1054{color:#6c7f9f;line-height:1.8;margin:8px 0 18px;font-weight:750;}
+.finance-list-v1054,.quota-list-v1054,.device-list-v1054{display:grid;gap:14px;overflow:visible!important;max-height:none!important;}
+.finance-item-v1054,.quota-item-v1054,.activity-item-polished-v1054{border-radius:22px;background:#f9fbff;border:1px solid #e4ecf8;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.finance-item-v1054 small,.quota-item-v1054 small,.activity-item-polished-v1054 small{display:block;color:#7c8fac;line-height:1.7;margin-top:4px;overflow-wrap:anywhere;}
+.quota-explain-v1054{background:linear-gradient(135deg,#eef6ff,#fffaf0);border:1px solid #dbeafe;color:#24416e;border-radius:20px;padding:14px 16px;line-height:1.8;font-weight:850;margin-bottom:18px;}
+.quota-progress-v1054{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.quota-progress-v1054 small{font-weight:900;color:#475569;margin:0;}
+.device-list-v1054{grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));}
+.device-card-v1054{background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid #e4ecf8;border-radius:24px;padding:18px;display:grid;gap:13px;box-shadow:0 16px 42px rgba(15,23,42,.055);min-width:0;}
+.device-card-v1054 strong{font-size:1.05rem;color:#13213e;display:block;overflow-wrap:anywhere}.device-card-v1054 small{display:block;color:#7d90b0;margin-top:4px;line-height:1.7;}
+.device-meta-v1054,.device-state-v1054{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.device-meta-v1054 span{background:#eef4ff;border:1px solid #dbeafe;color:#24416e;border-radius:999px;padding:7px 11px;font-weight:850;}
+.activity-list-limited-v1054{max-height:620px;overflow:auto!important;padding-inline-end:4px;}
+.profile-support-mailbox-v62 .mailbox-row-accent-v62,.profile-support-mailbox-v62 .mailbox-row-v62::before{max-width:4px!important;inset-inline-start:0!important;border-radius:999px!important;}
+.profile-support-mailbox-v62 .mailbox-row-v62{overflow:hidden!important;border-color:#dfe9f7!important;box-shadow:0 10px 30px rgba(15,23,42,.04);}
+.profile-support-mailbox-v62 .mailbox-list-panel-v62,.profile-support-mailbox-v62 .mailbox-thread-v62,.profile-support-mailbox-v62 .mailbox-side-panel-v62{border:1px solid #dfe9f7;background:linear-gradient(180deg,#fff,#f9fbff);}
+.user-profile-polish-v1054 .table-shell-v2{overflow:visible!important;}
+.user-profile-polish-v1054 .admin-table-v2{min-width:0!important;}
+.user-profile-polish-v1054 .activity-list-v2{overflow:visible;max-height:none;}
+@media(max-width:900px){.subscription-summary-v1054{grid-template-columns:1fr}.profile-actions-v1054,.finance-item-v1054,.quota-item-v1054,.activity-item-polished-v1054{align-items:stretch;flex-direction:column}.profile-actions-v1054 .btn{width:100%}}
