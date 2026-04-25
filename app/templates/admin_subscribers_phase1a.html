@@ -46,11 +46,27 @@
         </div>
       </div>
 
-      <div class="bulk-action-bar-v116" id="subscriberBulkBarV116" hidden>
-        <strong><span id="bulkCountV116">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
-        <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="plan">{{ 'Change plan' if is_en else 'تغيير الخطة' }}</button>
-        <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="extend">{{ 'Add time' if is_en else 'إضافة مدة' }}</button>
-        <button class="btn btn-outline-secondary btn-sm" type="button" id="bulkClearV116">{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
+      <div class="bulk-action-bar-v116 is-disabled" id="subscriberBulkBarV116" aria-live="polite">
+        <div class="bulk-action-status-v117">
+          <strong><span id="bulkCountV116">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
+          <small id="bulkSelectedNameV117">{{ 'Select one subscriber to enable actions' if is_en else 'حدد مشتركًا لتفعيل الإجراءات' }}</small>
+        </div>
+        <div class="bulk-action-buttons-v117">
+          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkProfileV117" data-requires-selected aria-disabled="true">🧾 {{ 'Profile' if is_en else 'فتح الملف' }}</a>
+          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkSupportV117" data-requires-selected aria-disabled="true">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
+          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkSubscriptionV117" data-requires-selected aria-disabled="true">📋 {{ 'Subscription' if is_en else 'قائمة الاشتراك' }}</a>
+          <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="plan" data-requires-selected disabled>💳 {{ 'Change plan' if is_en else 'تغيير الخطة' }}</button>
+          <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="extend" data-requires-selected disabled>⏳ {{ 'Add time' if is_en else 'إضافة مدة' }}</button>
+          <form method="post" id="bulkToggleFormV117" class="bulk-inline-form-v117" onsubmit="return confirm(this.dataset.confirm || '{{ 'Apply this status change?' if is_en else 'تنفيذ تغيير الحالة؟' }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit" id="bulkToggleBtnV117" data-requires-selected disabled>🟠 {{ 'Disable/Enable' if is_en else 'تفعيل/تعطيل' }}</button>
+          </form>
+          <form method="post" id="bulkDeleteFormV117" class="bulk-inline-form-v117" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+            <button class="btn btn-outline-danger btn-sm" type="submit" data-requires-selected disabled>🗑️ {{ 'Delete' if is_en else 'حذف' }}</button>
+          </form>
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="bulkClearV116" disabled>{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
+        </div>
       </div>
 
       <div class="subscriber-data-list-v116">
@@ -60,7 +76,7 @@
         {% set plan_price = ((row.plan.price|string) ~ ' ' ~ row.plan.currency) if row.plan else '-' %}
         {% set end_date = row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '-' %}
         {% set trial_date = row.subscription.trial_ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.trial_ends_at else '-' %}
-        <article class="subscriber-data-row-v116" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
+        <article class="subscriber-data-row-v116" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}" data-support-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}" data-subscription-url="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" data-toggle-url="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" data-delete-url="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
           <div class="subscriber-select-v116"><input type="checkbox" class="subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}"></div>
           <a class="subscriber-identity-v116" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
             <span class="subscriber-avatar-v108">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
@@ -82,28 +98,6 @@
           <div class="subscriber-data-cell-v116 compact">
             <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
             <strong>🔌 {{ row.device_count }}</strong>
-          </div>
-          <div class="subscriber-actions-menu-v116">
-            <details>
-              <summary>{{ 'Actions' if is_en else 'إجراءات' }} ⋯</summary>
-              <div class="action-menu-panel-v116">
-                <a href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">🧾 {{ 'Open profile' if is_en else 'فتح الملف' }}</a>
-                <a href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
-                <button type="button" data-open-plan-modal>{{ '💳 Change plan' if is_en else '💳 تغيير الخطة' }}</button>
-                <button type="button" data-open-extend-modal>{{ '⏳ Add time' if is_en else '⏳ إضافة مدة' }}</button>
-                <a href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">📋 {{ 'Subscription page' if is_en else 'قائمة الاشتراك' }}</a>
-                <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Disable this subscriber?' if is_en and row.user.is_active else ('Enable this subscriber?' if is_en else ('تعطيل هذا المشترك؟' if row.user.is_active else 'تفعيل هذا المشترك؟')) }}')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-                  <button type="submit">{{ '🟠 Disable' if is_en and row.user.is_active else ('🟢 Enable' if is_en else ('🟠 تعطيل' if row.user.is_active else '🟢 تفعيل')) }}</button>
-                </form>
-                {% if not row.user.is_admin %}
-                <form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-                  <button type="submit" class="danger">🗑️ {{ 'Delete' if is_en else 'حذف' }}</button>
-                </form>
-                {% endif %}
-              </div>
-            </details>
           </div>
         </article>
         {% else %}
@@ -171,10 +165,60 @@
   const checks = Array.from(document.querySelectorAll('.subscriber-check-v116'));
   const bulkBar = document.getElementById('subscriberBulkBarV116');
   const bulkCount = document.getElementById('bulkCountV116');
+  const selectedName = document.getElementById('bulkSelectedNameV117');
+  const clearBtn = document.getElementById('bulkClearV116');
+  const profileLink = document.getElementById('bulkProfileV117');
+  const supportLink = document.getElementById('bulkSupportV117');
+  const subscriptionLink = document.getElementById('bulkSubscriptionV117');
+  const toggleForm = document.getElementById('bulkToggleFormV117');
+  const toggleBtn = document.getElementById('bulkToggleBtnV117');
+  const deleteForm = document.getElementById('bulkDeleteFormV117');
   function selectedRows(){ return checks.filter(c=>c.checked).map(c=>c.closest('[data-subscriber-row-v71]')); }
-  function updateBulk(){ const n = selectedRows().length; if (bulkBar) bulkBar.hidden = n === 0; if (bulkCount) bulkCount.textContent = n; }
+  function setDisabled(el, disabled){
+    if(!el) return;
+    if(el.tagName === 'A'){
+      el.classList.toggle('disabled', disabled);
+      el.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      if(disabled) el.setAttribute('tabindex','-1'); else el.removeAttribute('tabindex');
+    }else{
+      el.disabled = disabled;
+    }
+  }
+  function updateBulk(){
+    const rowsSel = selectedRows();
+    const n = rowsSel.length;
+    const row = rowsSel[0];
+    if (bulkCount) bulkCount.textContent = n;
+    if (bulkBar) bulkBar.classList.toggle('is-disabled', n === 0);
+    if (bulkBar) bulkBar.classList.toggle('is-active', n > 0);
+    checks.forEach(c => c.closest('[data-subscriber-row-v71]')?.classList.toggle('is-selected', c.checked));
+    const one = n === 1;
+    if(selectedName){
+      selectedName.textContent = n === 0 ? (isEn ? 'Select one subscriber to enable actions' : 'حدد مشتركًا لتفعيل الإجراءات') : (n === 1 ? (isEn ? 'Selected: ' : 'المحدد: ') + (row.dataset.userName || '-') : (isEn ? 'Multiple selected — choose one for detailed actions' : 'تم تحديد أكثر من مشترك — اختر مشتركًا واحدًا للإجراءات التفصيلية'));
+    }
+    [profileLink, supportLink, subscriptionLink].forEach(el => setDisabled(el, !one));
+    document.querySelectorAll('[data-bulk-open]').forEach(el => setDisabled(el, !one));
+    document.querySelectorAll('#bulkToggleFormV117 button, #bulkDeleteFormV117 button').forEach(el => setDisabled(el, !one));
+    setDisabled(clearBtn, n === 0);
+    if(one){
+      profileLink.href = row.dataset.profileUrl || '#';
+      supportLink.href = row.dataset.supportUrl || '#';
+      subscriptionLink.href = row.dataset.subscriptionUrl || '#';
+      toggleForm.action = row.dataset.toggleUrl || '#';
+      deleteForm.action = row.dataset.deleteUrl || '#';
+      const active = row.dataset.active === 'active';
+      if(toggleBtn){ toggleBtn.innerHTML = active ? (isEn ? '🟠 Disable' : '🟠 تعطيل') : (isEn ? '🟢 Enable' : '🟢 تفعيل'); }
+      if(toggleForm){ toggleForm.dataset.confirm = active ? (isEn ? 'Disable this subscriber?' : 'تعطيل هذا المشترك؟') : (isEn ? 'Enable this subscriber?' : 'تفعيل هذا المشترك؟'); }
+    }else{
+      [profileLink, supportLink, subscriptionLink].forEach(el => { if(el) el.href = '#'; });
+      if(toggleForm) toggleForm.removeAttribute('action');
+      if(deleteForm) deleteForm.removeAttribute('action');
+      if(toggleBtn) toggleBtn.innerHTML = isEn ? '🟠 Disable/Enable' : '🟠 تفعيل/تعطيل';
+    }
+  }
   checks.forEach(c=>c.addEventListener('change', updateBulk));
-  document.getElementById('bulkClearV116')?.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); updateBulk(); });
+  clearBtn?.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); updateBulk(); });
+  [profileLink, supportLink, subscriptionLink].forEach(a=>a?.addEventListener('click', (e)=>{ if(a.getAttribute('aria-disabled') === 'true') e.preventDefault(); }));
 
   const planModal = document.getElementById('planModalV116');
   const planForm = document.getElementById('planFormV116');
@@ -214,8 +258,6 @@
     extendModal.showModal();
   }
 
-  document.querySelectorAll('[data-open-plan-modal]').forEach(btn=>btn.addEventListener('click', ()=>openPlan(btn.closest('[data-subscriber-row-v71]'))));
-  document.querySelectorAll('[data-open-extend-modal]').forEach(btn=>btn.addEventListener('click', ()=>openExtend(btn.closest('[data-subscriber-row-v71]'))));
   document.querySelectorAll('[data-bulk-open]').forEach(btn=>btn.addEventListener('click', ()=>{ const rows = selectedRows(); if(rows.length !== 1){ alert(isEn ? 'Select exactly one subscriber for this action.' : 'حدد مشتركًا واحدًا فقط لهذا الإجراء.'); return; } btn.dataset.bulkOpen === 'plan' ? openPlan(rows[0]) : openExtend(rows[0]); }));
   document.querySelectorAll('[data-close-modal]').forEach(btn=>btn.addEventListener('click', ()=>btn.closest('dialog').close()));
   document.querySelectorAll('.duration-presets-v116 button').forEach(btn=>btn.addEventListener('click', ()=>{ extendAmount.value = btn.dataset.amount; extendUnit.value = btn.dataset.unit; updateExtendPreview(); }));
