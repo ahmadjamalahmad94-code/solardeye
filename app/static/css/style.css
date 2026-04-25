@@ -2104,117 +2104,61 @@ body.heavy-v100 .sidebar-fancy-v104 .nav-badge{min-width:18px;height:18px;font-s
 }
 
 
-/* Heavy v10.6 — unified spacing rhythm, full-height sidebar, and cleaner dashboard cards */
-:root{
-  --ui-gap-xxs:4px;
-  --ui-gap-xs:8px;
-  --ui-gap-sm:12px;
-  --ui-gap:16px;
-  --ui-gap-md:20px;
-  --ui-gap-lg:24px;
-  --ui-gap-xl:32px;
-}
-body.heavy-v100 .content-area > * + *{
-  margin-top:var(--ui-gap-lg)!important;
-}
+/* ===== Heavy v10.5.1 — sidebar background-only + small-card no-scroll hotfix =====
+   Scope: sidebar background extension and small dashboard/stat cards only.
+   No route/template logic changes. No main.py changes. */
+
+/* Extend only the navy background behind the sidebar column, without stretching
+   the sidebar content or changing page flow. */
 body.heavy-v100 .app-shell{
-  align-items:stretch!important;
+  position:relative!important;
+  isolation:isolate;
 }
-body.heavy-v100 .sidebar.sidebar-fancy-v104{
-  display:flex!important;
-  flex-direction:column!important;
-  align-self:stretch!important;
+body.heavy-v100 .app-shell::before{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset-block:0!important;
+  inset-inline-start:0!important;
+  width:var(--sidebar-w-v104, 300px)!important;
   min-height:100%!important;
+  background:radial-gradient(280px circle at 80% 0%,rgba(96,165,250,.22),transparent 45%),linear-gradient(180deg,#0f2457 0%,#101d3d 100%)!important;
+  z-index:0!important;
+  pointer-events:none!important;
 }
-body.heavy-v100 .sidebar-main-v106{
-  display:flex;
-  flex-direction:column;
-  flex:1 1 auto;
-  min-height:100%;
+body.heavy-v100 .sidebar.sidebar-fancy-v104,
+body.heavy-v100 .content-area{
+  position:relative!important;
+  z-index:1!important;
 }
-body.heavy-v100 .sidebar-main-v106 .nav-menu{
-  flex:1 1 auto;
+@media (max-width:900px){
+  body.heavy-v100 .app-shell::before{display:none!important;content:none!important;}
 }
-body.heavy-v100 .sidebar-footer-v106{
-  position:static!important;
-  inset:auto!important;
-  margin-top:auto!important;
-  padding-top:12px!important;
-}
-body.heavy-v100 .admin-highlight-grid,
-body.heavy-v100 .admin-kpi-grid-v2,
-body.heavy-v100 .admin-layout-dashboard-v105{
-  align-items:stretch!important;
-}
-body.heavy-v100 .admin-highlight-grid > *,
-body.heavy-v100 .admin-kpi-grid-v2 > *,
-body.heavy-v100 .admin-layout-dashboard-v105 > *{
-  height:100%;
-}
-body.heavy-v100 .highlight-card,
-body.heavy-v100 .admin-kpi-card{
+
+/* No scrollbars inside small/cards KPI cards. Keep equal rhythm and clamp long text. */
+body.heavy-v100 :where(.highlight-card,.admin-kpi-card,.subscriber-kpi-grid-v71 article,.integration-kpi-grid-v90 article){
+  overflow:hidden!important;
+  min-height:154px;
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
-  gap:6px;
-  min-height:154px;
+}
+body.heavy-v100 :where(.highlight-card span,.admin-kpi-card span,.subscriber-kpi-grid-v71 article span,.integration-kpi-grid-v90 article span){
   max-height:none!important;
   overflow:hidden!important;
+  scrollbar-width:auto!important;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  display:-webkit-box!important;
 }
-body.heavy-v100 .highlight-card span,
-body.heavy-v100 .admin-kpi-card span,
-body.heavy-v100 .highlight-card small,
-body.heavy-v100 .admin-kpi-card small{
+body.heavy-v100 :where(.highlight-card small,.admin-kpi-card small,.subscriber-kpi-grid-v71 article small,.integration-kpi-grid-v90 article small){
   max-height:none!important;
-  overflow:visible!important;
+  overflow:hidden!important;
+  scrollbar-width:auto!important;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  display:-webkit-box!important;
 }
-body.heavy-v100 .dashboard-card-v106{
-  display:flex;
-  flex-direction:column;
-  min-height:100%;
-}
-body.heavy-v100 .dashboard-list-v106{
-  display:grid;
-  gap:14px;
-}
-body.heavy-v100 .dashboard-list-item-v106{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  padding:16px 18px;
-  border-radius:22px;
-  background:#f9fbff;
-  border:1px solid #e7edf9;
-}
-body.heavy-v100 .dashboard-list-item-v106 > div{
-  min-width:0;
-}
-body.heavy-v100 .dashboard-list-item-v106 strong{
-  display:block;
-  color:#13213e;
-}
-body.heavy-v100 .dashboard-list-item-v106 small{
-  display:block;
-  margin-top:5px;
-  color:#7d90b0;
-  line-height:1.7;
-  white-space:normal;
-  overflow-wrap:anywhere;
-}
-body.heavy-v100 .admin-layout-dashboard-v105 .activity-item-v2{
-  min-height:84px;
-}
-body.heavy-v100 .admin-layout-dashboard-v105 .activity-item-v2 small{
-  white-space:normal;
-  overflow-wrap:anywhere;
-}
-@media (max-width:900px){
-  body.heavy-v100 .content-area > * + *{
-    margin-top:18px!important;
-  }
-  body.heavy-v100 .dashboard-list-item-v106{
-    align-items:flex-start;
-    flex-direction:column;
-  }
+body.heavy-v100 :where(.highlight-card strong,.admin-kpi-card strong,.subscriber-kpi-grid-v71 article strong,.integration-kpi-grid-v90 article strong){
+  flex:0 0 auto;
 }
