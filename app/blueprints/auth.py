@@ -33,7 +33,7 @@ auth_bp = Blueprint('auth', __name__)
 
 
 def _is_admin_like_user(user: AppUser | None) -> bool:
-    if not user:
+    if not user or not bool(getattr(user, 'is_active', True)):
         return False
     role = (getattr(user, 'role', '') or '').strip().lower()
     # Empty/unknown roles must NOT become admin. Only explicit staff roles do.
@@ -338,9 +338,11 @@ def protect_routes():
     g.plan_features = {}
     if session.get('logged_in'):
         if session.get('user_id'):
-            g.current_user = AppUser.query.filter_by(id=session.get('user_id'), is_active=True).first()
+            # Security: keep the actual session user even if the account was disabled.
+            # Falling back to a default/system admin during a browser request can expose admin pages.
+            g.current_user = AppUser.query.filter_by(id=session.get('user_id')).first()
         if g.current_user is None and session.get('username'):
-            g.current_user = AppUser.query.filter_by(username=session.get('username'), is_active=True).first()
+            g.current_user = AppUser.query.filter_by(username=session.get('username')).first()
         if session.get('current_device_id') and g.current_user is not None:
             if _is_admin_like_user(g.current_user):
                 g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
@@ -383,9 +385,9 @@ def protect_routes():
                 g.ticket_notification_count = 0
 
     # Security: subscriber sessions must never render /admin/* pages, even if a notification contains an old admin URL.
-    if session.get('logged_in') and g.current_user is not None and (request.path or '').startswith('/admin') and not g.is_admin:
+    if session.get('logged_in') and (request.path or '').startswith('/admin') and (g.current_user is None or not g.is_admin):
         flash('هذه الصفحة خاصة بالإدارة. تم تحويلك إلى بوابتك.', 'warning')
-        return redirect(url_for('main.dashboard', lang=session.get('ui_lang') or 'ar'))
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
 
     if not session.get('logged_in'):
         wants_json = (

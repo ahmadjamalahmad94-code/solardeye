@@ -62,9 +62,10 @@ def get_current_user():
             return user
         user_id = session.get('user_id')
         if user_id:
-            found = AppUser.query.filter_by(id=user_id, is_active=True).first()
-            if found:
-                return found
+            # Return the session user even if disabled so permission checks do not
+            # accidentally fall back to the default system admin.
+            return AppUser.query.filter_by(id=user_id).first()
+        return None
 
     system_user_id = _system_user_id.get()
     if system_user_id:
@@ -85,7 +86,7 @@ def get_current_device():
 
         user = get_current_user()
         if user is not None:
-            is_admin = bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin')
+            is_admin = bool(getattr(user, 'is_active', True) and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'))
             device_id = session.get('current_device_id')
             if device_id and not is_admin:
                 found = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id, is_active=True).first()
@@ -102,7 +103,7 @@ def get_current_device():
             return found
 
     user = get_current_user()
-    if user is not None and not bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
+    if user is not None and not bool(getattr(user, 'is_active', True) and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin')):
         return AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
 
     return None

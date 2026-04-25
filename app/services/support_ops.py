@@ -100,7 +100,7 @@ def audit_case(case_type: str, source_id: int, actor_user_id: int | None, action
 
 
 def _is_admin_like_user(user: AppUser | None) -> bool:
-    if not user:
+    if not user or not bool(getattr(user, 'is_active', True)):
         return False
     role = (getattr(user, 'role', '') or '').strip().lower()
     return bool(getattr(user, 'is_admin', False) or role not in {'', 'user', 'subscriber', 'customer'})
@@ -123,7 +123,9 @@ def _safe_direct_url_for_user(user: AppUser | None, direct_url: str | None, *, s
             return portal_case_url('message', int(source_id), lang)
         if source_type == 'ticket' and source_id:
             return portal_case_url('ticket', int(source_id), lang)
-        return url_for('main.dashboard', lang=lang)
+        if source_type in {'subscription', 'user_status', 'account'}:
+            return url_for('main.account_subscription', lang=lang)
+        return url_for('main.account_subscription', lang=lang)
     return raw
 
 def notify_user(target_user_id: int | None, *, event_type='support', source_type=None, source_id=None, tenant_id=None, title='', message='', direct_url='#', status='new', commit=False):
