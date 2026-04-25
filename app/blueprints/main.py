@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 from werkzeug.security import generate_password_hash
-from flask import Blueprint, Response, current_app, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, Response, current_app, flash, g, has_request_context, jsonify, redirect, render_template, request, send_file, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -38,6 +38,7 @@ from ..services.support_ops import (
     sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
 )
 from ..services.platform_audit import audit_project
+from ..services.energy_integrations import device_credentials, fetch_snapshot_for_device, missing_required, provider_by_code
 from .helpers import (
     _to_12h_label, battery_percent_bar, build_battery_details, build_battery_insights,
     build_flow, build_period_chart, build_statistics_table, build_summary_chart,
@@ -1230,50 +1231,81 @@ def test_connection():
 def sync_now_internal(trigger='manual'):
     device = get_current_device()
     current_user = get_current_user()
-    allow_global_connection = bool(current_user and (getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin') and not has_request_context())
     ready, ready_message = _device_sync_ready(device, user=current_user)
     if not ready:
         raise ValueError(ready_message)
-    client = DeyeClient(_device_runtime_settings(device, allow_global_connection=allow_global_connection))
-    snapshot = client.snapshot()
     previous = _latest_reading()
-    # Extract device_detail metrics for direct columns
-    # Pull all fields directly from device_data (flat dict from device/latest)
-    _d = snapshot.raw.get('device_data') or {}
-    _dr = snapshot.raw.get('derived') or {}
+    provider_code = (getattr(device, 'api_provider', None) or getattr(device, 'device_type', None) or 'deye').strip().lower() if device else 'deye'
 
-    def _fv(key, default=None):
-        v = _d.get(key)
-        if v is None: return default
-        try: return float(v)
-        except: return default
+    if provider_code and provider_code != 'deye':
+        snap = fetch_snapshot_for_device(device)
+        user_id, device_id = current_scope_ids()
+        reading = Reading(
+            user_id=user_id,
+            device_id=device_id,
+            plant_id=getattr(device, 'station_id', None) or getattr(device, 'external_device_id', None) or str(getattr(device, 'id', '')),
+            plant_name=getattr(device, 'plant_name', None) or getattr(device, 'name', '') or provider_code,
+            solar_power=float(snap.get('solar_power') or 0),
+            home_load=float(snap.get('home_load') or 0),
+            battery_soc=float(snap.get('battery_soc') or 0),
+            battery_power=float(snap.get('battery_power') or 0),
+            grid_power=float(snap.get('grid_power') or 0),
+            inverter_power=float(snap.get('inverter_power') or snap.get('solar_power') or 0),
+            daily_production=float(snap.get('daily_production') or 0),
+            monthly_production=float(snap.get('monthly_production') or 0),
+            total_production=float(snap.get('total_production') or 0),
+            status_text=str(snap.get('status_text') or provider_code),
+            raw_json=to_json({'provider': provider_code, 'snapshot': snap}),
+        )
+        db.session.add(reading)
+        if device:
+            device.connection_status = 'ok'
+            device.last_connected_at = datetime.utcnow()
+        db.session.commit()
+    else:
+        allow_global_connection = bool(current_user and (getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin') and not has_request_context())
+        client = DeyeClient(_device_runtime_settings(device, allow_global_connection=allow_global_connection))
+        snapshot = client.snapshot()
+        # Extract device_detail metrics for direct columns
+        # Pull all fields directly from device_data (flat dict from device/latest)
+        _d = snapshot.raw.get('device_data') or {}
 
-    user_id, device_id = current_scope_ids()
-    reading = Reading(
-        user_id=user_id, device_id=device_id,
-        plant_id=snapshot.plant_id, plant_name=snapshot.plant_name,
-        solar_power=snapshot.solar_power, home_load=snapshot.home_load,
-        battery_soc=snapshot.battery_soc, battery_power=snapshot.battery_power,
-        grid_power=snapshot.grid_power, inverter_power=snapshot.inverter_power,
-        daily_production=snapshot.daily_production,
-        monthly_production=snapshot.monthly_production,
-        total_production=snapshot.total_production,
-        status_text=snapshot.status_text,
-        # PV strings — from device/latest directly
-        pv1_power=_fv('dcPowerPv1'),
-        pv2_power=_fv('dcPowerPv2'),
-        pv3_power=_fv('dcPowerPv3'),
-        pv4_power=None,
-        # Temperatures
-        inverter_temp=_fv('acTemperature'),
-        dc_temp=None,  # dcTemperature has firmware bug, skip
-        # Grid/AC
-        grid_voltage=_fv('acVoltageRua') or _fv('loadVoltageL1l2'),
-        grid_frequency=_fv('acOutputFrequencyR'),
-        raw_json=to_json(snapshot.raw),
-    )
-    db.session.add(reading)
-    db.session.commit()
+        def _fv(key, default=None):
+            v = _d.get(key)
+            if v is None: return default
+            try: return float(v)
+            except: return default
+
+        user_id, device_id = current_scope_ids()
+        reading = Reading(
+            user_id=user_id, device_id=device_id,
+            plant_id=snapshot.plant_id, plant_name=snapshot.plant_name,
+            solar_power=snapshot.solar_power, home_load=snapshot.home_load,
+            battery_soc=snapshot.battery_soc, battery_power=snapshot.battery_power,
+            grid_power=snapshot.grid_power, inverter_power=snapshot.inverter_power,
+            daily_production=snapshot.daily_production,
+            monthly_production=snapshot.monthly_production,
+            total_production=snapshot.total_production,
+            status_text=snapshot.status_text,
+            # PV strings — from device/latest directly
+            pv1_power=_fv('dcPowerPv1'),
+            pv2_power=_fv('dcPowerPv2'),
+            pv3_power=_fv('dcPowerPv3'),
+            pv4_power=None,
+            # Temperatures
+            inverter_temp=_fv('acTemperature'),
+            dc_temp=None,  # dcTemperature has firmware bug, skip
+            # Grid/AC
+            grid_voltage=_fv('acVoltageRua') or _fv('loadVoltageL1l2'),
+            grid_frequency=_fv('acOutputFrequencyR'),
+            raw_json=to_json(snapshot.raw),
+        )
+        db.session.add(reading)
+        if device:
+            device.connection_status = 'ok'
+            device.last_connected_at = datetime.utcnow()
+        db.session.commit()
+
     weather = get_weather_for_latest(reading)
     try:
         maybe_log_energy_events(reading, previous, weather=weather, settings=load_settings())
@@ -1284,9 +1316,9 @@ def sync_now_internal(trigger='manual'):
     except Exception as notify_exc:
         log_event('warning', f'تعذر تنفيذ الإشعارات: {notify_exc}')
     if trigger == 'manual':
-        log_event('success', 'تمت مزامنة قراءة جديدة بنجاح', snapshot.raw)
+        log_event('success', 'تمت مزامنة قراءة جديدة بنجاح', {'provider': provider_code, 'reading_id': reading.id})
     else:
-        log_event('info', 'مزامنة تلقائية', {'created_at': reading.created_at.isoformat()})
+        log_event('info', 'مزامنة تلقائية', {'provider': provider_code, 'created_at': reading.created_at.isoformat()})
     # Prune old logs periodically (on every auto-sync)
     if trigger == 'auto':
         try:
@@ -2009,6 +2041,16 @@ def _device_sync_ready(device: AppDevice | None = None, user=None):
         return False, 'لا يوجد جهاز مربوط حاليًا بهذا الحساب.'
     if not bool(getattr(device, 'is_active', False)):
         return False, 'الجهاز الحالي غير مفعل.'
+
+    provider_code = (getattr(device, 'api_provider', None) or getattr(device, 'device_type', None) or 'deye').strip().lower()
+    if provider_code and provider_code != 'deye':
+        spec = provider_by_code(provider_code)
+        if not spec:
+            return False, f'نوع التكامل غير مدعوم حاليًا: {provider_code}'
+        missing = missing_required(spec, device_credentials(device))
+        if missing:
+            return False, 'أكمل إعدادات التكامل أولًا: ' + '، '.join(missing)
+        return True, ''
 
     allow_global_connection = bool(user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin') and not has_request_context())
     settings = _device_runtime_settings(device, allow_global_connection=allow_global_connection)
@@ -3147,172 +3189,6 @@ def admin_subscriptions():
         owner = AppUser.query.get(tenant.owner_user_id) if tenant and tenant.owner_user_id else None
         rows.append({'subscription': sub, 'tenant': tenant, 'plan': plan, 'owner': owner})
     return render_template('admin_subscriptions.html', rows=rows, ui_lang=_lang(), summary=_admin_counts_snapshot())
-
-
-@main_bp.route('/admin/devices')
-def admin_devices_center():
-    guard = _admin_guard('can_manage_users')
-    if guard:
-        return guard
-    q = AppDevice.query.order_by(AppDevice.updated_at.desc(), AppDevice.id.desc())
-    device_type = (request.args.get('device_type') or '').strip()
-    status = (request.args.get('status') or '').strip()
-    if device_type:
-        q = q.filter_by(device_type=device_type)
-    if status:
-        q = q.filter_by(connection_status=status)
-    rows = []
-    for dev in q.all():
-        owner = AppUser.query.get(dev.owner_user_id) if dev.owner_user_id else None
-        tenant = TenantAccount.query.get(dev.tenant_id) if dev.tenant_id else None
-        rows.append({'device': dev, 'owner': owner, 'tenant': tenant})
-    device_types = DeviceType.query.order_by(DeviceType.name.asc()).all()
-    device_stats = {
-        'total': len(rows),
-        'connected': sum(1 for row in rows if (getattr(row['device'], 'connection_status', '') or '').lower() in ['ok', 'connected', 'ready']),
-        'inactive': sum(1 for row in rows if not bool(getattr(row['device'], 'is_active', True))),
-        'types': len(device_types),
-    }
-    return render_template('admin_devices_center.html', rows=rows, device_types=device_types, device_stats=device_stats, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
-
-
-@main_bp.route('/admin/integrations', methods=['GET', 'POST'])
-def admin_integrations():
-    guard = _admin_guard('can_manage_integrations')
-    if guard:
-        return guard
-    if request.method == 'POST':
-        code = (request.form.get('code') or '').strip().lower()
-        if code:
-            row = DeviceType.query.filter_by(code=code).first()
-            created = row is None
-            if row is None:
-                row = DeviceType(code=code)
-                db.session.add(row)
-            row.name = (request.form.get('name') or code).strip()
-            row.provider = (request.form.get('provider') or 'custom').strip()
-            row.auth_mode = (request.form.get('auth_mode') or 'api_key').strip()
-            row.base_url = (request.form.get('base_url') or '').strip() or None
-            row.healthcheck_endpoint = (request.form.get('healthcheck_endpoint') or '').strip() or None
-            row.sync_endpoint = (request.form.get('sync_endpoint') or '').strip() or None
-            row.required_fields_json = json.dumps([x.strip() for x in (request.form.get('required_fields') or '').split(',') if x.strip()], ensure_ascii=False)
-            row.mapping_schema_json = request.form.get('mapping_schema_json') or '{}'
-            row.is_active = request.form.get('is_active') == 'on'
-            db.session.commit()
-            _admin_write_log('integration.create' if created else 'integration.update', f'Updated integration type {row.code}', 'device_type', row.id, {'provider': row.provider})
-            flash('تم حفظ نوع التكامل بنجاح', 'success')
-            return redirect(url_for('main.admin_integrations', lang=_lang()))
-    rows = DeviceType.query.order_by(DeviceType.created_at.desc(), DeviceType.id.desc()).all()
-    return render_template('admin_integrations.html', rows=rows, ui_lang=_lang())
-
-
-
-
-@main_bp.route('/admin/platform-review')
-def admin_platform_review():
-    guard = _admin_guard('can_view_logs')
-    if guard:
-        return guard
-    audit = audit_project(current_app.root_path.rsplit('/app', 1)[0])
-    return render_template('admin_platform_review.html', audit=audit, ui_lang=_lang())
-
-
-
-@main_bp.route('/admin/backups', methods=['GET', 'POST'])
-def admin_backups():
-    guard = _admin_guard('can_view_logs')
-    if guard:
-        return guard
-    if request.method == 'POST':
-        action = (request.form.get('action') or '').strip()
-        if action == 'save_settings':
-            set_setting('backup_enabled', 'true' if request.form.get('backup_enabled') == 'on' else 'false')
-            freq = (request.form.get('backup_frequency') or 'daily').strip().lower()
-            if freq not in {'daily', 'weekly', 'monthly'}:
-                freq = 'daily'
-            set_setting('backup_frequency', freq)
-            set_setting('backup_keep_local', str(max(int(request.form.get('backup_keep_local') or 12), 1)))
-            set_setting('backup_drive_enabled', 'true' if request.form.get('backup_drive_enabled') == 'on' else 'false')
-            set_setting('backup_drive_folder_id', (request.form.get('backup_drive_folder_id') or '').strip())
-            db.session.commit()
-            flash('تم تحديث إعدادات النسخ الاحتياطي.', 'success')
-        elif action == 'backup_now':
-            try:
-                create_backup(reason='manual', upload_drive=request.form.get('upload_drive') == 'on')
-                flash('تم إنشاء نسخة احتياطية بنجاح.', 'success')
-            except Exception as exc:
-                current_app.logger.exception('Manual backup failed: %s', exc)
-                flash('تعذر إنشاء النسخة الاحتياطية.', 'danger')
-        elif action == 'upload_backup':
-            file = request.files.get('backup_file')
-            try:
-                saved = save_uploaded_backup(file)
-                flash(f'تم رفع نسخة احتياطية للاستعادة: {saved.get("filename")}', 'success')
-            except Exception as exc:
-                current_app.logger.exception('Backup upload failed: %s', exc)
-                flash('تعذر رفع ملف النسخة الاحتياطية.', 'danger')
-        elif action == 'restore':
-            filename = (request.form.get('filename') or '').strip()
-            confirm = (request.form.get('confirm_restore') or '').strip().upper()
-            if confirm != 'RESTORE':
-                flash('اكتب RESTORE لتأكيد الاستعادة.', 'warning')
-            else:
-                try:
-                    restore_backup(filename)
-                    flash('تم استعادة قاعدة البيانات من النسخة الاحتياطية.', 'success')
-                except Exception as exc:
-                    current_app.logger.exception('Backup restore failed: %s', exc)
-                    flash('تعذر استعادة النسخة الاحتياطية.', 'danger')
-        return redirect(url_for('main.admin_backups', lang=_lang()))
-    return render_template('admin_backups.html', settings=backup_settings(), backups=list_backups(), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
-
-
-@main_bp.route('/admin/backups/download/<path:filename>')
-def admin_backup_download(filename: str):
-    guard = _admin_guard('can_view_logs')
-    if guard:
-        return guard
-    for row in list_backups():
-        if row['name'] == filename:
-            return send_file(row['path'], as_attachment=True, download_name=row['name'])
-    return redirect(url_for('main.admin_backups', lang=_lang()))
-
-
-@main_bp.route('/admin/services-health')
-def admin_services_health():
-    guard = _admin_guard('can_view_logs')
-    if guard:
-        return guard
-    heartbeats = ServiceHeartbeat.query.order_by(ServiceHeartbeat.service_label.asc(), ServiceHeartbeat.service_key.asc()).all()
-    hb_map = {row.service_key: row for row in heartbeats}
-    latest_sync = SyncLog.query.order_by(SyncLog.created_at.desc()).first()
-    latest_notif = NotificationLog.query.order_by(NotificationLog.created_at.desc()).first()
-    scheduler_obj = getattr(current_app, 'scheduler', None)
-    scheduler_jobs = []
-    scheduler_visible = False
-    scheduler_hb = hb_map.get('scheduler')
-    scheduler_recent = False
-    try:
-        scheduler_visible = bool(scheduler_obj and scheduler_obj.running)
-        scheduler_jobs = [{'id': j.id, 'next_run_time': getattr(j, 'next_run_time', None)} for j in scheduler_obj.get_jobs()] if scheduler_obj else []
-    except Exception:
-        scheduler_visible = False
-    try:
-        scheduler_recent = bool(scheduler_hb and scheduler_hb.last_seen_at and (datetime.utcnow() - scheduler_hb.last_seen_at) <= timedelta(minutes=45) and scheduler_hb.status in ['ok', 'running'])
-    except Exception:
-        scheduler_recent = False
-    scheduler_running = scheduler_visible or scheduler_recent
-    scheduler_message_ar = 'الجدولة تعمل داخل هذا العامل.' if scheduler_visible else ('الجدولة تعمل حسب آخر نبضة مسجلة، حتى لو لم تظهر داخل هذا الطلب.' if scheduler_recent else 'الجدولة غير ظاهرة. افحص gunicorn.conf و DISABLE_INTERNAL_SCHEDULER والـ worker الحالي.')
-    scheduler_message_en = 'Scheduler is running in this worker.' if scheduler_visible else ('Scheduler is healthy by recent heartbeat, even if it is not visible in this request worker.' if scheduler_recent else 'Scheduler is not visible. Check gunicorn.conf, DISABLE_INTERNAL_SCHEDULER, and the current worker.')
-    service_cards = [
-        {'key': 'scheduler', 'label_ar': 'الجدولة الداخلية', 'label_en': 'Internal Scheduler', 'status': 'ok' if scheduler_running else ('warning' if current_app.config.get('DISABLE_INTERNAL_SCHEDULER') else 'failed'), 'message_ar': scheduler_message_ar, 'message_en': scheduler_message_en, 'details': scheduler_jobs, 'heartbeat': scheduler_hb},
-        {'key': 'deye_auto_sync', 'label_ar': 'المزامنة التلقائية', 'label_en': 'Auto Sync', 'heartbeat': hb_map.get('app.blueprints.main.sync_now_internal') or hb_map.get('deye_auto_sync')},
-        {'key': 'advanced_notifications_check', 'label_ar': 'الإشعارات المتقدمة', 'label_en': 'Advanced Notifications', 'heartbeat': hb_map.get('app.blueprints.notifications.run_advanced_notification_scheduler')},
-        {'key': 'weather_change_check', 'label_ar': 'فحص الطقس', 'label_en': 'Weather Checks', 'heartbeat': hb_map.get('app.blueprints.notifications.run_weather_checks')},
-        {'key': 'database_backup', 'label_ar': 'النسخ الاحتياطي', 'label_en': 'Database Backup', 'heartbeat': hb_map.get('database_backup')},
-        {'key': 'database_backup_drive', 'label_ar': 'رفع النسخ إلى Drive', 'label_en': 'Drive Upload', 'heartbeat': hb_map.get('database_backup_drive')},
-    ]
-    return render_template('admin_services_health.html', heartbeats=heartbeats, service_cards=service_cards, latest_sync=latest_sync, latest_notif=latest_notif, scheduler_jobs=scheduler_jobs, scheduler_running=scheduler_running, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
 
 
 @main_bp.route('/admin/mail', methods=['GET', 'POST'])

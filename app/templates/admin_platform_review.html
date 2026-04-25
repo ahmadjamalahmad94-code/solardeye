@@ -4,10 +4,10 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 platform-review-v80">
+  <main class="content-area admin-shell-v2 platform-review-v80 platform-review-v90">
     <header class="admin-page-head platform-review-hero-v80">
       <div>
-        <span class="eyebrow">Heavy v8</span>
+        <span class="eyebrow">Heavy v9</span>
         <h1>{{ 'Platform review center' if is_en else 'مركز مراجعة المنصة' }}</h1>
         <p>{{ 'A page-by-page static health view for templates, forms, CSRF coverage, private-data exposure, and UI cleanup debt.' if is_en else 'فحص ثابت صفحة بصفحة للقوالب والنماذج وتغطية CSRF والبيانات الخاصة وديون تنظيف الواجهة.' }}</p>
       </div>
@@ -20,9 +20,9 @@
 
     <section class="admin-kpi-grid-v2 platform-kpi-v80">
       <article class="admin-kpi-card"><small>{{ 'Templates' if is_en else 'القوالب' }}</small><strong>{{ audit.summary.templates }}</strong><span>{{ 'HTML pages scanned' if is_en else 'صفحة HTML مفحوصة' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Main blueprint routes' if is_en else 'مسارات main blueprint' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Routes across blueprints' if is_en else 'مسارات كل الـ blueprints' }}</span></article>
       <article class="admin-kpi-card"><small>{{ 'POST forms' if is_en else 'نماذج POST' }}</small><strong>{{ audit.summary.post_forms }}</strong><span>{{ audit.summary.csrf_inputs }} {{ 'visible CSRF inputs' if is_en else 'CSRF ظاهر' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'ملف main.py' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ 'lines; split gradually' if is_en else 'سطر؛ يحتاج فصل تدريجي' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'ملف main.py' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ audit.summary.architecture_split_score }} {{ 'architecture score' if is_en else 'نقاط الفصل المعماري' }}</span></article>
       <article class="admin-kpi-card"><small>CSS / JS</small><strong>{{ audit.summary.css_kb }}KB</strong><span>JS {{ audit.summary.js_kb }}KB</span></article>
     </section>
 
@@ -31,7 +31,7 @@
         <div class="section-heading-inline">
           <div>
             <small>{{ 'Recommended next work' if is_en else 'الأعمال التالية المقترحة' }}</small>
-            <h3>{{ 'v8 quality checklist' if is_en else 'قائمة جودة v8' }}</h3>
+            <h3>{{ 'v9 quality checklist' if is_en else 'قائمة جودة v9' }}</h3>
           </div>
         </div>
         <div class="activity-list-v2">
@@ -52,6 +52,16 @@
       </article>
     </section>
 
+
+    <section class="admin-card-v2">
+      <div class="section-heading-inline"><div><small>{{ 'Architecture' if is_en else 'البنية' }}</small><h3>{{ 'Python files and route distribution' if is_en else 'توزيع ملفات Python والمسارات' }}</h3></div></div>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2 platform-table-v80">
+          <thead><tr><th>{{ 'File' if is_en else 'الملف' }}</th><th>{{ 'Lines' if is_en else 'الأسطر' }}</th><th>{{ 'Routes' if is_en else 'المسارات' }}</th><th>{{ 'Note' if is_en else 'ملاحظة' }}</th></tr></thead>
+          <tbody>{% for row in audit.python.files|sort(attribute='lines', reverse=true) %}<tr class="risk-{{ 'medium' if row.lines > 1200 else 'ok' }}"><td><strong>{{ row.name }}</strong></td><td>{{ row.lines }}</td><td>{{ row.routes }}</td><td>{% if row.lines > 1200 %}{{ 'Needs more splitting' if is_en else 'يحتاج فصل إضافي' }}{% else %}<span class="table-sub">{{ 'OK' if is_en else 'سليم' }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
     <section class="admin-card-v2">
       <div class="section-heading-inline"><div><small>{{ 'Page-by-page' if is_en else 'صفحة صفحة' }}</small><h3>{{ 'Template audit table' if is_en else 'جدول فحص القوالب' }}</h3></div></div>
       <div class="table-shell-v2">

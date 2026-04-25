@@ -7,10 +7,10 @@
       <div>
         {% if g.is_admin %}
           <h4 class="mb-0">{{ 'Admin Console' if is_en else 'لوحة الإدارة' }}</h4>
-          <small>{{ 'SolarDeye Command v8.0' if is_en else 'SolarDeye Command v8.0' }}</small>
+          <small>{{ 'SolarDeye Command v9.0' if is_en else 'SolarDeye Command v9.0' }}</small>
         {% else %}
           <h4 class="mb-0">{{ 'Solar Platform' if is_en else 'منصة الطاقة' }}</h4>
-          <small>{{ 'Smart Portal v8.0' if is_en else 'البوابة الذكية v8.0' }}</small>
+          <small>{{ 'Smart Portal v9.0' if is_en else 'البوابة الذكية v9.0' }}</small>
         {% endif %}
       </div>
     </div>
@@ -34,14 +34,14 @@
       {% if g.is_admin %}
         <div class="nav-group-title">{{ 'Administration' if is_en else 'الإدارة' }}</div>
         <a class="{% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}" href="{{ url_for('main.admin_dashboard', lang=ui_lang) }}">{{ '📈 Overview' if is_en else '📈 لوحة الإدارة' }}</a>
-        <a class="{% if request.endpoint in ['main.admin_subscribers','main.admin_subscriber_activate','main.admin_user_profile','main.admin_user_create','main.admin_user_edit'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ '👥 Subscribers CRM' if is_en else '👥 إدارة المشتركين' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class='nav-badge'>{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>
+        <a class="{% if request.endpoint in ['admin_ops.admin_subscribers_v9','main.admin_subscribers','main.admin_subscriber_activate','main.admin_user_profile','main.admin_user_create','main.admin_user_edit'] %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ '👥 Subscribers CRM' if is_en else '👥 إدارة المشتركين' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class='nav-badge'>{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>
         <a class="{% if request.endpoint in ['main.admin_support_command_center'] %}active{% endif %}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">{{ '🧭 Support Command' if is_en else '🧭 مركز قيادة الدعم' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class='nav-badge'>{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>
         <a class="{% if request.endpoint in ['main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ '📦 Plans & Offers' if is_en else '📦 الخطط والعروض' }}</a>
-        <a class="{% if request.endpoint == 'main.admin_devices_center' %}active{% endif %}" href="{{ url_for('main.admin_devices_center', lang=ui_lang) }}">{{ '🔌 Devices' if is_en else '🔌 الأجهزة' }}</a>
-        <a class="{% if request.endpoint == 'main.admin_integrations' %}active{% endif %}" href="{{ url_for('main.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
-        <a class="{% if request.endpoint == 'main.admin_services_health' %}active{% endif %}" href="{{ url_for('main.admin_services_health', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
-        <a class="{% if request.endpoint == 'main.admin_platform_review' %}active{% endif %}" href="{{ url_for('main.admin_platform_review', lang=ui_lang) }}">{{ '🧪 Platform Review' if is_en else '🧪 مراجعة المنصة' }}</a>
-        <a class="{% if request.endpoint in ['main.admin_backups','main.admin_backup_download'] %}active{% endif %}" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">{{ '💾 Backups & Recovery' if is_en else '💾 النسخ والاستعادة' }}</a>
+        <a class="{% if request.endpoint == 'admin_ops.admin_devices_center_v9' %}active{% endif %}" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">{{ '🔌 Devices' if is_en else '🔌 الأجهزة' }}</a>
+        <a class="{% if request.endpoint in ['integrations.admin_integrations','integrations.admin_test_device_integration'] %}active{% endif %}" href="{{ url_for('integrations.admin_integrations', lang=ui_lang) }}">{{ '🧩 Device Types / Integrations' if is_en else '🧩 أنواع الأجهزة / التكاملات' }}</a>
+        <a class="{% if request.endpoint == 'admin_ops.admin_services_health_v9' %}active{% endif %}" href="{{ url_for('admin_ops.admin_services_health_v9', lang=ui_lang) }}">{{ '❤️ Services Health' if is_en else '❤️ صحة الخدمات' }}</a>
+        <a class="{% if request.endpoint == 'platform.admin_platform_review' %}active{% endif %}" href="{{ url_for('platform.admin_platform_review', lang=ui_lang) }}">{{ '🧪 Platform Review' if is_en else '🧪 مراجعة المنصة' }}</a>
+        <a class="{% if request.endpoint in ['platform.admin_backups','platform.admin_backup_download'] %}active{% endif %}" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">{{ '💾 Backups & Recovery' if is_en else '💾 النسخ والاستعادة' }}</a>
         <a class="{% if request.endpoint == 'main.admin_finance' %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ '💰 Wallet & Finance' if is_en else '💰 المحفظة والمالية' }}</a>
         <a class="{% if request.endpoint == 'main.admin_activity_log' %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ '🕵️ Activity Log' if is_en else '🕵️ سجل العمليات' }}</a>
         <a class="{% if request.endpoint == 'main.admin_roles' %}active{% endif %}" href="{{ url_for('main.admin_roles', lang=ui_lang) }}">{{ '🛡️ Roles & Permissions' if is_en else '🛡️ الأدوار والصلاحيات' }}</a>

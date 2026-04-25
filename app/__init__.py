@@ -15,6 +15,7 @@ from .services.security import register_security
 from .services.labels import register_template_helpers
 from .services.i18n import register_i18n
 from .services.backup_service import ensure_backup_settings
+from .services.energy_integrations import provider_catalog
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -40,10 +41,18 @@ def create_app():
     register_template_helpers(app)
 
     from .blueprints.auth import auth_bp
+    from .blueprints.integrations import integrations_bp
+    from .blueprints.platform import platform_bp
+    from .blueprints.admin_ops import admin_ops_bp
     from .blueprints.main import main_bp
     from .blueprints.api_probe import probe_bp
 
     app.register_blueprint(auth_bp)
+    # v9 modular admin operations are registered before the legacy main blueprint
+    # so shared URLs are handled by split modules first.
+    app.register_blueprint(admin_ops_bp)
+    app.register_blueprint(integrations_bp)
+    app.register_blueprint(platform_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(probe_bp)
 
@@ -590,61 +599,21 @@ def _backfill_foundation_ids(user_id, device_id):
 
 
 def _seed_device_types():
-    defaults = [
-        {
-            'code': 'deye',
-            'name': 'Deye Cloud',
-            'provider': 'deye',
-            'auth_mode': 'config',
-            'base_url': 'https://eu1-developer.deyecloud.com',
-            'healthcheck_endpoint': '/openapi/v1/station/list',
-            'sync_endpoint': '/openapi/v1/inverter/getInverterRealTimeData',
-            'required_fields_json': json.dumps([
-                'deye_username', 'deye_password', 'station_id'
-            ], ensure_ascii=False),
-            'mapping_schema_json': json.dumps({
-                'solar_power': 'pv_power',
-                'battery_soc': 'battery_soc',
-                'grid_power': 'grid_power',
-                'home_load': 'load_power',
-                'raw_data': 'raw'
-            }, ensure_ascii=False),
-        },
-        {
-            'code': 'custom_api',
-            'name': 'Custom API Device',
-            'provider': 'custom',
-            'auth_mode': 'api_key',
-            'base_url': None,
-            'healthcheck_endpoint': None,
-            'sync_endpoint': None,
-            'required_fields_json': json.dumps([
-                'api_base_url', 'api_key'
-            ], ensure_ascii=False),
-            'mapping_schema_json': json.dumps({
-                'solar_power': 'solar_power',
-                'battery_soc': 'battery_soc',
-                'grid_power': 'grid_power',
-                'home_load': 'home_load',
-                'raw_data': 'raw_data'
-            }, ensure_ascii=False),
-        },
-    ]
-
-    for payload in defaults:
+    # v9: device provider catalog is centralized in app.services.energy_integrations.
+    for spec in provider_catalog():
+        payload = spec.as_device_type_payload()
         row = DeviceType.query.filter_by(code=payload['code']).first()
-        if row:
-            changed = False
-            for key, value in payload.items():
-                if getattr(row, key) in (None, '') and value not in (None, ''):
-                    setattr(row, key, value)
-                    changed = True
-            if changed:
-                db.session.add(row)
+        if not row:
+            db.session.add(DeviceType(**payload))
             continue
-        db.session.add(DeviceType(**payload))
+        changed = False
+        for key, value in payload.items():
+            if getattr(row, key, None) in (None, '') and value not in (None, ''):
+                setattr(row, key, value)
+                changed = True
+        if changed:
+            db.session.add(row)
     db.session.commit()
-
 
 def _start_scheduler(app):
     return start_scheduler(app)

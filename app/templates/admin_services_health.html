@@ -4,7 +4,7 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 services-health-v71">
+  <main class="content-area admin-shell-v2 services-health-v71 services-health-v90">
     <header class="admin-page-head service-hero-v71">
       <div>
         <span class="eyebrow">{{ 'Operations' if is_en else 'التشغيل' }}</span>
@@ -18,29 +18,29 @@
     </header>
 
     <section class="admin-kpi-grid-v2 service-grid-v71">
-      <article class="admin-kpi-card"><small>Sync</small><strong>{{ ui_label(latest_sync.level, 'status', ui_lang) if latest_sync else '—' }}</strong><span>{{ latest_sync.message if latest_sync else ('No sync logs yet' if is_en else 'لا يوجد سجل مزامنة بعد') }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Notifications' if is_en else 'الإشعارات' }}</small><strong>{{ ui_label(latest_notif.status, 'status', ui_lang) if latest_notif else '—' }}</strong><span>{{ latest_notif.title if latest_notif else ('No notification logs yet' if is_en else 'لا يوجد سجل إشعارات بعد') }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Registered jobs' if is_en else 'المهام المسجلة' }}</small><strong>{{ scheduler_jobs|length }}</strong><span>{{ 'APScheduler jobs visible in current worker.' if is_en else 'مهام APScheduler الظاهرة في العامل الحالي.' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Sync' if is_en else 'المزامنة' }}</small><strong>{{ ui_label(latest_sync.level, 'status', ui_lang) if latest_sync else '—' }}</strong><span>{{ service_message(latest_sync.message, ui_lang) if latest_sync else ('No sync logs yet' if is_en else 'لا يوجد سجل مزامنة بعد') }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Notifications' if is_en else 'الإشعارات' }}</small><strong>{{ ui_label(latest_notif.status, 'status', ui_lang) if latest_notif else '—' }}</strong><span>{{ service_message(latest_notif.title, ui_lang) if latest_notif else ('No notification logs yet' if is_en else 'لا يوجد سجل إشعارات بعد') }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Registered jobs' if is_en else 'المهام المسجلة' }}</small><strong>{{ scheduler_jobs|length }}</strong><span>{{ 'APScheduler jobs visible in current worker or recent heartbeat.' if is_en else 'مهام APScheduler الظاهرة في العامل الحالي أو عبر آخر نبضة.' }}</span></article>
     </section>
 
-    <section class="service-card-grid-v71">
+    <section class="service-card-grid-v71 v9-scroll-lock-grid">
       {% for svc in service_cards %}
         {% set hb = svc.heartbeat if svc.heartbeat is defined else None %}
         {% set status = svc.status if svc.status is defined else (hb.status if hb else 'warning') %}
-        <article class="service-card-v71 status-{{ status }}">
+        <article class="service-card-v71 status-{{ status }} v9-fixed-card">
           <div class="service-card-top-v71">
-            <div><small>{{ svc.key }}</small><h3>{{ svc.label_en if is_en else svc.label_ar }}</h3></div>
+            <div><small>{{ ui_label(status, 'status', ui_lang) }}</small><h3>{{ service_display_name(svc.key, ui_lang) }}</h3></div>
             <span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span>
           </div>
-          <p>{% if hb %}{{ hb.message or ('Healthy' if is_en else 'سليم') }}{% else %}{{ svc.message_en if is_en and svc.message_en is defined else (svc.message_ar if svc.message_ar is defined else ('Waiting for first heartbeat.' if is_en else 'بانتظار أول نبضة.')) }}{% endif %}</p>
+          <p class="v9-scroll-text">{% if hb %}{{ service_message(hb.message, ui_lang) }}{% else %}{{ 'Waiting for first heartbeat.' if is_en else 'بانتظار أول نبضة.' }}{% endif %}</p>
           <footer>{{ 'Last seen' if is_en else 'آخر نبضة' }}: {% if hb and hb.last_seen_at %}{{ format_local(hb.last_seen_at) }}{% else %}—{% endif %}</footer>
         </article>
       {% endfor %}
     </section>
 
-    <section class="admin-card-v2">
-      <div class="section-heading-inline"><div><small>{{ 'Raw heartbeats' if is_en else 'النبضات الخام' }}</small><h3>{{ 'Service heartbeat log' if is_en else 'سجل نبضات الخدمات' }}</h3></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ الاحتياطي' }}</a></div>
-      <div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Service' if is_en else 'الخدمة' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر نبضة' }}</th><th>{{ 'Message' if is_en else 'الرسالة' }}</th></tr></thead><tbody>{% for row in heartbeats %}<tr><td><strong>{{ row.service_label or row.service_key }}</strong><div class="table-sub">{{ row.source }}</div></td><td><span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span></td><td>{{ format_local(row.last_seen_at) if row.last_seen_at else '-' }}</td><td>{{ row.message or '-' }}</td></tr>{% else %}<tr><td colspan="4">{{ 'No service heartbeats yet.' if is_en else 'لا توجد نبضات بعد.' }}</td></tr>{% endfor %}</tbody></table></div>
+    <section class="admin-card-v2 v9-fixed-card tall">
+      <div class="section-heading-inline"><div><small>{{ 'Raw heartbeats' if is_en else 'النبضات الخام' }}</small><h3>{{ 'Service heartbeat log' if is_en else 'سجل نبضات الخدمات' }}</h3></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ الاحتياطي' }}</a></div>
+      <div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Service' if is_en else 'الخدمة' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر نبضة' }}</th><th>{{ 'Message' if is_en else 'الرسالة' }}</th></tr></thead><tbody>{% for item in heartbeat_rows|default([]) %}{% set row = item.row %}<tr><td><strong>{{ item.label }}</strong><div class="table-sub">{{ row.source }}</div></td><td><span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span></td><td>{{ format_local(row.last_seen_at) if row.last_seen_at else '-' }}</td><td>{{ item.message }}</td></tr>{% else %}<tr><td colspan="4">{{ 'No service heartbeats yet.' if is_en else 'لا توجد نبضات بعد.' }}</td></tr>{% endfor %}</tbody></table></div>
     </section>
   </main>
 </div>

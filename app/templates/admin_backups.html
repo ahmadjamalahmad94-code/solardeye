@@ -57,7 +57,7 @@
           <div class="backup-row-v71">
             <div><strong>{{ b.name }}</strong><span>{{ format_local(b.created_at) }} · {{ (b.size / 1024)|round(1) }} KB</span></div>
             <div class="backup-actions-v71">
-              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_backup_download', filename=b.name, lang=ui_lang) }}">{{ 'Download' if is_en else 'تحميل' }}</a>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('platform.admin_backup_download', filename=b.name, lang=ui_lang) }}">{{ 'Download' if is_en else 'تحميل' }}</a>
               <form method="post" onsubmit="return confirm('{{ 'This will replace current database content. Continue?' if is_en else 'سيتم استبدال بيانات قاعدة البيانات الحالية. هل أنت متأكد؟' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="restore"><input type="hidden" name="filename" value="{{ b.name }}">
                 <input class="form-control form-control-sm" name="confirm_restore" placeholder="RESTORE" dir="ltr">

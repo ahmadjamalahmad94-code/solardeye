@@ -42,7 +42,7 @@ class Config:
     TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '').strip()
 
     # ── Database ──────────────────────────────────────────────────────────────
-    SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///solar_v8.db'
+    SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///solar_v9.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
 

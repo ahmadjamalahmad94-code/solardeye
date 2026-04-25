@@ -11,7 +11,7 @@ from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MI
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from app.services.service_monitor import heartbeat
+from app.services.service_monitor import heartbeat, service_display_name
 from app.services.scope import get_default_system_device, get_default_system_user, reset_system_scope, set_system_scope
 
 _scheduler: BackgroundScheduler | None = None
@@ -36,13 +36,17 @@ def _build_job(app, fn_path: str) -> Callable[[], None]:
             system_device = get_default_system_device(system_user)
             scope_tokens = set_system_scope(getattr(system_user, 'id', None), getattr(system_device, 'id', None))
             try:
-                heartbeat(fn_path, fn_path, 'running', 'بدأت المهمة', source='scheduler')
-                getattr(mod, fn_name)()
-                heartbeat(fn_path, fn_path, 'ok', 'اكتملت المهمة بنجاح', source='scheduler')
+                heartbeat(fn_path, service_display_name(fn_path, 'en'), 'running', 'بدأت المهمة', source='scheduler')
+                
+                if fn_path == 'app.blueprints.main.sync_now_internal':
+                    getattr(mod, fn_name)(trigger='auto')
+                else:
+                    getattr(mod, fn_name)()
+                heartbeat(fn_path, service_display_name(fn_path, 'en'), 'ok', 'اكتملت المهمة بنجاح', source='scheduler')
                 logger.info('Scheduler job finished: %s', fn_path)
                 print(f'Scheduler job finished: {fn_path}', flush=True)
             except Exception as exc:
-                heartbeat(fn_path, fn_path, 'failed', f'فشلت المهمة: {exc}', source='scheduler')
+                heartbeat(fn_path, service_display_name(fn_path, 'en'), 'failed', f'فشلت المهمة: {exc}', source='scheduler')
                 logger.exception('Scheduled job failed: %s', fn_path)
                 print(f'Scheduled job failed: {fn_path}', flush=True)
                 raise

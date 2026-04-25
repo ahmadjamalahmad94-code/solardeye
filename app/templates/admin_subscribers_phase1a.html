@@ -15,7 +15,7 @@
         <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">＋ {{ 'New subscriber' if is_en else 'مشترك جديد' }}</a>
         <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">👤 {{ 'System users' if is_en else 'مستخدمو النظام' }}</a>
         <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
-        <a class="btn btn-outline-success" href="{{ url_for('main.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ' }}</a>
+        <a class="btn btn-outline-success" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ' }}</a>
       </div>
     </header>
 
