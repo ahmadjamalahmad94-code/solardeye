@@ -1904,3 +1904,45 @@ html[dir="rtl"] .heavy-v100 .sidebar{box-shadow:-10px 0 35px rgba(15,23,42,.12)}
 @media(max-width:1200px){.permission-grid-v100.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.roles-layout-v100{grid-template-columns:1fr}}
 @media(max-width:900px){.heavy-v100 .sidebar{transform:translateX(-105%);transition:transform .2s ease;overflow:auto}.heavy-v100 .sidebar.is-open,.heavy-v100.sidebar-open-v70 .sidebar{transform:translateX(0)}html[dir="rtl"] .heavy-v100 .sidebar{transform:translateX(105%)}html[dir="rtl"] .heavy-v100 .sidebar.is-open,html[dir="rtl"] .heavy-v100.sidebar-open-v70 .sidebar{transform:translateX(0)}.heavy-v100 .content-area{margin-inline-start:0;padding:18px}.heavy-v100 .admin-page-head{padding:18px}.heavy-v100 .admin-card-v2,.heavy-v100 .card,.heavy-v100 .panel-card,.heavy-v100 .hero-card{padding:18px}.permission-grid-v100,.permission-grid-v100.compact{grid-template-columns:1fr}.heavy-v100 .sidebar-footer{position:static;margin-top:10px}}
 @media(prefers-reduced-motion:reduce){.heavy-v100 *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.heavy-v100 .btn:hover{transform:none}}
+
+/* ===== Heavy v10.2 targeted fixes ===== */
+body.no-global-utility-bar{
+  padding-top:0 !important;
+}
+@media (max-width: 900px){
+  body.no-global-utility-bar{
+    padding-top:0 !important;
+  }
+}
+body.no-global-utility-bar .app-shell,
+body.no-global-utility-bar .content-area,
+body.no-global-utility-bar .content-area > *:first-child,
+body.no-global-utility-bar .topbar,
+body.no-global-utility-bar .admin-page-head,
+body.no-global-utility-bar .dashboard-topbar{
+  margin-top:0 !important;
+}
+.heavy-v100 .content-area{
+  padding-block-start:var(--ui-gap-xl) !important;
+}
+.heavy-v100 .nav-menu{
+  padding-bottom:78px;
+}
+.heavy-v100 .nav-menu a{
+  min-height:44px;
+  line-height:1.35;
+  align-items:center;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.heavy-v100 .nav-badge{
+  flex:0 0 auto;
+  margin-inline-start:8px;
+}
+.heavy-v100 .admin-page-head,
+.heavy-v100 .topbar{
+  scroll-margin-top:18px;
+}
