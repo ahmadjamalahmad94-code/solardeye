@@ -2376,3 +2376,59 @@ body.heavy-v100 :where(.highlight-card strong,.admin-kpi-card strong,.subscriber
   .heavy-v100 .subscriber-actions-v108 .btn,
   .heavy-v100 .subscriber-actions-v108 form{width:100%;}
 }
+
+/* Heavy v10.5.7 — disabled/expired account preview mode */
+.account-preview-banner-v107{
+  position:fixed;
+  inset-inline:clamp(12px,3vw,32px);
+  bottom:18px;
+  z-index:2600;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  max-width:980px;
+  margin-inline:auto;
+  padding:14px 18px;
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(15,36,87,.96),rgba(29,78,216,.94));
+  color:#fff;
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 24px 70px rgba(15,23,42,.28);
+  backdrop-filter:blur(16px);
+}
+.account-preview-banner-v107 strong{font-weight:950;white-space:nowrap;color:#fbbf24}
+.account-preview-banner-v107 span{font-weight:800;line-height:1.65}
+.account-preview-banner-v107 a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#0f172a;background:linear-gradient(135deg,#fde68a,#fbbf24);border-radius:16px;padding:10px 14px;font-weight:950;white-space:nowrap}
+.account-preview-v107 .restricted-toast-v107{
+  position:fixed;
+  inset-inline-start:22px;
+  bottom:92px;
+  z-index:2700;
+  width:min(440px,calc(100vw - 34px));
+  border-radius:22px;
+  padding:16px 18px;
+  background:rgba(255,255,255,.98);
+  color:#0f172a;
+  border:1px solid #bfdbfe;
+  box-shadow:0 24px 70px rgba(15,23,42,.24);
+  font-weight:900;
+  line-height:1.7;
+}
+.account-preview-v107 .restricted-toast-v107 small{display:block;color:#64748b;margin-top:4px;font-weight:800}
+.account-preview-v107 form:not([action*="logout"]):not(.allow-preview-form) .btn,
+.account-preview-v107 form:not([action*="logout"]):not(.allow-preview-form) button[type="submit"]{
+  position:relative;
+}
+.account-preview-v107 form:not([action*="logout"]):not(.allow-preview-form) .btn::after,
+.account-preview-v107 form:not([action*="logout"]):not(.allow-preview-form) button[type="submit"]::after{
+  content:'🔒';
+  font-size:.82em;
+  margin-inline-start:4px;
+  opacity:.8;
+}
+@media(max-width:760px){
+  .account-preview-banner-v107{align-items:flex-start;flex-direction:column;bottom:12px;padding:13px 14px}
+  .account-preview-banner-v107 a{width:100%}
+  .account-preview-v107 .restricted-toast-v107{inset-inline:12px;bottom:138px;width:auto}
+}

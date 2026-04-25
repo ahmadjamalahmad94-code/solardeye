@@ -689,6 +689,43 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     document.addEventListener('keydown', (event) => { if(event.key === 'Escape') close(); });
   }
 
+
+
+  function initAccountPreviewMode(){
+    const restricted = document.body && document.body.dataset.accountRestricted === '1';
+    if(!restricted) return;
+    const message = document.body.dataset.restrictedMessage || (currentLang() === 'en'
+      ? 'Your account is in read-only preview mode. Activate your account or subscription to use this service.'
+      : 'حسابك في وضع مشاهدة فقط. فعّل حسابك أو اشتراكك للاستفادة من هذه الخدمة.');
+    function showRestrictedNotice(){
+      document.querySelectorAll('.restricted-toast-v107').forEach(el => el.remove());
+      const toast = document.createElement('div');
+      toast.className = 'restricted-toast-v107';
+      toast.innerHTML = `<strong>${currentLang() === 'en' ? 'Action locked' : 'الإجراء مجمّد'}</strong><small>${message}</small>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4200);
+    }
+    document.addEventListener('submit', (event) => {
+      const form = event.target;
+      if(!form || form.tagName !== 'FORM') return;
+      const action = (form.getAttribute('action') || '').toLowerCase();
+      if(action.includes('/logout') || form.classList.contains('allow-preview-form')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      showRestrictedNotice();
+    }, true);
+    document.addEventListener('click', (event) => {
+      const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+      if(!link) return;
+      const href = (link.getAttribute('href') || '').toLowerCase();
+      if(/(sync-now|test-connection|raw-debug|api-probe)/.test(href)){
+        event.preventDefault();
+        event.stopPropagation();
+        showRestrictedNotice();
+      }
+    }, true);
+  }
+
   const translations = {
     'إعدادات ربط Deye': 'Deye Connection Settings',
     'إعدادات الربط الحقيقي + سعة البطارية + المنطقة الزمنية المحلية': 'Real connection settings, battery capacity, and local time zone.',
@@ -887,6 +924,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
 
   document.addEventListener('DOMContentLoaded', function(){
     initMobileSidebar();
+    initAccountPreviewMode();
     initSecretToggles();
     autoTranslateTextNodes();
   });

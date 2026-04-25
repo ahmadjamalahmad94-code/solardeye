@@ -31,6 +31,7 @@ from ..services.utils import (
 )
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
+from ..services.access_state import account_access_state
 from ..services.security import preserve_secret_form_value, sanitize_response_payload
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
 from ..services.rbac import admin_landing_url
@@ -114,9 +115,11 @@ def _require_subscription_guard():
     if is_system_admin():
         return None
     ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
-    if not user_has_active_subscription(user):
-        flash('اشتراكك منتهي أو غير مفعل. راجع صفحة الاشتراك.', 'warning')
-        return redirect(url_for('main.account_subscription', lang=_lang()))
+    # Heavy v10.5.7: disabled/expired subscriber accounts can browse in
+    # read-only preview mode. Mutating actions are blocked globally.
+    if account_access_state(user).get('restricted'):
+        g.account_preview_restricted = True
+        return None
     return None
 
 

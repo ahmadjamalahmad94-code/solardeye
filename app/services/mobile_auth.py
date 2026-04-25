@@ -11,6 +11,7 @@ from werkzeug.security import check_password_hash
 
 from ..extensions import db
 from ..models import AppUser, MobileRefreshToken
+from .access_state import account_access_state
 
 ACCESS_TOKEN_SALT = 'solardeye-mobile-access-v1'
 REFRESH_TOKEN_BYTES = 48
@@ -67,7 +68,7 @@ def verify_access_token(raw: str | None) -> AppUser | None:
     if not user_id:
         return None
     user = AppUser.query.get(int(user_id))
-    if not user or not getattr(user, 'is_active', True):
+    if not user:
         return None
     return user
 
@@ -81,7 +82,7 @@ def refresh_access_token(refresh_token: str | None) -> tuple[AppUser | None, str
     if not row or (row.expires_at and row.expires_at < now):
         return None, None
     user = AppUser.query.get(row.user_id)
-    if not user or not getattr(user, 'is_active', True):
+    if not user:
         return None, None
     row.last_used_at = now
     db.session.commit()
@@ -111,7 +112,7 @@ def user_from_bearer_or_session() -> AppUser | None:
 
 def authenticate_username_password(username: str, password: str) -> AppUser | None:
     user = AppUser.query.filter(AppUser.username == (username or '').strip()).first()
-    if not user or not getattr(user, 'is_active', True):
+    if not user:
         return None
     if not check_password_hash(user.password_hash or '', password or ''):
         return None
@@ -121,11 +122,16 @@ def authenticate_username_password(username: str, password: str) -> AppUser | No
 
 
 def token_payload(user: AppUser, refresh_token: str | None = None) -> dict[str, Any]:
+    state = account_access_state(user)
     data = {
         'access_token': issue_access_token(user),
         'token_type': 'Bearer',
         'expires_in': access_token_max_age(),
-        'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name, 'role': user.role, 'is_admin': bool(user.is_admin)},
+        'account_restricted': bool(state.get('restricted')),
+        'restriction_reason': state.get('reason') or '',
+        'restriction_message': state.get('message_en') or '',
+        'can_write': not bool(state.get('restricted')),
+        'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name, 'role': user.role, 'is_admin': bool(user.is_admin), 'is_active': bool(user.is_active)},
     }
     if refresh_token:
         data['refresh_token'] = refresh_token

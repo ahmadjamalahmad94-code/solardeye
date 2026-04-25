@@ -6,7 +6,7 @@ import secrets
 import time
 from typing import Any
 
-from flask import abort, current_app, jsonify, request, session
+from flask import abort, current_app, flash, jsonify, redirect, request, session, url_for
 
 CSRF_SESSION_KEY = '_csrf_token_v70'
 CSRF_EXEMPT_ENDPOINTS = {
@@ -62,12 +62,19 @@ def register_security(app):
 
     @app.context_processor
     def _security_context():
+        from .access_state import account_access_state, account_restricted_message, request_user_from_session
+        user = request_user_from_session()
+        state = account_access_state(user)
+        lang = 'en' if (request.args.get('lang') or session.get('ui_lang') or 'ar') == 'en' else 'ar'
         return {
             'csrf_token': csrf_token,
             'mask_secret': mask_secret,
             'mask_email': mask_email,
             'mask_identifier': mask_identifier,
             'is_sensitive_key': is_sensitive_key,
+            'account_preview_restricted': bool(state.get('restricted')),
+            'account_preview_reason': state.get('reason') or '',
+            'account_preview_message': account_restricted_message(lang, user),
         }
 
     @app.before_request
@@ -98,6 +105,40 @@ def register_security(app):
             for old_key in list(RATE_LIMIT_BUCKETS.keys())[:500]:
                 RATE_LIMIT_BUCKETS.pop(old_key, None)
         return None
+
+    @app.before_request
+    def _account_preview_write_guard():
+        if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            return None
+        endpoint = request.endpoint or ''
+        path = request.path or ''
+        # Auth endpoints must remain usable; logout is allowed from preview mode.
+        if endpoint in {'auth.login', 'auth.register', 'auth.logout', 'mobile_auth_api.mobile_login', 'mobile_auth_api.mobile_refresh', 'mobile_auth_api.mobile_logout'}:
+            return None
+        from .access_state import account_access_state, request_user_from_session
+        user = request_user_from_session()
+        # Bearer-token mobile requests do not have a browser session; resolve lazily.
+        if user is None and path.startswith('/api/v1/'):
+            try:
+                from .mobile_auth import user_from_bearer_or_session
+                user = user_from_bearer_or_session()
+            except Exception:
+                user = None
+        state = account_access_state(user)
+        if not state.get('restricted'):
+            return None
+        lang = 'en' if (request.args.get('lang') or session.get('ui_lang') or 'ar') == 'en' else 'ar'
+        msg = state.get('message_en' if lang == 'en' else 'message_ar') or 'Account is in read-only preview mode.'
+        wants_json = request.accept_mimetypes.best == 'application/json' or path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if wants_json:
+            return jsonify({'ok': False, 'code': 'account_restricted', 'message': msg}), 403
+        flash(msg, 'warning')
+        if path.startswith('/admin'):
+            return redirect(url_for('main.account_subscription', lang=lang))
+        ref = request.referrer or ''
+        if ref and request.host_url and ref.startswith(request.host_url):
+            return redirect(ref)
+        return redirect(url_for('main.account_subscription', lang=lang))
 
     @app.before_request
     def _csrf_protect():

@@ -25,6 +25,7 @@ from ..models import AppDevice, AppUser, InternalMailThread, InternalMailMessage
 from ..services.subscriptions import ensure_user_tenant_and_subscription, feature_enabled_for_user
 from ..services.support_ops import unread_counts
 from ..services.rbac import admin_landing_url
+from ..services.access_state import account_access_state
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -97,6 +98,9 @@ def _login_after_social(user: AppUser):
     flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
     if _is_admin_like_user(user):
         return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
+    if account_access_state(user).get('restricted'):
+        flash('حسابك في وضع مشاهدة فقط. فعّل حسابك أو اشتراكك للاستفادة من خدماتنا.', 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
     if not getattr(user, 'onboarding_completed', False):
         return redirect(url_for('main.onboarding_wizard'))
     return redirect(url_for('main.dashboard'))
@@ -108,7 +112,7 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
-        app_user = AppUser.query.filter_by(username=username, is_active=True).first()
+        app_user = AppUser.query.filter_by(username=username).first()
         password_ok = False
 
         configured_admin_password = (current_app.config.get('ADMIN_PASSWORD') or '').strip()
@@ -128,6 +132,9 @@ def login():
                 flash('تم تسجيل الدخول بنجاح', 'success')
                 if _is_admin_like_user(app_user):
                     return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
+                if account_access_state(app_user).get('restricted'):
+                    flash('حسابك في وضع مشاهدة فقط. فعّل حسابك أو اشتراكك للاستفادة من خدماتنا.', 'warning')
+                    return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
                 if not getattr(app_user, 'onboarding_completed', False):
                     return redirect(url_for('main.onboarding_wizard'))
                 return redirect(url_for('main.dashboard'))

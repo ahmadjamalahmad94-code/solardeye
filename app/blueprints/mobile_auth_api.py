@@ -4,6 +4,7 @@ from flask import Blueprint, request
 
 from ..services.api_responses import api_error, api_ok
 from ..services.mobile_auth import authenticate_username_password, issue_refresh_token, refresh_access_token, revoke_refresh_token, token_payload, user_from_bearer_or_session
+from ..services.access_state import account_access_state
 
 mobile_auth_api_bp = Blueprint('mobile_auth_api', __name__, url_prefix='/api/v1/auth')
 
@@ -49,4 +50,5 @@ def mobile_me():
     user = user_from_bearer_or_session()
     if not user:
         return api_error('Authentication required.', code='auth_required', status=401)
-    return api_ok({'id': user.id, 'username': user.username, 'full_name': user.full_name, 'email': user.email, 'role': user.role, 'is_admin': bool(user.is_admin)})
+    state = account_access_state(user)
+    return api_ok({'id': user.id, 'username': user.username, 'full_name': user.full_name, 'email': user.email, 'role': user.role, 'is_admin': bool(user.is_admin), 'is_active': bool(user.is_active), 'account_restricted': bool(state.get('restricted')), 'restriction_reason': state.get('reason') or '', 'can_write': not bool(state.get('restricted'))})

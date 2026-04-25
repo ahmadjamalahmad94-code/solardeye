@@ -102,3 +102,13 @@ AR_TO_EN.update({
     'تسجيل رمز الإشعارات': 'Register push token',
     'إلغاء رمز الإشعارات': 'Unregister push token',
 })
+
+
+# Heavy v10.5.7 — disabled/expired account preview mode.
+AR_TO_EN.update({
+    'وضع مشاهدة فقط': 'Preview mode',
+    'تفعيل الحساب': 'Activate account',
+    'الإجراء مجمّد': 'Action locked',
+    'حسابك في وضع مشاهدة فقط. فعّل حسابك أو اشتراكك للاستفادة من خدماتنا.': 'Your account is in read-only preview mode. Activate your account or subscription to use our services.',
+    'حسابك معطل أو اشتراكك غير مفعل. يمكنك التعرف على الخدمات، لكن الإجراءات مجمّدة حتى تفعيل حسابك أو اشتراكك للاستفادة من خدماتنا.': 'Your account is disabled or your subscription is not active. You can explore the platform, but actions are frozen until your account or subscription is activated.',
+})
