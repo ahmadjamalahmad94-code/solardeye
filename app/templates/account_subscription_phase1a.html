@@ -3,7 +3,7 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area">
+  <main class="content-area account-subscription-v114">
     <header class="admin-page-head compact">
       <div><span class="eyebrow">{{ 'Subscription' if is_en else 'الاشتراك' }}</span><h1>{{ 'My plan and account status' if is_en else 'خطتي وحالة الحساب' }}</h1><p>{{ 'A cleaner subscription view for the subscriber portal.' if is_en else 'عرض أنظف للاشتراك داخل بوابة المشترك.' }}</p></div>
     </header>
@@ -18,6 +18,36 @@
         <div><small>{{ 'Starts' if is_en else 'البداية' }}</small><strong>{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '-' }}</strong></div>
         <div><small>{{ 'Ends' if is_en else 'الانتهاء' }}</small><strong>{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '-' }}</strong></div>
         <div><small>{{ 'Allowed devices' if is_en else 'عدد الأجهزة المسموح' }}</small><strong>{{ plan.max_devices if plan else 0 }}</strong></div>
+      </div>
+    </section>
+
+    <section class="admin-card-v2 subscriber-quota-view-v114">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Services and quotas' if is_en else 'الخدمات والكوتا' }}</small>
+          <h3>{{ 'What is enabled and how much remains' if is_en else 'الخدمات المفعلة والرصيد المتبقي' }}</h3>
+          <p class="table-sub">{{ 'These counters show your current usage for this subscription.' if is_en else 'هذه العدادات توضح استخدامك الحالي ضمن اشتراكك.' }}</p>
+        </div>
+      </div>
+      <div class="subscriber-quota-grid-v114">
+        {% for item in quota_rows|default([]) %}
+        {% set pct = item.percent or 0 %}
+        <article class="subscriber-quota-card-v114 {{ 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') }}">
+          <div class="quota-row-top-v111">
+            <div><strong>{{ item.label }}</strong><small>{{ item.quota.quota_key }} · {{ ui_label(item.quota.reset_period, 'status', ui_lang) }} · {{ item.source_label }}</small></div>
+            <span class="status-pill {{ 'success' if item.quota.status == 'active' else 'warning' }}">{{ ui_label(item.quota.status, 'status', ui_lang) }}</span>
+          </div>
+          <div class="quota-stats-v111">
+            <span><b>{{ item.used|round(0) }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
+            <span><b>{% if item.is_unlimited %}∞{% else %}{{ item.limit|round(0) }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
+            <span><b>{{ item.remaining }}</b><small>{{ 'Remaining' if is_en else 'متبقي' }}</small></span>
+          </div>
+          <div class="quota-meter-v111"><i style="width:{{ 100 if pct > 100 else pct }}%"></i></div>
+          <div class="quota-row-foot-v111"><small>{{ pct|round(1) }}%</small><small>{{ item.description }}</small></div>
+        </article>
+        {% else %}
+        <div class="quota-empty-v111"><strong>{{ 'No quota limits on this plan.' if is_en else 'لا توجد حدود كوتا لهذه الخطة.' }}</strong><small>{{ 'Your plan may be unlimited or quotas are not configured yet.' if is_en else 'قد تكون الخطة بدون حدود أو لم يتم ضبط الكوتا بعد.' }}</small></div>
+        {% endfor %}
       </div>
     </section>
   </main>

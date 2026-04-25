@@ -11,7 +11,7 @@ LABELS = {
             'inactive': 'غير نشط', 'disabled': 'معطل', 'enabled': 'مفعل', 'trial': 'تجريبي',
             'suspended': 'معلق', 'expired': 'منتهي', 'cancelled': 'ملغي', 'ok': 'سليم',
             'warning': 'تنبيه', 'danger': 'خطر', 'failed': 'فشل', 'unknown': 'غير معروف',
-            'manual': 'يدوي', 'monthly': 'شهري', 'weekly': 'أسبوعي', 'daily': 'يومي', 'paused': 'متوقف مؤقتًا', 'exhausted': 'مستنفد', 'success': 'ناجح', 'info': 'معلومة',
+            'manual': 'يدوي', 'monthly': 'شهري', 'weekly': 'أسبوعي', 'daily': 'يومي', 'yearly': 'سنوي', 'unlimited': 'بدون حد', 'paused': 'متوقف مؤقتًا', 'exhausted': 'مستنفد', 'success': 'ناجح', 'info': 'معلومة',
         },
         'en': {
             'new': 'New', 'open': 'Open', 'assigned': 'Assigned', 'pending': 'Pending',
@@ -20,7 +20,7 @@ LABELS = {
             'inactive': 'Inactive', 'disabled': 'Disabled', 'enabled': 'Enabled', 'trial': 'Trial',
             'suspended': 'Suspended', 'expired': 'Expired', 'cancelled': 'Cancelled', 'ok': 'Healthy',
             'warning': 'Warning', 'danger': 'Danger', 'failed': 'Failed', 'unknown': 'Unknown',
-            'manual': 'Manual', 'monthly': 'Monthly', 'weekly': 'Weekly', 'daily': 'Daily', 'paused': 'Paused', 'exhausted': 'Exhausted', 'success': 'Success', 'info': 'Info',
+            'manual': 'Manual', 'monthly': 'Monthly', 'weekly': 'Weekly', 'daily': 'Daily', 'yearly': 'Yearly', 'unlimited': 'Unlimited', 'paused': 'Paused', 'exhausted': 'Exhausted', 'success': 'Success', 'info': 'Info',
         },
     },
     'priority': {

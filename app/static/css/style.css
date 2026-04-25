@@ -2725,3 +2725,17 @@ body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin p{
     justify-content:flex-start;
   }
 }
+
+
+/* Heavy v10.5.14 — Plan quotas engine UI */
+.plan-form-stack-v114{display:grid;gap:var(--ui-gap-lg)}
+.plan-quota-section-v114 .section-heading-inline{align-items:flex-start}
+.plan-quota-grid-v114{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:16px}
+.plan-quota-card-v114{border:1px solid #e2eaf6;background:linear-gradient(180deg,#fff,#f8fbff);border-radius:24px;padding:16px;display:grid;gap:12px;box-shadow:0 14px 40px rgba(15,23,42,.055)}
+.plan-quota-card-head-v114{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.plan-quota-card-head-v114 strong{display:block;font-size:1.05rem;color:#0f172a}.plan-quota-card-head-v114 small{display:block;color:#7083a7;line-height:1.65;margin-top:4px}
+.mini-switch-v114,.quota-unlimited-v114{display:inline-flex;align-items:center;gap:8px;font-weight:900;color:#1e3a66}.mini-switch-v114 input,.quota-unlimited-v114 input{accent-color:#2563eb}
+.quota-unlimited-v114{border-radius:16px;background:#f1f6ff;border:1px solid #dbeafe;padding:9px 12px}
+.plan-quota-limits-v114{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.plan-quota-limits-v114 span{display:block;color:#64748b;font-weight:900;margin-bottom:6px}.plan-quota-limits-v114 .form-control{text-align:center;font-weight:900}
+.subscriber-quota-view-v114{margin-top:var(--ui-gap-lg)}.subscriber-quota-grid-v114{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}.subscriber-quota-card-v114{border:1px solid #e2eaf6;border-inline-end:6px solid #22c55e;background:#fff;border-radius:24px;padding:16px;display:grid;gap:12px;box-shadow:0 14px 42px rgba(15,23,42,.055)}.subscriber-quota-card-v114.is-warn{border-inline-end-color:#f59e0b}.subscriber-quota-card-v114.is-danger{border-inline-end-color:#ef4444}
+.quota-row-v111 .quota-row-actions-v113{align-items:center}.quota-row-v111 .status-pill{white-space:nowrap}.quota-row-v111 .quota-row-foot-v111 small{overflow:visible!important;max-height:none!important}.quota-row-v111 .quota-stats-v111 span{overflow:visible!important}
+@media(max-width:760px){.plan-quota-limits-v114{grid-template-columns:1fr}.plan-quota-card-head-v114{flex-direction:column}.subscriber-quota-grid-v114{grid-template-columns:1fr}}

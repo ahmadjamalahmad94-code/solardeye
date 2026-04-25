@@ -14,6 +14,7 @@ for _legacy_name in dir(_legacy_main):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
 from ..services.rbac import portal_pages, user_portal_visibility_map, save_user_portal_visibility
+from ..services.quota_engine import apply_plan_quotas_to_tenant
 
 users_bp = Blueprint('users_routes', __name__)
 
@@ -218,10 +219,14 @@ def admin_user_profile(user_id: int):
             sub_status = (request.form.get('subscription_status') or getattr(subscription, 'status', 'trial')).strip()
             tenant.status = (request.form.get('tenant_status') or tenant.status or 'trial').strip()
             tenant.max_devices_override = int(request.form.get('max_devices_override') or 0) or None
+            selected_plan = None
             if plan_id:
                 tenant.plan_id = plan_id
+                selected_plan = SubscriptionPlan.query.get(plan_id)
                 if subscription:
                     subscription.plan_id = plan_id
+                if selected_plan:
+                    apply_plan_quotas_to_tenant(tenant, selected_plan, commit=False)
             if subscription:
                 subscription.status = sub_status
                 subscription.starts_at = _parse_dt_local(request.form.get('starts_at')) or subscription.starts_at
@@ -285,6 +290,9 @@ def admin_user_profile(user_id: int):
             quota.limit_value = limit_value
             quota.status = (request.form.get('status') or quota.status or 'active').strip()
             quota.reset_period = (request.form.get('reset_period') or selected.get('reset_period') or quota.reset_period or 'manual').strip()
+            quota.source = 'override'
+            quota.source_plan_id = getattr(tenant, 'plan_id', None)
+            quota.is_unlimited = False
             notes = (request.form.get('notes') or '').strip()
             quota.notes = notes or (selected.get('description_ar') if lang != 'en' else selected.get('description_en')) or quota.notes
             db.session.commit()

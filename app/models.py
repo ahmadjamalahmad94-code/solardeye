@@ -428,6 +428,9 @@ class TenantQuota(db.Model):
     used_value = db.Column(db.Float, nullable=False, default=0.0)
     reset_period = db.Column(db.String(30), nullable=False, default='manual')
     status = db.Column(db.String(30), nullable=False, default='active')
+    source = db.Column(db.String(30), nullable=False, default='manual', index=True)  # plan / override / manual
+    source_plan_id = db.Column(db.Integer, db.ForeignKey('subscription_plan.id'), nullable=True, index=True)
+    is_unlimited = db.Column(db.Boolean, default=False, nullable=False)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

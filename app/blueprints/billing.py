@@ -11,6 +11,15 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
+from ..services.quota_engine import (
+    apply_plan_quotas_to_plan_subscribers,
+    apply_plan_quotas_to_tenant,
+    merge_features_with_quota_rules,
+    parse_plan_quota_rules_from_form,
+    plan_quota_rows_for_template,
+    quota_summary_rows,
+)
+
 billing_bp = Blueprint('billing', __name__)
 
 @billing_bp.route('/admin/plans')
@@ -39,20 +48,20 @@ def admin_plan_create():
             max_devices=int(request.form.get('max_devices') or 1),
             is_active=request.form.get('is_active') == 'on',
             sort_order=int(request.form.get('sort_order') or 0),
-            features_json=json.dumps({
+            features_json=merge_features_with_quota_rules({
                 'can_manage_devices': request.form.get('can_manage_devices') == 'on',
                 'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
                 'can_use_telegram': request.form.get('can_use_telegram') == 'on',
                 'can_use_sms': request.form.get('can_use_sms') == 'on',
                 'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
                 'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
-            }, ensure_ascii=False),
+            }, parse_plan_quota_rules_from_form(request.form)),
         )
         db.session.add(plan)
         db.session.commit()
         flash('تم إنشاء الخطة بنجاح', 'success')
         return redirect(url_for('main.admin_plans', lang=_lang()))
-    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
+    return render_template('admin_plan_form_phase1a.html', plan=plan, plan_quota_rows=plan_quota_rows_for_template(plan, _lang()), ui_lang=_lang())
 
 
 @billing_bp.route('/admin/plans/<int:plan_id>/edit', methods=['GET','POST'])
@@ -71,18 +80,19 @@ def admin_plan_edit(plan_id):
         plan.max_devices=int(request.form.get('max_devices') or 1)
         plan.is_active=request.form.get('is_active') == 'on'
         plan.sort_order=int(request.form.get('sort_order') or 0)
-        plan.features_json=json.dumps({
+        plan.features_json=merge_features_with_quota_rules({
             'can_manage_devices': request.form.get('can_manage_devices') == 'on',
             'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
             'can_use_telegram': request.form.get('can_use_telegram') == 'on',
             'can_use_sms': request.form.get('can_use_sms') == 'on',
             'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
             'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
-        }, ensure_ascii=False)
+        }, parse_plan_quota_rules_from_form(request.form))
+        apply_plan_quotas_to_plan_subscribers(plan, commit=False)
         db.session.commit()
-        flash('تم تحديث الخطة', 'success')
+        flash('تم تحديث الخطة وحدود الكوتا للمشتركين المرتبطين بها', 'success')
         return redirect(url_for('main.admin_plans', lang=_lang()))
-    return render_template('admin_plan_form_phase1a.html', plan=plan, ui_lang=_lang())
+    return render_template('admin_plan_form_phase1a.html', plan=plan, plan_quota_rows=plan_quota_rows_for_template(plan, _lang()), ui_lang=_lang())
 
 
 @billing_bp.route('/admin/subscribers')
@@ -136,7 +146,7 @@ def account_subscription():
         return redirect(url_for('auth.login'))
     tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
     plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
-    return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, ui_lang=_lang())
+    return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, quota_rows=quota_summary_rows(getattr(tenant, 'id', None), _lang()), ui_lang=_lang())
 
 
 @billing_bp.route('/admin/subscriptions')

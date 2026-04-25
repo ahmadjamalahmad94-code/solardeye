@@ -1,32 +1,71 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set features = plan.features_json|default('{}') %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
+  <main class="content-area admin-shell-v2 plan-form-v114">
     <header class="admin-page-head compact">
-      <div><span class="eyebrow">{{ 'Plan form' if is_en else 'نموذج الخطة' }}</span><h1>{{ 'Edit plan' if is_en and plan else ('Create plan' if is_en else ('تعديل الخطة' if plan else 'إنشاء خطة')) }}</h1></div>
+      <div>
+        <span class="eyebrow">{{ 'Plan form' if is_en else 'نموذج الخطة' }}</span>
+        <h1>{{ 'Edit plan' if is_en and plan else ('Create plan' if is_en else ('تعديل الخطة' if plan else 'إنشاء خطة')) }}</h1>
+        <p>{{ 'Plan quotas define what every subscriber receives automatically when attached to this plan.' if is_en else 'كوتا الخطة تحدد الحدود التي يحصل عليها كل مشترك تلقائيًا عند ربطه بهذه الخطة.' }}</p>
+      </div>
       <a class="btn btn-outline-primary" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
-    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="form-grid-v2 two">
-        <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control form-control-lg" type="text" name="code" value="{{ plan.code if plan else '' }}" required></label>
-        <label><span>{{ 'Arabic name' if is_en else 'الاسم عربي' }}</span><input class="form-control form-control-lg" type="text" name="name_ar" value="{{ plan.name_ar if plan else '' }}" required></label>
-        <label><span>{{ 'English name' if is_en else 'الاسم إنجليزي' }}</span><input class="form-control form-control-lg" type="text" name="name_en" value="{{ plan.name_en if plan else '' }}" required></label>
-        <label><span>{{ 'Price' if is_en else 'السعر' }}</span><input class="form-control form-control-lg" type="number" step="0.01" name="price" value="{{ plan.price if plan else 0 }}"></label>
-        <label><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control form-control-lg" type="text" name="currency" value="{{ plan.currency if plan else 'USD' }}"></label>
-        <label><span>{{ 'Duration days' if is_en else 'المدة بالأيام' }}</span><input class="form-control form-control-lg" type="number" name="duration_days_default" value="{{ plan.duration_days_default if plan else 30 }}"></label>
-        <label><span>{{ 'Max devices' if is_en else 'عدد الأجهزة' }}</span><input class="form-control form-control-lg" type="number" name="max_devices" value="{{ plan.max_devices if plan else 1 }}"></label>
-        <label><span>{{ 'Sort order' if is_en else 'الترتيب' }}</span><input class="form-control form-control-lg" type="number" name="sort_order" value="{{ plan.sort_order if plan else 0 }}"></label>
-      </div>
-      <div class="form-toggle-row"><label class="switch-row"><span>{{ 'Active plan' if is_en else 'الخطة مفعلة' }}</span><input type="checkbox" name="is_active" {% if not plan or plan.is_active %}checked{% endif %}></label></div>
-      <div class="chip-picker-grid features">
-        {% for key,label_ar,label_en in [('can_manage_devices','إدارة الأجهزة','Device management'),('can_manage_integrations','إدارة الربط','Integrations'),('can_use_telegram','استخدام Telegram','Telegram'),('can_use_sms','استخدام SMS','SMS'),('can_view_diagnostics','التشخيص','Diagnostics'),('can_view_api_explorer','API Explorer','API Explorer')] %}
-        <label class="chip-picker selected"><input type="checkbox" name="{{ key }}" {% if plan is none or (plan.features_json and (key in plan.features_json)) %}checked{% endif %}><span>{{ label_en if is_en else label_ar }}</span></label>
-        {% endfor %}
-      </div>
-      <div class="action-row-v2 mt-3"><button class="btn btn-solar" type="submit">{{ 'Save plan' if is_en else 'حفظ الخطة' }}</button></div>
+
+    <form method="post" class="plan-form-stack-v114"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <section class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+        <div class="section-heading-inline"><div><small>{{ 'Basic data' if is_en else 'البيانات الأساسية' }}</small><h3>{{ 'Plan identity and pricing' if is_en else 'هوية الخطة والسعر' }}</h3></div></div>
+        <div class="form-grid-v2 three">
+          <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control form-control-lg" type="text" name="code" value="{{ plan.code if plan else '' }}" required></label>
+          <label><span>{{ 'Arabic name' if is_en else 'الاسم عربي' }}</span><input class="form-control form-control-lg" type="text" name="name_ar" value="{{ plan.name_ar if plan else '' }}" required></label>
+          <label><span>{{ 'English name' if is_en else 'الاسم إنجليزي' }}</span><input class="form-control form-control-lg" type="text" name="name_en" value="{{ plan.name_en if plan else '' }}" required></label>
+          <label><span>{{ 'Price' if is_en else 'السعر' }}</span><input class="form-control form-control-lg" type="number" step="0.01" name="price" value="{{ plan.price if plan else 0 }}"></label>
+          <label><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control form-control-lg" type="text" name="currency" value="{{ plan.currency if plan else 'USD' }}"></label>
+          <label><span>{{ 'Duration days' if is_en else 'المدة بالأيام' }}</span><input class="form-control form-control-lg" type="number" name="duration_days_default" value="{{ plan.duration_days_default if plan else 30 }}"></label>
+          <label><span>{{ 'Max devices' if is_en else 'عدد الأجهزة' }}</span><input class="form-control form-control-lg" type="number" name="max_devices" value="{{ plan.max_devices if plan else 1 }}"></label>
+          <label><span>{{ 'Sort order' if is_en else 'الترتيب' }}</span><input class="form-control form-control-lg" type="number" name="sort_order" value="{{ plan.sort_order if plan else 0 }}"></label>
+        </div>
+        <div class="form-toggle-row"><label class="switch-row"><span>{{ 'Active plan' if is_en else 'الخطة مفعلة' }}</span><input type="checkbox" name="is_active" {% if not plan or plan.is_active %}checked{% endif %}></label></div>
+      </section>
+
+      <section class="admin-card-v2 ui-reactive" data-hover-card>
+        <div class="section-heading-inline"><div><small>{{ 'Included features' if is_en else 'المزايا المفعلة' }}</small><h3>{{ 'Feature switches' if is_en else 'مفاتيح الخدمات' }}</h3></div></div>
+        <div class="chip-picker-grid features">
+          {% for key,label_ar,label_en in [('can_manage_devices','إدارة الأجهزة','Device management'),('can_manage_integrations','إدارة الربط','Integrations'),('can_use_telegram','استخدام Telegram','Telegram'),('can_use_sms','استخدام SMS','SMS'),('can_view_diagnostics','التشخيص','Diagnostics'),('can_view_api_explorer','API Explorer','API Explorer')] %}
+          <label class="chip-picker selected"><input type="checkbox" name="{{ key }}" {% if plan is none or (plan.features_json and (key in plan.features_json)) %}checked{% endif %}><span>{{ label_en if is_en else label_ar }}</span></label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="admin-card-v2 plan-quota-section-v114 ui-reactive" data-hover-card>
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Plan quotas' if is_en else 'كوتا الخطة' }}</small>
+            <h3>{{ 'Automatic limits for subscribers' if is_en else 'حدود تلقائية للمشتركين' }}</h3>
+            <p class="table-sub">{{ 'When a subscriber is attached to this plan, these limits are created automatically. Subscriber-level edits remain overrides.' if is_en else 'عند ربط مشترك بهذه الخطة، يتم إنشاء هذه الحدود تلقائيًا. أي تعديل من ملف المشترك يبقى استثناء خاصًا.' }}</p>
+          </div>
+        </div>
+        <div class="plan-quota-grid-v114">
+          {% for item in plan_quota_rows %}
+          {% set meta = item.meta %}
+          <article class="plan-quota-card-v114">
+            <div class="plan-quota-card-head-v114">
+              <div><strong>{{ meta.label }}</strong><small>{{ meta.description }}</small></div>
+              <label class="mini-switch-v114"><input type="checkbox" name="quota_enabled_{{ meta.key }}" {% if item.enabled %}checked{% endif %}> <span>{{ 'Enabled' if is_en else 'مفعل' }}</span></label>
+            </div>
+            <label class="quota-unlimited-v114"><input type="checkbox" name="quota_unlimited_{{ meta.key }}" {% if item.unlimited %}checked{% endif %}> {{ 'Unlimited usage' if is_en else 'بدون حد' }}</label>
+            <div class="plan-quota-limits-v114">
+              <label><span>{{ 'Daily' if is_en else 'يومي' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_daily_{{ meta.key }}" value="{{ item.daily }}" placeholder="0"></label>
+              <label><span>{{ 'Monthly' if is_en else 'شهري' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_monthly_{{ meta.key }}" value="{{ item.monthly }}" placeholder="{{ meta.default_monthly }}"></label>
+              <label><span>{{ 'Yearly' if is_en else 'سنوي' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_yearly_{{ meta.key }}" value="{{ item.yearly }}" placeholder="0"></label>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div class="action-row-v2 mt-3 plan-save-row-v114"><button class="btn btn-solar" type="submit">{{ 'Save plan and quotas' if is_en else 'حفظ الخطة والكوتا' }}</button></div>
     </form>
   </main>
 </div>

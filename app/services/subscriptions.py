@@ -16,9 +16,9 @@ def plan_features(plan):
 
 def seed_default_plans():
     defaults = [
-        {"code":"basic","name_ar":"الخطة الأساسية","name_en":"Basic","price":10.0,"currency":"USD","duration_days_default":30,"max_devices":1,"sort_order":1,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": False, "can_view_diagnostics": False, "can_view_api_explorer": False}, ensure_ascii=False)},
-        {"code":"pro","name_ar":"الخطة الاحترافية","name_en":"Pro","price":20.0,"currency":"USD","duration_days_default":90,"max_devices":3,"sort_order":2,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": True, "can_view_diagnostics": False, "can_view_api_explorer": False}, ensure_ascii=False)},
-        {"code":"platinum","name_ar":"الخطة البلاتينية","name_en":"Platinum","price":30.0,"currency":"USD","duration_days_default":365,"max_devices":10,"sort_order":3,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": True, "can_view_diagnostics": True, "can_view_api_explorer": True}, ensure_ascii=False)},
+        {"code":"basic","name_ar":"الخطة الأساسية","name_en":"Basic","price":10.0,"currency":"USD","duration_days_default":30,"max_devices":1,"sort_order":1,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": False, "can_view_diagnostics": False, "can_view_api_explorer": False, "quota_rules": {"devices_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 1}, "label_ar": "حد الأجهزة", "label_en": "Devices limit"}, "support_cases_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 10}, "label_ar": "حد طلبات الدعم", "label_en": "Support cases limit"}, "telegram_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 50}, "label_ar": "حد رسائل Telegram", "label_en": "Telegram messages limit"}}}, ensure_ascii=False)},
+        {"code":"pro","name_ar":"الخطة الاحترافية","name_en":"Pro","price":20.0,"currency":"USD","duration_days_default":90,"max_devices":3,"sort_order":2,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": True, "can_view_diagnostics": False, "can_view_api_explorer": False, "quota_rules": {"devices_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 3}, "label_ar": "حد الأجهزة", "label_en": "Devices limit"}, "support_cases_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 30}, "label_ar": "حد طلبات الدعم", "label_en": "Support cases limit"}, "sms_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 100}, "label_ar": "حد رسائل SMS", "label_en": "SMS messages limit"}, "telegram_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 250}, "label_ar": "حد رسائل Telegram", "label_en": "Telegram messages limit"}}}, ensure_ascii=False)},
+        {"code":"platinum","name_ar":"الخطة البلاتينية","name_en":"Platinum","price":30.0,"currency":"USD","duration_days_default":365,"max_devices":10,"sort_order":3,"features_json":json.dumps({"can_manage_devices": True, "can_manage_integrations": True, "can_use_telegram": True, "can_use_sms": True, "can_view_diagnostics": True, "can_view_api_explorer": True, "quota_rules": {"devices_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 10}, "label_ar": "حد الأجهزة", "label_en": "Devices limit"}, "support_cases_limit": {"enabled": True, "unlimited": True, "limits": {}, "label_ar": "حد طلبات الدعم", "label_en": "Support cases limit"}, "sms_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 500}, "label_ar": "حد رسائل SMS", "label_en": "SMS messages limit"}, "telegram_limit": {"enabled": True, "unlimited": True, "limits": {}, "label_ar": "حد رسائل Telegram", "label_en": "Telegram messages limit"}, "api_calls_limit": {"enabled": True, "unlimited": False, "limits": {"monthly": 10000}, "label_ar": "حد استدعاءات API", "label_en": "API calls limit"}}}, ensure_ascii=False)},
     ]
     for item in defaults:
         if not SubscriptionPlan.query.filter_by(code=item['code']).first():
@@ -54,6 +54,12 @@ def ensure_user_tenant_and_subscription(user, activated_by_user_id=None):
         now=datetime.utcnow()
         sub=TenantSubscription(tenant_id=tenant.id, plan_id=plan.id, status='trial', activation_mode='trial', starts_at=now, trial_ends_at=now+timedelta(days=7), ends_at=now+timedelta(days=7), activated_by_user_id=activated_by_user_id, notes='Auto trial')
         db.session.add(sub)
+    try:
+        from .quota_engine import apply_plan_quotas_to_tenant
+        if plan:
+            apply_plan_quotas_to_tenant(tenant, plan, commit=False)
+    except Exception:
+        pass
     for device in AppDevice.query.filter_by(owner_user_id=user.id).all():
         if getattr(device,'tenant_id',None) != tenant.id:
             device.tenant_id=tenant.id
@@ -103,5 +109,10 @@ def activate_tenant_subscription(tenant, plan, days, activated_by_user_id=None, 
     tenant.plan_id=plan.id
     tenant.status='active'
     db.session.add(sub)
+    try:
+        from .quota_engine import apply_plan_quotas_to_tenant
+        apply_plan_quotas_to_tenant(tenant, plan, commit=False)
+    except Exception:
+        pass
     db.session.commit()
     return sub

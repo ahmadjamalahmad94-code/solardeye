@@ -251,6 +251,7 @@
             <option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option>
             <option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option>
             <option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option>
+            <option value="yearly">{{ ui_label('yearly', 'status', ui_lang) }}</option>
           </select>
           <small>{{ 'Manual means it does not reset automatically.' if is_en else 'يدوي يعني لا يتصفر تلقائيًا.' }}</small>
         </label>
@@ -287,11 +288,12 @@
       </div>
       <div class="quota-list-v111">
         {% for row in quota_rows %}
-        {% set pct = ((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0 %}
-        {% set remaining = (row.limit_value or 0) - (row.used_value or 0) %}
+        {% set is_unlimited = row.is_unlimited or row.reset_period == 'unlimited' %}
+        {% set pct = 0 if is_unlimited else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0) %}
+        {% set remaining = '∞' if is_unlimited else ((row.limit_value or 0) - (row.used_value or 0)) %}
         <article class="quota-row-v111 {{ 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') }}">
           <div class="quota-row-top-v111 quota-row-top-v113">
-            <div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }}</small></div>
+            <div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }} · {% if row.source == 'plan' %}{{ 'From plan' if is_en else 'من الخطة' }}{% elif row.source == 'override' %}{{ 'Subscriber override' if is_en else 'معدل لهذا المشترك' }}{% else %}{{ 'Custom' if is_en else 'مخصص' }}{% endif %}</small></div>
             <div class="quota-row-actions-v113">
               <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
               <button class="btn btn-outline-primary btn-sm quota-edit-btn-v113" type="button"
@@ -302,6 +304,7 @@
                 data-used="{{ row.used_value or 0 }}"
                 data-period="{{ row.reset_period or 'manual' }}"
                 data-status="{{ row.status or 'active' }}"
+                data-unlimited="{{ '1' if is_unlimited else '0' }}"
                 data-notes="{{ row.notes or '' }}">{{ 'Edit' if is_en else 'تعديل' }}</button>
               <form method="post" class="quota-delete-form-v113" onsubmit="return confirm('{{ 'Delete this quota permanently?' if is_en else 'حذف هذا الحد نهائيًا؟' }}');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -313,8 +316,8 @@
           </div>
           <div class="quota-stats-v111">
             <span><b>{{ row.used_value|round(0) }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
-            <span><b>{{ row.limit_value|round(0) }}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
-            <span><b>{{ 0 if remaining < 0 else remaining|round(0) }}</b><small>{{ 'Remaining' if is_en else 'متبقي' }}</small></span>
+            <span><b>{% if is_unlimited %}∞{% else %}{{ row.limit_value|round(0) }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
+            <span><b>{% if is_unlimited %}∞{% else %}{{ 0 if remaining < 0 else remaining|round(0) }}{% endif %}</b><small>{{ 'Remaining' if is_en else 'متبقي' }}</small></span>
           </div>
           <div class="quota-meter-v111"><i style="width:{{ 100 if pct > 100 else pct }}%"></i></div>
           <div class="quota-row-foot-v111"><small>{{ pct|round(1) }}%</small>{% if row.notes %}<small>{{ row.notes }}</small>{% endif %}</div>
@@ -339,64 +342,71 @@
   const notes = document.getElementById('quotaNotesV111');
   const preview = document.getElementById('quotaPreviewV111');
   const customWrap = document.getElementById('quotaCustomWrapV111');
+  const customKey = document.getElementById('quotaCustomKeyV111');
   const quotaId = document.getElementById('quotaIdV113');
   const title = document.getElementById('quotaFormTitleV113');
   const resetBtn = document.getElementById('quotaResetFormV113');
   const form = document.getElementById('quotaFormV111');
   const statusSelect = form?.querySelector('[name="status"]');
+  if(!form || !preset) return;
 
+  function optionFor(value){ return Array.from(preset.options).find(o => o.value === value); }
   function setCustomMode(key){
-    if(!preset) return;
-    let found = false;
-    Array.from(preset.options).forEach((o) => { if(o.value === key){ found = true; } });
+    const found = optionFor(key);
     preset.value = found ? key : 'custom';
-    if(!found){
-      const custom = document.getElementById('quotaCustomKeyV111');
-      if(custom) custom.value = key || '';
-    }
+    if(!found && customKey) customKey.value = key || '';
+    if(customWrap) customWrap.style.display = preset.value === 'custom' ? 'grid' : 'none';
   }
-  function resetQuotaForm(){
-    if(form) form.reset();
-    if(quotaId) quotaId.value = '';
-    if(title) title.textContent = {{ '"Create new quota"' if is_en else '"إنشاء كوتا جديدة"' }};
-    syncQuotaPreset();
-    form?.scrollIntoView({behavior:'smooth', block:'start'});
-  }
-
-  function syncQuotaPreset(){
-    if(!preset) return;
+  function syncQuotaPreset(forceDefaults=false){
     const opt = preset.options[preset.selectedIndex];
     const isCustom = opt && opt.value === 'custom';
     if(customWrap) customWrap.style.display = isCustom ? 'grid' : 'none';
     if(hint) hint.textContent = opt?.dataset.description || '';
-    if(label && !label.value) label.value = opt?.dataset.label || '';
-    if(limit && (!limit.value || limit.value === '0')) limit.value = opt?.dataset.limit || '';
-    if(reset && opt?.dataset.period) reset.value = opt.dataset.period;
-    if(notes && !notes.value) notes.placeholder = opt?.dataset.description || notes.placeholder;
+    if(forceDefaults){
+      if(label) label.value = opt?.dataset.label || '';
+      if(limit) limit.value = opt?.dataset.limit || '';
+      if(reset && opt?.dataset.period) reset.value = opt.dataset.period;
+      if(notes) notes.value = '';
+      if(customKey && !isCustom) customKey.value = '';
+    } else {
+      if(label && !label.value) label.value = opt?.dataset.label || '';
+      if(limit && (!limit.value || limit.value === '0')) limit.value = opt?.dataset.limit || '';
+      if(reset && opt?.dataset.period && !reset.value) reset.value = opt.dataset.period;
+    }
     const unit = opt?.dataset.unit || '';
-    const limitText = limit?.value || opt?.dataset.limit || '0';
-    if(preview) preview.textContent = (label?.value || opt?.dataset.label || '') + ' — ' + limitText + ' ' + unit + ' / ' + (reset?.options[reset.selectedIndex]?.text || '');
+    const name = label?.value || opt?.dataset.label || '';
+    const value = limit?.value || '0';
+    const period = reset?.options[reset.selectedIndex]?.text || '';
+    if(preview) preview.textContent = name ? (name + ' — ' + value + ' ' + unit + ' / ' + period) : {{ '"Choose a quota and set the limit."' if is_en else '"اختر الكوتا وحدد الحد ليظهر الملخص."' }};
   }
-  ['change','input'].forEach(evt => { preset?.addEventListener(evt, syncQuotaPreset); label?.addEventListener(evt, syncQuotaPreset); limit?.addEventListener(evt, syncQuotaPreset); reset?.addEventListener(evt, syncQuotaPreset); });
+  preset.addEventListener('change', () => syncQuotaPreset(true));
+  [label, limit, reset, customKey].forEach(el => el?.addEventListener('input', () => syncQuotaPreset(false)));
+  reset?.addEventListener('change', () => syncQuotaPreset(false));
 
   document.querySelectorAll('.quota-edit-btn-v113').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
       if(quotaId) quotaId.value = btn.dataset.id || '';
       setCustomMode(btn.dataset.key || '');
-      syncQuotaPreset();
       if(label) label.value = btn.dataset.label || btn.dataset.key || '';
       if(limit) limit.value = btn.dataset.limit || '0';
       if(reset) reset.value = btn.dataset.period || 'manual';
       if(statusSelect) statusSelect.value = btn.dataset.status || 'active';
       if(notes) notes.value = btn.dataset.notes || '';
       if(title) title.textContent = {{ '"Edit quota"' if is_en else '"تعديل الحد"' }};
-      syncQuotaPreset();
-      form?.scrollIntoView({behavior:'smooth', block:'start'});
+      syncQuotaPreset(false);
+      form.scrollIntoView({behavior:'smooth', block:'start'});
     });
   });
-  resetBtn?.addEventListener('click', resetQuotaForm);
-
-  syncQuotaPreset();
+  resetBtn?.addEventListener('click', () => {
+    form.reset();
+    if(quotaId) quotaId.value = '';
+    if(customKey) customKey.value = '';
+    if(title) title.textContent = {{ '"Create new quota"' if is_en else '"إنشاء كوتا جديدة"' }};
+    syncQuotaPreset(true);
+    form.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+  syncQuotaPreset(false);
 })();
 </script>
 {% elif tab == 'devices' %}
