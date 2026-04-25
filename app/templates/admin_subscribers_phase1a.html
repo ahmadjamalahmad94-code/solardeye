@@ -11,13 +11,20 @@
         <h1>{{ 'Subscribers, plans, lifecycle, and quick actions' if is_en else 'المشتركون والخطط ودورة الحياة والإجراءات السريعة' }}</h1>
         <p>{{ 'A compact command view for activation, support, billing, devices, and account state.' if is_en else 'واجهة عملية مختصرة للتفعيل، الدعم، المالية، الأجهزة، وحالة الحساب.' }}</p>
       </div>
-      <div class="admin-head-actions subscriber-quick-actions-v71">
+    </header>
+
+    <section class="subscriber-action-strip-v108 admin-card-v2">
+      <div class="subscriber-action-title-v108">
+        <small>{{ 'Fast actions' if is_en else 'إجراءات سريعة' }}</small>
+        <strong>{{ 'Subscriber operations' if is_en else 'عمليات المشتركين' }}</strong>
+      </div>
+      <div class="subscriber-action-buttons-v108">
         <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">＋ {{ 'New subscriber' if is_en else 'مشترك جديد' }}</a>
         <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">👤 {{ 'System users' if is_en else 'مستخدمو النظام' }}</a>
         <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
-        <a class="btn btn-outline-success" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ' }}</a>
+        <a class="btn btn-outline-success" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}" title="{{ 'Create, download, upload, and restore database backups.' if is_en else 'النسخ الاحتياطي: إنشاء، تحميل، رفع، واستعادة قاعدة البيانات.' }}">💾 {{ 'Database Backups' if is_en else 'النسخ الاحتياطي' }}</a>
       </div>
-    </header>
+    </section>
 
     <section class="subscriber-kpi-grid-v71">
       <article><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ stats.total }}</strong><span>{{ 'Subscriber accounts' if is_en else 'حساب مشترك' }}</span></article>
@@ -38,44 +45,48 @@
           <button type="button" data-filter="disabled">{{ 'Disabled' if is_en else 'معطل' }}</button>
         </div>
       </div>
-      <div class="table-shell-v2">
-        <table class="admin-table-v2 subscribers-table-v71">
-          <thead><tr><th>{{ 'Subscriber' if is_en else 'المشترك' }}</th><th>{{ 'Plan' if is_en else 'الخطة' }}</th><th>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</th><th>{{ 'Devices' if is_en else 'الأجهزة' }}</th><th>{{ 'Fast actions' if is_en else 'إجراءات سريعة' }}</th></tr></thead>
-          <tbody>
-            {% for row in rows %}
-            {% set status = row.status or 'trial' %}
-            {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
-            <tr data-subscriber-row-v71 data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
-              <td>
-                <div class="subscriber-identity-v71">
-                  <div class="subscriber-avatar-v71">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</div>
-                  <div><strong>{{ row.user.full_name or row.user.username }}</strong><div class="table-sub">@{{ row.user.username }}</div>{% if row.user.email %}<div class="table-sub">{{ mask_email(row.user.email) }}</div>{% endif %}</div>
-                </div>
-              </td>
-              <td><strong>{{ plan_name }}</strong><div class="table-sub">{{ row.tenant.display_name if row.tenant else '-' }}</div></td>
-              <td>
-                <div class="subscriber-status-stack-v71">
-                  <span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span>
-                  <span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Account active' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Account disabled' if is_en else 'الحساب معطل')) }}</span>
-                  <small>{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'لا يوجد تاريخ انتهاء' }}{% endif %}</small>
-                </div>
-              </td>
-              <td><span class="device-count-pill-v71">🔌 {{ row.device_count }}</span></td>
-              <td>
-                <div class="quick-action-row-v71">
-                  <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">{{ '360' if is_en else 'ملف' }}</a>
-                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">{{ 'Activate' if is_en else 'تفعيل' }}</a>
-                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">{{ 'Support' if is_en else 'دعم' }}</a>
-                  <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if is_en and row.user.is_active else ('Enable' if is_en else ('تعطيل' if row.user.is_active else 'تفعيل')) }}</button></form>
-                  {% if not row.user.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button></form>{% endif %}
-                </div>
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="subscriber-card-list-v108">
+        {% for row in rows %}
+        {% set status = row.status or 'trial' %}
+        {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
+        <article class="subscriber-row-card-v108" data-subscriber-row-v71 data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
+          <a class="subscriber-card-main-v108" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
+            <span class="subscriber-avatar-v108">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
+            <span class="subscriber-info-v108">
+              <strong>{{ row.user.full_name or row.user.username }}</strong>
+              <small>@{{ row.user.username }}{% if row.user.email %} · {{ mask_email(row.user.email) }}{% endif %}</small>
+            </span>
+          </a>
+          <div class="subscriber-plan-v108">
+            <small>{{ 'Plan' if is_en else 'الخطة' }}</small>
+            <strong>{{ plan_name }}</strong>
+            <span>{{ row.tenant.display_name if row.tenant else '-' }}</span>
+          </div>
+          <div class="subscriber-life-v108">
+            <span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span>
+            <span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Account active' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Account disabled' if is_en else 'الحساب معطل')) }}</span>
+            <small>{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'لا يوجد تاريخ انتهاء' }}{% endif %}</small>
+          </div>
+          <div class="subscriber-devices-v108"><span class="device-count-pill-v71">🔌 {{ row.device_count }}</span></div>
+          <div class="subscriber-actions-v108">
+            <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">{{ 'Profile' if is_en else 'ملف' }}</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">{{ 'Support' if is_en else 'دعم' }}</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" onclick="return confirm('{{ 'Open subscription activation page?' if is_en else 'فتح صفحة تفعيل/تعديل اشتراك هذا المشترك؟' }}')">{{ 'Subscription' if is_en else 'الاشتراك' }}</a>
+            <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Disable this subscriber?' if is_en and row.user.is_active else ('Enable this subscriber?' if is_en else ('تعطيل هذا المشترك؟' if row.user.is_active else 'تفعيل هذا المشترك؟')) }}')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+              <button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if is_en and row.user.is_active else ('Enable' if is_en else ('تعطيل' if row.user.is_active else 'تفعيل')) }}</button>
+            </form>
+            {% if not row.user.is_admin %}
+            <form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+              <button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% else %}
+        <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
+        {% endfor %}
       </div>
     </section>
   </main>
