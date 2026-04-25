@@ -11,11 +11,83 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
+from ..services.rbac import portal_pages, user_portal_visibility_map, save_user_portal_visibility
+
 users_bp = Blueprint('users_routes', __name__)
 
 def _is_admin_role_code(role: str | None) -> bool:
     role = (role or '').strip().lower()
     return role not in {'', 'user', 'subscriber', 'customer'}
+
+def _quota_key_options(lang: str = 'ar'):
+    is_en = (lang or 'ar') == 'en'
+    rows = [
+        ('sms_limit', 'حد رسائل SMS', 'SMS messages limit'),
+        ('telegram_limit', 'حد رسائل Telegram', 'Telegram messages limit'),
+        ('devices_limit', 'حد الأجهزة', 'Devices limit'),
+        ('reports_limit', 'حد التقارير', 'Reports limit'),
+        ('support_cases_limit', 'حد طلبات الدعم', 'Support cases limit'),
+        ('api_calls_limit', 'حد استدعاءات API', 'API calls limit'),
+        ('storage_limit', 'حد التخزين', 'Storage limit'),
+        ('custom', 'مفتاح مخصص', 'Custom key'),
+    ]
+    return [{'key': k, 'label': en if is_en else ar, 'label_ar': ar, 'label_en': en} for k, ar, en in rows]
+
+
+def _activity_summary_label(item, lang: str = 'ar') -> str:
+    raw = (getattr(item, 'summary', None) or getattr(item, 'action', None) or '').strip()
+    if (lang or 'ar') == 'en':
+        return raw or 'Activity update'
+    patterns = [
+        ('Added finance entry', 'تمت إضافة حركة مالية'),
+        ('Updated mail thread', 'تم تحديث محادثة دعم'),
+        ('Updated ticket', 'تم تحديث تذكرة دعم'),
+        ('Updated subscription', 'تم تعديل الاشتراك'),
+        ('Updated profile', 'تم تعديل بيانات الحساب'),
+        ('Created quota', 'تم إنشاء كوتا'),
+        ('Updated quota', 'تم تحديث كوتا'),
+        ('Created support case', 'تم إنشاء حالة دعم'),
+        ('Admin updated support message', 'تم تحديث رسالة دعم'),
+        ('Admin updated support ticket', 'تم تحديث تذكرة دعم'),
+        ('Bulk action', 'تم تنفيذ إجراء جماعي'),
+    ]
+    out = raw or 'عملية على الحساب'
+    for en, ar in patterns:
+        out = out.replace(en, ar)
+    out = out.replace('for tenant', 'للمشترك').replace('thread', 'محادثة').replace('ticket', 'تذكرة')
+    return out
+
+
+def _subscription_day_info(subscription) -> dict:
+    if not subscription:
+        return {'days_left': None, 'target': None, 'status': 'none'}
+    today = datetime.utcnow().date()
+    status = (getattr(subscription, 'status', '') or '').strip()
+    target = getattr(subscription, 'trial_ends_at', None) if status == 'trial' else getattr(subscription, 'ends_at', None)
+    if target is None:
+        target = getattr(subscription, 'ends_at', None) or getattr(subscription, 'trial_ends_at', None)
+    if not target:
+        return {'days_left': None, 'target': None, 'status': status or 'unknown'}
+    days = (target.date() - today).days
+    return {'days_left': days, 'target': target, 'status': 'expired' if days < 0 else status}
+
+
+def _portal_rows_for_user(user, lang: str = 'ar') -> list[dict]:
+    visibility = user_portal_visibility_map(getattr(user, 'id', None))
+    rows = []
+    for page in portal_pages(include_locked=True):
+        key = getattr(page, 'page_key', None) if not isinstance(page, dict) else page.get('page_key')
+        rows.append({
+            'page_key': key,
+            'endpoint': getattr(page, 'endpoint', '') if not isinstance(page, dict) else page.get('endpoint',''),
+            'label': (getattr(page, 'label_en', '') if (lang or 'ar') == 'en' else getattr(page, 'label_ar', '')) if not isinstance(page, dict) else (page.get('label_en') if (lang or 'ar') == 'en' else page.get('label_ar')),
+            'label_ar': getattr(page, 'label_ar', '') if not isinstance(page, dict) else page.get('label_ar',''),
+            'label_en': getattr(page, 'label_en', '') if not isinstance(page, dict) else page.get('label_en',''),
+            'icon': getattr(page, 'icon', '•') if not isinstance(page, dict) else page.get('icon','•'),
+            'is_locked': bool(getattr(page, 'is_locked', False) if not isinstance(page, dict) else page.get('is_locked', False)),
+            'is_visible': bool(visibility.get(key, True)),
+        })
+    return rows
 
 
 @users_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
@@ -76,25 +148,46 @@ def admin_user_profile(user_id: int):
                 flash('تمت إضافة حركة مالية للمشترك.', 'success')
         elif action == 'quota_entry':
             quota_id = int(request.form.get('quota_id') or 0)
-            if quota_id:
-                quota = TenantQuota.query.get(quota_id)
-                if quota and quota.tenant_id == tenant.id:
-                    quota.limit_value = float(request.form.get('limit_value') or quota.limit_value or 0)
-                    quota.used_value = float(request.form.get('used_value') or quota.used_value or 0)
-                    quota.status = (request.form.get('status') or quota.status).strip()
-                    quota.reset_period = (request.form.get('reset_period') or quota.reset_period).strip()
-                    quota.notes = (request.form.get('notes') or quota.notes or '').strip() or None
-                    db.session.commit()
-                    _admin_write_log('quota.profile.update', f'Updated quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id})
-                    flash('تم تحديث الكوتا.', 'success')
-            else:
-                quota_key = (request.form.get('quota_key') or '').strip()
-                if quota_key:
-                    quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key, quota_label=(request.form.get('quota_label') or quota_key).strip(), limit_value=float(request.form.get('limit_value') or 0), used_value=float(request.form.get('used_value') or 0), reset_period=(request.form.get('reset_period') or 'manual').strip(), status=(request.form.get('status') or 'active').strip(), notes=(request.form.get('notes') or '').strip() or None)
-                    db.session.add(quota)
-                    db.session.commit()
-                    _admin_write_log('quota.profile.create', f'Created quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': quota.quota_key})
-                    flash('تمت إضافة كوتا جديدة.', 'success')
+            preset_key = (request.form.get('quota_key_preset') or '').strip()
+            custom_key = (request.form.get('quota_key_custom') or request.form.get('quota_key') or '').strip()
+            quota_key = custom_key if preset_key == 'custom' else (preset_key or custom_key)
+            quota_key = quota_key.strip().lower().replace(' ', '_')
+            if not quota_key:
+                flash('اختر مفتاح الكوتا أو اكتب مفتاحًا مخصصًا.', 'warning')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
+            try:
+                limit_value = float(request.form.get('limit_value') or 0)
+                used_value = float(request.form.get('used_value') or 0)
+            except Exception:
+                flash('قيمة الحد أو المستخدم غير صحيحة.', 'danger')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
+            quota = TenantQuota.query.get(quota_id) if quota_id else None
+            created = False
+            if quota and quota.tenant_id != tenant.id:
+                flash('تعذر تحديث الكوتا: السجل لا يخص هذا المشترك.', 'danger')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab='quotas'))
+            if quota is None:
+                quota = TenantQuota.query.filter_by(tenant_id=tenant.id, quota_key=quota_key).first()
+            if quota is None:
+                quota = TenantQuota(tenant_id=tenant.id, quota_key=quota_key)
+                db.session.add(quota)
+                created = True
+            quota.quota_key = quota_key
+            quota.quota_label = (request.form.get('quota_label') or quota_key).strip()
+            quota.limit_value = limit_value
+            quota.used_value = used_value
+            quota.status = (request.form.get('status') or quota.status or 'active').strip()
+            quota.reset_period = (request.form.get('reset_period') or quota.reset_period or 'manual').strip()
+            quota.notes = (request.form.get('notes') or quota.notes or '').strip() or None
+            db.session.commit()
+            _admin_write_log('quota.profile.create' if created else 'quota.profile.update', ('Created' if created else 'Updated') + f' quota #{quota.id}', 'tenant_quota', quota.id, {'tenant_id': tenant.id, 'user_id': user.id, 'quota_key': quota.quota_key})
+            flash('تم حفظ الكوتا بنجاح.' if created else 'تم تحديث الكوتا بنجاح.', 'success')
+        elif action == 'portal_visibility':
+            visible_keys = set(request.form.getlist('visible_pages'))
+            save_user_portal_visibility(user.id, visible_keys)
+            db.session.commit()
+            _admin_write_log('subscriber.portal_visibility', f'Updated portal visibility for user #{user.id}', 'app_user', user.id, {'tenant_id': tenant.id, 'user_id': user.id, 'visible_pages': sorted(visible_keys)})
+            flash('تم تحديث الصفحات الظاهرة لهذا المشترك.', 'success')
         elif action == 'mail_reply':
             thread = InternalMailThread.query.get(int(request.form.get('thread_id') or 0))
             body = (request.form.get('body') or '').strip()
@@ -201,6 +294,9 @@ def admin_user_profile(user_id: int):
         return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=_lang(), tab=request.args.get('tab') or 'profile'))
 
     payload = _admin_user_payload(user)
+    payload['quota_key_options'] = _quota_key_options(_lang())
+    payload['portal_page_rows'] = _portal_rows_for_user(user, _lang())
+    payload['subscription_day_info'] = _subscription_day_info(subscription)
     tab = (request.args.get('tab') or 'profile').strip()
     is_en = _lang() == 'en'
     canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
@@ -218,6 +314,7 @@ def admin_user_profile(user_id: int):
         priority_options=['low', 'normal', 'high', 'urgent'],
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        activity_label=_activity_summary_label,
         **payload,
     )
 
@@ -473,6 +570,7 @@ def admin_system_logs():
         event_logs=event_logs,
         notification_logs=notification_logs,
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        activity_label=_activity_summary_label,
         ui_lang=_lang(),
     )
 

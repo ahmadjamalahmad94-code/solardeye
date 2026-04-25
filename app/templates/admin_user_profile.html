@@ -63,18 +63,38 @@
     <article><small>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</small><strong>{{ ui_label(tenant.status, 'status', ui_lang) }}</strong></article>
     <article><small>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</small><strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</strong></article>
     <article><small>{{ 'Device override' if is_en else 'تجاوز حد الأجهزة' }}</small><strong>{{ tenant.max_devices_override or ('-' if is_en else 'بدون') }}</strong></article>
+    <article class="subscription-days-v109"><small>{{ 'Remaining days' if is_en else 'الأيام المتبقية' }}</small><strong>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }}{% else %}—{% endif %}</strong><span>{% if subscription_day_info.status == 'expired' %}{{ 'Expired' if is_en else 'منتهي' }}{% elif subscription_day_info.target %}{{ format_local(subscription_day_info.target) }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ انتهاء' }}{% endif %}</span></article>
   </div>
   <form method="post" class="subscriber360-form-v108"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_subscription">
     <label class="subscriber360-field-v108 full"><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-control" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select></label>
     <label class="subscriber360-field-v108"><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><select class="form-control" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
     <label class="subscriber360-field-v108"><span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span><select class="form-control" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
     <label class="subscriber360-field-v108"><span>{{ 'Max devices override' if is_en else 'تجاوز حد الأجهزة' }}</span><input class="form-control" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Starts at' if is_en else 'تاريخ البداية' }}</span><input class="form-control" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><input class="form-control" name="ends_at" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Trial ends at' if is_en else 'نهاية التجربة' }}</span><input class="form-control" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}"></label>
+    <label class="subscriber360-field-v108"><span>{{ 'Starts at' if is_en else 'تاريخ البداية' }}</span><input type="date" class="form-control" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}"></label>
+    <label class="subscriber360-field-v108"><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><input type="date" class="form-control" name="ends_at" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}"></label>
+    <label class="subscriber360-field-v108"><span>{{ 'Trial ends at' if is_en else 'نهاية التجربة' }}</span><input type="date" class="form-control" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}"></label>
     <label class="subscriber360-field-v108 full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></label>
     <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button></div>
   </form>
+  <section class="subscriber360-panel-v109 portal-visibility-panel-v109">
+    <div class="subscriber360-section-head-v108 compact-v109">
+      <div>
+        <small>{{ 'Subscriber portal visibility' if is_en else 'ظهور صفحات المشترك' }}</small>
+        <h3>{{ 'Choose what this subscriber can see' if is_en else 'تحكم بما يظهر لهذا المشترك' }}</h3>
+        <p>{{ 'Dashboard is always visible; the rest can be hidden for this specific account.' if is_en else 'النظرة العامة أساسية دائمًا، وباقي الصفحات يمكن إخفاؤها لهذا الحساب فقط.' }}</p>
+      </div>
+    </div>
+    <form method="post" class="portal-visibility-grid-v109"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="portal_visibility">
+      {% for page in portal_page_rows %}
+      <label class="portal-page-card-v109 {{ 'is-locked' if page.is_locked else '' }}">
+        <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
+        <span>{{ page.icon }} {{ page.label }}</span>
+        <small>{{ page.endpoint }}{% if page.is_locked %} · {{ 'Core' if is_en else 'أساسية' }}{% endif %}</small>
+      </label>
+      {% endfor %}
+      <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save page visibility' if is_en else 'حفظ ظهور الصفحات' }}</button></div>
+    </form>
+  </section>
 </section>
 {% elif tab == 'support' %}
 {% set open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
@@ -180,7 +200,8 @@
   <div class="admin-layout-v2 two subscriber360-two-col-v108">
     <div class="admin-card-v2 subscriber360-card-v108"><h3>{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3><form method="post" class="subscriber360-form-v108"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="quota_entry">
       <label class="subscriber360-field-v108"><span>{{ 'Quota ID' if is_en else 'رقم الكوتا للتحديث' }}</span><input class="form-control" name="quota_id" placeholder="{{ 'Leave empty for new quota' if is_en else 'اتركه فارغًا لإضافة جديد' }}"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Quota key' if is_en else 'مفتاح الكوتا' }}</span><input class="form-control" name="quota_key" placeholder="sms_limit"></label>
+      <label class="subscriber360-field-v108"><span>{{ 'Quota key' if is_en else 'مفتاح الكوتا' }}</span><select class="form-control" name="quota_key_preset">{% for opt in quota_key_options %}<option value="{{ opt.key }}">{{ opt.label }}</option>{% endfor %}</select></label>
+      <label class="subscriber360-field-v108"><span>{{ 'Custom key' if is_en else 'مفتاح مخصص' }}</span><input class="form-control ltr-field-v108" name="quota_key_custom" placeholder="custom_limit"></label>
       <label class="subscriber360-field-v108"><span>{{ 'Label' if is_en else 'الاسم الظاهر' }}</span><input class="form-control" name="quota_label"></label>
       <label class="subscriber360-field-v108"><span>{{ 'Limit' if is_en else 'الحد' }}</span><input class="form-control" name="limit_value"></label>
       <label class="subscriber360-field-v108"><span>{{ 'Used' if is_en else 'المستخدم' }}</span><input class="form-control" name="used_value"></label>
@@ -222,10 +243,10 @@
     <div><small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h3><p>{{ 'Showing the latest 10 records first. The list scrolls only after that.' if is_en else 'يتم عرض آخر 10 عمليات أولًا، وبعدها فقط يظهر سكرول داخل السجل.' }}</p></div>
   </div>
   <div class="activity-timeline-v108">
-    {% for row in activity_rows %}
+    {% for row in activity_rows[:10] %}
     <article class="activity-timeline-row-v108">
       <span></span>
-      <div><strong>{{ row.item.summary or row.item.action }}</strong><small>{{ 'By' if is_en else 'بواسطة' }} {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</small></div>
+      <div><strong>{{ activity_label(row.item, ui_lang) }}</strong><small>{{ 'By' if is_en else 'بواسطة' }} {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</small></div>
       <time>{{ format_local(row.item.created_at) if row.item.created_at else '' }}</time>
     </article>
     {% else %}<div class="empty-box-v2">{{ 'No related activity yet.' if is_en else 'لا يوجد سجل نشاط مرتبط بعد.' }}</div>{% endfor %}

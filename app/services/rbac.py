@@ -8,7 +8,7 @@ from typing import Any
 from flask import abort, flash, g, request, session, url_for, redirect
 
 from ..extensions import db
-from ..models import AppRole, PortalPageSetting
+from ..models import AppRole, PortalPageSetting, Setting
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,22 @@ PORTAL_PAGES = (
     {'page_key': 'support', 'endpoint': 'main.portal_support', 'label_ar': 'الدعم والمراسلات', 'label_en': 'Support Center', 'icon': '💬', 'group_key': 'monitoring', 'sort_order': 16},
 )
 PORTAL_ENDPOINT_TO_KEY = {p['endpoint']: p['page_key'] for p in PORTAL_PAGES}
-PORTAL_ENDPOINT_TO_KEY.update({'main.portal_messages': 'support', 'main.portal_tickets': 'support'})
+PORTAL_ENDPOINT_TO_KEY.update({
+    'main.portal_messages': 'support', 'main.portal_tickets': 'support',
+    'energy.dashboard': 'dashboard',
+    'devices_routes.devices_manage': 'devices_manage',
+    'devices_routes.onboarding_wizard': 'onboarding',
+    'billing.account_subscription': 'subscription',
+    'energy.statistics': 'statistics',
+    'energy.reports': 'reports',
+    'energy.live_data': 'live_data',
+    'energy.loads_page': 'loads',
+    'notifications_routes.notifications_settings': 'notifications',
+    'notifications_routes.channels': 'channels',
+    'support.portal_support': 'support',
+    'support.portal_messages': 'support',
+    'support.portal_tickets': 'support',
+})
 
 
 def _parse_permissions(raw: Any) -> dict[str, bool]:
@@ -167,11 +182,101 @@ def portal_pages(include_locked: bool = True):
     return [r for r in rows if include_locked or not r.is_locked]
 
 
-def portal_page_visible(page_key: str) -> bool:
+USER_PORTAL_VISIBILITY_PREFIX = 'user_portal_visibility:'
+
+
+def _portal_page_row(page_key: str):
     row = PortalPageSetting.query.filter_by(page_key=page_key).first()
     if row is None:
         seed_access_control(commit=False)
         row = PortalPageSetting.query.filter_by(page_key=page_key).first()
+    return row
+
+
+def _user_visibility_setting_key(user_id: int | None) -> str | None:
+    try:
+        uid = int(user_id or 0)
+    except Exception:
+        uid = 0
+    return f'{USER_PORTAL_VISIBILITY_PREFIX}{uid}' if uid else None
+
+
+def _load_user_visibility(user_id: int | None) -> dict[str, bool]:
+    key = _user_visibility_setting_key(user_id)
+    if not key:
+        return {}
+    row = Setting.query.filter_by(key=key).first()
+    if not row or not row.value:
+        return {}
+    try:
+        parsed = json.loads(row.value or '{}')
+        if isinstance(parsed, dict):
+            return {str(k): bool(v) for k, v in parsed.items()}
+    except Exception:
+        pass
+    return {}
+
+
+def save_user_portal_visibility(user_id: int, visible_keys: set[str] | list[str] | tuple[str, ...]):
+    key = _user_visibility_setting_key(user_id)
+    if not key:
+        return False
+    visible = {str(k) for k in (visible_keys or [])}
+    payload = {}
+    for page in portal_pages(include_locked=True):
+        page_key = getattr(page, 'page_key', None) if not isinstance(page, dict) else page.get('page_key')
+        is_locked = bool(getattr(page, 'is_locked', False) if not isinstance(page, dict) else page.get('is_locked'))
+        if not page_key:
+            continue
+        payload[page_key] = True if is_locked else (page_key in visible)
+    row = Setting.query.filter_by(key=key).first()
+    if row is None:
+        row = Setting(key=key)
+        db.session.add(row)
+    row.value = json.dumps(payload, ensure_ascii=False)
+    row.updated_at = datetime.utcnow()
+    return True
+
+
+def user_portal_visibility_map(user_id: int | None) -> dict[str, bool]:
+    overrides = _load_user_visibility(user_id)
+    result = {}
+    for page in portal_pages(include_locked=True):
+        page_key = getattr(page, 'page_key', None) if not isinstance(page, dict) else page.get('page_key')
+        is_locked = bool(getattr(page, 'is_locked', False) if not isinstance(page, dict) else page.get('is_locked'))
+        global_visible = bool(getattr(page, 'is_visible', True) if not isinstance(page, dict) else page.get('is_visible', True))
+        if not page_key:
+            continue
+        if is_locked:
+            result[page_key] = True
+        elif not global_visible:
+            result[page_key] = False
+        else:
+            result[page_key] = bool(overrides.get(page_key, True))
+    return result
+
+
+def portal_page_visible_for_user(user, page_key: str) -> bool:
+    row = _portal_page_row(page_key)
+    if row and row.is_locked:
+        return True
+    if row and not row.is_visible:
+        return False
+    uid = getattr(user, 'id', None)
+    if not uid:
+        return True if row is None else bool(row.is_visible)
+    return bool(user_portal_visibility_map(uid).get(page_key, True))
+
+
+def portal_page_visible(page_key: str) -> bool:
+    try:
+        from .scope import get_current_user
+        current = get_current_user()
+        if current is not None:
+            return portal_page_visible_for_user(current, page_key)
+    except Exception:
+        pass
+    row = _portal_page_row(page_key)
     if row and row.is_locked:
         return True
     return True if row is None else bool(row.is_visible)
@@ -225,6 +330,8 @@ def register_access_control(app):
             'role_permissions': role_permissions,
             'role_label': role_label,
             'portal_page_visible': portal_page_visible,
+            'portal_page_visible_for_user': portal_page_visible_for_user,
+            'user_portal_visibility_map': user_portal_visibility_map,
             'portal_pages': portal_pages,
             'permission_keys': PERMISSION_KEYS,
             'has_permission': _template_has_permission,
