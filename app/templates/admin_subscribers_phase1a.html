@@ -4,12 +4,12 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 subscribers-page-v71">
+  <main class="content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116">
     <header class="admin-page-head subscribers-hero-v71">
       <div>
         <span class="eyebrow">{{ 'Subscribers CRM' if is_en else 'إدارة المشتركين' }}</span>
         <h1>{{ 'Subscribers, plans, lifecycle, and quick actions' if is_en else 'المشتركون والخطط ودورة الحياة والإجراءات السريعة' }}</h1>
-        <p>{{ 'A compact command view for activation, support, billing, devices, and account state.' if is_en else 'واجهة عملية مختصرة للتفعيل، الدعم، المالية، الأجهزة، وحالة الحساب.' }}</p>
+        <p>{{ 'Select a subscriber, review the data, then apply precise lifecycle actions from clean menus.' if is_en else 'اختر المشترك، راجع بياناته، ثم نفّذ إجراءات دقيقة من قوائم نظيفة بدون تزاحم.' }}</p>
       </div>
     </header>
 
@@ -34,8 +34,8 @@
       <article class="muted"><small>{{ 'Disabled' if is_en else 'معطل' }}</small><strong>{{ stats.disabled }}</strong><span>{{ 'Inactive accounts' if is_en else 'حسابات غير مفعلة' }}</span></article>
     </section>
 
-    <section class="admin-card-v2 subscribers-table-card-v71 ui-reactive" data-hover-card>
-      <div class="subscriber-toolbar-v71">
+    <section class="admin-card-v2 subscribers-table-card-v71 subscribers-command-card-v116 ui-reactive" data-hover-card>
+      <div class="subscriber-toolbar-v71 subscriber-toolbar-v116">
         <div class="command-search-v61"><span>⌕</span><input id="subscriberSearchV71" type="search" placeholder="{{ 'Search subscribers...' if is_en else 'ابحث في المشتركين...' }}"></div>
         <div class="subscriber-filter-pills-v71" data-subscriber-filter-v71>
           <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
@@ -45,43 +45,65 @@
           <button type="button" data-filter="disabled">{{ 'Disabled' if is_en else 'معطل' }}</button>
         </div>
       </div>
-      <div class="subscriber-card-list-v108">
+
+      <div class="bulk-action-bar-v116" id="subscriberBulkBarV116" hidden>
+        <strong><span id="bulkCountV116">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="plan">{{ 'Change plan' if is_en else 'تغيير الخطة' }}</button>
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="extend">{{ 'Add time' if is_en else 'إضافة مدة' }}</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="bulkClearV116">{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
+      </div>
+
+      <div class="subscriber-data-list-v116">
         {% for row in rows %}
         {% set status = row.status or 'trial' %}
         {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
-        <article class="subscriber-row-card-v108" data-subscriber-row-v71 data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
-          <a class="subscriber-card-main-v108" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
+        {% set plan_price = ((row.plan.price|string) ~ ' ' ~ row.plan.currency) if row.plan else '-' %}
+        {% set end_date = row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '-' %}
+        {% set trial_date = row.subscription.trial_ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.trial_ends_at else '-' %}
+        <article class="subscriber-data-row-v116" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
+          <div class="subscriber-select-v116"><input type="checkbox" class="subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}"></div>
+          <a class="subscriber-identity-v116" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
             <span class="subscriber-avatar-v108">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
-            <span class="subscriber-info-v108">
+            <span>
               <strong>{{ row.user.full_name or row.user.username }}</strong>
               <small>@{{ row.user.username }}{% if row.user.email %} · {{ mask_email(row.user.email) }}{% endif %}</small>
             </span>
           </a>
-          <div class="subscriber-plan-v108">
+          <div class="subscriber-data-cell-v116">
             <small>{{ 'Plan' if is_en else 'الخطة' }}</small>
             <strong>{{ plan_name }}</strong>
-            <span>{{ row.tenant.display_name if row.tenant else '-' }}</span>
+            <span>{{ plan_price }} · {{ row.plan.max_devices if row.plan else '-' }} {{ 'devices' if is_en else 'أجهزة' }}</span>
           </div>
-          <div class="subscriber-life-v108">
-            <span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span>
-            <span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Account active' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Account disabled' if is_en else 'الحساب معطل')) }}</span>
-            <small>{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'لا يوجد تاريخ انتهاء' }}{% endif %}</small>
+          <div class="subscriber-data-cell-v116">
+            <small>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</small>
+            <div class="status-stack-v116"><span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span><span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Active account' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Disabled account' if is_en else 'الحساب معطل')) }}</span></div>
+            <span>{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'لا يوجد تاريخ انتهاء' }}{% endif %}</span>
           </div>
-          <div class="subscriber-devices-v108"><span class="device-count-pill-v71">🔌 {{ row.device_count }}</span></div>
-          <div class="subscriber-actions-v108">
-            <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">{{ 'Profile' if is_en else 'ملف' }}</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">{{ 'Support' if is_en else 'دعم' }}</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" onclick="return confirm('{{ 'Open subscription activation page?' if is_en else 'فتح صفحة تفعيل/تعديل اشتراك هذا المشترك؟' }}')">{{ 'Subscription' if is_en else 'الاشتراك' }}</a>
-            <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Disable this subscriber?' if is_en and row.user.is_active else ('Enable this subscriber?' if is_en else ('تعطيل هذا المشترك؟' if row.user.is_active else 'تفعيل هذا المشترك؟')) }}')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-              <button class="btn btn-outline-secondary btn-sm">{{ 'Disable' if is_en and row.user.is_active else ('Enable' if is_en else ('تعطيل' if row.user.is_active else 'تفعيل')) }}</button>
-            </form>
-            {% if not row.user.is_admin %}
-            <form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-              <button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button>
-            </form>
-            {% endif %}
+          <div class="subscriber-data-cell-v116 compact">
+            <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+            <strong>🔌 {{ row.device_count }}</strong>
+          </div>
+          <div class="subscriber-actions-menu-v116">
+            <details>
+              <summary>{{ 'Actions' if is_en else 'إجراءات' }} ⋯</summary>
+              <div class="action-menu-panel-v116">
+                <a href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">🧾 {{ 'Open profile' if is_en else 'فتح الملف' }}</a>
+                <a href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
+                <button type="button" data-open-plan-modal>{{ '💳 Change plan' if is_en else '💳 تغيير الخطة' }}</button>
+                <button type="button" data-open-extend-modal>{{ '⏳ Add time' if is_en else '⏳ إضافة مدة' }}</button>
+                <a href="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}">📋 {{ 'Subscription page' if is_en else 'قائمة الاشتراك' }}</a>
+                <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Disable this subscriber?' if is_en and row.user.is_active else ('Enable this subscriber?' if is_en else ('تعطيل هذا المشترك؟' if row.user.is_active else 'تفعيل هذا المشترك؟')) }}')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button type="submit">{{ '🟠 Disable' if is_en and row.user.is_active else ('🟢 Enable' if is_en else ('🟠 تعطيل' if row.user.is_active else '🟢 تفعيل')) }}</button>
+                </form>
+                {% if not row.user.is_admin %}
+                <form method="post" action="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button type="submit" class="danger">🗑️ {{ 'Delete' if is_en else 'حذف' }}</button>
+                </form>
+                {% endif %}
+              </div>
+            </details>
           </div>
         </article>
         {% else %}
@@ -91,8 +113,44 @@
     </section>
   </main>
 </div>
+
+<dialog class="modal-v116" id="planModalV116">
+  <form method="post" id="planFormV116">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="days" id="planDaysV116" value="30">
+    <header><div><small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small><h3>{{ 'Change subscriber plan' if is_en else 'تغيير خطة المشترك' }}</h3></div><button type="button" data-close-modal>×</button></header>
+    <div class="modal-grid-v116 two">
+      <section class="mini-panel-v116"><small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small><strong id="currentPlanNameV116">-</strong><p id="currentPlanDetailsV116">-</p></section>
+      <section class="mini-panel-v116"><small>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}</small><strong id="currentPlanEndV116">-</strong><p>{{ 'The new plan will apply its default quotas automatically.' if is_en else 'الخطة الجديدة ستطبق حدود الكوتا الخاصة بها تلقائيًا.' }}</p></section>
+    </div>
+    <label class="full"><span>{{ 'New plan' if is_en else 'الخطة الجديدة' }}</span><select class="form-select form-select-lg" name="plan_id" id="planSelectV116">{% for p in plans %}<option value="{{ p.id }}" data-price="{{ p.price }} {{ p.currency }}" data-devices="{{ p.max_devices }}" data-days="{{ p.duration_days_default or 30 }}">{{ p.name_en if is_en else p.name_ar }} — {{ p.price }} {{ p.currency }} — {{ p.max_devices }} {{ 'devices' if is_en else 'أجهزة' }}</option>{% endfor %}</select></label>
+    <div class="mini-panel-v116 highlight" id="newPlanPreviewV116">{{ 'Choose a plan to preview details.' if is_en else 'اختر خطة لعرض تفاصيلها.' }}</div>
+    <footer><button class="btn btn-outline-secondary" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button><button class="btn btn-solar" type="submit">{{ 'Apply plan and quotas' if is_en else 'تطبيق الخطة والكوتا' }}</button></footer>
+  </form>
+</dialog>
+
+<dialog class="modal-v116" id="extendModalV116">
+  <form method="post" id="extendFormV116">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <header><div><small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small><h3>{{ 'Add subscription time' if is_en else 'إضافة مدة للاشتراك' }}</h3></div><button type="button" data-close-modal>×</button></header>
+    <div class="mini-panel-v116"><small>{{ 'Subscriber' if is_en else 'المشترك' }}</small><strong id="extendUserNameV116">-</strong><p><span>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}: </span><span id="extendCurrentEndV116">-</span></p></div>
+    <div class="duration-presets-v116">
+      <button type="button" data-unit="days" data-amount="7">+7 {{ 'days' if is_en else 'أيام' }}</button>
+      <button type="button" data-unit="days" data-amount="30">+30 {{ 'days' if is_en else 'يوم' }}</button>
+      <button type="button" data-unit="months" data-amount="3">+3 {{ 'months' if is_en else 'شهور' }}</button>
+      <button type="button" data-unit="years" data-amount="1">+1 {{ 'year' if is_en else 'سنة' }}</button>
+      <button type="button" data-unit="trial_days" data-amount="7">+7 {{ 'trial days' if is_en else 'أيام تجريبية' }}</button>
+    </div>
+    <div class="modal-grid-v116 two"><label><span>{{ 'Amount' if is_en else 'العدد' }}</span><input class="form-control form-control-lg" type="number" name="amount" id="extendAmountV116" value="30" min="1"></label><label><span>{{ 'Unit' if is_en else 'الوحدة' }}</span><select class="form-select form-select-lg" name="unit" id="extendUnitV116"><option value="days">{{ 'Days' if is_en else 'أيام' }}</option><option value="months">{{ 'Months' if is_en else 'شهور' }}</option><option value="years">{{ 'Years' if is_en else 'سنوات' }}</option><option value="trial_days">{{ 'Trial days' if is_en else 'أيام تجريبية' }}</option></select></label></div>
+    <label class="full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control" name="notes" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea></label>
+    <div class="mini-panel-v116 highlight" id="extendPreviewV116">{{ 'The new date will be calculated after saving.' if is_en else 'سيتم احتساب التاريخ الجديد بعد الحفظ.' }}</div>
+    <footer><button class="btn btn-outline-secondary" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button><button class="btn btn-solar" type="submit">{{ 'Add time' if is_en else 'إضافة المدة' }}</button></footer>
+  </form>
+</dialog>
+
 <script>
 (function(){
+  const isEn = {{ 'true' if is_en else 'false' }};
   const search = document.getElementById('subscriberSearchV71');
   const rows = Array.from(document.querySelectorAll('[data-subscriber-row-v71]'));
   const buttons = Array.from(document.querySelectorAll('[data-subscriber-filter-v71] button'));
@@ -109,6 +167,58 @@
   }
   search && search.addEventListener('input', apply);
   buttons.forEach(btn => btn.addEventListener('click', () => { filter = btn.dataset.filter || 'all'; buttons.forEach(b => b.classList.toggle('active', b === btn)); apply(); }));
+
+  const checks = Array.from(document.querySelectorAll('.subscriber-check-v116'));
+  const bulkBar = document.getElementById('subscriberBulkBarV116');
+  const bulkCount = document.getElementById('bulkCountV116');
+  function selectedRows(){ return checks.filter(c=>c.checked).map(c=>c.closest('[data-subscriber-row-v71]')); }
+  function updateBulk(){ const n = selectedRows().length; if (bulkBar) bulkBar.hidden = n === 0; if (bulkCount) bulkCount.textContent = n; }
+  checks.forEach(c=>c.addEventListener('change', updateBulk));
+  document.getElementById('bulkClearV116')?.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); updateBulk(); });
+
+  const planModal = document.getElementById('planModalV116');
+  const planForm = document.getElementById('planFormV116');
+  const planSelect = document.getElementById('planSelectV116');
+  const currentName = document.getElementById('currentPlanNameV116');
+  const currentDetails = document.getElementById('currentPlanDetailsV116');
+  const currentEnd = document.getElementById('currentPlanEndV116');
+  const newPreview = document.getElementById('newPlanPreviewV116');
+  const planDays = document.getElementById('planDaysV116');
+  function updatePlanPreview(){ const opt = planSelect?.selectedOptions?.[0]; if(!opt || !newPreview) return; if(planDays) planDays.value = opt.dataset.days || '30';
+    newPreview.textContent = (isEn ? 'New plan: ' : 'الخطة الجديدة: ') + opt.textContent + ' · ' + (isEn ? 'default duration ' : 'المدة الافتراضية ') + (opt.dataset.days || '30') + (isEn ? ' days' : ' يوم'); }
+  planSelect?.addEventListener('change', updatePlanPreview);
+  function openPlan(row){
+    planForm.action = '/admin/subscribers/' + row.dataset.userId + '/activate?lang={{ ui_lang }}';
+    if(currentName) currentName.textContent = row.dataset.currentPlan || '-';
+    if(currentDetails) currentDetails.textContent = (row.dataset.currentPlanPrice || '-') + ' · ' + (row.dataset.currentPlanDevices || '-') + (isEn ? ' devices' : ' أجهزة');
+    if(currentEnd) currentEnd.textContent = row.dataset.currentEnd || '-';
+    if(row.dataset.currentPlanId && planSelect) planSelect.value = row.dataset.currentPlanId;
+    updatePlanPreview();
+    planModal.showModal();
+  }
+
+  const extendModal = document.getElementById('extendModalV116');
+  const extendForm = document.getElementById('extendFormV116');
+  const extendName = document.getElementById('extendUserNameV116');
+  const extendEnd = document.getElementById('extendCurrentEndV116');
+  const extendAmount = document.getElementById('extendAmountV116');
+  const extendUnit = document.getElementById('extendUnitV116');
+  const extendPreview = document.getElementById('extendPreviewV116');
+  function updateExtendPreview(){ if(!extendPreview) return; extendPreview.textContent = (isEn ? 'Will add ' : 'سيتم إضافة ') + (extendAmount.value || '0') + ' ' + extendUnit.options[extendUnit.selectedIndex].textContent + (isEn ? ' to this subscriber.' : ' لهذا المشترك.'); }
+  extendAmount?.addEventListener('input', updateExtendPreview); extendUnit?.addEventListener('change', updateExtendPreview);
+  function openExtend(row){
+    extendForm.action = '/admin/subscribers/' + row.dataset.userId + '/extend?lang={{ ui_lang }}';
+    if(extendName) extendName.textContent = row.dataset.userName || '-';
+    if(extendEnd) extendEnd.textContent = row.dataset.currentEnd || '-';
+    updateExtendPreview();
+    extendModal.showModal();
+  }
+
+  document.querySelectorAll('[data-open-plan-modal]').forEach(btn=>btn.addEventListener('click', ()=>openPlan(btn.closest('[data-subscriber-row-v71]'))));
+  document.querySelectorAll('[data-open-extend-modal]').forEach(btn=>btn.addEventListener('click', ()=>openExtend(btn.closest('[data-subscriber-row-v71]'))));
+  document.querySelectorAll('[data-bulk-open]').forEach(btn=>btn.addEventListener('click', ()=>{ const rows = selectedRows(); if(rows.length !== 1){ alert(isEn ? 'Select exactly one subscriber for this action.' : 'حدد مشتركًا واحدًا فقط لهذا الإجراء.'); return; } btn.dataset.bulkOpen === 'plan' ? openPlan(rows[0]) : openExtend(rows[0]); }));
+  document.querySelectorAll('[data-close-modal]').forEach(btn=>btn.addEventListener('click', ()=>btn.closest('dialog').close()));
+  document.querySelectorAll('.duration-presets-v116 button').forEach(btn=>btn.addEventListener('click', ()=>{ extendAmount.value = btn.dataset.amount; extendUnit.value = btn.dataset.unit; updateExtendPreview(); }));
 })();
 </script>
 {% endblock %}

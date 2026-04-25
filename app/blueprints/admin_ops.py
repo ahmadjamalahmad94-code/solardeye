@@ -61,7 +61,8 @@ def admin_subscribers_v9():
             'days_left': days_left,
             'device_count': AppDevice.query.filter_by(owner_user_id=user.id).count(),
         })
-    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, ui_lang=_lang())
+    active_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, plans=active_plans, ui_lang=_lang())
 
 
 @admin_ops_bp.route('/admin/services-health')

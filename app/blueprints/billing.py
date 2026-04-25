@@ -119,7 +119,8 @@ def admin_subscribers():
         if sub and sub.ends_at:
             days_left = (sub.ends_at.date() - now.date()).days
         rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
-    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, ui_lang=_lang())
+    active_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, plans=active_plans, ui_lang=_lang())
 
 
 @billing_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
@@ -139,6 +140,44 @@ def admin_subscriber_activate(user_id):
         flash('تم تفعيل اشتراك المشترك وتطبيق حدود الخطة تلقائيًا', 'success')
         return redirect(url_for('main.admin_subscribers', lang=_lang()))
     return render_template('admin_subscriber_activate_phase1a.html', user=user, tenant=tenant, subscription=sub, plans=plans, ui_lang=_lang())
+
+
+@billing_bp.route('/admin/subscribers/<int:user_id>/extend', methods=['POST'])
+def admin_subscriber_extend(user_id):
+    admin_user = _active_user()
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    user = AppUser.query.get_or_404(user_id)
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=admin_user.id if admin_user else None)
+    amount = int(request.form.get('amount') or 0)
+    unit = (request.form.get('unit') or 'days').strip()
+    notes = (request.form.get('notes') or '').strip()
+    if amount <= 0:
+        flash('أدخل مدة صحيحة لإضافتها', 'warning')
+        return redirect(url_for('main.admin_subscribers', lang=_lang()))
+    base = sub.ends_at if sub and sub.ends_at and sub.ends_at > datetime.utcnow() else datetime.utcnow()
+    if unit == 'months':
+        delta_days = amount * 30
+    elif unit == 'years':
+        delta_days = amount * 365
+    else:
+        delta_days = amount
+    if sub:
+        sub.ends_at = base + timedelta(days=delta_days)
+        if unit == 'trial_days':
+            sub.status = 'trial'
+            sub.trial_ends_at = sub.ends_at
+        elif sub.status in ['expired', 'suspended', 'trial']:
+            sub.status = 'active'
+        sub.notes = ((sub.notes or '') + ('\n' if sub.notes else '') + (notes or f'Extended by {amount} {unit}')).strip()
+        sub.updated_at = datetime.utcnow()
+    if tenant:
+        tenant.status = 'trial' if unit == 'trial_days' else 'active'
+        tenant.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash('تمت إضافة مدة الاشتراك بنجاح', 'success')
+    return redirect(url_for('main.admin_subscribers', lang=_lang()))
 
 
 @billing_bp.route('/account/subscription')
