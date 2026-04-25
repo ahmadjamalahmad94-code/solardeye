@@ -7,6 +7,7 @@ import requests
 
 from .base import BaseDeviceAdapter, DeviceSnapshot
 from ..integration_registry import integration_by_code
+from ..energy_integrations import provider_by_code as energy_provider_by_code
 
 
 def _loads(value, fallback=None):
@@ -94,11 +95,11 @@ class UniversalHttpDeviceAdapter(BaseDeviceAdapter):
         return base.rstrip('/') + endpoint
 
     def _headers(self, provider, settings):
-        headers = {'Accept': 'application/json', 'User-Agent': 'SolarDeye/9.0'}
+        headers = {'Accept': 'application/json', 'User-Agent': 'SolarDeye/10.0'}
         token = settings.get('access_token') or settings.get('api_token') or settings.get('bearer_token')
-        if provider.auth_mode in {'oauth2', 'bearer_token', 'api_token'} and token:
+        if (provider.auth_mode in {'oauth2', 'bearer_token', 'api_token', 'oauth2_api_key', 'oauth2_bearer', 'access_token'} or str(provider.auth_mode).startswith('oauth')) and token:
             headers['Authorization'] = f'Bearer {token}'
-        if provider.code == 'enphase' and settings.get('api_key'):
+        if provider.code in {'enphase','enphase_enlighten'} and settings.get('api_key'):
             headers['key'] = str(settings.get('api_key'))
         if settings.get('api_key_header') and settings.get('api_key'):
             headers[str(settings.get('api_key_header'))] = str(settings.get('api_key'))
@@ -106,13 +107,13 @@ class UniversalHttpDeviceAdapter(BaseDeviceAdapter):
 
     def _params(self, provider, settings):
         params = {}
-        if provider.code == 'solaredge' and settings.get('api_key'):
+        if provider.code in {'solaredge','solaredge_cloud'} and settings.get('api_key'):
             params['api_key'] = settings.get('api_key')
         if provider.code == 'growatt_v1' and settings.get('api_token'):
             params['token'] = settings.get('api_token')
         if provider.code == 'growatt_v1' and settings.get('plant_id'):
             params['plant_id'] = settings.get('plant_id')
-        if provider.code in {'huawei_fusionsolar', 'sungrow_isolarcloud', 'solarman'}:
+        if provider.code in {'huawei_fusionsolar', 'sungrow_isolarcloud', 'solarman', 'solarman_openapi', 'soliscloud_v2'}:
             # These providers often require signed/authenticated POST flows. The
             # generic client remains GET-only unless the installer supplies a
             # custom query string in settings_json.
@@ -123,7 +124,8 @@ class UniversalHttpDeviceAdapter(BaseDeviceAdapter):
         return params
 
     def fetch_latest(self) -> DeviceSnapshot:
-        provider = integration_by_code(getattr(self.device, 'api_provider', None) or getattr(self.device, 'device_type', None))
+        code = getattr(self.device, 'api_provider', None) or getattr(self.device, 'device_type', None)
+        provider = energy_provider_by_code(code) or integration_by_code(code)
         if not provider:
             raise ValueError(f'Unsupported integration provider: {getattr(self.device, "api_provider", "") or getattr(self.device, "device_type", "")}')
         settings = self._settings()
@@ -152,7 +154,8 @@ class UniversalHttpDeviceAdapter(BaseDeviceAdapter):
         return snapshot
 
     def healthcheck(self) -> dict:
-        provider = integration_by_code(getattr(self.device, 'api_provider', None) or getattr(self.device, 'device_type', None))
+        code = getattr(self.device, 'api_provider', None) or getattr(self.device, 'device_type', None)
+        provider = energy_provider_by_code(code) or integration_by_code(code)
         if not provider:
             raise ValueError('Unsupported provider')
         settings = self._settings()

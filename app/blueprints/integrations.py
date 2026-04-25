@@ -22,7 +22,7 @@ def _admin_guard(permission: str = 'can_manage_integrations'):
     if is_system_admin() or has_permission(permission):
         return None
     flash('This page is not available for your account.' if _lang() == 'en' else 'هذه الصفحة غير متاحة لحسابك.', 'warning')
-    return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    return redirect(admin_landing_url(_lang()))
 
 
 def _audit(action: str, summary: str, target_type: str | None = None, target_id: int | None = None, details: dict | None = None):

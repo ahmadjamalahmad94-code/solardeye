@@ -6,6 +6,7 @@ from ..extensions import db
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
 from ..services.platform_audit import audit_project
 from ..services.scope import has_permission, is_system_admin
+from ..services.rbac import admin_landing_url
 from ..services.utils import format_local_datetime
 
 platform_bp = Blueprint('platform', __name__)
@@ -20,7 +21,7 @@ def _admin_guard(permission: str = 'can_view_logs'):
     if is_system_admin() or has_permission(permission):
         return None
     flash('This page is not available for your account.' if _lang() == 'en' else 'هذه الصفحة غير متاحة لحسابك.', 'warning')
-    return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    return redirect(admin_landing_url(_lang()))
 
 
 @platform_bp.route('/admin/platform-review')
@@ -34,7 +35,7 @@ def admin_platform_review():
 
 @platform_bp.route('/admin/backups', methods=['GET', 'POST'])
 def admin_backups():
-    guard = _admin_guard('can_view_logs')
+    guard = _admin_guard('can_manage_backups')
     if guard:
         return guard
     if request.method == 'POST':
@@ -83,7 +84,7 @@ def admin_backups():
 
 @platform_bp.route('/admin/backups/download/<path:filename>')
 def admin_backup_download(filename: str):
-    guard = _admin_guard('can_view_logs')
+    guard = _admin_guard('can_manage_backups')
     if guard:
         return guard
     for row in list_backups():

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import re
 import secrets
+import time
 from typing import Any
 
 from flask import abort, current_app, jsonify, request, session
@@ -18,6 +19,7 @@ SENSITIVE_KEY_RE = re.compile(
     re.IGNORECASE,
 )
 SECRET_PLACEHOLDERS = {'', '****', '********', '••••••', '••••••••', '__KEEP_SECRET__'}
+RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
 
 
 def csrf_token() -> str:
@@ -66,6 +68,35 @@ def register_security(app):
             'mask_identifier': mask_identifier,
             'is_sensitive_key': is_sensitive_key,
         }
+
+    @app.before_request
+    def _light_rate_limit():
+        # Dependency-free guardrail. It protects login and heavy write endpoints without
+        # blocking normal browsing. It is per worker, so use Cloudflare/NGINX limits too
+        # for very high-traffic production.
+        if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            return None
+        path = request.path or ''
+        strict = request.endpoint in {'auth.login', 'auth.register'}
+        if not strict and not (path.startswith('/admin') or path.startswith('/api/')):
+            return None
+        now = time.time()
+        window = 60.0
+        max_hits = 12 if strict else 80
+        identity = session.get('user_id') or request.headers.get('X-Forwarded-For', request.remote_addr or 'anon')
+        key = f"{identity}:{request.endpoint or path}"
+        hits = [t for t in RATE_LIMIT_BUCKETS.get(key, []) if now - t < window]
+        if len(hits) >= max_hits:
+            wants_json = request.accept_mimetypes.best == 'application/json' or path.startswith('/api/')
+            if wants_json:
+                return jsonify({'ok': False, 'message': 'Rate limit exceeded. Try again shortly.'}), 429
+            abort(429, description='Rate limit exceeded. Try again shortly.')
+        hits.append(now)
+        RATE_LIMIT_BUCKETS[key] = hits
+        if len(RATE_LIMIT_BUCKETS) > 2000:
+            for old_key in list(RATE_LIMIT_BUCKETS.keys())[:500]:
+                RATE_LIMIT_BUCKETS.pop(old_key, None)
+        return None
 
     @app.before_request
     def _csrf_protect():

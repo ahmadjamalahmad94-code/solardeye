@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 
 from .config import Config
 from .extensions import db
-from .models import AppDevice, AppUser, Setting, DeviceType
+from .models import AppDevice, AppUser, Setting, DeviceType, AppRole, PortalPageSetting
 from .services.subscriptions import seed_default_plans
 from .services.support_ops import seed_canned_replies, sync_existing_cases
 from .services.security import register_security
@@ -16,6 +16,7 @@ from .services.labels import register_template_helpers
 from .services.i18n import register_i18n
 from .services.backup_service import ensure_backup_settings
 from .services.energy_integrations import provider_catalog
+from .services.rbac import register_access_control, seed_access_control
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -39,11 +40,14 @@ def create_app():
     register_i18n(app)
     register_security(app)
     register_template_helpers(app)
+    register_access_control(app)
 
     from .blueprints.auth import auth_bp
     from .blueprints.integrations import integrations_bp
     from .blueprints.platform import platform_bp
     from .blueprints.admin_ops import admin_ops_bp
+    from .blueprints.access_control import access_control_bp
+    from .blueprints.mobile_api import mobile_api_bp
     from .blueprints.main import main_bp
     from .blueprints.api_probe import probe_bp
 
@@ -51,6 +55,8 @@ def create_app():
     # v9 modular admin operations are registered before the legacy main blueprint
     # so shared URLs are handled by split modules first.
     app.register_blueprint(admin_ops_bp)
+    app.register_blueprint(access_control_bp)
+    app.register_blueprint(mobile_api_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(platform_bp)
     app.register_blueprint(main_bp)
@@ -62,6 +68,7 @@ def create_app():
         _ensure_database_indexes()
         _ensure_default_settings()
         ensure_backup_settings()
+        seed_access_control()
         seed_default_plans()
         seed_canned_replies()
         try:
@@ -213,6 +220,8 @@ def _migrate_database():
         'support_case': {'case_type': 'VARCHAR(30)', 'source_id': 'INTEGER', 'tenant_id': 'INTEGER', 'user_id': 'INTEGER', 'assigned_admin_user_id': 'INTEGER', 'subject': "VARCHAR(220) DEFAULT ''", 'priority': "VARCHAR(30) DEFAULT 'normal'", 'status': "VARCHAR(30) DEFAULT 'open'", 'is_frozen': 'BOOLEAN DEFAULT FALSE', 'sla_due_at': 'TIMESTAMP', 'last_reply_at': 'TIMESTAMP', 'last_reply_by': 'VARCHAR(20)', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
         'support_audit_log': {'case_type': 'VARCHAR(30)', 'source_id': 'INTEGER', 'actor_user_id': 'INTEGER', 'action': 'VARCHAR(80)', 'summary': "VARCHAR(255) DEFAULT ''", 'details_json': 'TEXT', 'created_at': 'TIMESTAMP'},
         'canned_reply': {'title': 'VARCHAR(120)', 'body': 'TEXT', 'category': "VARCHAR(50) DEFAULT 'support'", 'is_active': 'BOOLEAN DEFAULT TRUE', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
+        'app_role': {'code': 'VARCHAR(60)', 'name_ar': "VARCHAR(120) DEFAULT ''", 'name_en': "VARCHAR(120) DEFAULT ''", 'summary_ar': 'VARCHAR(255)', 'summary_en': 'VARCHAR(255)', 'permissions_json': 'TEXT', 'is_system': 'BOOLEAN DEFAULT FALSE', 'is_active': 'BOOLEAN DEFAULT TRUE', 'sort_order': 'INTEGER DEFAULT 100', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
+        'portal_page_setting': {'page_key': 'VARCHAR(80)', 'endpoint': "VARCHAR(120) DEFAULT ''", 'label_ar': "VARCHAR(120) DEFAULT ''", 'label_en': "VARCHAR(120) DEFAULT ''", 'icon': "VARCHAR(20) DEFAULT '•'", 'group_key': "VARCHAR(40) DEFAULT 'portal'", 'is_visible': 'BOOLEAN DEFAULT TRUE', 'is_locked': 'BOOLEAN DEFAULT FALSE', 'sort_order': 'INTEGER DEFAULT 100', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
     }
 
 
@@ -233,6 +242,8 @@ def _migrate_database():
         """CREATE TABLE IF NOT EXISTS support_case (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, tenant_id INTEGER, user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(220) DEFAULT '', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', is_frozen BOOLEAN DEFAULT FALSE, sla_due_at TIMESTAMP, last_reply_at TIMESTAMP, last_reply_by VARCHAR(20), created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS support_audit_log (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, actor_user_id INTEGER, action VARCHAR(80) NOT NULL, summary VARCHAR(255) DEFAULT '', details_json TEXT, created_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS canned_reply (id INTEGER PRIMARY KEY, title VARCHAR(120) NOT NULL, body TEXT NOT NULL, category VARCHAR(50) DEFAULT 'support', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS app_role (id INTEGER PRIMARY KEY, code VARCHAR(60) UNIQUE NOT NULL, name_ar VARCHAR(120) DEFAULT '', name_en VARCHAR(120) DEFAULT '', summary_ar VARCHAR(255), summary_en VARCHAR(255), permissions_json TEXT, is_system BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS portal_page_setting (id INTEGER PRIMARY KEY, page_key VARCHAR(80) UNIQUE NOT NULL, endpoint VARCHAR(120) DEFAULT '', label_ar VARCHAR(120) DEFAULT '', label_en VARCHAR(120) DEFAULT '', icon VARCHAR(20) DEFAULT '•', group_key VARCHAR(40) DEFAULT 'portal', is_visible BOOLEAN DEFAULT TRUE, is_locked BOOLEAN DEFAULT FALSE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()
@@ -339,6 +350,8 @@ def _ensure_database_indexes():
             "CREATE INDEX IF NOT EXISTS ix_internal_mail_message_thread_created ON internal_mail_message (thread_id, created_at)",
             "CREATE INDEX IF NOT EXISTS ix_reading_device_created ON reading (device_id, created_at)",
             "CREATE INDEX IF NOT EXISTS ix_reading_user_created ON reading (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_app_role_code_created ON app_role (code, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_portal_page_setting_visible_order ON portal_page_setting (is_visible, sort_order)",
         ]
         for ddl in index_statements:
             try:
@@ -564,6 +577,8 @@ def _backfill_foundation_ids(user_id, device_id):
         """CREATE TABLE IF NOT EXISTS support_case (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, tenant_id INTEGER, user_id INTEGER, assigned_admin_user_id INTEGER, subject VARCHAR(220) DEFAULT '', priority VARCHAR(30) DEFAULT 'normal', status VARCHAR(30) DEFAULT 'open', is_frozen BOOLEAN DEFAULT FALSE, sla_due_at TIMESTAMP, last_reply_at TIMESTAMP, last_reply_by VARCHAR(20), created_at TIMESTAMP, updated_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS support_audit_log (id INTEGER PRIMARY KEY, case_type VARCHAR(30) NOT NULL, source_id INTEGER NOT NULL, actor_user_id INTEGER, action VARCHAR(80) NOT NULL, summary VARCHAR(255) DEFAULT '', details_json TEXT, created_at TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS canned_reply (id INTEGER PRIMARY KEY, title VARCHAR(120) NOT NULL, body TEXT NOT NULL, category VARCHAR(50) DEFAULT 'support', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS app_role (id INTEGER PRIMARY KEY, code VARCHAR(60) UNIQUE NOT NULL, name_ar VARCHAR(120) DEFAULT '', name_en VARCHAR(120) DEFAULT '', summary_ar VARCHAR(255), summary_en VARCHAR(255), permissions_json TEXT, is_system BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS portal_page_setting (id INTEGER PRIMARY KEY, page_key VARCHAR(80) UNIQUE NOT NULL, endpoint VARCHAR(120) DEFAULT '', label_ar VARCHAR(120) DEFAULT '', label_en VARCHAR(120) DEFAULT '', icon VARCHAR(20) DEFAULT '•', group_key VARCHAR(40) DEFAULT 'portal', is_visible BOOLEAN DEFAULT TRUE, is_locked BOOLEAN DEFAULT FALSE, sort_order INTEGER DEFAULT 100, created_at TIMESTAMP, updated_at TIMESTAMP)""",
     ]
 
     conn = db.engine.raw_connection()

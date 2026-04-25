@@ -24,6 +24,7 @@ from ..extensions import db
 from ..models import AppDevice, AppUser, InternalMailThread, InternalMailMessage, SupportTicket, SupportTicketMessage, NotificationEvent
 from ..services.subscriptions import ensure_user_tenant_and_subscription, feature_enabled_for_user
 from ..services.support_ops import unread_counts
+from ..services.rbac import admin_landing_url
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -41,7 +42,7 @@ def _login_user(app_user: AppUser):
         device = AppDevice.query.filter_by(id=app_user.preferred_device_id, owner_user_id=app_user.id, is_active=True).first()
     if device is None:
         device = AppDevice.query.filter_by(owner_user_id=app_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
-    if device and not bool(getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin'):
+    if device and not bool(getattr(app_user, 'is_admin', False) or (getattr(app_user, 'role', '') or '').strip().lower() != 'user'):
         session['current_device_id'] = device.id
         session['current_device_type'] = device.device_type or 'deye'
         if app_user.preferred_device_id != device.id:
@@ -85,8 +86,8 @@ def _random_username_from_email(email: str) -> str:
 def _login_after_social(user: AppUser):
     _login_user(user)
     flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
-    if getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin':
-        return redirect(url_for('main.admin_dashboard'))
+    if getattr(user, 'is_admin', False) or (getattr(user, 'role', '') or '').strip().lower() != 'user':
+        return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
     if not getattr(user, 'onboarding_completed', False):
         return redirect(url_for('main.onboarding_wizard'))
     return redirect(url_for('main.dashboard'))
@@ -117,7 +118,7 @@ def login():
                 _login_user(app_user)
                 flash('تم تسجيل الدخول بنجاح', 'success')
                 if getattr(app_user, 'is_admin', False) or getattr(app_user, 'role', '') == 'admin':
-                    return redirect(url_for('main.admin_dashboard'))
+                    return redirect(admin_landing_url(session.get('ui_lang') or 'ar'))
                 if not getattr(app_user, 'onboarding_completed', False):
                     return redirect(url_for('main.onboarding_wizard'))
                 return redirect(url_for('main.dashboard'))
@@ -332,7 +333,7 @@ def protect_routes():
         if g.current_user is None and session.get('username'):
             g.current_user = AppUser.query.filter_by(username=session.get('username'), is_active=True).first()
         if session.get('current_device_id') and g.current_user is not None:
-            if bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin'):
+            if bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user'):
                 g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
             else:
                 g.current_device = AppDevice.query.filter_by(
@@ -344,9 +345,9 @@ def protect_routes():
             g.current_device = AppDevice.query.filter_by(owner_user_id=g.current_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
             if g.current_device:
                 session['current_device_id'] = g.current_device.id
-            elif not bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin'):
+            elif not bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user'):
                 session.pop('current_device_id', None)
-        g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or getattr(g.current_user, 'role', '') == 'admin')
+        g.is_admin = bool(getattr(g.current_user, 'is_admin', False) or (getattr(g.current_user, 'role', '') or '').strip().lower() != 'user')
         if g.current_user and getattr(g.current_user, 'permissions_json', None):
             try:
                 import json as _json

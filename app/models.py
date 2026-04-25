@@ -59,6 +59,40 @@ class AppDevice(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant_account.id'), nullable=True, index=True)
 
 
+class AppRole(db.Model):
+    __tablename__ = 'app_role'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(60), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(120), nullable=False, default='')
+    name_en = db.Column(db.String(120), nullable=False, default='')
+    summary_ar = db.Column(db.String(255), nullable=True)
+    summary_en = db.Column(db.String(255), nullable=True)
+    permissions_json = db.Column(db.Text, nullable=True)
+    is_system = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    sort_order = db.Column(db.Integer, default=100, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PortalPageSetting(db.Model):
+    __tablename__ = 'portal_page_setting'
+
+    id = db.Column(db.Integer, primary_key=True)
+    page_key = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    endpoint = db.Column(db.String(120), nullable=False, default='')
+    label_ar = db.Column(db.String(120), nullable=False, default='')
+    label_en = db.Column(db.String(120), nullable=False, default='')
+    icon = db.Column(db.String(20), nullable=False, default='•')
+    group_key = db.Column(db.String(40), nullable=False, default='portal')
+    is_visible = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    sort_order = db.Column(db.Integer, default=100, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SubscriptionPlan(db.Model):
     __tablename__ = 'subscription_plan'
 

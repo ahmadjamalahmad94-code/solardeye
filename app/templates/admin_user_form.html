@@ -22,8 +22,9 @@
         <label><span>{{ 'Role' if is_en else 'الدور' }}</span>
           {% set current_role = user_obj.role if user_obj else 'user' %}
           <select class="form-select form-select-lg" name="role">
-            <option value="user" {% if current_role == 'user' %}selected{% endif %}>User</option>
-            <option value="admin" {% if current_role == 'admin' %}selected{% endif %}>Admin</option>
+            {% for role in available_roles() %}
+              <option value="{{ role.code }}" {% if current_role == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>
+            {% endfor %}
           </select>
         </label>
         <label><span>{{ 'Preferred device' if is_en else 'الجهاز المفضل' }}</span>

@@ -10,6 +10,7 @@ from ..services.backup_service import backup_settings
 from ..services.i18n import translate
 from ..services.labels import label
 from ..services.scope import has_permission, is_system_admin
+from ..services.rbac import admin_landing_url
 from ..services.service_monitor import service_display_name, service_message
 from ..services.subscriptions import ensure_user_tenant_and_subscription
 from ..services.utils import format_local_datetime
@@ -26,7 +27,7 @@ def _admin_guard(permission: str = 'can_manage_users'):
     if is_system_admin() or has_permission(permission):
         return None
     flash('This page is not available for your account.' if _lang() == 'en' else 'هذه الصفحة غير متاحة لحسابك.', 'warning')
-    return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    return redirect(admin_landing_url(_lang()))
 
 
 @admin_ops_bp.route('/admin/subscribers')

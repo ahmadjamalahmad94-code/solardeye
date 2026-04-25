@@ -117,7 +117,9 @@ def is_system_admin() -> bool:
     user = get_current_user()
     if not user:
         return False
-    return bool(getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin')
+    # Full bypass is reserved for the built-in admin role. Other staff roles are
+    # governed by their explicit RBAC permissions.
+    return bool((getattr(user, 'role', '') or '').strip().lower() == 'admin')
 
 
 def scoped_query(model, query=None):
@@ -136,41 +138,23 @@ def get_user_permissions(user=None) -> dict:
     user = user or get_current_user()
     if not user:
         return {}
+    try:
+        from .rbac import all_permission_defaults, role_permissions
+        perms = role_permissions(getattr(user, 'role', None))
+        if (getattr(user, 'role', '') or '').strip().lower() == 'admin':
+            perms.update(all_permission_defaults(True))
+    except Exception:
+        perms = {}
+
     raw = getattr(user, 'permissions_json', None)
     if raw:
         try:
             parsed = json.loads(raw)
             if isinstance(parsed, dict):
-                return parsed
+                perms.update({str(k): bool(v) for k, v in parsed.items()})
         except Exception:
             pass
-    role = (getattr(user, 'role', '') or 'user').strip().lower()
-    if role == 'admin' or getattr(user, 'is_admin', False):
-        return {
-            'can_manage_users': True,
-            'can_manage_devices': True,
-            'can_manage_support': True,
-            'can_manage_finance': True,
-            'can_manage_subscriptions': True,
-            'can_view_logs': True,
-            'can_configure_integrations': True,
-            'can_manage_integrations': True,
-        }
-    if role == 'manager':
-        return {
-            'can_manage_users': False,
-            'can_manage_devices': True,
-            'can_view_logs': True,
-            'can_configure_integrations': False,
-            'can_manage_integrations': False,
-        }
-    return {
-        'can_manage_users': False,
-        'can_manage_devices': True,
-        'can_view_logs': False,
-        'can_configure_integrations': False,
-            'can_manage_integrations': False,
-    }
+    return perms
 
 
 def has_permission(permission: str) -> bool:

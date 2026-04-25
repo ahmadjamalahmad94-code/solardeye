@@ -1,9 +1,88 @@
 {% extends "base.html" %}
+{% block title %}{{ 'Roles & Permissions' if (ui_lang or 'ar') == 'en' else 'الأدوار والصلاحيات' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
-<header class="admin-page-head"><div><span class="eyebrow">{{ 'Roles & permissions' if is_en else 'الأدوار والصلاحيات' }}</span><h1>{{ 'RBAC foundation' if is_en else 'أساس صلاحيات RBAC' }}</h1><p>{{ 'A practical matrix for scaling from a single admin to a true control plane team.' if is_en else 'مصفوفة عملية للتوسع من مدير واحد إلى فريق تشغيل كامل.' }}</p></div></header>
-<section class="admin-layout-v2"><div class="admin-card-v2"><small>{{ 'Role matrix' if is_en else 'مصفوفة الأدوار' }}</small><div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Role' if is_en else 'الدور' }}</th><th>{{ 'Summary' if is_en else 'الوصف' }}</th><th>{{ 'Permissions' if is_en else 'الصلاحيات' }}</th></tr></thead><tbody>{% for row in role_matrix %}<tr><td><strong>{{ row.role }}</strong></td><td>{{ row.summary }}</td><td>{{ row.perms|join(', ') }}</td></tr>{% endfor %}</tbody></table></div></div>
-<div class="admin-card-v2"><small>{{ 'Current admin users' if is_en else 'المسؤولون الحاليون' }}</small><div class="activity-list-v2">{% for user in admin_users %}<div class="activity-item-v2"><div><strong>{{ user.full_name or user.username }}</strong><small>{{ mask_email(user.email) if user.email else '@' ~ user.username }}</small></div><span class="status-pill success">{{ ui_label(user.role or 'admin', 'role', ui_lang) }}</span></div>{% else %}<div class="empty-box-v2">{{ 'No admin users found.' if is_en else 'لا يوجد مسؤولو منصة.' }}</div>{% endfor %}</div></div></section>
+<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2 roles-v100">
+<header class="admin-page-head roles-hero-v100">
+  <div>
+    <span class="eyebrow">Heavy v10.0</span>
+    <h1>{{ 'Roles, permissions, and subscriber visibility' if is_en else 'الأدوار والصلاحيات وظهور صفحات المشترك' }}</h1>
+    <p>{{ 'Create any role, choose exact permissions, and hide subscriber pages from the sidebar and direct access when needed.' if is_en else 'أنشئ أي دور، حدد صلاحياته بدقة، وأخفِ صفحات المشترك من السايدبار والوصول المباشر عند الحاجة.' }}</p>
+  </div>
+</header>
+
+<section class="admin-layout-v2 roles-layout-v100">
+  <div class="admin-card-v2 role-create-card-v100">
+    <small>{{ 'Create role' if is_en else 'إنشاء دور جديد' }}</small>
+    <h3>{{ 'Add a custom operational role' if is_en else 'أضف دور تشغيلي مخصص' }}</h3>
+    <form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create_role">
+      <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control" name="code" placeholder="support_lead" required></label>
+      <label><span>{{ 'Sort order' if is_en else 'ترتيب العرض' }}</span><input class="form-control" type="number" name="sort_order" value="50"></label>
+      <label><span>{{ 'Arabic name' if is_en else 'الاسم بالعربي' }}</span><input class="form-control" name="name_ar" required></label>
+      <label><span>{{ 'English name' if is_en else 'الاسم بالإنجليزي' }}</span><input class="form-control" name="name_en" required></label>
+      <label class="full"><span>{{ 'Arabic summary' if is_en else 'وصف عربي' }}</span><input class="form-control" name="summary_ar"></label>
+      <label class="full"><span>{{ 'English summary' if is_en else 'وصف إنجليزي' }}</span><input class="form-control" name="summary_en"></label>
+      <div class="full permission-grid-v100">
+        {% for perm in permission_rows %}
+        <label class="permission-check-v100"><input type="checkbox" name="{{ perm.key }}"> <span>{{ perm.label }}</span><small>{{ perm.key }}</small></label>
+        {% endfor %}
+      </div>
+      <label class="switch-row full"><span>{{ 'Role active' if is_en else 'الدور مفعل' }}</span><input type="checkbox" name="is_active" checked></label>
+      <div class="full action-row-v2"><button class="btn btn-solar">{{ 'Create role' if is_en else 'إنشاء الدور' }}</button></div>
+    </form>
+  </div>
+
+  <div class="admin-card-v2 portal-visibility-card-v100">
+    <small>{{ 'Subscriber pages' if is_en else 'صفحات المشترك' }}</small>
+    <h3>{{ 'Show or hide pages from subscribers' if is_en else 'إظهار أو إخفاء الصفحات عن المشتركين' }}</h3>
+    <p class="table-sub">{{ 'Hidden pages disappear from the subscriber sidebar and are blocked from direct access.' if is_en else 'الصفحات المخفية تختفي من سايدبار المشترك ويتم منع الوصول المباشر لها.' }}</p>
+    <form method="post" class="portal-page-grid-v100"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="portal_visibility">
+      {% for page in portal_page_rows %}
+      <label class="portal-page-toggle-v100 {{ 'is-locked' if page.is_locked else '' }}">
+        <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
+        <span>{{ page.icon }} {{ page.label_en if is_en else page.label_ar }}</span>
+        <small>{{ page.endpoint }}{% if page.is_locked %} • {{ 'Core' if is_en else 'أساسية' }}{% endif %}</small>
+      </label>
+      {% endfor %}
+      <button class="btn btn-solar">{{ 'Save subscriber visibility' if is_en else 'حفظ ظهور صفحات المشترك' }}</button>
+    </form>
+  </div>
+</section>
+
+<section class="admin-card-v2">
+  <div class="section-heading-inline"><div><small>{{ 'Role matrix' if is_en else 'مصفوفة الأدوار' }}</small><h3>{{ 'Active roles and permission switches' if is_en else 'الأدوار الحالية ومفاتيح الصلاحيات' }}</h3></div></div>
+  <div class="role-list-v100">
+    {% for role in roles %}
+    {% set perms = role_permissions(role.code) %}
+    <article class="role-card-v100">
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="update_role"><input type="hidden" name="role_id" value="{{ role.id if role.id is defined else 0 }}">
+        <div class="role-card-head-v100">
+          <div><strong>{{ role.name_en if is_en else role.name_ar }}</strong><small>{{ role.code }}{% if role.is_system %} • {{ 'System role' if is_en else 'دور نظامي' }}{% endif %}</small></div>
+          <label class="switch-row"><span>{{ 'Active' if is_en else 'مفعل' }}</span><input type="checkbox" name="is_active" {% if role.is_active %}checked{% endif %} {% if role.is_system %}disabled{% endif %}></label>
+        </div>
+        <div class="form-grid-v2 two compact-fields-v100">
+          <label><span>{{ 'Arabic name' if is_en else 'اسم عربي' }}</span><input class="form-control" name="name_ar" value="{{ role.name_ar }}"></label>
+          <label><span>{{ 'English name' if is_en else 'اسم إنجليزي' }}</span><input class="form-control" name="name_en" value="{{ role.name_en }}"></label>
+          <label><span>{{ 'Sort order' if is_en else 'ترتيب' }}</span><input class="form-control" type="number" name="sort_order" value="{{ role.sort_order or 100 }}"></label>
+          <label><span>{{ 'Arabic summary' if is_en else 'وصف عربي' }}</span><input class="form-control" name="summary_ar" value="{{ role.summary_ar or '' }}"></label>
+          <label class="full"><span>{{ 'English summary' if is_en else 'وصف إنجليزي' }}</span><input class="form-control" name="summary_en" value="{{ role.summary_en or '' }}"></label>
+        </div>
+        <div class="permission-grid-v100 compact">
+          {% for perm in permission_rows %}
+          <label class="permission-check-v100"><input type="checkbox" name="{{ perm.key }}" {% if perms.get(perm.key) %}checked{% endif %}> <span>{{ perm.label }}</span><small>{{ perm.key }}</small></label>
+          {% endfor %}
+        </div>
+        <div class="action-row-v2 role-actions-v100"><button class="btn btn-solar btn-sm">{{ 'Save role' if is_en else 'حفظ الدور' }}</button></div>
+      </form>
+      {% if not role.is_system %}<form method="post" class="role-delete-form-v100" onsubmit="return confirm('{{ 'Delete this role?' if is_en else 'حذف هذا الدور؟' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete_role"><input type="hidden" name="role_id" value="{{ role.id }}"><button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button></form>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="admin-card-v2">
+  <small>{{ 'Current admin users' if is_en else 'المسؤولون الحاليون' }}</small>
+  <div class="activity-list-v2">{% for user in admin_users %}<div class="activity-item-v2"><div><strong>{{ user.full_name or user.username }}</strong><small>{{ mask_email(user.email) if user.email else '@' ~ user.username }}</small></div><span class="status-pill success">{{ role_label(user.role or 'admin', ui_lang) }}</span></div>{% else %}<div class="empty-box-v2">{{ 'No admin users found.' if is_en else 'لا يوجد مسؤولو منصة.' }}</div>{% endfor %}</div>
+</section>
 </main></div>
 {% endblock %}

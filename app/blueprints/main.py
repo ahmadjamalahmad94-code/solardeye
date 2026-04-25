@@ -33,6 +33,7 @@ from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
 from ..services.security import preserve_secret_form_value, sanitize_response_payload
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
+from ..services.rbac import admin_landing_url
 from ..services.support_ops import (
     audit_case, build_support_queue, case_url, notify_user, portal_case_url,
     sync_existing_cases, unread_counts, upsert_support_case, notification_items_for, support_queue_stats,
@@ -129,8 +130,8 @@ def _admin_guard(permission: str = 'can_manage_users'):
         return None
     if has_permission(permission):
         return None
-    flash('هذه الصفحة غير متاحة لك ضمن صلاحيات حسابك.', 'warning')
-    return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    flash('This page is not available for your role.' if _lang() == 'en' else 'هذه الصفحة غير متاحة ضمن صلاحيات دورك.', 'warning')
+    return redirect(admin_landing_url(_lang()))
 
 
 
@@ -149,7 +150,7 @@ def _safe_admin_redirect(default_endpoint: str = 'main.admin_subscribers'):
 def _redirect_by_role(user=None):
     user = user or _active_user()
     if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
-        return redirect(url_for('main.admin_dashboard', lang=_lang()))
+        return redirect(admin_landing_url(_lang()))
     return redirect(url_for('main.dashboard', lang=_lang()))
 
 
@@ -157,9 +158,9 @@ def _energy_portal_guard():
     user = _active_user()
     if user is None:
         return redirect(url_for('auth.login'))
-    if getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin':
-        flash('لوحة الإدارة منفصلة عن بوابة الطاقة. ادخل بوابة مستخدم لرؤية جهازك.', 'info')
-        return redirect(url_for('main.admin_dashboard', lang=_lang()))
+    if getattr(user, 'is_admin', False) or (getattr(user, 'role', '') or '').strip().lower() != 'user':
+        flash('Admin console is separate from the subscriber energy portal.' if _lang() == 'en' else 'لوحة الإدارة منفصلة عن بوابة الطاقة.', 'info')
+        return redirect(admin_landing_url(_lang()))
     return None
 
 def _role_badge(role: str, is_active: bool):
@@ -1549,8 +1550,8 @@ def admin_user_profile(user_id: int):
                 user.email = (request.form.get('email') or '').strip()
                 user.is_active = request.form.get('is_active') == 'on'
                 role = (request.form.get('role') or user.role or 'user').strip().lower()
-                user.role = 'admin' if role == 'admin' else 'user'
-                user.is_admin = (user.role == 'admin')
+                user.role = role or 'user'
+                user.is_admin = (user.role != 'user')
                 if request.form.get('password'):
                     user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
                 db.session.commit()
@@ -1857,10 +1858,10 @@ def admin_user_create():
                 password_hash=generate_password_hash(password),
                 full_name=full_name,
                 email=email,
-                role='admin' if role == 'admin' else 'user',
+                role=role or 'user',
                 preferred_device_type='deye',
                 is_active=is_active,
-                is_admin=(role == 'admin'),
+                is_admin=(role != 'user'),
             )
             db.session.add(user)
             db.session.flush()
@@ -1901,8 +1902,8 @@ def admin_user_edit(user_id: int):
             user.username = username
             user.full_name = full_name
             user.email = email
-            user.role = 'admin' if role == 'admin' else 'user'
-            user.is_admin = (user.role == 'admin')
+            user.role = role or 'user'
+            user.is_admin = (user.role != 'user')
             user.is_active = is_active
             if password:
                 user.password_hash = generate_password_hash(password)
