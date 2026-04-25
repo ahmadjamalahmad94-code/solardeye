@@ -2601,3 +2601,73 @@ html[dir="rtl"] .profile-support-mailbox-v62 .mailbox-row-v62{padding:16px 24px 
   .profile-support-mailbox-v62{padding:16px!important}
   .profile-support-mailbox-v62 .thread-messages-v62{padding:18px!important}
 }
+
+
+/* Heavy v10.5.10 — Subscriber 360 support bubbles: no clipped messages */
+body.heavy-v100 .profile-mailbox-grid-v62 .profile-thread-panel-v62,
+body.heavy-v100 .profile-mailbox-grid-v62 .mailbox-thread-panel-v62,
+body.heavy-v100 .profile-mailbox-grid-v62 .mailbox-thread-v62{
+  overflow: visible !important;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-messages-v62{
+  padding: 26px 28px 34px !important;
+  gap: 18px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scroll-padding-bottom: 34px;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62{
+  box-sizing: border-box;
+  max-width: min(88%, 920px) !important;
+  min-width: min(240px, 100%) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 18px 22px !important;
+  border-radius: 24px !important;
+  line-height: 1.9 !important;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin{
+  margin-inline-end: 14px !important;
+  margin-inline-start: 42px !important;
+  box-shadow: 0 18px 42px rgba(29,78,216,.16);
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-user{
+  margin-inline-start: 14px !important;
+  margin-inline-end: 42px !important;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.internal-note{
+  margin-inline: auto !important;
+  max-width: min(94%, 980px) !important;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62 p,
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62 .message-body,
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62 small,
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62 strong{
+  max-height: none !important;
+  overflow: visible !important;
+  line-height: 1.95 !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .message-meta-v62{
+  margin-bottom: 10px !important;
+  gap: 14px !important;
+}
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin .message-meta-v62,
+body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin p{
+  color: #fff !important;
+}
+@media(max-width: 760px){
+  body.heavy-v100 .profile-mailbox-grid-v62 .thread-messages-v62{
+    padding: 18px 16px 28px !important;
+  }
+  body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62,
+  body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-admin,
+  body.heavy-v100 .profile-mailbox-grid-v62 .thread-message-v62.from-user{
+    max-width: 96% !important;
+    min-width: 0 !important;
+    margin-inline: 0 !important;
+    padding: 16px 18px !important;
+  }
+}
