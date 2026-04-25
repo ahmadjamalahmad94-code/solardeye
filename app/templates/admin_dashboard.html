@@ -56,7 +56,7 @@
     </section>
 
     <section class="admin-layout-v2 admin-layout-dashboard-v105">
-      <div class="admin-card-v2 ui-reactive" data-hover-card>
+      <div class="admin-card-v2 dashboard-card-v106 ui-reactive" data-hover-card>
         <div class="section-heading-inline">
           <div>
             <small>{{ 'Recent subscribers' if is_en else 'آخر المشتركين' }}</small>
@@ -64,28 +64,23 @@
           </div>
           <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Manage all' if is_en else 'إدارة الكل' }}</a>
         </div>
-        <div class="table-shell-v2">
-          <table class="admin-table-v2">
-            <thead>
-              <tr><th>{{ 'Name' if is_en else 'الاسم' }}</th><th>{{ 'Email' if is_en else 'البريد' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th></tr>
-            </thead>
-            <tbody>
-              {% for user in recent_subscribers %}
-              <tr>
-                <td><strong>{{ user.full_name or user.username }}</strong><div class="table-sub">@{{ user.username }}</div></td>
-                <td>{{ mask_email(user.email) if user.email else '-' }}</td>
-                <td><span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span></td>
-              </tr>
-              {% else %}
-              <tr><td colspan="3">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="activity-list-v2 dashboard-list-v106">
+          {% for user in recent_subscribers %}
+          <div class="activity-item-v2 dashboard-list-item-v106">
+            <div>
+              <strong>{{ user.full_name or user.username }}</strong>
+              <small>@{{ user.username }} • {{ mask_email(user.email) if user.email else '-' }}</small>
+            </div>
+            <span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span>
+          </div>
+          {% else %}
+          <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
+          {% endfor %}
         </div>
       </div>
 
       <div class="admin-stack-v2">
-        <div class="admin-card-v2 ui-reactive" data-hover-card>
+        <div class="admin-card-v2 dashboard-card-v106 ui-reactive" data-hover-card>
           <div class="section-heading-inline">
             <div>
               <small>{{ 'Services' if is_en else 'الخدمات' }}</small>
@@ -97,8 +92,8 @@
             {% for row in heartbeat_rows %}
             <div class="activity-item-v2">
               <div>
-                <strong>{{ row.service_label or row.service_key }}</strong>
-                <small>{{ row.updated_at or '-' }}</small>
+                <strong>{{ service_display_name(row.service_key or row.service_label, ui_lang) }}</strong>
+                <small>{{ format_local(row.updated_at) if row.updated_at else '-' }}</small>
               </div>
               <span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
             </div>
