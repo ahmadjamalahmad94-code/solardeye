@@ -1946,3 +1946,135 @@ body.no-global-utility-bar .dashboard-topbar{
 .heavy-v100 .topbar{
   scroll-margin-top:18px;
 }
+
+
+/* ===== Heavy v10.3 no-gap + no-sidebar-scroll hard fix ===== */
+body.heavy-v100,
+body.heavy-v100.no-global-utility-bar{
+  padding-top:0 !important;
+}
+body.heavy-v100 .app-shell{
+  display:block !important;
+  min-height:100vh;
+}
+body.heavy-v100 .content-area,
+body.heavy-v100 .content-area.admin-shell-v2{
+  display:block !important;
+  position:relative;
+  margin-top:0 !important;
+  padding-top:12px !important;
+  padding-bottom:24px !important;
+  min-height:auto !important;
+}
+body.heavy-v100 .content-area::before,
+body.heavy-v100 .content-area.admin-shell-v2::before,
+body.heavy-v100 .app-shell::before{
+  content:none !important;
+  display:none !important;
+}
+body.heavy-v100 .content-area > :first-child,
+body.heavy-v100 .content-area.admin-shell-v2 > :first-child,
+body.heavy-v100 main.content-area > header:first-child,
+body.heavy-v100 main.content-area > section:first-child{
+  margin-top:0 !important;
+  inset-block-start:auto !important;
+  transform:none !important;
+}
+
+/* Desktop sidebar should never scroll internally. */
+body.heavy-v100 .sidebar{
+  overflow:hidden !important;
+  overscroll-behavior:none;
+  padding:12px 12px 10px !important;
+}
+body.heavy-v100 .sidebar > div:first-of-type{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+  overflow:hidden !important;
+}
+body.heavy-v100 .brand-row{
+  margin-bottom:2px !important;
+}
+body.heavy-v100 .brand-icon{
+  width:38px;
+  height:38px;
+  border-radius:13px;
+}
+body.heavy-v100 .brand-row h4{
+  font-size:.95rem;
+}
+body.heavy-v100 .brand-row small{
+  font-size:.72rem;
+}
+body.heavy-v100 .sidebar-user-box{
+  padding:8px 10px !important;
+  border-radius:16px;
+}
+body.heavy-v100 .sidebar-user-avatar{
+  width:32px;
+  height:32px;
+  border-radius:12px;
+}
+body.heavy-v100 .sidebar-lang-box{
+  margin:0 !important;
+  padding:0 !important;
+}
+body.heavy-v100 .sidebar-lang-inline{
+  gap:8px;
+}
+body.heavy-v100 .sidebar-lang-btn.compact{
+  padding:7px 8px !important;
+  font-size:.8rem !important;
+  border-radius:11px;
+}
+body.heavy-v100 .nav-menu{
+  margin-top:2px !important;
+  gap:3px !important;
+  overflow:hidden !important;
+  padding-bottom:0 !important;
+}
+body.heavy-v100 .nav-group-title{
+  margin:6px 4px 2px !important;
+  font-size:.66rem !important;
+  letter-spacing:.05em;
+}
+body.heavy-v100 .nav-menu a{
+  min-height:35px !important;
+  padding:7px 10px !important;
+  border-radius:12px !important;
+  font-size:.84rem !important;
+  line-height:1.1 !important;
+}
+body.heavy-v100 .nav-menu .nav-badge{
+  min-width:18px;
+  height:18px;
+  font-size:.7rem;
+}
+body.heavy-v100 .sidebar-footer{
+  position:static !important;
+  inset:auto !important;
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid rgba(255,255,255,.10);
+}
+body.heavy-v100 .sidebar-footer .btn{
+  min-height:34px !important;
+  font-size:.86rem !important;
+}
+
+/* Keep mobile drawer behavior intact. */
+@media (max-width:900px){
+  body.heavy-v100 .sidebar{
+    overflow:auto !important;
+    padding:16px 14px 14px !important;
+  }
+  body.heavy-v100 .nav-menu{
+    overflow:visible !important;
+  }
+  body.heavy-v100 .content-area,
+  body.heavy-v100 .content-area.admin-shell-v2{
+    padding-top:8px !important;
+  }
+}

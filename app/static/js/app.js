@@ -1,6 +1,16 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const body = document.body;
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  const resetLayoutScroll = () => {
+    if (window.location.hash) return;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    document.querySelectorAll('.content-area, .sidebar, .nav-menu').forEach((el) => {
+      if (el) el.scrollTop = 0;
+    });
+  };
   const langToggle = document.getElementById('langToggle');
 
   const currentLang = () => body.dataset.lang === 'en' ? 'en' : 'ar';
@@ -23,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   applyTranslations();
+  resetLayoutScroll();
+  window.addEventListener('pageshow', resetLayoutScroll);
 
   const clock = document.getElementById('liveClock');
   const fmt = () => new Intl.DateTimeFormat(
