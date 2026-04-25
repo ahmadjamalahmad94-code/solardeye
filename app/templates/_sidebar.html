@@ -1,5 +1,5 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<aside class="sidebar {% if g.is_admin %}admin-sidebar admin-sidebar-v2{% endif %}" id="sidebar">
+<aside class="sidebar sidebar-fancy-v104 {% if g.is_admin %}admin-sidebar admin-sidebar-v2{% else %}portal-sidebar-v104{% endif %}" id="sidebar">
   <button class="sidebar-mobile-close-v70" id="sidebarMobileCloseV70" type="button" aria-label="{{ 'Close navigation' if is_en else 'إغلاق القائمة' }}">×</button>
   <div>
     <div class="brand-row">
@@ -7,10 +7,10 @@
       <div>
         {% if g.is_admin %}
           <h4 class="mb-0">{{ 'Admin Console' if is_en else 'لوحة الإدارة' }}</h4>
-          <small>{{ 'SolarDeye Command v10.3' if is_en else 'SolarDeye Command v10.3' }}</small>
+          <small>{{ 'SolarDeye Command v10.4' if is_en else 'SolarDeye Command v10.4' }}</small>
         {% else %}
           <h4 class="mb-0">{{ 'Solar Platform' if is_en else 'منصة الطاقة' }}</h4>
-          <small>{{ 'Smart Portal v10.3' if is_en else 'البوابة الذكية v10.3' }}</small>
+          <small>{{ 'Smart Portal v10.4' if is_en else 'البوابة الذكية v10.4' }}</small>
         {% endif %}
       </div>
     </div>

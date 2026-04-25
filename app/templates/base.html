@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0f172a">
   {% if session.get('logged_in') or request.endpoint in ['auth.login','auth.register'] %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
   <title>{% block title %}{{ t(title or 'SolarDeye Platform') }}{% endblock %}</title>
+  <script id="solar-scroll-guard-v104">if(!location.hash&&'scrollRestoration'in history){history.scrollRestoration='manual';window.scrollTo(0,0);}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,7 +15,7 @@
   {% else %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='10.3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='10.4') }}">
 </head>
 <body class="theme-saas saas-only heavy-v70 heavy-v71 heavy-v72 heavy-v721 heavy-v80 heavy-v90 heavy-v100 no-global-utility-bar" data-lang="{{ ui_lang or 'ar' }}" data-csrf-token="{{ csrf_token() if session.get('logged_in') or request.endpoint in ['auth.login','auth.register'] else '' }}">
   {% include '_header_notifications.html' %}
@@ -37,6 +38,6 @@
   {% block body %}{% endblock %}
   <script>window.SOLARDEYE_I18N = {{ i18n_client_catalog_json|safe }};</script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script defer src="{{ url_for('static', filename='js/app.js', v='10.3') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/app.js', v='10.4') }}"></script>
 </body>
 </html>
