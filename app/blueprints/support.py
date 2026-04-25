@@ -11,6 +11,8 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
+from ..services.quota_engine import consume_quota_for_user
+
 support_bp = Blueprint('support', __name__)
 
 @support_bp.route('/admin/mail', methods=['GET', 'POST'])
@@ -184,6 +186,10 @@ def portal_support():
             priority = (request.form.get('priority') or 'normal').strip()
             category = (request.form.get('category') or ('support' if kind == 'ticket' else 'general')).strip()
             if subject and body:
+                ok, quota_msg, _quota = consume_quota_for_user(user, 'support_cases_limit', 1, lang=_lang())
+                if not ok:
+                    flash(quota_msg, 'warning')
+                    return redirect(url_for('main.portal_support', lang=_lang(), type='all'))
                 if kind == 'ticket':
                     ticket = SupportTicket(tenant_id=getattr(tenant, 'id', None), opened_by_user_id=user.id, subject=subject, category=category, priority=priority, status='open', related_device_id=int(request.form.get('related_device_id') or 0) or getattr(_active_device(), 'id', None), last_reply_at=datetime.utcnow())
                     db.session.add(ticket)

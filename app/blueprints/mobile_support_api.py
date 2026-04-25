@@ -10,6 +10,7 @@ from ..services.api_responses import api_error, api_ok, page_meta, pagination_ar
 from ..services.mobile_auth import user_from_bearer_or_session
 from ..services.support_ops import audit_case, notify_user, upsert_support_case
 from ..services.subscriptions import ensure_user_tenant_and_subscription
+from ..services.quota_engine import consume_quota_for_user
 
 mobile_support_api_bp = Blueprint('mobile_support_api', __name__, url_prefix='/api/v1/support')
 
@@ -138,6 +139,9 @@ def create_support_case():
         return api_error('Subject and message body are required.', code='missing_support_fields', status=400)
     tenant, _ = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
     tenant_id = getattr(tenant, 'id', None)
+    ok, quota_msg, _quota = consume_quota_for_user(user, 'support_cases_limit', 1, lang='en')
+    if not ok:
+        return api_error(quota_msg, code='quota_exceeded', status=429)
     if kind == 'ticket':
         item = SupportTicket(tenant_id=tenant_id, opened_by_user_id=user.id, subject=subject, category=category, priority=priority, status='open', related_device_id=data.get('related_device_id') or None, last_reply_at=datetime.utcnow())
         db.session.add(item); db.session.flush()

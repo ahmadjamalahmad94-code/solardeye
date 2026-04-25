@@ -5,12 +5,13 @@ import html
 from datetime import UTC, datetime, timedelta
 
 import requests
-from flask import current_app, request, url_for
+from flask import current_app, request, url_for, has_request_context
 
 from ..extensions import db
 from ..models import NotificationLog, Reading, Setting, UserLoad
-from ..services.scope import current_scope_ids, scoped_query
+from ..services.scope import current_scope_ids, scoped_query, get_current_user
 from ..services.utils import format_local_datetime, human_duration_hours, safe_float, safe_power_w, utc_to_local
+from ..services.quota_engine import check_quota_for_user, consume_quota_for_user
 from .helpers import (
     battery_percent_bar, build_battery_insights, build_pre_sunset_prediction,
     build_system_state, compute_actual_solar_surplus, format_energy, format_power, get_runtime_battery_settings,
@@ -365,6 +366,12 @@ def send_telegram_message(settings: dict, title: str, message: str):
     url = f"{base}/bot{token}/sendMessage"
     clean_title = _normalize_telegram_text(title)
     clean_message = _normalize_telegram_text(message)
+    quota_user = get_current_user() if has_request_context() else None
+    ok_quota, quota_msg, _quota = check_quota_for_user(quota_user, 'telegram_limit', 1)
+    if not ok_quota:
+        _diag('telegram send blocked by quota: %s', quota_msg)
+        return False, quota_msg
+
     payload = {
         'chat_id': chat_id,
         'text': (clean_title + "\n\n" + clean_message).strip(),
@@ -385,6 +392,8 @@ def send_telegram_message(settings: dict, title: str, message: str):
         except Exception:
             ok = bool(r.ok)
             _diag('telegram send json-parse=%s status=%s body=%s', ok, r.status_code, body)
+        if ok:
+            consume_quota_for_user(quota_user, 'telegram_limit', 1, commit=True)
         return ok, body
     except Exception as exc:
         _diag('telegram send exception: %s', exc)
@@ -432,12 +441,18 @@ def send_sms_message(settings: dict, title: str, message: str):
     if not api_url or not api_key or not sender or not recipients:
         _diag('sms send skipped: incomplete settings url=%s key=%s sender=%s recipients=%s', bool(api_url), bool(api_key), bool(sender), bool(recipients))
         return False, 'بيانات SMS غير مكتملة'
+    quota_user = get_current_user() if has_request_context() else None
+    ok_quota, quota_msg, _quota = check_quota_for_user(quota_user, 'sms_limit', len(recipients))
+    if not ok_quota:
+        _diag('sms send blocked by quota: %s', quota_msg)
+        return False, quota_msg
     compact_title = _normalize_telegram_text(title).replace('\n', ' ').strip()
     compact_message = _normalize_telegram_text(message).replace('\n', ' ').strip()
     full_message = f"{compact_title}: {compact_message}".strip(': ').strip()
     encoded_message = quote(full_message)
 
     all_ok = True
+    success_count = 0
     details = []
     for phone in recipients:
         url = (
@@ -454,6 +469,7 @@ def send_sms_message(settings: dict, title: str, message: str):
             all_ok = all_ok and ok_line
             details.append(f"{phone}: {desc}")
             if ok_line:
+                success_count += 1
                 _diag('sms send ok: phone=%s code=%s sms_id=%s', phone, info.get('code'), info.get('sms_id'))
             else:
                 _diag('sms send failed: phone=%s code=%s body=%s', phone, info.get('code'), body)
@@ -462,6 +478,8 @@ def send_sms_message(settings: dict, title: str, message: str):
             details.append(f"{phone}: {exc}")
             _diag('sms send exception: phone=%s err=%s', phone, exc)
 
+    if success_count > 0:
+        consume_quota_for_user(quota_user, 'sms_limit', success_count, commit=True)
     return all_ok, ' | '.join(details)
 
 
@@ -633,11 +651,19 @@ def _telegram_api_call(settings: dict, method: str, payload: dict):
     base = (settings.get('telegram_api_url') or 'https://api.telegram.org').rstrip('/')
     if not token:
         return False, 'بيانات Telegram غير مكتملة', {}
+    quota_user = get_current_user() if has_request_context() else None
+    if method == 'sendMessage':
+        ok_quota, quota_msg, _quota = check_quota_for_user(quota_user, 'telegram_limit', 1)
+        if not ok_quota:
+            return False, quota_msg, {}
     url = f"{base}/bot{token}/{method}"
     try:
         r = requests.post(url, json=payload, timeout=20)
         data = r.json() if r.headers.get('content-type', '').startswith('application/json') else {}
-        return bool(r.ok and data.get('ok', True)), r.text[:500], data
+        ok = bool(r.ok and data.get('ok', True))
+        if ok and method == 'sendMessage':
+            consume_quota_for_user(quota_user, 'telegram_limit', 1, commit=True)
+        return ok, r.text[:500], data
     except Exception as exc:
         return False, str(exc), {}
 
