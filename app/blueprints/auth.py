@@ -387,15 +387,21 @@ def protect_routes():
         'auth.facebook_callback',
         'static',
         'main.telegram_webhook',
+        'notifications_routes.telegram_webhook',
         'main.telegram_multilink_webhook',
         'main.index',
         'energy.index',
     }
     ep = request.endpoint or ''
+    path = request.path or ''
     public_paths = {'/', '/index', '/landing'}
-    if (request.path or '') in public_paths:
+    if path in public_paths:
         return
     if ep in public_endpoints or ep.startswith('static'):
+        return
+    # Mobile/API routes authenticate with bearer tokens inside their own handlers.
+    # Let those handlers return precise API errors instead of browser-session redirects.
+    if path.startswith('/api/v1/'):
         return
     g.current_user = None
     g.current_device = None
@@ -451,7 +457,7 @@ def protect_routes():
                 g.ticket_notification_count = 0
 
     # Security: subscriber sessions must never render /admin/* pages, even if a notification contains an old admin URL.
-    if session.get('logged_in') and (request.path or '').startswith('/admin') and (g.current_user is None or not g.is_admin):
+    if session.get('logged_in') and path.startswith('/admin') and (g.current_user is None or not g.is_admin):
         flash('هذه الصفحة خاصة بالإدارة. تم تحويلك إلى بوابتك.', 'warning')
         return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
 
@@ -459,8 +465,8 @@ def protect_routes():
         wants_json = (
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or request.accept_mimetypes.best == 'application/json'
-            or request.path.startswith('/telegram/webhook')
-            or request.path.startswith('/telegram/multilink-webhook')
+            or path.startswith('/telegram/webhook')
+            or path.startswith('/telegram/multilink-webhook')
         )
         if wants_json:
             return jsonify({
