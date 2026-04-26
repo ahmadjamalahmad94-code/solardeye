@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set is_logged = landing_logged_in|default(false) %}
+{% set primary_cta_url = landing_dashboard_url if is_logged else landing_register_url|default(url_for('auth.register', lang=ui_lang)) %}
+{% set primary_cta_text = ('Open dashboard' if is_en else 'افتح لوحة التحكم') if is_logged else ('Start now' if is_en else 'ابدأ الآن') %}
+{% set login_cta_text = ('Dashboard' if is_en else 'لوحة التحكم') if is_logged else ('Login' if is_en else 'تسجيل الدخول') %}
+{% set login_cta_url = landing_dashboard_url if is_logged else landing_login_url|default(url_for('auth.login', lang=ui_lang)) %}
 {% block title %}{{ 'Energy Platform' if is_en else 'منصة الطاقة' }}{% endblock %}
 {% block body %}
 <main class="home-deluxe-v10526" dir="{{ 'ltr' if is_en else 'rtl' }}">
@@ -16,8 +21,9 @@
       <a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a>
     </div>
     <div class="home-actions-v10526">
-      <a class="btn btn-outline-primary" href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Login' if is_en else 'تسجيل الدخول' }} 👤</a>
-      <a class="btn btn-solar" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }} 🚀</a>
+      {% if is_logged %}<span class="landing-session-pill-v10527">{{ 'You are signed in' if is_en else 'أنت مسجل الدخول' }}</span>{% endif %}
+      <a class="btn btn-outline-primary" href="{{ login_cta_url }}">{{ login_cta_text }} 👤</a>
+      <a class="btn btn-solar" href="{{ primary_cta_url }}">{{ primary_cta_text }} 🚀</a>
     </div>
   </nav>
 
@@ -52,7 +58,7 @@
       <h1>{{ 'Smart platform for energy, devices, and alerts' if is_en else 'منصة ذكية لإدارة الطاقة والأجهزة والتنبيهات' }}</h1>
       <p>{{ 'Monitor solar systems, connected devices, alerts, weather, support, and reports from one professional interface.' if is_en else 'راقب أنظمتك الشمسية، أجهزتك المتصلة، التنبيهات، الطقس، الدعم، والتقارير من واجهة واحدة احترافية.' }}</p>
       <div class="hero-buttons-v10526">
-        <a class="btn btn-solar btn-lg" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }} 🚀</a>
+        <a class="btn btn-solar btn-lg" href="{{ primary_cta_url }}">{{ primary_cta_text }} 🚀</a>
         <a class="btn btn-outline-light btn-lg" href="#pricing">{{ 'View plans' if is_en else 'شاهد الباقات' }}</a>
       </div>
       <div class="hero-pills-v10526"><span>🔔 {{ 'Smart alerts' if is_en else 'تنبيهات ذكية' }}</span><span>🔌 {{ 'Multi device' if is_en else 'تعدد الأجهزة' }}</span><span>📊 {{ 'Clear reports' if is_en else 'تقارير واضحة' }}</span><span>💬 {{ 'Support' if is_en else 'دعم ومراسلات' }}</span></div>
@@ -102,9 +108,9 @@
   <section id="pricing" class="home-section-v10526">
     <div class="section-title-v10526"><h2>{{ 'Choose the right plan' if is_en else 'اختر الباقة المناسبة لاحتياجاتك' }}</h2><span></span></div>
     <div class="plans-v10526">
-      <article><h3>{{ 'Basic' if is_en else 'الأساسية' }}</h3><p>{{ 'For small projects' if is_en else 'مثالية للمشاريع الصغيرة' }}</p><strong>$9 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 10 أجهزة</li><li>50 تنبيه شهريًا</li><li>دعم عبر التذاكر</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
-      <article class="popular-v10526"><b>{{ 'Most popular' if is_en else 'الأكثر شيوعًا' }}</b><h3>{{ 'Pro' if is_en else 'الاحترافية' }}</h3><p>{{ 'For active teams' if is_en else 'للشركات والمشاريع المتوسطة' }}</p><strong>$29 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 50 جهاز</li><li>200 تنبيه شهريًا</li><li>تقارير متقدمة</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
-      <article><h3>{{ 'Platinum' if is_en else 'البلاتينية' }}</h3><p>{{ 'For large operators' if is_en else 'للمشاريع الكبيرة والمؤسسات' }}</p><strong>$79 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>أجهزة غير محدودة</li><li>تنبيهات غير محدودة</li><li>واجهة API</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
+      <article><h3>{{ 'Basic' if is_en else 'الأساسية' }}</h3><p>{{ 'For small projects' if is_en else 'مثالية للمشاريع الصغيرة' }}</p><strong>$9 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 10 أجهزة</li><li>50 تنبيه شهريًا</li><li>دعم عبر التذاكر</li></ul><a href="{{ primary_cta_url }}">{{ primary_cta_text }}</a></article>
+      <article class="popular-v10526"><b>{{ 'Most popular' if is_en else 'الأكثر شيوعًا' }}</b><h3>{{ 'Pro' if is_en else 'الاحترافية' }}</h3><p>{{ 'For active teams' if is_en else 'للشركات والمشاريع المتوسطة' }}</p><strong>$29 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 50 جهاز</li><li>200 تنبيه شهريًا</li><li>تقارير متقدمة</li></ul><a href="{{ primary_cta_url }}">{{ primary_cta_text }}</a></article>
+      <article><h3>{{ 'Platinum' if is_en else 'البلاتينية' }}</h3><p>{{ 'For large operators' if is_en else 'للمشاريع الكبيرة والمؤسسات' }}</p><strong>$79 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>أجهزة غير محدودة</li><li>تنبيهات غير محدودة</li><li>واجهة API</li></ul><a href="{{ primary_cta_url }}">{{ primary_cta_text }}</a></article>
     </div>
   </section>
 
@@ -118,7 +124,7 @@
     <details><summary>هل يمكن تخصيص الصلاحيات لكل مشترك؟</summary><p>نعم، يمكن إظهار أو إخفاء صفحات محددة لكل مشترك.</p></details>
   </section>
 
-  <section class="final-cta-v10526"><div><h2>{{ 'Give your energy a professional command center' if is_en else 'ابدأ اليوم وامنح طاقتك لوحة قيادة احترافية' }}</h2><p>{{ 'Control, monitor, and improve your systems from one place.' if is_en else 'تحكم، راقب، وحسّن أداء أنظمتك من مكان واحد.' }}</p></div><a class="btn btn-solar btn-lg" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Create your account' if is_en else 'أنشئ حسابك الآن' }} 🚀</a></section>
+  <section class="final-cta-v10526"><div><h2>{{ 'Give your energy a professional command center' if is_en else 'ابدأ اليوم وامنح طاقتك لوحة قيادة احترافية' }}</h2><p>{{ 'Control, monitor, and improve your systems from one place.' if is_en else 'تحكم، راقب، وحسّن أداء أنظمتك من مكان واحد.' }}</p></div><a class="btn btn-solar btn-lg" href="{{ primary_cta_url }}">{{ ('Open dashboard' if is_en else 'افتح لوحة التحكم') if is_logged else ('Create your account' if is_en else 'أنشئ حسابك الآن') }} 🚀</a></section>
 
   <footer class="home-footer-v10526"><div><strong>⚡ {{ 'Energy Platform' if is_en else 'منصة الطاقة' }}</strong><p>{{ 'Professional energy, devices, and alerts platform.' if is_en else 'منصة متكاملة لإدارة الطاقة والأجهزة والتنبيهات باحترافية.' }}</p></div><div><span>© 2026 {{ 'All rights reserved.' if is_en else 'جميع الحقوق محفوظة.' }}</span></div></footer>
 </main>

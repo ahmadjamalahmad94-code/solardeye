@@ -15,12 +15,21 @@ energy_bp = Blueprint('energy', __name__)
 
 @energy_bp.route('/')
 def index():
-    if session.get('logged_in'):
-        user = _active_user()
-        if user and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'):
-            return redirect(url_for('main.admin_dashboard', lang=_lang()))
-        return redirect(url_for('main.dashboard', lang=_lang()))
-    return render_template('landing.html', ui_lang=_lang())
+    # Heavy v10.5.27: the root URL is a public landing page.
+    # Logged-in users still see the landing page, but CTAs point them back to
+    # their proper dashboard instead of forcing an automatic redirect.
+    user = _active_user() if session.get('logged_in') else None
+    is_admin_user = bool(user and (getattr(user, 'is_admin', False) or (getattr(user, 'role', '') or '').strip().lower() == 'admin'))
+    dashboard_url = url_for('main.admin_dashboard', lang=_lang()) if is_admin_user else url_for('main.dashboard', lang=_lang())
+    return render_template(
+        'landing.html',
+        ui_lang=_lang(),
+        landing_logged_in=bool(session.get('logged_in')),
+        landing_is_admin=is_admin_user,
+        landing_dashboard_url=dashboard_url,
+        landing_register_url=url_for('auth.register', lang=_lang()),
+        landing_login_url=url_for('auth.login', lang=_lang()),
+    )
 
 
 @energy_bp.route('/admin/dashboard')
