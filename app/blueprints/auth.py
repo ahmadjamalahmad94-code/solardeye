@@ -26,6 +26,7 @@ from ..services.subscriptions import ensure_user_tenant_and_subscription, featur
 from ..services.support_ops import unread_counts
 from ..services.rbac import admin_landing_url
 from ..services.access_state import account_access_state
+from ..services.energy_integrations import PROVIDER_CATALOG
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -45,6 +46,8 @@ def _login_user(app_user: AppUser):
     session['logged_in'] = True
     session['username'] = app_user.username
     session['user_id'] = app_user.id
+    if getattr(app_user, 'preferred_language', None):
+        session['ui_lang'] = app_user.preferred_language
     session['current_device_type'] = app_user.preferred_device_type or 'deye'
 
     device = None
@@ -63,23 +66,26 @@ def _login_user(app_user: AppUser):
     db.session.commit()
 
 
-def _create_default_device_for_user(user: AppUser, name: str | None = None):
-    base_name = (name or user.full_name or user.username or 'My Solar Device').strip()
+def _create_default_device_for_user(user: AppUser, name: str | None = None, device_type: str | None = None):
+    base_name = (name or user.full_name or user.username or 'My Energy Site').strip()
+    provider_code = (device_type or user.preferred_device_type or 'deye').strip() or 'deye'
+    spec = next((p for p in PROVIDER_CATALOG if p.code == provider_code), None)
     device = AppDevice(
         owner_user_id=user.id,
-        name=f"{base_name} Device",
-        device_type='deye',
-        api_provider='deye',
-        api_base_url=current_app.config.get('DEYE_BASE_URL', ''),
-        timezone=current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'),
+        name=f"{base_name} — {spec.name if spec else provider_code}",
+        device_type=provider_code,
+        api_provider=(spec.provider if spec else provider_code),
+        api_base_url=(spec.base_url if spec else current_app.config.get('DEYE_BASE_URL', '')),
+        timezone=getattr(user, 'timezone', None) or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron'),
         auth_mode='wizard',
         is_active=True,
-        notes='تم إنشاؤه تلقائيًا عند التسجيل لأول مرة.',
+        connection_status='setup_required',
+        notes='تم إنشاؤه كبداية من التسجيل. أكمل بيانات الربط من معالج الإعداد.',
     )
     db.session.add(device)
     db.session.flush()
     user.preferred_device_id = device.id
-    user.preferred_device_type = device.device_type or 'deye'
+    user.preferred_device_type = device.device_type or provider_code
     return device
 
 def _random_username_from_email(email: str) -> str:
@@ -144,12 +150,43 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    country_options = [
+        {'code': 'PS', 'name_ar': 'فلسطين', 'name_en': 'Palestine', 'timezone': 'Asia/Hebron', 'cities': ['نابلس', 'رام الله', 'الخليل', 'غزة', 'جنين', 'طولكرم', 'بيت لحم']},
+        {'code': 'JO', 'name_ar': 'الأردن', 'name_en': 'Jordan', 'timezone': 'Asia/Amman', 'cities': ['عمّان', 'إربد', 'الزرقاء', 'العقبة']},
+        {'code': 'SA', 'name_ar': 'السعودية', 'name_en': 'Saudi Arabia', 'timezone': 'Asia/Riyadh', 'cities': ['الرياض', 'جدة', 'الدمام', 'مكة']},
+        {'code': 'AE', 'name_ar': 'الإمارات', 'name_en': 'United Arab Emirates', 'timezone': 'Asia/Dubai', 'cities': ['دبي', 'أبوظبي', 'الشارقة']},
+        {'code': 'EG', 'name_ar': 'مصر', 'name_en': 'Egypt', 'timezone': 'Africa/Cairo', 'cities': ['القاهرة', 'الإسكندرية', 'الجيزة']},
+        {'code': 'TR', 'name_ar': 'تركيا', 'name_en': 'Turkey', 'timezone': 'Europe/Istanbul', 'cities': ['إسطنبول', 'أنقرة', 'إزمير']},
+        {'code': 'OTHER', 'name_ar': 'دولة أخرى', 'name_en': 'Other country', 'timezone': 'Asia/Hebron', 'cities': []},
+    ]
+    timezone_options = ['Asia/Hebron', 'Asia/Jerusalem', 'Asia/Amman', 'Asia/Riyadh', 'Asia/Dubai', 'Africa/Cairo', 'Europe/Istanbul', 'Europe/London', 'America/New_York']
+    provider_options = [
+        {'code': p.code, 'name': p.name, 'category': p.category, 'notes_ar': p.notes_ar, 'notes_en': p.notes_en}
+        for p in PROVIDER_CATALOG[:22]
+    ]
+    form_values = request.form if request.method == 'POST' else {}
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
+        country = request.form.get('country', '').strip()
+        city = request.form.get('city', '').strip()
+        timezone = request.form.get('timezone', 'Asia/Hebron').strip() or 'Asia/Hebron'
+        preferred_language = request.form.get('preferred_language', session.get('ui_lang') or 'ar').strip() or 'ar'
+        has_energy_system = request.form.get('has_energy_system', 'yes').strip()
+        preferred_device_type = request.form.get('preferred_device_type', 'deye').strip() or 'deye'
+        next_step = request.form.get('next_step', 'setup').strip() or 'setup'
+
+        allowed_provider_codes = {p['code'] for p in provider_options}
+        if preferred_device_type not in allowed_provider_codes:
+            preferred_device_type = 'deye'
+        if timezone not in timezone_options:
+            timezone = 'Asia/Hebron'
+        if preferred_language not in {'ar', 'en'}:
+            preferred_language = 'ar'
 
         if not username or not password:
             flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
@@ -157,6 +194,8 @@ def register():
             flash('كلمة المرور يجب أن تكون 6 أحرف على الأقل.', 'warning')
         elif password != confirm_password:
             flash('تأكيد كلمة المرور غير مطابق.', 'danger')
+        elif not country or not city:
+            flash('الدولة والمدينة مطلوبتان لضبط الطقس والتوقيت بدقة.', 'warning')
         elif AppUser.query.filter_by(username=username).first():
             flash('اسم المستخدم مستخدم من قبل.', 'danger')
         elif email and AppUser.query.filter_by(email=email).first():
@@ -167,21 +206,30 @@ def register():
                 password_hash=generate_password_hash(password),
                 full_name=full_name,
                 email=email,
+                country=country,
+                city=city,
+                timezone=timezone,
+                preferred_language=preferred_language,
                 role='user',
-                preferred_device_type='deye',
+                preferred_device_type=preferred_device_type,
                 is_active=True,
                 is_admin=False,
-                onboarding_completed=False,
-                onboarding_step='welcome',
+                onboarding_completed=(has_energy_system == 'no'),
+                onboarding_step='welcome' if has_energy_system != 'no' else 'explore_services',
             )
             db.session.add(user)
             db.session.flush()
-            _create_default_device_for_user(user, full_name or username)
+            if has_energy_system != 'no':
+                _create_default_device_for_user(user, full_name or username, preferred_device_type)
             db.session.commit()
+            session['ui_lang'] = preferred_language
             _login_user(user)
-            flash('تم إنشاء الحساب بنجاح. أهلاً بك ✨', 'success')
-            return redirect(url_for('main.onboarding_wizard'))
-    return render_template('register.html')
+            flash('تم إنشاء الحساب بنجاح. جهزنا ملفك حسب موقعك وتفضيلاتك ✨', 'success')
+            if has_energy_system == 'no' or next_step == 'explore':
+                flash('يمكنك استكشاف الخدمات الآن وإضافة جهاز لاحقًا من صفحة أجهزتي.', 'info')
+                return redirect(url_for('main.account_subscription', lang=preferred_language))
+            return redirect(url_for('main.onboarding_wizard', lang=preferred_language))
+    return render_template('register.html', country_options=country_options, timezone_options=timezone_options, provider_options=provider_options, form_values=form_values)
 
 
 

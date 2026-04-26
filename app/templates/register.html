@@ -1,51 +1,133 @@
 {% extends 'base.html' %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'Create account' if is_en else 'إنشاء حساب جديد' }}{% endblock %}
 {% block body %}
-<div class="login-shell">
-  <div class="login-card register-card">
-    <div class="brand-mark">✨</div>
-    <h1>إنشاء حساب جديد</h1>
-    <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><a class="home-link" href="{{ url_for('main.index', lang=ui_lang) }}">← العودة للرئيسية</a></div>
-    <p class="subtext">ابدأ مع منصة الطاقة خلال دقائق، ويمكنك إكمال الإعدادات لاحقًا عبر معالج البداية.</p>
+<div class="login-shell register-shell-v1060">
+  <div class="register-card-v1060">
+    <section class="register-hero-v1060">
+      <a class="home-link register-back-v1060" href="{{ url_for('main.index', lang=ui_lang) }}">{{ '← Back to home' if is_en else '← العودة للرئيسية' }}</a>
+      <div class="brand-mark register-mark-v1060">☀️</div>
+      <span class="register-eyebrow-v1060">{{ 'Professional Energy Account' if is_en else 'حساب طاقة احترافي' }}</span>
+      <h1>{{ 'Start with accurate location, timezone, and device-ready setup' if is_en else 'ابدأ بحساب جاهز للموقع والطقس والأجهزة' }}</h1>
+      <p>{{ 'We use your country, city, and timezone to improve weather insights, schedules, alerts, and solar recommendations.' if is_en else 'نستخدم الدولة والمدينة والمنطقة الزمنية لتحسين الطقس، التوقعات، الجداول، والتنبيهات الذكية.' }}</p>
+      <div class="register-benefits-v1060">
+        <div><strong>1</strong><span>{{ 'Account' if is_en else 'الحساب' }}</span></div>
+        <div><strong>2</strong><span>{{ 'Location' if is_en else 'الموقع' }}</span></div>
+        <div><strong>3</strong><span>{{ 'Device' if is_en else 'الجهاز' }}</span></div>
+      </div>
+    </section>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+    <section class="register-form-panel-v1060">
+      <div class="register-form-head-v1060">
+        <div>
+          <small>{{ 'Create your profile' if is_en else 'أنشئ ملفك' }}</small>
+          <h2>{{ 'Tell us the essentials' if is_en else 'المعلومات الأساسية' }}</h2>
+        </div>
+        <div class="register-lang-mini-v1060">
+          <a class="{{ 'active' if not is_en else '' }}" href="{{ lang_url('ar') }}">عربي</a>
+          <a class="{{ 'active' if is_en else '' }}" href="{{ lang_url('en') }}">English</a>
+        </div>
+      </div>
 
-    <form method="post" action="{{ url_for('auth.register') }}" class="mt-4 admin-form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div>
-        <label class="form-label">اسم المستخدم</label>
-        <input class="form-control form-control-lg" name="username" required autocomplete="username">
-      </div>
-      <div>
-        <label class="form-label">الاسم الكامل</label>
-        <input class="form-control form-control-lg" name="full_name" autocomplete="name">
-      </div>
-      <div class="full">
-        <label class="form-label">البريد الإلكتروني</label>
-        <input type="email" class="form-control form-control-lg" name="email" autocomplete="email">
-      </div>
-      <div>
-        <label class="form-label">كلمة المرور</label>
-        <input type="password" class="form-control form-control-lg" name="password" required autocomplete="new-password">
-      </div>
-      <div>
-        <label class="form-label">تأكيد كلمة المرور</label>
-        <input type="password" class="form-control form-control-lg" name="confirm_password" required autocomplete="new-password">
-      </div>
-      <div class="full d-grid gap-2 mt-2">
-        <button class="btn btn-solar w-100">إنشاء الحساب</button>
-        <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.google_start') }}">الدخول عبر Google</a>
-        <a class="btn btn-outline-primary w-100" href="{{ url_for('auth.facebook_start') }}">الدخول عبر Facebook</a>
-      </div>
-    </form>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="register-alerts-v1060">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ t(message) }}</div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
 
-    <div class="text-center mt-3">
-      <small>عندك حساب بالفعل؟ <a href="{{ url_for('auth.login') }}">سجّل الدخول</a></small>
-    </div>
+      <form method="post" action="{{ url_for('auth.register', lang=ui_lang) }}" class="register-form-v1060" id="professionalRegisterFormV1060">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="register-section-card-v1060">
+          <div class="register-section-title-v1060"><span>👤</span><div><strong>{{ 'Account identity' if is_en else 'هوية الحساب' }}</strong><small>{{ 'Used for login and support communication.' if is_en else 'تُستخدم لتسجيل الدخول والتواصل والدعم.' }}</small></div></div>
+          <div class="register-grid-v1060 two">
+            <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg" name="username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user"></label>
+            <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ form_values.get('full_name','') }}" autocomplete="name" placeholder="{{ 'Your full name' if is_en else 'اسمك الكامل' }}"></label>
+            <label class="full"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input type="email" class="form-control form-control-lg" name="email" value="{{ form_values.get('email','') }}" autocomplete="email" placeholder="name@example.com"></label>
+            <label><span>{{ 'Password' if is_en else 'كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
+            <label><span>{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="confirm_password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
+          </div>
+        </div>
+
+        <div class="register-section-card-v1060">
+          <div class="register-section-title-v1060"><span>🌍</span><div><strong>{{ 'Location and time' if is_en else 'الموقع والوقت' }}</strong><small>{{ 'Improves weather, sunrise/sunset, schedules, and alerts.' if is_en else 'يساعدنا في الطقس، الشروق والغروب، الجداول والتنبيهات.' }}</small></div></div>
+          <div class="register-grid-v1060 three">
+            <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><select class="form-control form-control-lg" name="country" id="registerCountryV1060" required>
+              <option value="">{{ 'Choose country' if is_en else 'اختر الدولة' }}</option>
+              {% for c in country_options %}<option value="{{ c.name_en if is_en else c.name_ar }}" data-code="{{ c.code }}" data-timezone="{{ c.timezone }}" data-cities="{{ c.cities|join('|') }}" {% if form_values.get('country') == (c.name_en if is_en else c.name_ar) %}selected{% endif %}>{{ c.name_en if is_en else c.name_ar }}</option>{% endfor %}
+            </select></label>
+            <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" id="registerCityV1060" value="{{ form_values.get('city','') }}" list="registerCityListV1060" required placeholder="{{ 'City' if is_en else 'المدينة' }}"><datalist id="registerCityListV1060"></datalist></label>
+            <label><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control form-control-lg ltr-field-v108" name="timezone" id="registerTimezoneV1060" required>{% set current_tz = form_values.get('timezone','Asia/Hebron') %}{% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}</select></label>
+            <label class="full"><span>{{ 'Preferred interface language' if is_en else 'لغة الواجهة المفضلة' }}</span><select class="form-control form-control-lg" name="preferred_language"><option value="ar" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'en' %}selected{% endif %}>English</option></select></label>
+          </div>
+        </div>
+
+        <div class="register-section-card-v1060">
+          <div class="register-section-title-v1060"><span>🔌</span><div><strong>{{ 'Energy system' if is_en else 'نظام الطاقة' }}</strong><small>{{ 'Choose your provider now, or explore the platform and add a device later.' if is_en else 'اختر نوع جهازك الآن، أو استكشف المنصة وأضف الجهاز لاحقًا.' }}</small></div></div>
+          <div class="energy-intent-v1060">
+            <label class="intent-card-v1060"><input type="radio" name="has_energy_system" value="yes" {% if form_values.get('has_energy_system','yes') != 'no' %}checked{% endif %}><span>⚡</span><strong>{{ 'I have an energy system' if is_en else 'لدي نظام طاقة' }}</strong><small>{{ 'Continue to setup wizard after registration.' if is_en else 'انتقل لمعالج الإعداد بعد التسجيل.' }}</small></label>
+            <label class="intent-card-v1060"><input type="radio" name="has_energy_system" value="no" {% if form_values.get('has_energy_system') == 'no' %}checked{% endif %}><span>👀</span><strong>{{ 'I want to explore first' if is_en else 'أريد الاستكشاف أولًا' }}</strong><small>{{ 'Browse services in preview, add devices later.' if is_en else 'تصفح الخدمات أولًا وأضف جهازك لاحقًا.' }}</small></label>
+          </div>
+          <div class="provider-choice-v1060" id="providerChoiceV1060">
+            <label><span>{{ 'Initial device provider' if is_en else 'نوع الجهاز الأولي' }}</span><select class="form-control form-control-lg" name="preferred_device_type" id="registerProviderV1060">
+              {% set selected_provider = form_values.get('preferred_device_type','deye') %}
+              {% for p in provider_options %}<option value="{{ p.code }}" data-category="{{ p.category }}" data-note="{{ p.notes_en if is_en else p.notes_ar }}" {% if selected_provider == p.code %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            </select></label>
+            <div class="provider-preview-v1060" id="providerPreviewV1060"></div>
+          </div>
+        </div>
+
+        <div class="register-submit-card-v1060">
+          <button class="btn btn-solar" name="next_step" value="setup">{{ 'Create account + setup device' if is_en else 'إنشاء الحساب والانتقال لإضافة جهاز' }}</button>
+          <button class="btn btn-outline-primary" name="next_step" value="explore">{{ 'Create account + explore services' if is_en else 'إنشاء الحساب واستكشاف الخدمات' }}</button>
+          <div class="register-social-v1060">
+            <a class="btn btn-outline-primary" href="{{ url_for('auth.google_start') }}">{{ 'Sign in with Google' if is_en else 'الدخول عبر Google' }}</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('auth.facebook_start') }}">{{ 'Sign in with Facebook' if is_en else 'الدخول عبر Facebook' }}</a>
+          </div>
+        </div>
+      </form>
+
+      <div class="text-center mt-3 register-login-link-v1060">
+        <small>{{ 'Already have an account?' if is_en else 'عندك حساب بالفعل؟' }} <a href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Sign in' if is_en else 'سجّل الدخول' }}</a></small>
+      </div>
+    </section>
   </div>
 </div>
+<script>
+(function(){
+  const country = document.getElementById('registerCountryV1060');
+  const tz = document.getElementById('registerTimezoneV1060');
+  const cityList = document.getElementById('registerCityListV1060');
+  const provider = document.getElementById('registerProviderV1060');
+  const preview = document.getElementById('providerPreviewV1060');
+  const providerWrap = document.getElementById('providerChoiceV1060');
+  const radios = document.querySelectorAll('input[name="has_energy_system"]');
+  function syncCountry(){
+    const opt = country && country.selectedOptions && country.selectedOptions[0];
+    if(!opt) return;
+    const suggested = opt.dataset.timezone || 'Asia/Hebron';
+    if(tz && !tz.dataset.userChanged) tz.value = suggested;
+    const cities = (opt.dataset.cities || '').split('|').filter(Boolean);
+    if(cityList) cityList.innerHTML = cities.map(c => `<option value="${c}"></option>`).join('');
+  }
+  function syncProvider(){
+    const opt = provider && provider.selectedOptions && provider.selectedOptions[0];
+    if(!opt || !preview) return;
+    preview.innerHTML = `<strong>${opt.textContent}</strong><span>${opt.dataset.category || ''}</span><p>${opt.dataset.note || ''}</p>`;
+  }
+  function syncIntent(){
+    const selected = document.querySelector('input[name="has_energy_system"]:checked');
+    if(providerWrap) providerWrap.classList.toggle('is-muted', selected && selected.value === 'no');
+  }
+  tz && tz.addEventListener('change', () => { tz.dataset.userChanged = '1'; });
+  country && country.addEventListener('change', syncCountry);
+  provider && provider.addEventListener('change', syncProvider);
+  radios.forEach(r => r.addEventListener('change', syncIntent));
+  syncCountry(); syncProvider(); syncIntent();
+})();
+</script>
 {% endblock %}

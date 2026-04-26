@@ -2902,3 +2902,43 @@ body.heavy-v100 .quota-unlimited-v114{
 @media(max-width:760px){
   .dynamic-device-form-v10519,.provider-field-grid-v10519{grid-template-columns:1fr}
 }
+
+/* Heavy v10.5.20 — Professional registration */
+.register-shell-v1060{
+  background:radial-gradient(circle at 12% 8%,rgba(59,130,246,.20),transparent 30%),radial-gradient(circle at 88% 18%,rgba(251,191,36,.20),transparent 32%),linear-gradient(180deg,#f6f9ff,#edf3fb);
+  padding:clamp(16px,3vw,34px);
+}
+.register-card-v1060{
+  width:min(1180px,96vw);
+  display:grid;
+  grid-template-columns:minmax(320px,.84fr) minmax(0,1.16fr);
+  border-radius:38px;
+  overflow:hidden;
+  background:rgba(255,255,255,.94);
+  border:1px solid rgba(203,213,225,.75);
+  box-shadow:0 34px 100px rgba(15,23,42,.14);
+}
+.register-hero-v1060{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:20px;
+  padding:34px;
+  min-height:680px;
+  color:#fff;
+  background:radial-gradient(360px circle at 80% 10%,rgba(96,165,250,.32),transparent 48%),linear-gradient(180deg,#0f2457,#111d3b 76%,#0b1530);
+}
+.register-back-v1060{color:rgba(255,255,255,.82)!important;text-decoration:none;font-weight:900}.register-back-v1060:hover{color:#fff!important}
+.register-mark-v1060{width:68px;height:68px;border-radius:24px;display:grid;place-items:center;background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.14);font-size:2rem}
+.register-eyebrow-v1060{display:inline-flex;width:max-content;border-radius:999px;background:rgba(251,191,36,.18);border:1px solid rgba(251,191,36,.26);padding:8px 12px;color:#fde68a;font-weight:900}
+.register-hero-v1060 h1{font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;font-weight:950;margin:0}.register-hero-v1060 p{font-weight:750;line-height:1.9;color:rgba(255,255,255,.76);margin:0;max-width:560px}
+.register-benefits-v1060{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.register-benefits-v1060 div{border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.11);padding:14px}.register-benefits-v1060 strong{display:block;font-size:1.5rem;color:#fbbf24}.register-benefits-v1060 span{display:block;color:#dbeafe;font-weight:850;font-size:.9rem}
+.register-form-panel-v1060{padding:30px;max-height:none;overflow:visible}.register-form-head-v1060{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.register-form-head-v1060 small{display:block;color:#64748b;font-weight:900}.register-form-head-v1060 h2{margin:4px 0 0;color:#0f172a;font-weight:950}.register-lang-mini-v1060{display:flex;gap:8px;border-radius:999px;background:#f1f5f9;padding:5px}.register-lang-mini-v1060 a{padding:7px 10px;border-radius:999px;text-decoration:none;color:#334155;font-weight:900}.register-lang-mini-v1060 a.active{background:#fff;color:#1d4ed8;box-shadow:0 8px 22px rgba(15,23,42,.08)}
+.register-form-v1060{display:grid;gap:16px}.register-section-card-v1060{border-radius:28px;background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid #e2e8f0;padding:18px;box-shadow:0 14px 44px rgba(15,23,42,.055)}.register-section-title-v1060{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}.register-section-title-v1060>span{width:42px;height:42px;display:grid;place-items:center;border-radius:16px;background:#eff6ff}.register-section-title-v1060 strong{display:block;color:#0f172a;font-weight:950}.register-section-title-v1060 small{display:block;color:#64748b;font-weight:750;line-height:1.65}
+.register-grid-v1060{display:grid;gap:12px}.register-grid-v1060.two{grid-template-columns:repeat(2,minmax(0,1fr))}.register-grid-v1060.three{grid-template-columns:repeat(3,minmax(0,1fr))}.register-grid-v1060 .full{grid-column:1/-1}.register-grid-v1060 label span,.provider-choice-v1060 label span{display:block;margin-bottom:7px;color:#334155;font-weight:900}.register-grid-v1060 .form-control,.provider-choice-v1060 .form-control{border-radius:16px;border-color:#dbe6f3;min-height:48px;font-weight:750}.ltr-field-v108{direction:ltr;text-align:left}
+.energy-intent-v1060{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}.intent-card-v1060{position:relative;border:1px solid #e2e8f0;border-radius:22px;background:#fff;padding:14px 14px 14px 44px;cursor:pointer;display:grid;gap:4px;min-height:116px}.intent-card-v1060 input{position:absolute;inset-inline-start:16px;top:18px;accent-color:#2563eb}.intent-card-v1060 span{font-size:1.6rem}.intent-card-v1060 strong{color:#0f172a;font-weight:950}.intent-card-v1060 small{color:#64748b;font-weight:750;line-height:1.6}.intent-card-v1060:has(input:checked){border-color:#93c5fd;background:linear-gradient(180deg,#eff6ff,#fff);box-shadow:0 12px 36px rgba(37,99,235,.10)}
+.provider-choice-v1060{display:grid;gap:10px}.provider-choice-v1060.is-muted{opacity:.62}.provider-preview-v1060{border-radius:20px;background:#f8fafc;border:1px dashed #cbd5e1;padding:13px}.provider-preview-v1060 strong{display:block;color:#0f172a;font-weight:950}.provider-preview-v1060 span{display:inline-flex;margin-top:5px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:.78rem;font-weight:900;padding:5px 9px}.provider-preview-v1060 p{margin:8px 0 0;color:#64748b;font-weight:750;line-height:1.7}
+.register-submit-card-v1060{display:grid;grid-template-columns:1fr 1fr;gap:12px}.register-submit-card-v1060 .btn{min-height:48px;border-radius:16px;font-weight:950}.register-social-v1060{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}.register-alerts-v1060{display:grid;gap:8px;margin-bottom:14px}.register-login-link-v1060 a{font-weight:900;text-decoration:none}
+@media(max-width:1000px){.register-card-v1060{grid-template-columns:1fr}.register-hero-v1060{min-height:auto}.register-grid-v1060.three{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){.register-form-panel-v1060,.register-hero-v1060{padding:20px}.register-grid-v1060.two,.register-grid-v1060.three,.energy-intent-v1060,.register-submit-card-v1060,.register-social-v1060{grid-template-columns:1fr}.register-benefits-v1060{grid-template-columns:1fr}.register-card-v1060{border-radius:28px}}
