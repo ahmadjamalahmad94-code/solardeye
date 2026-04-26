@@ -70,14 +70,19 @@
     </div>
   </section>
 
-  <section id="workflow" class="landing-section-v10529 landing-workflow-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'How does it work?' if is_en else 'كيف تعمل المنصة؟' }}</h2><span></span></div>
-    <div class="workflow-grid-v10529"><article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and prepare your profile.' if is_en else 'سجل بسهولة وجهز ملفك من البداية.' }}</p></article><article><b>2</b><i>▦</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك أو اختر نوع النظام' }}</h3><p>{{ 'Choose provider and required fields.' if is_en else 'اختر نوع الجهاز وأدخل البيانات المطلوبة.' }}</p></article><article><b>3</b><i>🔔</i><h3>{{ 'Monitor and act' if is_en else 'ابدأ المراقبة والتنبيهات' }}</h3><p>{{ 'Track performance and receive alerts.' if is_en else 'تابع الأداء واستقبل التنبيهات واتخذ الإجراءات المناسبة.' }}</p></article></div>
-  </section>
-
   <section id="devices" class="landing-section-v10529 landing-split-v10529 landing-devices-polished-v10529">
     <div class="devices-copy-v10529"><div class="landing-section-title-v10529 start"><h2>{{ 'One system that supports all your energy devices' if is_en else 'نظام واحد يدعم كل أجهزتك' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely, with forms that adapt to each device type instead of forcing one template on everyone.' if is_en else 'اربط أجهزة وأنظمة الطاقة بسهولة وأمان، مع حقول تتغير حسب نوع الجهاز بدل إجبار كل جهاز على نفس النموذج.' }}</p><div class="device-tags-v10529"><span>{{ 'Inverter' if is_en else 'محول طاقة' }}</span><span>{{ 'Battery' if is_en else 'بطارية' }}</span><span>{{ 'Electric meter' if is_en else 'عداد كهرباء' }}</span><span>{{ 'Solar panel' if is_en else 'لوح شمسي' }}</span><span>{{ 'Gateway' if is_en else 'بوابة اتصال' }}</span><span>{{ 'Cloud device' if is_en else 'جهاز سحابي' }}</span></div></div>
     <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ذكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'محول طاقة' }}</div><div><span>{{ 'Power' if is_en else 'القدرة' }} · 10.0 kW</span><span>{{ 'Model' if is_en else 'الموديل' }} · 550 V</span><span>{{ 'Serial' if is_en else 'الرقم' }} · INV-2024-001</span></div></div>
+  </section>
+
+  <section id="workflow" class="landing-section-v10529 landing-workflow-v10529 landing-workflow-final-v10530">
+    <div class="landing-section-title-v10529"><h2>{{ 'Start in minutes' if is_en else 'كيف تبدأ خلال دقائق؟' }}</h2><span></span><p>{{ 'Three simple steps to connect your device and open a professional monitoring board.' if is_en else 'ثلاث خطوات بسيطة تربط جهازك وتفتح لوحة متابعة احترافية.' }}</p></div>
+    <div class="workflow-track-v10530" aria-hidden="true"><span></span></div>
+    <div class="workflow-grid-v10529 workflow-grid-final-v10530">
+      <article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and set your timezone and city.' if is_en else 'سجّل بياناتك واختر المنطقة الزمنية والمدينة.' }}</p></article>
+      <article><b>2</b><i>🔌</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك' }}</h3><p>{{ 'Choose the type and fill only the needed fields.' if is_en else 'اختر نوع الجهاز وأدخل الحقول المطلوبة فقط.' }}</p></article>
+      <article><b>3</b><i>🔔</i><h3>{{ 'Monitor and get alerts' if is_en else 'راقب وتنبه' }}</h3><p>{{ 'Follow performance, reports, and alerts from one board.' if is_en else 'تابع الأداء والتنبيهات والتقارير من لوحة واحدة.' }}</p></article>
+    </div>
   </section>
 
   <section class="landing-section-v10529 product-v10529">
