@@ -17,6 +17,8 @@ class AppUser(db.Model):
     password_hash = db.Column(db.String(255), nullable=False, default='')
     full_name = db.Column(db.String(120), nullable=True)
     email = db.Column(db.String(120), nullable=True)
+    phone_country_code = db.Column(db.String(12), nullable=True)
+    phone_number = db.Column(db.String(40), nullable=True)
     country = db.Column(db.String(80), nullable=True)
     city = db.Column(db.String(120), nullable=True)
     timezone = db.Column(db.String(64), nullable=True, default='Asia/Hebron')

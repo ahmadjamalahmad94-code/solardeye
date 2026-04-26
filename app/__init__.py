@@ -130,6 +130,8 @@ def _migrate_database():
             'password_hash': "VARCHAR(255) DEFAULT ''",
             'full_name': 'VARCHAR(120)',
             'email': 'VARCHAR(120)',
+            'phone_country_code': 'VARCHAR(12)',
+            'phone_number': 'VARCHAR(40)',
             'country': 'VARCHAR(80)',
             'city': 'VARCHAR(120)',
             'timezone': "VARCHAR(64) DEFAULT 'Asia/Hebron'",

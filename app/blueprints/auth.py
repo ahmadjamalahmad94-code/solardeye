@@ -27,6 +27,7 @@ from ..services.support_ops import unread_counts
 from ..services.rbac import admin_landing_url
 from ..services.access_state import account_access_state
 from ..services.energy_integrations import PROVIDER_CATALOG
+from ..services.location_catalog import countries_for_template, timezones_for_template, find_country
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -150,16 +151,8 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    country_options = [
-        {'code': 'PS', 'name_ar': 'فلسطين', 'name_en': 'Palestine', 'timezone': 'Asia/Hebron', 'cities': ['نابلس', 'رام الله', 'الخليل', 'غزة', 'جنين', 'طولكرم', 'بيت لحم']},
-        {'code': 'JO', 'name_ar': 'الأردن', 'name_en': 'Jordan', 'timezone': 'Asia/Amman', 'cities': ['عمّان', 'إربد', 'الزرقاء', 'العقبة']},
-        {'code': 'SA', 'name_ar': 'السعودية', 'name_en': 'Saudi Arabia', 'timezone': 'Asia/Riyadh', 'cities': ['الرياض', 'جدة', 'الدمام', 'مكة']},
-        {'code': 'AE', 'name_ar': 'الإمارات', 'name_en': 'United Arab Emirates', 'timezone': 'Asia/Dubai', 'cities': ['دبي', 'أبوظبي', 'الشارقة']},
-        {'code': 'EG', 'name_ar': 'مصر', 'name_en': 'Egypt', 'timezone': 'Africa/Cairo', 'cities': ['القاهرة', 'الإسكندرية', 'الجيزة']},
-        {'code': 'TR', 'name_ar': 'تركيا', 'name_en': 'Turkey', 'timezone': 'Europe/Istanbul', 'cities': ['إسطنبول', 'أنقرة', 'إزمير']},
-        {'code': 'OTHER', 'name_ar': 'دولة أخرى', 'name_en': 'Other country', 'timezone': 'Asia/Hebron', 'cities': []},
-    ]
-    timezone_options = ['Asia/Hebron', 'Asia/Jerusalem', 'Asia/Amman', 'Asia/Riyadh', 'Asia/Dubai', 'Africa/Cairo', 'Europe/Istanbul', 'Europe/London', 'America/New_York']
+    country_options = countries_for_template()
+    timezone_options = timezones_for_template()
     provider_options = [
         {'code': p.code, 'name': p.name, 'category': p.category, 'notes_ar': p.notes_ar, 'notes_en': p.notes_en}
         for p in PROVIDER_CATALOG[:22]
@@ -172,9 +165,12 @@ def register():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
+        country_code = request.form.get('country_code', '').strip().upper()
         country = request.form.get('country', '').strip()
         city = request.form.get('city', '').strip()
         timezone = request.form.get('timezone', 'Asia/Hebron').strip() or 'Asia/Hebron'
+        phone_country_code = request.form.get('phone_country_code', '').strip()
+        phone_number = ''.join(ch for ch in (request.form.get('phone_number', '') or '') if ch.isdigit() or ch in ('+', ' ', '-', '(', ')')).strip()
         preferred_language = request.form.get('preferred_language', session.get('ui_lang') or 'ar').strip() or 'ar'
         has_energy_system = request.form.get('has_energy_system', 'yes').strip()
         preferred_device_type = request.form.get('preferred_device_type', 'deye').strip() or 'deye'
@@ -183,7 +179,14 @@ def register():
         allowed_provider_codes = {p['code'] for p in provider_options}
         if preferred_device_type not in allowed_provider_codes:
             preferred_device_type = 'deye'
-        if timezone not in timezone_options:
+        selected_country = find_country(country_code or country)
+        if selected_country:
+            country = selected_country['name_en'] if preferred_language == 'en' else selected_country['name_ar']
+            if not phone_country_code:
+                phone_country_code = selected_country.get('dial') or ''
+            if timezone not in timezone_options:
+                timezone = selected_country.get('timezone') or 'Asia/Hebron'
+        elif timezone not in timezone_options:
             timezone = 'Asia/Hebron'
         if preferred_language not in {'ar', 'en'}:
             preferred_language = 'ar'
@@ -196,6 +199,8 @@ def register():
             flash('تأكيد كلمة المرور غير مطابق.', 'danger')
         elif not country or not city:
             flash('الدولة والمدينة مطلوبتان لضبط الطقس والتوقيت بدقة.', 'warning')
+        elif phone_number and len(''.join(ch for ch in phone_number if ch.isdigit())) < 6:
+            flash('رقم الهاتف قصير جدًا. أدخل رقمًا صحيحًا أو اتركه فارغًا.', 'warning')
         elif AppUser.query.filter_by(username=username).first():
             flash('اسم المستخدم مستخدم من قبل.', 'danger')
         elif email and AppUser.query.filter_by(email=email).first():
@@ -206,6 +211,8 @@ def register():
                 password_hash=generate_password_hash(password),
                 full_name=full_name,
                 email=email,
+                phone_country_code=phone_country_code,
+                phone_number=phone_number,
                 country=country,
                 city=city,
                 timezone=timezone,
