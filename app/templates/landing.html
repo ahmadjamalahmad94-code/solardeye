@@ -1,93 +1,125 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="landing-v2">
-  <header class="landing-topbar">
-    <a class="landing-brand" href="{{ url_for('main.index', lang=ui_lang) }}">
-      <span class="brand-mark solar">☀️</span>
-      <div>
-        <strong>SolarDeye</strong>
-        <small>{{ 'Smart Solar SaaS Platform' if is_en else 'منصة SaaS ذكية للطاقة الشمسية' }}</small>
-      </div>
+{% block title %}{{ 'Energy Platform' if is_en else 'منصة الطاقة' }}{% endblock %}
+{% block body %}
+<main class="home-deluxe-v10526" dir="{{ 'ltr' if is_en else 'rtl' }}">
+  <nav class="home-nav-v10526">
+    <a class="home-brand-v10526" href="{{ url_for('main.index', lang=ui_lang) }}">
+      <span>⚡</span>
+      <strong>{{ 'Energy Platform' if is_en else 'منصة الطاقة' }}</strong>
     </a>
-    <nav class="landing-links">
-      <a href="#features">{{ 'Features' if is_en else 'المميزات' }}</a>
-      <a href="#workflow">{{ 'Workflow' if is_en else 'كيف تعمل؟' }}</a>
-      <a href="#pricing">{{ 'Pricing' if is_en else 'الأسعار' }}</a>
-      <a href="{{ url_for('auth.login', lang=ui_lang) }}" class="btn btn-outline-primary">{{ 'Login' if is_en else 'تسجيل الدخول' }}</a>
-      <a href="{{ url_for('auth.register', lang=ui_lang) }}" class="btn btn-solar">{{ 'Get Started' if is_en else 'ابدأ الآن' }}</a>
-    </nav>
-  </header>
-
-  <section class="landing-hero-v2 ui-reactive" data-hover-card>
-    <div class="landing-glow glow-a"></div>
-    <div class="landing-glow glow-b"></div>
-    <div class="hero-copy-v2">
-      <span class="hero-pill">{{ 'Modern SaaS Dashboard • Multi-user • Multi-device' if is_en else 'Modern SaaS Dashboard • متعدد المستخدمين • متعدد الأجهزة' }}</span>
-      <h1>{{ 'Operate, monitor, and grow your solar platform from one clean control plane.' if is_en else 'شغّل، راقب، وطوّر منصتك الشمسية من لوحة تحكم واحدة احترافية.' }}</h1>
-      <p>{{ 'A polished product experience for admins and subscribers with smart monitoring, device onboarding, subscriptions, and future-ready multi-provider architecture.' if is_en else 'تجربة منتج احترافية للمدير والمشترك، مع مراقبة ذكية، ربط أجهزة، اشتراكات، وبنية جاهزة للتوسع مع أنواع أجهزة متعددة.' }}</p>
-      <div class="hero-actions">
-        <a class="btn btn-solar btn-lg" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Create account' if is_en else 'إنشاء حساب' }}</a>
-        <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Open platform' if is_en else 'الدخول إلى المنصة' }}</a>
-      </div>
-      <div class="hero-stat-row">
-        <div><strong>CRM</strong><span>{{ 'Admin-first control plane' if is_en else 'لوحة إدارة مستقلة' }}</span></div>
-        <div><strong>Portal</strong><span>{{ 'Clean subscriber workspace' if is_en else 'بوابة مشترك نظيفة' }}</span></div>
-        <div><strong>Ready</strong><span>{{ 'Mobile-friendly and scalable' if is_en else 'جاهزة للموبايل والتوسع' }}</span></div>
-      </div>
+    <div class="home-links-v10526">
+      <a href="#features">{{ 'Features' if is_en else 'المزايا' }}</a>
+      <a href="#workflow">{{ 'How it works' if is_en else 'كيف تعمل' }}</a>
+      <a href="#devices">{{ 'Devices' if is_en else 'الأجهزة' }}</a>
+      <a href="#pricing">{{ 'Plans' if is_en else 'الباقات' }}</a>
+      <a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a>
     </div>
-    <div class="hero-preview-v2">
-      <div class="preview-shell">
-        <div class="preview-head">
-          <span>{{ 'Admin + Subscriber' if is_en else 'الإدارة + المشترك' }}</span>
-          <strong>SolarDeye UI</strong>
+    <div class="home-actions-v10526">
+      <a class="btn btn-outline-primary" href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Login' if is_en else 'تسجيل الدخول' }} 👤</a>
+      <a class="btn btn-solar" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }} 🚀</a>
+    </div>
+  </nav>
+
+  <section class="home-hero-v10526">
+    <div class="hero-art-v10526" aria-hidden="true">
+      <div class="hero-grid-glow-v10526"></div>
+      <div class="dash-main-v10526">
+        <div class="dash-bar-v10526"><span></span><span></span><span></span><strong>{{ 'Live control' if is_en else 'لوحة الطاقة' }}</strong></div>
+        <div class="dash-stats-v10526">
+          <div><small>{{ 'Production' if is_en else 'إنتاج اليوم' }}</small><strong>12.4</strong><span>kWh</span></div>
+          <div><small>{{ 'Usage' if is_en else 'الاستهلاك' }}</small><strong>7.6</strong><span>kWh</span></div>
+          <div><small>{{ 'Efficiency' if is_en else 'الكفاءة' }}</small><strong>92%</strong><span>{{ 'good' if is_en else 'ممتاز' }}</span></div>
         </div>
-        <div class="preview-grid-v2">
-          <div class="preview-box navy"><small>{{ 'Platform Health' if is_en else 'صحة المنصة' }}</small><strong>OK</strong><span>{{ 'Scheduler + logs + heartbeats' if is_en else 'Scheduler + Logs + Heartbeats' }}</span></div>
-          <div class="preview-box cyan"><small>{{ 'Subscribers' if is_en else 'المشتركون' }}</small><strong>128</strong><span>{{ 'Plans, activation, lifecycle' if is_en else 'خطط، تفعيل، دورة حياة' }}</span></div>
-          <div class="preview-box violet"><small>{{ 'Live Monitoring' if is_en else 'المراقبة الحية' }}</small><strong>1.9 kW</strong><span>{{ 'Current device scope only' if is_en else 'ضمن نطاق الجهاز الحالي فقط' }}</span></div>
-          <div class="preview-box gold"><small>{{ 'Alerts' if is_en else 'الإشعارات' }}</small><strong>Smart</strong><span>{{ 'Telegram / SMS / logs' if is_en else 'Telegram / SMS / Logs' }}</span></div>
-        </div>
+        <div class="chart-v10526"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
+        <div class="dash-bottom-v10526"><span>{{ 'System status' if is_en else 'حالة النظام' }}</span><strong>{{ 'Good' if is_en else 'جيد' }}</strong></div>
+      </div>
+      <div class="weather-card-v10526"><small>{{ 'Weather now' if is_en else 'الطقس الآن' }}</small><strong>24°</strong><span>☀️ {{ 'Clear' if is_en else 'صافي' }}</span></div>
+      <div class="alert-card-v10526"><span>⚠️</span><strong>{{ 'High alert' if is_en else 'تنبيه عالي' }}</strong><small>{{ 'Temperature rising' if is_en else 'ارتفاع درجة الحرارة' }}</small></div>
+      <div class="phone-v10526">
+        <div class="phone-notch-v10526"></div>
+        <strong>{{ 'Alerts' if is_en else 'التنبيهات' }}</strong>
+        <span>🟠 {{ 'High voltage' if is_en else 'جهد عالي' }}</span>
+        <span>🔴 {{ 'Connection lost' if is_en else 'انقطاع اتصال' }}</span>
+        <span>🟢 {{ 'Synced' if is_en else 'تمت المزامنة' }}</span>
+      </div>
+      <div class="device-row-v10526">
+        <em>▣</em><em>🔋</em><em>▤</em><em>☀️</em><em>📡</em><em>☁️</em>
       </div>
     </div>
-  </section>
-
-  <section id="features" class="landing-section-v2">
-    <div class="section-heading-v2">
-      <span>{{ 'Core capabilities' if is_en else 'القدرات الأساسية' }}</span>
-      <h2>{{ 'One visual language across the landing page, admin panel, and subscriber portal.' if is_en else 'هوية بصرية موحدة عبر الصفحة الرئيسية ولوحة الإدارة وبوابة المشترك.' }}</h2>
-    </div>
-    <div class="feature-grid-v2">
-      <article class="feature-card-v2 ui-reactive" data-hover-card><div class="feature-icon-v2">📈</div><h3>{{ 'Admin Control Plane' if is_en else 'لوحة إدارة احترافية' }}</h3><p>{{ 'Subscribers, plans, subscriptions, health, and logs in one organized SaaS console.' if is_en else 'المشتركون والخطط والاشتراكات وصحة النظام والسجلات في لوحة SaaS واضحة.' }}</p></article>
-      <article class="feature-card-v2 ui-reactive" data-hover-card><div class="feature-icon-v2">🔌</div><h3>{{ 'Device-first portal' if is_en else 'بوابة مبنية حول الجهاز' }}</h3><p>{{ 'Every subscriber sees only their own devices, readings, and lifecycle.' if is_en else 'كل مشترك يرى فقط أجهزته وقراءاته ودورة حياته داخل البوابة.' }}</p></article>
-      <article class="feature-card-v2 ui-reactive" data-hover-card><div class="feature-icon-v2">🧠</div><h3>{{ 'Smart energy logic' if is_en else 'منطق طاقة ذكي' }}</h3><p>{{ 'Live readings, smart archive, and solar surplus intelligence designed for real decisions.' if is_en else 'قراءات حية وأرشيف ذكي ومنطق فائض شمسي لمساعدة القرار الفعلي.' }}</p></article>
-      <article class="feature-card-v2 ui-reactive" data-hover-card><div class="feature-icon-v2">🌍</div><h3>{{ 'Bilingual experience' if is_en else 'تجربة ثنائية اللغة' }}</h3><p>{{ 'Arabic and English layouts designed intentionally, not translated as an afterthought.' if is_en else 'واجهة عربية وإنجليزية مصممة بعناية، وليست ترجمة متأخرة فقط.' }}</p></article>
+    <div class="hero-copy-v10526">
+      <span class="eyebrow-v10526">{{ 'Smart SaaS for energy operations' if is_en else 'منصة SaaS ذكية للطاقة' }}</span>
+      <h1>{{ 'Smart platform for energy, devices, and alerts' if is_en else 'منصة ذكية لإدارة الطاقة والأجهزة والتنبيهات' }}</h1>
+      <p>{{ 'Monitor solar systems, connected devices, alerts, weather, support, and reports from one professional interface.' if is_en else 'راقب أنظمتك الشمسية، أجهزتك المتصلة، التنبيهات، الطقس، الدعم، والتقارير من واجهة واحدة احترافية.' }}</p>
+      <div class="hero-buttons-v10526">
+        <a class="btn btn-solar btn-lg" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }} 🚀</a>
+        <a class="btn btn-outline-light btn-lg" href="#pricing">{{ 'View plans' if is_en else 'شاهد الباقات' }}</a>
+      </div>
+      <div class="hero-pills-v10526"><span>🔔 {{ 'Smart alerts' if is_en else 'تنبيهات ذكية' }}</span><span>🔌 {{ 'Multi device' if is_en else 'تعدد الأجهزة' }}</span><span>📊 {{ 'Clear reports' if is_en else 'تقارير واضحة' }}</span><span>💬 {{ 'Support' if is_en else 'دعم ومراسلات' }}</span></div>
     </div>
   </section>
 
-  <section id="workflow" class="landing-section-v2 workflow-band">
-    <div class="section-heading-v2">
-      <span>{{ 'Workflow' if is_en else 'سير العمل' }}</span>
-      <h2>{{ 'From signup to monitoring in four clear steps.' if is_en else 'من التسجيل إلى المراقبة في أربع خطوات واضحة.' }}</h2>
-    </div>
-    <div class="steps-grid-v2">
-      <div class="step-card-v2"><span>1</span><h3>{{ 'Create account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Start with a clean onboarding experience and role-aware access.' if is_en else 'ابدأ بمعالج إعداد واضح وصلاحيات مناسبة من أول خطوة.' }}</p></div>
-      <div class="step-card-v2"><span>2</span><h3>{{ 'Add device' if is_en else 'أضف جهازك' }}</h3><p>{{ 'Register your device and complete secure runtime settings per account.' if is_en else 'سجّل جهازك وأكمل إعدادات الربط الآمنة لكل حساب.' }}</p></div>
-      <div class="step-card-v2"><span>3</span><h3>{{ 'Activate monitoring' if is_en else 'فعّل المتابعة' }}</h3><p>{{ 'Sync only when a real configured device exists—no global data leakage.' if is_en else 'المزامنة تعمل فقط عند وجود جهاز فعلي مهيأ—بدون أي تسرب بيانات.' }}</p></div>
-      <div class="step-card-v2"><span>4</span><h3>{{ 'Grow the business' if is_en else 'طوّر المنصة' }}</h3><p>{{ 'Manage subscribers, plans, and future device types from one scalable control plane.' if is_en else 'أدر المشتركين والخطط وأنواع الأجهزة المستقبلية من لوحة تحكم قابلة للتوسع.' }}</p></div>
+  <section id="features" class="home-section-v10526">
+    <div class="section-title-v10526"><h2>{{ 'What does the platform provide?' if is_en else 'ماذا تقدم المنصة؟' }}</h2><span></span></div>
+    <div class="features-grid-v10526">
+      {% set features = [
+        ('🔌','Device management','إدارة الأجهزة','Connect and monitor multiple device types.','ربط أنواع متعددة من الأجهزة ومتابعتها ومراقبة الحالة والأداء لحظيًا.'),
+        ('🔔','Smart alerts','تنبيهات ذكية','Precise alerts over web, SMS, and Telegram.','إشعارات دقيقة حسب الحالة والحدث عبر الإنترنت و SMS و Telegram.'),
+        ('🌦️','Weather and location','الطقس والموقع','Better insights using country, city, and timezone.','توقعات أدق حسب الدولة والمدينة والمنطقة الزمنية.'),
+        ('💬','Support and messaging','الدعم والمراسلات','Tickets, messages, and follow-up in one place.','نظام تذاكر ورسائل متكامل لمتابعة الطلبات بسرعة وسهولة.'),
+        ('📈','Reports and statistics','التقارير والإحصائيات','Readable charts and performance insights.','تقارير مفصلة ورسوم بيانية واضحة لتحليل الأداء واتخاذ القرار.'),
+        ('🧩','Integrations','الربط والتكامل','API, automation, SMS, and Telegram channels.','API وخدمات خارجية ومزامنة عبر قنوات Telegram و SMS.')
+      ] %}
+      {% for icon,en_title,ar_title,en_text,ar_text in features %}
+      <article class="feature-card-deluxe-v10526"><i>{{ icon }}</i><div><h3>{{ en_title if is_en else ar_title }}</h3><p>{{ en_text if is_en else ar_text }}</p></div></article>
+      {% endfor %}
     </div>
   </section>
 
-  <section id="pricing" class="landing-section-v2 pricing-band-v2">
-    <div class="section-heading-v2">
-      <span>{{ 'Plans' if is_en else 'الباقات' }}</span>
-      <h2>{{ 'Simple pricing now, scalable billing later.' if is_en else 'باقات بسيطة الآن، وقابلة للتوسع ماليًا لاحقًا.' }}</h2>
-    </div>
-    <div class="pricing-grid-v2">
-      <div class="price-card-v2"><small>Starter</small><h3>{{ 'Free' if is_en else 'مجاني' }}</h3><p>{{ 'For trials and first device onboarding.' if is_en else 'للتجربة وربط الجهاز الأول.' }}</p></div>
-      <div class="price-card-v2 featured"><span class="badge-featured">{{ 'Popular' if is_en else 'الأكثر طلبًا' }}</span><small>Pro</small><h3>$9<span>{{ '/month' if is_en else '/شهريًا' }}</span></h3><p>{{ 'For active subscribers and advanced alerts.' if is_en else 'للمشتركين الفعّالين والتنبيهات المتقدمة.' }}</p></div>
-      <div class="price-card-v2"><small>Business</small><h3>{{ 'Custom' if is_en else 'مخصص' }}</h3><p>{{ 'For operators, teams, and larger rollouts.' if is_en else 'للمشغلين والفرق والإطلاقات الأكبر.' }}</p></div>
+  <section id="workflow" class="home-section-v10526 compact-v10526">
+    <div class="section-title-v10526"><h2>{{ 'How does it work?' if is_en else 'كيف تعمل المنصة؟' }}</h2><span></span></div>
+    <div class="workflow-grid-v10526">
+      <article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and prepare your profile.' if is_en else 'سجل بسهولة وجهز ملفك من البداية.' }}</p></article>
+      <article><b>2</b><i>▦</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك أو اختر نوع النظام' }}</h3><p>{{ 'Choose provider and required fields.' if is_en else 'اختر نوع الجهاز وأدخل البيانات المطلوبة.' }}</p></article>
+      <article><b>3</b><i>🔔</i><h3>{{ 'Monitor and act' if is_en else 'ابدأ المراقبة والتنبيهات' }}</h3><p>{{ 'Track performance and receive alerts.' if is_en else 'تابع الأداء واستقبل التنبيهات واتخذ الإجراءات المناسبة.' }}</p></article>
     </div>
   </section>
-</div>
+
+  <section id="devices" class="home-section-v10526 split-v10526">
+    <div>
+      <div class="section-title-v10526 align-start-v10526"><h2>{{ 'Supports multiple providers and devices' if is_en else 'يدعم مزودات وأجهزة متعددة' }}</h2><span></span></div>
+      <p class="section-lead-v10526">{{ 'Connect energy assets safely without forcing every provider into the same form.' if is_en else 'تواصل مع مختلف أنواع الأجهزة وأنظمة الطاقة بسهولة وأمان، بدون إجبار كل جهاز على نفس نموذج البيانات.' }}</p>
+      <div class="device-icons-v10526"><span>محول طاقة</span><span>بطارية</span><span>عداد كهرباء</span><span>لوح شمسي</span><span>بوابة اتصال</span><span>جهاز سحابي</span></div>
+    </div>
+    <div class="dynamic-form-art-v10526"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ديناميكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10526">{{ 'Energy inverter' if is_en else 'محول طاقة (Inverter)' }}</div><div class="fake-inputs-v10526"><span>10.0 kW</span><span>550 V</span><span>INV-2024-001</span></div><em>▣</em></div>
+  </section>
+
+  <section class="home-section-v10526 product-v10526">
+    <div class="product-screen-v10526"><div class="screen-sidebar-v10526"></div><div class="screen-body-v10526"><span></span><span></span><span></span><div></div></div><div class="mini-mobile-v10526"></div></div>
+    <div class="product-copy-v10526"><h2>{{ 'One interface to manage everything' if is_en else 'واجهة واحدة لإدارة كل شيء' }}</h2><p>{{ 'A modern control panel for status, subscribers, quotas, plans, sync, and service health.' if is_en else 'لوحة تحكم حديثة تمنحك رؤية شاملة لحالة الأجهزة، المشتركين، الكوتا، الخطط، المزامنة، وصحة الخدمات.' }}</p><div class="product-points-v10526"><span>🧭 {{ 'Status view' if is_en else 'عرض الحالة' }}</span><span>👥 {{ 'Subscribers' if is_en else 'إدارة المشتركين' }}</span><span>🎯 {{ 'Quotas' if is_en else 'الكوتا والخطط' }}</span><span>❤️ {{ 'Health' if is_en else 'المزامنة والخدمات' }}</span></div></div>
+  </section>
+
+  <section id="pricing" class="home-section-v10526">
+    <div class="section-title-v10526"><h2>{{ 'Choose the right plan' if is_en else 'اختر الباقة المناسبة لاحتياجاتك' }}</h2><span></span></div>
+    <div class="plans-v10526">
+      <article><h3>{{ 'Basic' if is_en else 'الأساسية' }}</h3><p>{{ 'For small projects' if is_en else 'مثالية للمشاريع الصغيرة' }}</p><strong>$9 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 10 أجهزة</li><li>50 تنبيه شهريًا</li><li>دعم عبر التذاكر</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
+      <article class="popular-v10526"><b>{{ 'Most popular' if is_en else 'الأكثر شيوعًا' }}</b><h3>{{ 'Pro' if is_en else 'الاحترافية' }}</h3><p>{{ 'For active teams' if is_en else 'للشركات والمشاريع المتوسطة' }}</p><strong>$29 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>حتى 50 جهاز</li><li>200 تنبيه شهريًا</li><li>تقارير متقدمة</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
+      <article><h3>{{ 'Platinum' if is_en else 'البلاتينية' }}</h3><p>{{ 'For large operators' if is_en else 'للمشاريع الكبيرة والمؤسسات' }}</p><strong>$79 <small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong><ul><li>أجهزة غير محدودة</li><li>تنبيهات غير محدودة</li><li>واجهة API</li></ul><a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Start now' if is_en else 'ابدأ الآن' }}</a></article>
+    </div>
+  </section>
+
+  <section class="trust-row-v10526"><span>واجهة عربية احترافية</span><span>مرونة صلاحيات وتحكم</span><span>وضع مشاهدة للحسابات المعطلة</span><span>قابلية توسع عالية</span><span>تنبيهات مستقرة لا تضيع</span></section>
+
+  <section id="faq" class="home-section-v10526 faq-v10526">
+    <div class="section-title-v10526"><h2>{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</h2><span></span></div>
+    <details><summary>هل أستطيع إضافة أكثر من جهاز؟</summary><p>نعم، حسب حدود الخطة والكوتا المخصصة للحساب.</p></details>
+    <details><summary>هل يمكن ربط التنبيهات بالهاتف و Telegram؟</summary><p>نعم، يمكن تفعيل قنوات SMS و Telegram حسب الخطة.</p></details>
+    <details><summary>هل أستطيع تغيير الخطة لاحقًا؟</summary><p>نعم، يمكن ترقية أو تغيير الخطة من الإدارة.</p></details>
+    <details><summary>هل يمكن تخصيص الصلاحيات لكل مشترك؟</summary><p>نعم، يمكن إظهار أو إخفاء صفحات محددة لكل مشترك.</p></details>
+  </section>
+
+  <section class="final-cta-v10526"><div><h2>{{ 'Give your energy a professional command center' if is_en else 'ابدأ اليوم وامنح طاقتك لوحة قيادة احترافية' }}</h2><p>{{ 'Control, monitor, and improve your systems from one place.' if is_en else 'تحكم، راقب، وحسّن أداء أنظمتك من مكان واحد.' }}</p></div><a class="btn btn-solar btn-lg" href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Create your account' if is_en else 'أنشئ حسابك الآن' }} 🚀</a></section>
+
+  <footer class="home-footer-v10526"><div><strong>⚡ {{ 'Energy Platform' if is_en else 'منصة الطاقة' }}</strong><p>{{ 'Professional energy, devices, and alerts platform.' if is_en else 'منصة متكاملة لإدارة الطاقة والأجهزة والتنبيهات باحترافية.' }}</p></div><div><span>© 2026 {{ 'All rights reserved.' if is_en else 'جميع الحقوق محفوظة.' }}</span></div></footer>
+</main>
 {% endblock %}
