@@ -55,16 +55,14 @@
     </div>
   </section>
 
-  <section id="features" class="landing-section-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'What does the platform provide?' if is_en else 'ماذا تقدم المنصة؟' }}</h2><span></span></div>
+  <section id="features" class="landing-section-v10529 landing-features-polished-v10529">
+    <div class="landing-section-title-v10529"><h2>{{ 'Everything you need to manage energy in one place' if is_en else 'كل ما تحتاجه لإدارة الطاقة في مكان واحد' }}</h2><span></span></div>
     <div class="feature-grid-v10529">
       {% set features = [
-        ('🔌','Device management','إدارة الأجهزة','Connect and monitor multiple device types.','ربط أنواع متعددة من الأجهزة ومتابعتها ومراقبة الحالة والأداء لحظيًا.'),
-        ('🔔','Smart alerts','تنبيهات ذكية','Precise alerts over web, SMS, and Telegram.','إشعارات دقيقة حسب الحالة والحدث عبر الإنترنت و SMS و Telegram.'),
-        ('🌦️','Weather and location','الطقس والموقع','Better insights using country, city, and timezone.','توقعات أدق حسب الدولة والمدينة والمنطقة الزمنية.'),
-        ('💬','Support and messaging','الدعم والمراسلات','Tickets, messages, and follow-up in one place.','نظام تذاكر ورسائل متكامل لمتابعة الطلبات بسرعة وسهولة.'),
-        ('📈','Reports and statistics','التقارير والإحصائيات','Readable charts and performance insights.','تقارير مفصلة ورسوم بيانية واضحة لتحليل الأداء واتخاذ القرار.'),
-        ('🧩','Integrations','الربط والتكامل','API, automation, SMS, and Telegram channels.','API وخدمات خارجية ومزامنة عبر قنوات Telegram و SMS.')
+        ('🔔','Smart alerts','تنبيهات ذكية','Instant notifications for changes or issues via app, SMS, and Telegram.','تنبيهات فورية عند أي تغير أو مشكلة عبر التطبيق و SMS و Telegram.'),
+        ('🔌','Device management','إدارة وتعدد الأجهزة','Add and monitor multiple devices from one clear account.','اربط جميع أجهزتك وتابع الحالة والأداء من مكان واحد.'),
+        ('📊','Clear reports','تقارير وإحصائيات','Readable reports that help you understand usage and performance.','تقارير واضحة تساعدك تفهم الاستهلاك والأداء وتتخذ قرارات أفضل.'),
+        ('💬','Support and messaging','دعم ومراسلات','Fast direct communication with support inside the platform.','تواصل مباشر وسريع مع فريق الدعم داخل المنصة.')
       ] %}
       {% for icon,en_title,ar_title,en_text,ar_text in features %}
       <article class="feature-card-v10529"><i>{{ icon }}</i><h3>{{ en_title if is_en else ar_title }}</h3><p>{{ en_text if is_en else ar_text }}</p></article>
@@ -77,9 +75,9 @@
     <div class="workflow-grid-v10529"><article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and prepare your profile.' if is_en else 'سجل بسهولة وجهز ملفك من البداية.' }}</p></article><article><b>2</b><i>▦</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك أو اختر نوع النظام' }}</h3><p>{{ 'Choose provider and required fields.' if is_en else 'اختر نوع الجهاز وأدخل البيانات المطلوبة.' }}</p></article><article><b>3</b><i>🔔</i><h3>{{ 'Monitor and act' if is_en else 'ابدأ المراقبة والتنبيهات' }}</h3><p>{{ 'Track performance and receive alerts.' if is_en else 'تابع الأداء واستقبل التنبيهات واتخذ الإجراءات المناسبة.' }}</p></article></div>
   </section>
 
-  <section id="devices" class="landing-section-v10529 landing-split-v10529">
-    <div><div class="landing-section-title-v10529 start"><h2>{{ 'Supports multiple providers and devices' if is_en else 'يدعم مزودات وأجهزة متعددة' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely without forcing every provider into the same form.' if is_en else 'تواصل مع مختلف أنواع الأجهزة وأنظمة الطاقة بسهولة وأمان، بدون إجبار كل جهاز على نفس نموذج البيانات.' }}</p><div class="device-tags-v10529"><span>محول طاقة</span><span>بطارية</span><span>عداد كهرباء</span><span>لوح شمسي</span><span>بوابة اتصال</span><span>جهاز سحابي</span></div></div>
-    <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ديناميكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'محول طاقة (Inverter)' }}</div><div><span>10.0 kW</span><span>550 V</span><span>INV-2024-001</span></div><em>▣</em></div>
+  <section id="devices" class="landing-section-v10529 landing-split-v10529 landing-devices-polished-v10529">
+    <div class="devices-copy-v10529"><div class="landing-section-title-v10529 start"><h2>{{ 'One system that supports all your energy devices' if is_en else 'نظام واحد يدعم كل أجهزتك' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely, with forms that adapt to each device type instead of forcing one template on everyone.' if is_en else 'اربط أجهزة وأنظمة الطاقة بسهولة وأمان، مع حقول تتغير حسب نوع الجهاز بدل إجبار كل جهاز على نفس النموذج.' }}</p><div class="device-tags-v10529"><span>{{ 'Inverter' if is_en else 'محول طاقة' }}</span><span>{{ 'Battery' if is_en else 'بطارية' }}</span><span>{{ 'Electric meter' if is_en else 'عداد كهرباء' }}</span><span>{{ 'Solar panel' if is_en else 'لوح شمسي' }}</span><span>{{ 'Gateway' if is_en else 'بوابة اتصال' }}</span><span>{{ 'Cloud device' if is_en else 'جهاز سحابي' }}</span></div></div>
+    <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ذكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'محول طاقة' }}</div><div><span>{{ 'Power' if is_en else 'القدرة' }} · 10.0 kW</span><span>{{ 'Model' if is_en else 'الموديل' }} · 550 V</span><span>{{ 'Serial' if is_en else 'الرقم' }} · INV-2024-001</span></div></div>
   </section>
 
   <section class="landing-section-v10529 product-v10529">
