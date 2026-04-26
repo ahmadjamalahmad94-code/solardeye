@@ -4083,6 +4083,14 @@ body.heavy-v100 .sidebar-fancy-v104 .nav-menu a.active::before{
   background:#ffc83d;
   box-shadow:0 0 0 4px rgba(255,200,61,.14);
 }
+html[dir="rtl"] body.heavy-v100 .sidebar-fancy-v104 .nav-menu a{
+  text-align:right;
+}
+html[dir="rtl"] body.heavy-v100 .sidebar-fancy-v104 .nav-menu a::before{
+  order:99;
+  margin-inline-start:auto;
+  margin-inline-end:0;
+}
 
 body.heavy-v100 .dashboard-topbar.clean-header{
   padding:18px 20px !important;
