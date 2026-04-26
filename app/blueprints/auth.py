@@ -389,8 +389,12 @@ def protect_routes():
         'main.telegram_webhook',
         'main.telegram_multilink_webhook',
         'main.index',
+        'energy.index',
     }
     ep = request.endpoint or ''
+    public_paths = {'/', '/index', '/landing'}
+    if (request.path or '') in public_paths:
+        return
     if ep in public_endpoints or ep.startswith('static'):
         return
     g.current_user = None
