@@ -51,7 +51,8 @@
       <div class="profile-fields-v118 two">
         <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'اسم المشترك الكامل' }}"></label>
         <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
-        <label class="full"><span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com"></label>
+        <label class="full"><span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com
+<input type='text' placeholder='رقم الهاتف' name='phone'>"></label>
       </div>
     </article>
 
@@ -62,8 +63,8 @@
       </div>
       <p class="profile-hint-v118">{{ 'Used later for weather, solar predictions, and correct local times.' if is_en else 'تستخدم لاحقًا للطقس، توقعات الطاقة، وضبط الأوقات المحلية.' }}</p>
       <div class="profile-fields-v118 two">
-        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}"></label>
-        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}"></label>
+        <label><span>{{ 'Country' if is_en else 'الدولة 🌍' }}</span><input class="form-control" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}"></label>
+        <label><span>{{ 'City' if is_en else 'المدينة 📍' }}</span><input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}"></label>
         <label class="full"><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control ltr-field-v108" name="timezone">
           {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
           {% for tz,label in [('Asia/Hebron','Asia/Hebron - فلسطين'),('Asia/Jerusalem','Asia/Jerusalem'),('Asia/Amman','Asia/Amman - الأردن'),('Asia/Riyadh','Asia/Riyadh - السعودية'),('Asia/Dubai','Asia/Dubai - الإمارات'),('Africa/Cairo','Africa/Cairo - مصر'),('Europe/Istanbul','Europe/Istanbul - تركيا'),('UTC','UTC')] %}

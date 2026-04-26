@@ -9,7 +9,7 @@
       <div class="brand-mark register-mark-v1060">☀️</div>
       <span class="register-eyebrow-v1060">{{ 'Professional Energy Account' if is_en else 'حساب طاقة احترافي' }}</span>
       <h1>{{ 'Start with accurate location, timezone, and device-ready setup' if is_en else 'ابدأ بحساب جاهز للموقع والطقس والأجهزة' }}</h1>
-      <p>{{ 'We use your country, city, and timezone to improve weather insights, schedules, alerts, and solar recommendations.' if is_en else 'نستخدم الدولة والمدينة والمنطقة الزمنية لتحسين الطقس، التوقعات، الجداول، والتنبيهات الذكية.' }}</p>
+      <p>{{ 'We use your country, city, and timezone to improve weather insights, schedules, alerts, and solar recommendations.' if is_en else 'نستخدم الدولة 🌍 والمدينة 📍 والمنطقة الزمنية لتحسين الطقس، التوقعات، الجداول، والتنبيهات الذكية.' }}</p>
       <div class="register-benefits-v1060">
         <div><strong>1</strong><span>{{ 'Account' if is_en else 'الحساب' }}</span></div>
         <div><strong>2</strong><span>{{ 'Location' if is_en else 'الموقع' }}</span></div>
@@ -47,7 +47,8 @@
           <div class="register-grid-v1060 two">
             <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg" name="username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user"></label>
             <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ form_values.get('full_name','') }}" autocomplete="name" placeholder="{{ 'Your full name' if is_en else 'اسمك الكامل' }}"></label>
-            <label class="full"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input type="email" class="form-control form-control-lg" name="email" value="{{ form_values.get('email','') }}" autocomplete="email" placeholder="name@example.com"></label>
+            <label class="full"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input type="email" class="form-control form-control-lg" name="email" value="{{ form_values.get('email','') }}" autocomplete="email" placeholder="name@example.com
+<input type='text' placeholder='رقم الهاتف' name='phone'>"></label>
             <label><span>{{ 'Password' if is_en else 'كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
             <label><span>{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="confirm_password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
           </div>
@@ -56,11 +57,11 @@
         <div class="register-section-card-v1060">
           <div class="register-section-title-v1060"><span>🌍</span><div><strong>{{ 'Location and time' if is_en else 'الموقع والوقت' }}</strong><small>{{ 'Improves weather, sunrise/sunset, schedules, and alerts.' if is_en else 'يساعدنا في الطقس، الشروق والغروب، الجداول والتنبيهات.' }}</small></div></div>
           <div class="register-grid-v1060 three">
-            <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><select class="form-control form-control-lg" name="country" id="registerCountryV1060" required>
-              <option value="">{{ 'Choose country' if is_en else 'اختر الدولة' }}</option>
+            <label><span>{{ 'Country' if is_en else 'الدولة 🌍' }}</span><select class="form-control form-control-lg" name="country" id="registerCountryV1060" required>
+              <option value="">{{ 'Choose country' if is_en else 'اختر الدولة 🌍' }}</option>
               {% for c in country_options %}<option value="{{ c.name_en if is_en else c.name_ar }}" data-code="{{ c.code }}" data-timezone="{{ c.timezone }}" data-cities="{{ c.cities|join('|') }}" {% if form_values.get('country') == (c.name_en if is_en else c.name_ar) %}selected{% endif %}>{{ c.name_en if is_en else c.name_ar }}</option>{% endfor %}
             </select></label>
-            <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" id="registerCityV1060" value="{{ form_values.get('city','') }}" list="registerCityListV1060" required placeholder="{{ 'City' if is_en else 'المدينة' }}"><datalist id="registerCityListV1060"></datalist></label>
+            <label><span>{{ 'City' if is_en else 'المدينة 📍' }}</span><input class="form-control form-control-lg" name="city" id="registerCityV1060" value="{{ form_values.get('city','') }}" list="registerCityListV1060" required placeholder="{{ 'City' if is_en else 'المدينة 📍' }}"><datalist id="registerCityListV1060"></datalist></label>
             <label><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control form-control-lg ltr-field-v108" name="timezone" id="registerTimezoneV1060" required>{% set current_tz = form_values.get('timezone','Asia/Hebron') %}{% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}</select></label>
             <label class="full"><span>{{ 'Preferred interface language' if is_en else 'لغة الواجهة المفضلة' }}</span><select class="form-control form-control-lg" name="preferred_language"><option value="ar" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'en' %}selected{% endif %}>English</option></select></label>
           </div>
