@@ -4,6 +4,7 @@ from __future__ import annotations
 # main.py while importing legacy helpers/services from main during the migration
 # window. This keeps behavior stable while main.py shrinks safely.
 from flask import Blueprint
+from ..services.landing_content import get_landing_settings, build_landing_plan_cards
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -29,6 +30,8 @@ def index():
         landing_dashboard_url=dashboard_url,
         landing_register_url=url_for('auth.register', lang=_lang()),
         landing_login_url=url_for('auth.login', lang=_lang()),
+        landing=get_landing_settings(),
+        landing_plans=build_landing_plan_cards(_lang()),
     )
 
 

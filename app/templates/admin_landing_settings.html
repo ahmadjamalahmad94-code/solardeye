@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2 landing-admin-v10529">
+    <header class="admin-page-head compact">
+      <div>
+        <span class="eyebrow">{{ 'Homepage' if is_en else 'الصفحة الرئيسية' }}</span>
+        <h1>{{ 'Landing page content' if is_en else 'إدارة صفحة الهبوط' }}</h1>
+        <p>{{ 'Edit homepage messaging, plan offer cards, footer, and social links from one place.' if is_en else 'عدّل نصوص الواجهة الرئيسية، بطاقات الباقات، الفوتر، وروابط التواصل من مكان واحد.' }}</p>
+      </div>
+      <a class="btn btn-outline-primary" href="{{ url_for('main.index', lang=ui_lang) }}" target="_blank">{{ 'Preview homepage' if is_en else 'معاينة الصفحة' }}</a>
+    </header>
+
+    <form method="post" class="landing-admin-form-v10529">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <section class="admin-card-v2">
+        <div class="section-heading-inline"><div><small>{{ 'Hero and message' if is_en else 'الواجهة والرسالة' }}</small><h3>{{ 'Main homepage copy' if is_en else 'نصوص الصفحة الرئيسية' }}</h3></div></div>
+        <div class="form-grid-v2 two">
+          <label><span>اسم الموقع عربي</span><input class="form-control" name="site_name_ar" value="{{ landing.site_name_ar }}"></label>
+          <label><span>Site name English</span><input class="form-control" name="site_name_en" value="{{ landing.site_name_en }}"></label>
+          <label><span>شارة الهيرو عربي</span><input class="form-control" name="hero_badge_ar" value="{{ landing.hero_badge_ar }}"></label>
+          <label><span>Hero badge English</span><input class="form-control" name="hero_badge_en" value="{{ landing.hero_badge_en }}"></label>
+          <label><span>عنوان الهيرو عربي</span><textarea class="form-control" name="hero_title_ar" rows="2">{{ landing.hero_title_ar }}</textarea></label>
+          <label><span>Hero title English</span><textarea class="form-control" name="hero_title_en" rows="2">{{ landing.hero_title_en }}</textarea></label>
+          <label><span>وصف الهيرو عربي</span><textarea class="form-control" name="hero_subtitle_ar" rows="3">{{ landing.hero_subtitle_ar }}</textarea></label>
+          <label><span>Hero subtitle English</span><textarea class="form-control" name="hero_subtitle_en" rows="3">{{ landing.hero_subtitle_en }}</textarea></label>
+          <label><span>رؤية المنصة عربي</span><textarea class="form-control" name="vision_ar" rows="3">{{ landing.vision_ar }}</textarea></label>
+          <label><span>Platform vision English</span><textarea class="form-control" name="vision_en" rows="3">{{ landing.vision_en }}</textarea></label>
+          <label><span>رسالة المنصة عربي</span><textarea class="form-control" name="mission_ar" rows="3">{{ landing.mission_ar }}</textarea></label>
+          <label><span>Platform mission English</span><textarea class="form-control" name="mission_en" rows="3">{{ landing.mission_en }}</textarea></label>
+          <label><span>وعد المنصة عربي</span><textarea class="form-control" name="promise_ar" rows="3">{{ landing.promise_ar }}</textarea></label>
+          <label><span>Platform promise English</span><textarea class="form-control" name="promise_en" rows="3">{{ landing.promise_en }}</textarea></label>
+        </div>
+      </section>
+
+      <section class="admin-card-v2">
+        <div class="section-heading-inline"><div><small>{{ 'Offers' if is_en else 'العروض والباقات' }}</small><h3>{{ 'Homepage plan cards' if is_en else 'بطاقات الباقات في الصفحة الرئيسية' }}</h3><p class="table-sub">{{ 'Edit price and public bullets here. Detailed plan quotas stay in the plan editor.' if is_en else 'عدّل السعر والبنود الظاهرة هنا. كوتا الخطة التفصيلية تبقى داخل محرر الخطة.' }}</p></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Open plans' if is_en else 'فتح الخطط' }}</a></div>
+        <div class="landing-plan-admin-grid-v10529">
+          {% for row in plan_rows %}
+          {% set plan = row.plan %}
+          {% set meta = row.meta %}
+          {% set meta_ar = row.meta_ar %}
+          {% set meta_en = row.meta_en %}
+          {% set prefix = 'plan_' ~ plan.id %}
+          <article class="landing-plan-admin-card-v10529">
+            <div class="plan-admin-head-v10529"><strong>{{ plan.name_ar }}</strong><span>{{ plan.code }}</span></div>
+            <div class="form-grid-v2 two">
+              <label><span>الاسم عربي</span><input class="form-control" name="{{ prefix }}_name_ar" value="{{ plan.name_ar }}"></label>
+              <label><span>English name</span><input class="form-control" name="{{ prefix }}_name_en" value="{{ plan.name_en }}"></label>
+              <label><span>السعر</span><input class="form-control" type="number" step="0.01" name="{{ prefix }}_price" value="{{ plan.price }}"></label>
+              <label><span>العملة</span><input class="form-control" name="{{ prefix }}_currency" value="{{ plan.currency }}"></label>
+              <label><span>وصف مختصر عربي</span><input class="form-control" name="{{ prefix }}_subtitle_ar" value="{{ meta_ar.subtitle }}"></label>
+              <label><span>Short subtitle EN</span><input class="form-control" name="{{ prefix }}_subtitle_en" value="{{ meta_en.subtitle }}"></label>
+              <label class="full"><span>بنود البطاقة عربي — كل بند في سطر</span><textarea class="form-control" name="{{ prefix }}_bullets_ar" rows="5">{{ meta_ar.bullets|join('\n') }}</textarea></label>
+              <label class="full"><span>Plan bullets English — one per line</span><textarea class="form-control" name="{{ prefix }}_bullets_en" rows="5">{{ meta_en.bullets|join('\n') }}</textarea></label>
+              <label><span>شارة مميزة عربي</span><input class="form-control" name="{{ prefix }}_badge_ar" value="{{ meta_ar.badge }}"></label>
+              <label><span>Featured badge EN</span><input class="form-control" name="{{ prefix }}_badge_en" value="{{ meta_en.badge }}"></label>
+              <label class="full switch-row"><span>تمييز هذه الباقة في الصفحة الرئيسية</span><input type="checkbox" name="{{ prefix }}_featured" {% if meta.featured %}checked{% endif %}></label>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="admin-card-v2">
+        <div class="section-heading-inline"><div><small>{{ 'Footer and social' if is_en else 'الفوتر والتواصل' }}</small><h3>{{ 'Footer, policies, and social links' if is_en else 'الفوتر وروابط التواصل الاجتماعي' }}</h3></div></div>
+        <div class="form-grid-v2 two">
+          <label><span>نبذة الفوتر عربي</span><textarea class="form-control" name="footer_about_ar" rows="3">{{ landing.footer_about_ar }}</textarea></label>
+          <label><span>Footer about English</span><textarea class="form-control" name="footer_about_en" rows="3">{{ landing.footer_about_en }}</textarea></label>
+          {% for key,label,icon in social_links %}
+          <label><span>{{ icon }} {{ label }}</span><input class="form-control ltr-field-v10523" name="{{ key }}" value="{{ landing.get(key, '') }}" placeholder="https://..."></label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div class="landing-admin-save-v10529"><button class="btn btn-solar btn-lg">حفظ الصفحة الرئيسية والباقات</button></div>
+    </form>
+  </main>
+</div>
+{% endblock %}

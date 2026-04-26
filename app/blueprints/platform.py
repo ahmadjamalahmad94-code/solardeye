@@ -3,11 +3,13 @@ from __future__ import annotations
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, session, url_for
 
 from ..extensions import db
+from ..models import SubscriptionPlan
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
 from ..services.platform_audit import audit_project
 from ..services.scope import has_permission, is_system_admin
 from ..services.rbac import admin_landing_url
 from ..services.utils import format_local_datetime
+from ..services.landing_content import get_landing_settings, save_landing_settings, plan_landing_meta, update_plan_landing_meta, SOCIAL_LINKS
 
 platform_bp = Blueprint('platform', __name__)
 
@@ -31,6 +33,41 @@ def admin_platform_review():
         return guard
     audit = audit_project(current_app.root_path.rsplit('/app', 1)[0])
     return render_template('admin_platform_review.html', audit=audit, ui_lang=_lang())
+
+
+@platform_bp.route('/admin/landing-settings', methods=['GET', 'POST'])
+def admin_landing_settings():
+    guard = _admin_guard('can_manage_system')
+    if guard:
+        return guard
+    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    if request.method == 'POST':
+        save_landing_settings(request.form)
+        for plan in plans:
+            prefix = f'plan_{plan.id}'
+            # This admin surface edits the offer card shown on the homepage,
+            # plus the public price/currency used by existing plan screens.
+            try:
+                plan.price = float(request.form.get(f'{prefix}_price') or plan.price or 0)
+            except Exception:
+                pass
+            plan.currency = (request.form.get(f'{prefix}_currency') or plan.currency or 'USD').strip() or 'USD'
+            if request.form.get(f'{prefix}_name_ar'):
+                plan.name_ar = request.form.get(f'{prefix}_name_ar').strip()
+            if request.form.get(f'{prefix}_name_en'):
+                plan.name_en = request.form.get(f'{prefix}_name_en').strip()
+            update_plan_landing_meta(plan, request.form, prefix)
+        db.session.commit()
+        flash('تم تحديث الصفحة الرئيسية وروابط التواصل والباقات بنجاح.', 'success')
+        return redirect(url_for('platform.admin_landing_settings', lang=_lang()))
+    plan_rows = [{'plan': plan, 'meta': plan_landing_meta(plan, _lang()), 'meta_ar': plan_landing_meta(plan, 'ar'), 'meta_en': plan_landing_meta(plan, 'en')} for plan in plans]
+    return render_template(
+        'admin_landing_settings.html',
+        landing=get_landing_settings(),
+        plan_rows=plan_rows,
+        social_links=SOCIAL_LINKS,
+        ui_lang=_lang(),
+    )
 
 
 @platform_bp.route('/admin/backups', methods=['GET', 'POST'])
