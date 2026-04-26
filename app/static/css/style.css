@@ -3322,3 +3322,130 @@ body,
   .register-card-v10523{ grid-template-columns:1fr !important; }
   .register-hero-v10523{ min-height:auto !important; }
 }
+
+/* Heavy v10.5.25 — balanced registration layout: form 65%, hero 35% */
+.register-card-v10523{
+  grid-template-columns:minmax(0,.35fr) minmax(0,.65fr) !important;
+  max-width:1320px !important;
+}
+[dir="rtl"] .register-card-v10523{
+  direction:rtl;
+}
+.register-form-panel-v10523{
+  padding:34px 42px !important;
+}
+.register-hero-v10523{
+  position:relative;
+  isolation:isolate;
+  padding:30px 28px !important;
+  overflow:hidden;
+  justify-content:flex-start !important;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 199, 44, .20), transparent 26%),
+    radial-gradient(circle at 86% 34%, rgba(88, 145, 255, .32), transparent 28%),
+    linear-gradient(160deg,#183a7a 0%,#0d1f47 76%) !important;
+}
+.register-hero-v10523::before{
+  content:"";
+  position:absolute;
+  inset:18px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:26px;
+  pointer-events:none;
+  z-index:-1;
+}
+.register-hero-top-v10523{
+  margin-top:22px !important;
+  gap:10px !important;
+  max-width:360px;
+}
+.register-mark-v10523{
+  width:54px !important;
+  height:54px !important;
+  border-radius:19px !important;
+  font-size:27px !important;
+  background:rgba(255,255,255,.14) !important;
+  border:1px solid rgba(255,255,255,.12);
+}
+.register-eyebrow-v10523{
+  width:max-content;
+  padding:7px 12px !important;
+  font-size:.84rem !important;
+  background:rgba(255,199,44,.15) !important;
+  color:#ffdf72 !important;
+}
+.register-hero-v10523 h1{
+  max-width:340px !important;
+  font-size:clamp(2rem,2.65vw,3.15rem) !important;
+  line-height:1.06 !important;
+  letter-spacing:-.035em !important;
+}
+.register-hero-v10523 p{
+  max-width:330px !important;
+  font-size:.92rem !important;
+  line-height:1.75 !important;
+  color:#dbe7ff !important;
+}
+.register-steps-v10523{
+  margin-top:8px !important;
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  width:100%;
+  max-width:360px;
+}
+.register-steps-v10523 div{
+  justify-content:center;
+  padding:8px 9px !important;
+  font-size:.82rem !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.10) !important;
+}
+.register-steps-v10523 strong{
+  width:23px !important;
+  height:23px !important;
+  border-radius:9px !important;
+  font-size:.8rem;
+}
+.register-benefits-v10523{
+  width:100%;
+  max-width:360px;
+  margin-top:4px !important;
+  gap:8px !important;
+}
+.register-benefits-v10523 span{
+  justify-content:flex-start;
+  min-height:40px;
+  padding:8px 11px !important;
+  font-size:.84rem !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.09) !important;
+  color:#eef5ff;
+}
+.register-back-v10523{
+  font-size:.92rem;
+  opacity:.95;
+}
+.register-section-card-v10523{
+  padding:20px !important;
+}
+.register-form-head-v10523 h2{
+  font-size:clamp(2.25rem,3.2vw,3.55rem) !important;
+}
+.register-grid-v10523.two{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.register-grid-v10523.three{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+@media (max-width:1120px){
+  .register-card-v10523{ grid-template-columns:1fr !important; }
+  .register-hero-v10523{ min-height:auto !important; }
+  .register-hero-top-v10523,
+  .register-steps-v10523,
+  .register-benefits-v10523{ max-width:none; }
+}
+@media (max-width:720px){
+  .register-form-panel-v10523,
+  .register-hero-v10523{ padding:22px !important; }
+  .register-steps-v10523{ grid-template-columns:1fr; }
+}
