@@ -4069,19 +4069,22 @@ body.heavy-v100 .sidebar-fancy-v104 .nav-menu a{
   position:relative;
   align-items:center;
   gap:9px;
+  font-size:1.05rem !important;
+  min-height:45px !important;
+  padding:10px 13px !important;
 }
 body.heavy-v100 .sidebar-fancy-v104 .nav-menu a::before{
   content:"";
-  width:8px;
-  height:8px;
+  width:10px;
+  height:10px;
   border-radius:999px;
   background:rgba(226,232,240,.72);
-  box-shadow:0 0 0 4px rgba(255,255,255,.035);
+  box-shadow:0 0 0 5px rgba(255,255,255,.035);
   flex:0 0 auto;
 }
 body.heavy-v100 .sidebar-fancy-v104 .nav-menu a.active::before{
   background:#ffc83d;
-  box-shadow:0 0 0 4px rgba(255,200,61,.14);
+  box-shadow:0 0 0 5px rgba(255,200,61,.14);
 }
 html[dir="rtl"] body.heavy-v100 .sidebar-fancy-v104 .nav-menu a{
   text-align:right;
