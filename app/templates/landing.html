@@ -5,6 +5,8 @@
 {% set primary_cta_text = ('Open dashboard' if is_en else 'افتح لوحة التحكم') if is_logged else (landing.hero_primary_en if is_en else landing.hero_primary_ar) %}
 {% set login_cta_url = landing_dashboard_url if is_logged else landing_login_url|default(url_for('auth.login', lang=ui_lang)) %}
 {% set login_cta_text = ('Dashboard' if is_en else 'لوحة التحكم') if is_logged else ('Login' if is_en else 'تسجيل الدخول') %}
+{% set next_lang = 'ar' if is_en else 'en' %}
+{% set lang_toggle_text = 'العربية' if is_en else 'English' %}
 {% block title %}{{ landing.site_name_en if is_en else landing.site_name_ar }}{% endblock %}
 {% block body %}
 <main class="landing-v10529" dir="{{ 'ltr' if is_en else 'rtl' }}">
@@ -18,6 +20,7 @@
       <a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a>
     </nav>
     <div class="landing-nav-actions-v10529">
+      <a class="landing-lang-toggle-v10532" href="{{ url_for('energy.index', lang=next_lang) }}" aria-label="{{ 'Switch to Arabic' if is_en else 'Switch to English' }}">🌐 {{ lang_toggle_text }}</a>
       <a class="landing-btn ghost" href="{{ login_cta_url }}">👤 {{ login_cta_text }}</a>
       <a class="landing-btn gold" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a>
     </div>
@@ -106,9 +109,23 @@
     </div>
   </section>
 
-  <section class="trust-row-v10529"><span>🎨 واجهة عربية احترافية</span><span>🛡️ صلاحيات وتحكم مرن</span><span>👁️ وضع مشاهدة آمن</span><span>📈 قابلية توسع عالية</span><span>🔔 تنبيهات مستقرة لا تضيع</span></section>
+  <section class="trust-row-v10529 trust-row-final-v10532">
+    <span>🎨 {{ 'Professional bilingual interface' if is_en else 'واجهة عربية وإنجليزية احترافية' }}</span>
+    <span>🛡️ {{ 'Flexible roles and permissions' if is_en else 'صلاحيات وتحكم مرن' }}</span>
+    <span>👁️ {{ 'Safe view-only mode' if is_en else 'وضع مشاهدة آمن' }}</span>
+    <span>📈 {{ 'Built to scale' if is_en else 'قابلية توسع عالية' }}</span>
+    <span>🔔 {{ 'Reliable alerts that stay visible' if is_en else 'تنبيهات مستقرة لا تضيع' }}</span>
+  </section>
 
-  <section id="faq" class="landing-section-v10529 faq-section-v10529"><div class="landing-section-title-v10529"><h2>{{ 'Frequently asked questions' if is_en else 'الأسئلة الشائعة' }}</h2><span></span></div><div class="faq-grid-v10529"><details><summary>هل أستطيع إضافة أكثر من جهاز؟</summary><p>نعم، حسب الخطة والكوتا المحددة يمكن إضافة أكثر من جهاز وربطه بالمنصة.</p></details><details><summary>هل يمكن ربط التنبيهات بالهاتف و Telegram؟</summary><p>نعم، المنصة تدعم SMS و Telegram مع كوتا وتحكم واضح.</p></details><details><summary>هل أستطيع تغيير الخطة لاحقًا؟</summary><p>نعم، يمكن تغيير الخطة من لوحة الإدارة وتطبيق الحدود الجديدة تلقائيًا.</p></details><details><summary>هل يمكن تخصيص الصلاحيات لكل مشترك؟</summary><p>نعم، يمكن التحكم بظهور الصفحات والصلاحيات والخدمات لكل مشترك.</p></details></div></section>
+  <section id="faq" class="landing-section-v10529 faq-section-v10529 faq-final-v10532">
+    <div class="landing-section-title-v10529"><h2>{{ 'Frequently asked questions' if is_en else 'الأسئلة الشائعة' }}</h2><span></span></div>
+    <div class="faq-grid-v10529">
+      <details><summary>{{ 'Can I add more than one device?' if is_en else 'هل أستطيع إضافة أكثر من جهاز؟' }}</summary><p>{{ 'Yes. Depending on the plan and quota, you can add multiple devices and connect them to the platform.' if is_en else 'نعم، حسب الخطة والكوتا المحددة يمكن إضافة أكثر من جهاز وربطه بالمنصة.' }}</p></details>
+      <details><summary>{{ 'Can alerts reach my phone and Telegram?' if is_en else 'هل يمكن ربط التنبيهات بالهاتف و Telegram؟' }}</summary><p>{{ 'Yes. The platform supports SMS and Telegram with clear quota controls.' if is_en else 'نعم، المنصة تدعم SMS و Telegram مع كوتا وتحكم واضح.' }}</p></details>
+      <details><summary>{{ 'Can I change my plan later?' if is_en else 'هل أستطيع تغيير الخطة لاحقًا؟' }}</summary><p>{{ 'Yes. Plans can be changed from the admin panel and new limits are applied automatically.' if is_en else 'نعم، يمكن تغيير الخطة من لوحة الإدارة وتطبيق الحدود الجديدة تلقائيًا.' }}</p></details>
+      <details><summary>{{ 'Can permissions be customized per subscriber?' if is_en else 'هل يمكن تخصيص الصلاحيات لكل مشترك؟' }}</summary><p>{{ 'Yes. Pages, permissions, and services can be controlled for each subscriber.' if is_en else 'نعم، يمكن التحكم بظهور الصفحات والصلاحيات والخدمات لكل مشترك.' }}</p></details>
+    </div>
+  </section>
 
   <section class="final-cta-v10529"><div><h2>{{ 'Start today and give your energy a professional command center' if is_en else 'ابدأ اليوم وامنح طاقتك لوحة قيادة احترافية' }}</h2><p>{{ landing.promise_en if is_en else landing.promise_ar }}</p></div><a class="landing-btn gold big" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a></section>
 
@@ -121,10 +138,10 @@
       {% if landing.social_telegram %}<a href="{{ landing.social_telegram }}" target="_blank" rel="noopener">✈</a>{% endif %}
       {% if landing.social_whatsapp %}<a href="{{ landing.social_whatsapp }}" target="_blank" rel="noopener">☎</a>{% endif %}
     </div></div>
-    <div><h4>المنصة</h4><a href="#features">المزايا</a><a href="#pricing">الباقات</a><a href="{{ landing_register_url }}">إنشاء حساب</a></div>
-    <div><h4>الموارد</h4><a href="#devices">الأجهزة</a><a href="#faq">الأسئلة الشائعة</a><a href="{{ landing_login_url }}">تسجيل الدخول</a></div>
-    <div><h4>السياسات</h4><a href="#">سياسة الخصوصية</a><a href="#">الشروط والأحكام</a><a href="#">سياسة الاستخدام</a></div>
-    <small>© 2026 جميع الحقوق محفوظة.</small>
+    <div><h4>{{ 'Platform' if is_en else 'المنصة' }}</h4><a href="#features">{{ 'Features' if is_en else 'المزايا' }}</a><a href="#pricing">{{ 'Plans' if is_en else 'الباقات' }}</a><a href="{{ landing_register_url }}">{{ 'Create account' if is_en else 'إنشاء حساب' }}</a></div>
+    <div><h4>{{ 'Resources' if is_en else 'الموارد' }}</h4><a href="#devices">{{ 'Devices' if is_en else 'الأجهزة' }}</a><a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a><a href="{{ landing_login_url }}">{{ 'Login' if is_en else 'تسجيل الدخول' }}</a></div>
+    <div><h4>{{ 'Policies' if is_en else 'السياسات' }}</h4><a href="#">{{ 'Privacy policy' if is_en else 'سياسة الخصوصية' }}</a><a href="#">{{ 'Terms and conditions' if is_en else 'الشروط والأحكام' }}</a><a href="#">{{ 'Acceptable use policy' if is_en else 'سياسة الاستخدام' }}</a></div>
+    <small>{{ '© 2026 All rights reserved.' if is_en else '© 2026 جميع الحقوق محفوظة.' }}</small>
   </footer>
 </main>
 {% endblock %}

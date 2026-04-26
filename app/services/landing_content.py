@@ -145,6 +145,12 @@ def build_landing_plan_cards(lang: str = 'ar') -> list[dict[str, Any]]:
     if cards:
         return cards
     # Safe fallback when DB has no plans yet.
+    if str(lang).startswith('en'):
+        return [
+            {'id': 0, 'code': 'basic', 'name': 'Basic', 'name_ar': 'الأساسية', 'name_en': 'Basic', 'price': 9, 'currency': 'USD', 'duration_days': 30, 'max_devices': 10, 'subtitle': 'Ideal for small projects', 'bullets': ['Up to 10 devices', '50 alerts monthly', 'Ticket support'], 'featured': False, 'badge': ''},
+            {'id': 0, 'code': 'pro', 'name': 'Pro', 'name_ar': 'الاحترافية', 'name_en': 'Pro', 'price': 29, 'currency': 'USD', 'duration_days': 30, 'max_devices': 50, 'subtitle': 'For companies and growing operations', 'bullets': ['Up to 50 devices', '200 alerts monthly', 'Advanced reports'], 'featured': True, 'badge': 'Most popular'},
+            {'id': 0, 'code': 'platinum', 'name': 'Platinum', 'name_ar': 'البلاتينية', 'name_en': 'Platinum', 'price': 79, 'currency': 'USD', 'duration_days': 30, 'max_devices': 999, 'subtitle': 'For large projects and enterprises', 'bullets': ['Unlimited devices', 'Advanced alerts', 'API access'], 'featured': False, 'badge': ''},
+        ]
     return [
         {'id': 0, 'code': 'basic', 'name': 'الأساسية', 'name_ar': 'الأساسية', 'name_en': 'Basic', 'price': 9, 'currency': 'USD', 'duration_days': 30, 'max_devices': 10, 'subtitle': 'مثالية للمشاريع الصغيرة', 'bullets': ['حتى 10 أجهزة', '50 تنبيه شهريًا', 'دعم عبر التذاكر'], 'featured': False, 'badge': ''},
         {'id': 0, 'code': 'pro', 'name': 'الاحترافية', 'name_ar': 'الاحترافية', 'name_en': 'Pro', 'price': 29, 'currency': 'USD', 'duration_days': 30, 'max_devices': 50, 'subtitle': 'للشركات والمشاريع المتوسطة', 'bullets': ['حتى 50 جهاز', '200 تنبيه شهريًا', 'تقارير متقدمة'], 'featured': True, 'badge': 'الأكثر شيوعًا'},
