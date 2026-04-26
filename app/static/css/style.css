@@ -3243,3 +3243,126 @@ body.heavy-v100 .quota-unlimited-v114{
   .register-form-panel-v10523,.register-hero-v10523{ padding:22px; }
   .register-grid-v10523.two,.register-grid-v10523.three,.energy-intent-v10523,.register-social-v10523{ grid-template-columns:1fr; }
 }
+
+/* Heavy v10.5.24 — Registration UI Balance */
+.register-card-v10523{
+  grid-template-columns:minmax(0, 1.85fr) minmax(300px, .7fr) !important;
+  max-width:1320px;
+}
+.register-form-panel-v10523{
+  padding:30px 38px !important;
+}
+.register-hero-v10523{
+  padding:28px 28px !important;
+  gap:10px !important;
+}
+.register-hero-top-v10523{
+  margin-top:12px !important;
+  gap:8px !important;
+}
+.register-mark-v10523{
+  width:48px !important;
+  height:48px !important;
+  border-radius:17px !important;
+  font-size:23px !important;
+}
+.register-eyebrow-v10523{
+  padding:6px 11px !important;
+  font-size:.82rem !important;
+}
+.register-hero-v10523 h1{
+  max-width:340px !important;
+  font-size:clamp(1.75rem, 2.4vw, 2.9rem) !important;
+  line-height:1.05 !important;
+  letter-spacing:-.035em !important;
+}
+.register-hero-v10523 p{
+  max-width:330px !important;
+  font-size:.92rem !important;
+  line-height:1.65 !important;
+}
+.register-steps-v10523{
+  margin-top:4px !important;
+  gap:7px !important;
+}
+.register-steps-v10523 div{
+  padding:7px 9px !important;
+  border-radius:13px !important;
+  font-size:.82rem !important;
+}
+.register-steps-v10523 strong{
+  width:23px !important;
+  height:23px !important;
+  border-radius:8px !important;
+  font-size:.8rem !important;
+}
+.register-benefits-v10523{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:7px !important;
+  margin-top:2px !important;
+  max-width:340px;
+}
+.register-benefits-v10523 span{
+  padding:8px 10px !important;
+  border-radius:13px !important;
+  font-size:.84rem !important;
+  line-height:1.35 !important;
+}
+.register-form-head-v10523{
+  margin-bottom:14px !important;
+}
+.register-form-head-v10523 h2{
+  font-size:clamp(1.8rem, 2.6vw, 2.75rem) !important;
+}
+.register-section-card-v10523{
+  padding:18px !important;
+  border-radius:24px !important;
+}
+.register-form-v10523{
+  gap:14px !important;
+}
+.register-grid-v10523{
+  gap:12px !important;
+}
+.register-grid-v10523 input,
+.register-grid-v10523 select,
+.provider-choice-v10523 select{
+  min-height:48px !important;
+  border-radius:14px !important;
+}
+.register-section-title-v10523{
+  margin-bottom:12px !important;
+}
+.register-section-title-v10523 > span{
+  width:38px !important;
+  height:38px !important;
+  border-radius:14px !important;
+}
+.register-section-title-v10523 strong{
+  font-size:1.05rem !important;
+}
+.energy-intent-v10523{
+  gap:10px !important;
+}
+.intent-card-v10523{
+  padding:14px !important;
+  border-radius:18px !important;
+}
+.provider-preview-v10523{
+  padding:12px !important;
+  border-radius:16px !important;
+}
+.register-submit-card-v10523 .btn{
+  min-height:46px !important;
+}
+@media (max-width:1100px){
+  .register-card-v10523{grid-template-columns:1fr !important;}
+  .register-hero-v10523{order:-1; min-height:auto !important;}
+  .register-hero-v10523 h1,.register-hero-v10523 p,.register-benefits-v10523{max-width:none !important;}
+  .register-benefits-v10523{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+}
+@media (max-width:720px){
+  .register-benefits-v10523{grid-template-columns:1fr !important;}
+  .register-form-panel-v10523,.register-hero-v10523{padding:20px !important;}
+}
