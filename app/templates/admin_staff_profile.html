@@ -89,19 +89,33 @@
         <div>
           <h4>{{ 'Mail threads' if is_en else 'محادثات البريد' }}</h4>
           {% for row in assigned_threads %}
-          <article class="staff-support-row-v122">
-            <div><strong>{{ row.thread.subject }}</strong><small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small></div>
-            <span class="status-pill {{ 'success' if row.thread.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.thread.status, 'status', ui_lang) }}</span>
-          </article>
+          <a class="staff-support-row-v122 support-mail-v129 status-{{ row.thread.status or 'open' }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine', case='message-' ~ row.thread.id) }}#case-message-{{ row.thread.id }}">
+            <span class="support-row-glow-v129"></span>
+            <div class="support-row-main-v129">
+              <strong>{{ row.thread.subject }}</strong>
+              <small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small>
+            </div>
+            <div class="support-row-meta-v129">
+              <span class="status-pill {{ 'success' if row.thread.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.thread.status, 'status', ui_lang) }}</span>
+              <em>{{ 'Open support center' if is_en else 'افتح مركز الدعم' }}</em>
+            </div>
+          </a>
           {% else %}<div class="empty-box-v2">{{ 'No assigned mail threads.' if is_en else 'لا توجد محادثات مسندة.' }}</div>{% endfor %}
         </div>
         <div>
           <h4>{{ 'Tickets' if is_en else 'التذاكر' }}</h4>
           {% for row in assigned_tickets %}
-          <article class="staff-support-row-v122">
-            <div><strong>{{ row.ticket.subject }}</strong><small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small></div>
-            <span class="status-pill {{ 'success' if row.ticket.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.ticket.status, 'status', ui_lang) }}</span>
-          </article>
+          <a class="staff-support-row-v122 support-ticket-v129 status-{{ row.ticket.status or 'open' }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine', case='ticket-' ~ row.ticket.id) }}#case-ticket-{{ row.ticket.id }}">
+            <span class="support-row-glow-v129"></span>
+            <div class="support-row-main-v129">
+              <strong>{{ row.ticket.subject }}</strong>
+              <small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small>
+            </div>
+            <div class="support-row-meta-v129">
+              <span class="status-pill {{ 'success' if row.ticket.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.ticket.status, 'status', ui_lang) }}</span>
+              <em>{{ 'Open support center' if is_en else 'افتح مركز الدعم' }}</em>
+            </div>
+          </a>
           {% else %}<div class="empty-box-v2">{{ 'No assigned tickets.' if is_en else 'لا توجد تذاكر مسندة.' }}</div>{% endfor %}
         </div>
       </div>
