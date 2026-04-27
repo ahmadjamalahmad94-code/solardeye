@@ -37,6 +37,33 @@ PERMISSION_CATALOG: tuple[PermissionSpec, ...] = (
 )
 PERMISSION_KEYS = tuple(p.key for p in PERMISSION_CATALOG)
 
+STAFF_ROLE_PRESETS = (
+    {
+        'code': 'general_manager', 'name_ar': 'مدير عام', 'name_en': 'General Manager', 'summary_ar': 'إشراف تشغيلي كامل بدون صلاحيات إعدادات النظام الحساسة.', 'summary_en': 'Full operational oversight without sensitive system settings.', 'is_system': True, 'sort_order': 2,
+        'permissions': {'can_manage_users': True, 'can_manage_roles': True, 'can_manage_portal_visibility': True, 'can_manage_devices': True, 'can_manage_integrations': True, 'can_configure_integrations': True, 'can_manage_support': True, 'can_manage_finance': True, 'can_manage_subscriptions': True, 'can_manage_backups': True, 'can_view_logs': True, 'can_access_mobile_api': True},
+    },
+    {
+        'code': 'assistant_manager', 'name_ar': 'مساعد مدير', 'name_en': 'Assistant Manager', 'summary_ar': 'متابعة المستخدمين والدعم والأجهزة والسجلات التشغيلية.', 'summary_en': 'Users, support, devices, and operational logs.', 'is_system': True, 'sort_order': 5,
+        'permissions': {'can_manage_users': True, 'can_manage_portal_visibility': True, 'can_manage_devices': True, 'can_manage_support': True, 'can_manage_subscriptions': True, 'can_view_logs': True, 'can_access_mobile_api': True},
+    },
+    {
+        'code': 'technical_support', 'name_ar': 'دعم فني', 'name_en': 'Technical Support', 'summary_ar': 'التذاكر والمراسلات ومراجعة الأجهزة بدون صلاحيات مالية.', 'summary_en': 'Tickets, messages, and device review without finance access.', 'is_system': True, 'sort_order': 12,
+        'permissions': {'can_manage_support': True, 'can_manage_devices': True, 'can_view_logs': True, 'can_access_mobile_api': True},
+    },
+    {
+        'code': 'finance_manager', 'name_ar': 'مدير مالي', 'name_en': 'Finance Manager', 'summary_ar': 'إدارة المالية والاشتراكات والخطط والتقارير المالية.', 'summary_en': 'Finance, subscriptions, plans, and financial reporting.', 'is_system': True, 'sort_order': 21,
+        'permissions': {'can_manage_finance': True, 'can_manage_subscriptions': True, 'can_manage_users': True, 'can_view_logs': True},
+    },
+    {
+        'code': 'marketing_manager', 'name_ar': 'مدير تسويق', 'name_en': 'Marketing Manager', 'summary_ar': 'متابعة المشتركين والدعم الأساسي بدون حذف أو إعدادات حساسة.', 'summary_en': 'Subscriber follow-up and basic support without sensitive settings.', 'is_system': True, 'sort_order': 25,
+        'permissions': {'can_manage_users': True, 'can_manage_support': True, 'can_manage_subscriptions': True, 'can_access_mobile_api': True},
+    },
+    {
+        'code': 'developer', 'name_ar': 'مبرمج', 'name_en': 'Developer', 'summary_ar': 'التكاملات، صحة الخدمات، النسخ الاحتياطي، والسجلات التقنية.', 'summary_en': 'Integrations, service health, backups, and technical logs.', 'is_system': True, 'sort_order': 35,
+        'permissions': {'can_manage_devices': True, 'can_manage_integrations': True, 'can_configure_integrations': True, 'can_manage_backups': True, 'can_view_logs': True},
+    },
+)
+
 DEFAULT_ROLES = (
     {
         'code': 'admin', 'name_ar': 'مدير كامل', 'name_en': 'Full Admin', 'summary_ar': 'تحكم كامل في المنصة.', 'summary_en': 'Full platform control.', 'is_system': True, 'sort_order': 1,
@@ -59,6 +86,7 @@ DEFAULT_ROLES = (
         'permissions': {'can_access_mobile_api': True},
     },
 )
+DEFAULT_ROLE_CATALOG = DEFAULT_ROLES[:1] + STAFF_ROLE_PRESETS + DEFAULT_ROLES[1:]
 
 PORTAL_PAGES = (
     {'page_key': 'dashboard', 'endpoint': 'main.dashboard', 'label_ar': 'النظرة العامة', 'label_en': 'Overview', 'icon': '🏠', 'group_key': 'portal', 'sort_order': 1, 'is_locked': True},
@@ -122,7 +150,7 @@ def role_permissions(role_code: str | None) -> dict[str, bool]:
         perms = all_permission_defaults(False)
         perms.update(_parse_permissions(row.permissions_json))
         return perms
-    for role in DEFAULT_ROLES:
+    for role in DEFAULT_ROLE_CATALOG:
         if role['code'] == code:
             perms = all_permission_defaults(False)
             perms.update(role.get('permissions') or {})
@@ -140,7 +168,7 @@ def available_roles(include_inactive: bool = False):
     class _FallbackRole:
         def __init__(self, data):
             self.code = data['code']; self.name_ar = data['name_ar']; self.name_en = data['name_en']; self.summary_ar = data.get('summary_ar',''); self.summary_en = data.get('summary_en',''); self.permissions_json = json.dumps(data.get('permissions') or {}); self.is_system = data.get('is_system', False); self.is_active = True
-    return [_FallbackRole(r) for r in DEFAULT_ROLES]
+    return [_FallbackRole(r) for r in DEFAULT_ROLE_CATALOG]
 
 
 def admin_landing_url(lang: str = 'ar') -> str:
@@ -169,7 +197,7 @@ def role_label(code: str, lang: str = 'ar') -> str:
     row = AppRole.query.filter_by(code=(code or 'user')).first()
     if row:
         return row.name_en if (lang or 'ar') == 'en' else row.name_ar
-    for role in DEFAULT_ROLES:
+    for role in DEFAULT_ROLE_CATALOG:
         if role['code'] == code:
             return role['name_en'] if (lang or 'ar') == 'en' else role['name_ar']
     return code or 'user'
@@ -284,7 +312,7 @@ def portal_page_visible(page_key: str) -> bool:
 
 def seed_access_control(commit: bool = True):
     changed = False
-    for data in DEFAULT_ROLES:
+    for data in DEFAULT_ROLE_CATALOG:
         row = AppRole.query.filter_by(code=data['code']).first()
         if row is None:
             row = AppRole(code=data['code'], created_at=datetime.utcnow())

@@ -13,7 +13,7 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
-from ..services.rbac import portal_pages, user_portal_visibility_map, save_user_portal_visibility
+from ..services.rbac import available_roles, portal_pages, role_label, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
 
 users_bp = Blueprint('users_routes', __name__)
@@ -507,6 +507,7 @@ def admin_users_legacy():
         flash(f'تم تنفيذ العملية على {changed} مستخدم. تم تخطي {skipped}.', 'success')
         return redirect(url_for('main.admin_users_legacy', lang=_lang()))
 
+    seed_access_control(commit=True)
     users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
     device_map = {}
@@ -531,12 +532,27 @@ def admin_users_legacy():
         if owner_id:
             support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['tickets'] += 1
 
+    staff_roles = {'admin'}
+    for role in available_roles():
+        code = (getattr(role, 'code', '') or '').strip().lower()
+        if code and code not in {'user', 'subscriber', 'customer'}:
+            staff_roles.add(code)
+    stats = {
+        'total': len(users),
+        'staff': sum(1 for user in users if (user.role or '').strip().lower() in staff_roles or bool(user.is_admin)),
+        'active': sum(1 for user in users if user.is_active),
+        'disabled': sum(1 for user in users if not user.is_active),
+        'with_support': sum(1 for user in users if support_map.get(user.id, {}).get('mail', 0) or support_map.get(user.id, {}).get('tickets', 0)),
+    }
+
     return render_template(
         'admin_users.html',
         users=users,
+        stats=stats,
         device_map=device_map,
         support_map=support_map,
         role_badge=_role_badge,
+        role_label=role_label,
         ui_lang=_lang(),
     )
 
@@ -546,6 +562,7 @@ def admin_user_create():
     guard = _admin_guard()
     if guard:
         return guard
+    seed_access_control(commit=True)
     devices = _available_devices_for_admin()
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -578,7 +595,8 @@ def admin_user_create():
             _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم إنشاء المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_subscribers', lang=_lang()))
+            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'main.admin_users_legacy'
+            return redirect(url_for(target, lang=_lang()))
 
     return render_template('admin_user_form.html', mode='create', user_obj=None, devices=devices, selected_device_ids=[], ui_lang=_lang())
 
@@ -588,6 +606,7 @@ def admin_user_edit(user_id: int):
     guard = _admin_guard()
     if guard:
         return guard
+    seed_access_control(commit=True)
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     devices = _available_devices_for_admin(user)
     owned_ids = [d.id for d in devices if d.owner_user_id == user.id]
@@ -620,7 +639,8 @@ def admin_user_edit(user_id: int):
             _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم تحديث المستخدم بنجاح.', 'success')
-            return redirect(url_for('main.admin_subscribers', lang=_lang()))
+            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'main.admin_users_legacy'
+            return redirect(url_for(target, lang=_lang()))
 
     return render_template('admin_user_form.html', mode='edit', user_obj=user, devices=devices, selected_device_ids=owned_ids, ui_lang=_lang())
 
@@ -722,5 +742,3 @@ def admin_roles():
         {'role': 'integration_admin', 'summary': 'Devices, APIs, and service health', 'perms': ['manage_devices','manage_integrations','view_logs']},
     ]
     return render_template('admin_roles.html', admin_users=admin_users, role_matrix=role_matrix, ui_lang=_lang())
-
-
