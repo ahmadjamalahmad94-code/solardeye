@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Staff profile' if (ui_lang or 'ar') == 'en' else 'ملف عضو الإدارة' }}{% endblock %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell">
+  {% include '_sidebar.html' %}
+  <main class="content-area admin-shell-v2 staff-profile-v122">
+    <header class="admin-page-head compact">
+      <div>
+        <span class="eyebrow">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</span>
+        <h1>{{ user_obj.full_name or user_obj.username }}</h1>
+        <p>{{ 'Personal data, exact permissions, assigned support, and activity for this staff account.' if is_en else 'بيانات شخصية، صلاحيات دقيقة، الدعم المكلّف فيه، وسجل نشاط هذا العضو.' }}</p>
+      </div>
+      <div class="admin-head-actions">
+        <span class="status-pill {{ 'success' if user_obj.is_active else 'danger' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
+        <a class="btn btn-outline-primary" href="{{ url_for('users_routes.admin_team', lang=ui_lang) }}">{{ 'Back to team' if is_en else 'العودة لفريق الإدارة' }}</a>
+      </div>
+    </header>
+
+    <section class="staff-profile-summary-v122">
+      <article><small>{{ 'Role' if is_en else 'الدور' }}</small><strong>{{ role_label(user_obj.role or 'user', ui_lang) }}</strong></article>
+      <article><small>{{ 'Full admin' if is_en else 'مدير كامل' }}</small><strong>{{ 'Yes' if is_en and is_full_admin else ('نعم' if is_full_admin else ('No' if is_en else 'لا')) }}</strong></article>
+      <article><small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small><strong>{{ permission_rows|selectattr('checked')|list|length }}</strong></article>
+      <article><small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small><strong>{{ assigned_threads|length + assigned_tickets|length }}</strong></article>
+    </section>
+
+    <nav class="staff-tabs-v122">
+      {% for key,label_ar,label_en in [('profile','البيانات الشخصية','Personal'),('permissions','الصلاحيات','Permissions'),('support','رسائل الدعم','Support'),('activity','النشاط','Activity')] %}
+      <a class="{% if tab == key %}active{% endif %}" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, staff=1, tab=key) }}">{{ label_en if is_en else label_ar }}</a>
+      {% endfor %}
+    </nav>
+
+    {% if tab == 'profile' %}
+    <form method="post" class="admin-card-v2 staff-form-v122">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="save_staff_profile">
+      <div class="staff-card-title-v122"><small>{{ 'Personal data' if is_en else 'البيانات الشخصية' }}</small><h3>{{ 'Identity and login' if is_en else 'الهوية وتسجيل الدخول' }}</h3></div>
+      <div class="form-grid-v2 two">
+        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
+        <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
+        <label><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg ltr-field-v108" name="email" value="{{ user_obj.email or '' }}"></label>
+        <label><span>{{ 'Phone' if is_en else 'الجوال' }}</span><input class="form-control form-control-lg ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}"></label>
+        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country or '' }}"></label>
+        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city or '' }}"></label>
+        <label><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="form-select form-select-lg" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+        <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-select form-select-lg" name="role">{% for role in roles %}<option value="{{ role.code }}" {% if (user_obj.role or 'user') == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>{% endfor %}</select></label>
+        <label class="full"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control form-control-lg" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للإبقاء على كلمة المرور الحالية' }}"></label>
+      </div>
+      <label class="profile-switch-v118 staff-active-switch-v122"><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span><b>{{ 'Account enabled' if is_en else 'الحساب مفعّل' }}</b></label>
+      <div class="action-row-v2"><button class="btn btn-solar">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button></div>
+    </form>
+    {% elif tab == 'permissions' %}
+    <form method="post" class="admin-card-v2 staff-permissions-v122">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="save_staff_permissions">
+      <div class="staff-card-title-v122"><small>{{ 'Exact access' if is_en else 'صلاحيات دقيقة' }}</small><h3>{{ 'Show, hide, and guard admin sections' if is_en else 'إظهار وإخفاء وحماية أقسام الإدارة' }}</h3><p>{{ 'The sidebar and route guards read these permissions. Full Admin always keeps all access.' if is_en else 'السايدبار وحماية الروابط تعتمد على هذه الصلاحيات. المدير الكامل يبقى لديه كل الصلاحيات دائماً.' }}</p></div>
+      <div class="staff-permission-grid-v122">
+        {% for perm in permission_rows %}
+        <label class="staff-permission-card-v122 {{ 'is-on' if perm.checked else '' }}">
+          <input type="checkbox" name="{{ perm.key }}" {% if perm.checked %}checked{% endif %} {% if is_full_admin %}disabled{% endif %}>
+          <span>{{ perm.label }}</span>
+          <small>{{ perm.key }}{% if perm.has_override %} · {{ 'custom' if is_en else 'مخصص' }}{% elif perm.inherited %} · {{ 'from role' if is_en else 'من الدور' }}{% endif %}</small>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="action-row-v2"><button class="btn btn-solar" {% if is_full_admin %}disabled{% endif %}>{{ 'Save permissions' if is_en else 'حفظ الصلاحيات' }}</button></div>
+    </form>
+    {% elif tab == 'support' %}
+    <section class="admin-card-v2 staff-support-v122">
+      <div class="staff-card-title-v122"><small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small><h3>{{ 'Messages and tickets owned by this staff member' if is_en else 'رسائل وتذاكر الدعم المسندة لهذا العضو' }}</h3></div>
+      <div class="staff-support-columns-v122">
+        <div>
+          <h4>{{ 'Mail threads' if is_en else 'محادثات البريد' }}</h4>
+          {% for row in assigned_threads %}
+          <article class="staff-support-row-v122">
+            <div><strong>{{ row.thread.subject }}</strong><small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small></div>
+            <span class="status-pill {{ 'success' if row.thread.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.thread.status, 'status', ui_lang) }}</span>
+          </article>
+          {% else %}<div class="empty-box-v2">{{ 'No assigned mail threads.' if is_en else 'لا توجد محادثات مسندة.' }}</div>{% endfor %}
+        </div>
+        <div>
+          <h4>{{ 'Tickets' if is_en else 'التذاكر' }}</h4>
+          {% for row in assigned_tickets %}
+          <article class="staff-support-row-v122">
+            <div><strong>{{ row.ticket.subject }}</strong><small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small></div>
+            <span class="status-pill {{ 'success' if row.ticket.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.ticket.status, 'status', ui_lang) }}</span>
+          </article>
+          {% else %}<div class="empty-box-v2">{{ 'No assigned tickets.' if is_en else 'لا توجد تذاكر مسندة.' }}</div>{% endfor %}
+        </div>
+      </div>
+    </section>
+    {% elif tab == 'activity' %}
+    <section class="admin-card-v2">
+      <div class="staff-card-title-v122"><small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions' if is_en else 'آخر العمليات' }}</h3></div>
+      <div class="activity-list-v2">{% for row in activity_rows %}<div class="activity-item-v2"><div><strong>{{ activity_label(row.item, ui_lang) }}</strong><small>{{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</small></div><span>{{ format_local(row.item.created_at) if row.item.created_at else '' }}</span></div>{% else %}<div class="empty-box-v2">{{ 'No activity yet.' if is_en else 'لا يوجد نشاط بعد.' }}</div>{% endfor %}</div>
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

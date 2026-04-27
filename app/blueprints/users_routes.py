@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import json
 
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
@@ -13,7 +14,7 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
-from ..services.rbac import available_roles, portal_pages, role_label, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
+from ..services.rbac import PERMISSION_KEYS, available_roles, permission_catalog, portal_pages, role_label, role_permissions, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
 
 users_bp = Blueprint('users_routes', __name__)
@@ -21,6 +22,135 @@ users_bp = Blueprint('users_routes', __name__)
 def _is_admin_role_code(role: str | None) -> bool:
     role = (role or '').strip().lower()
     return role not in {'', 'user', 'subscriber', 'customer'}
+
+
+def _staff_role_codes() -> set[str]:
+    seed_access_control(commit=True)
+    codes = {'admin'}
+    for role in available_roles():
+        code = (getattr(role, 'code', '') or '').strip().lower()
+        if code and _is_admin_role_code(code):
+            codes.add(code)
+    return codes
+
+
+def _is_staff_account(user) -> bool:
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    return bool(user and (getattr(user, 'is_admin', False) or role in _staff_role_codes() or _is_admin_role_code(role)))
+
+
+def _parse_user_permission_overrides(user) -> dict[str, bool]:
+    try:
+        parsed = json.loads(getattr(user, 'permissions_json', None) or '{}')
+        if isinstance(parsed, dict):
+            return {key: bool(parsed.get(key)) for key in PERMISSION_KEYS if key in parsed}
+    except Exception:
+        pass
+    return {}
+
+
+def _assigned_support_for_staff(user) -> tuple[list[dict], list[dict]]:
+    thread_rows = []
+    for thread in InternalMailThread.query.filter_by(assigned_admin_user_id=user.id).order_by(InternalMailThread.updated_at.desc(), InternalMailThread.id.desc()).all():
+        tenant = TenantAccount.query.get(thread.tenant_id) if thread.tenant_id else None
+        owner = AppUser.query.get(thread.created_by_user_id or getattr(tenant, 'owner_user_id', None))
+        thread_rows.append({'thread': thread, 'tenant': tenant, 'owner': owner})
+    ticket_rows = []
+    for ticket in SupportTicket.query.filter_by(assigned_admin_user_id=user.id).order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).all():
+        tenant = TenantAccount.query.get(ticket.tenant_id) if ticket.tenant_id else None
+        owner = AppUser.query.get(ticket.opened_by_user_id or getattr(tenant, 'owner_user_id', None))
+        ticket_rows.append({'ticket': ticket, 'tenant': tenant, 'owner': owner})
+    return thread_rows, ticket_rows
+
+
+def _staff_activity_rows(user) -> list[dict]:
+    rows = []
+    for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).limit(120).all():
+        if item.actor_user_id == user.id or item.target_id == user.id:
+            rows.append({'item': item, 'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None})
+    return rows[:30]
+
+
+def _admin_staff_profile(user, tab: str):
+    actor = _active_user()
+    lang = _lang()
+    is_en = lang == 'en'
+    tab = tab if tab in {'profile', 'permissions', 'support', 'activity'} else 'profile'
+    if request.method == 'POST':
+        action = (request.form.get('action') or '').strip()
+        if action == 'save_staff_profile':
+            username = (request.form.get('username') or user.username or '').strip()
+            other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
+            role = (request.form.get('role') or user.role or 'user').strip().lower()
+            if other:
+                flash('اسم المستخدم مستخدم من قبل.' if lang != 'en' else 'Username is already in use.', 'danger')
+            elif actor and actor.id == user.id and role in {'user', 'subscriber', 'customer'}:
+                flash('لا يمكنك إزالة نفسك من فريق الإدارة.' if lang != 'en' else 'You cannot remove your own staff access.', 'warning')
+            else:
+                user.username = username
+                user.full_name = (request.form.get('full_name') or '').strip()
+                user.email = (request.form.get('email') or '').strip()
+                user.phone_number = (request.form.get('phone_number') or '').strip() or None
+                user.country = (request.form.get('country') or '').strip() or None
+                user.city = (request.form.get('city') or '').strip() or None
+                user.preferred_language = (request.form.get('preferred_language') or 'ar').strip() or 'ar'
+                user.role = role or 'user'
+                user.is_admin = _is_admin_role_code(user.role)
+                if actor and actor.id == user.id:
+                    user.is_active = True
+                else:
+                    user.is_active = request.form.get('is_active') == 'on'
+                if request.form.get('password'):
+                    user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
+                db.session.commit()
+                _admin_write_log('staff.profile', f'Updated staff profile for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'role': user.role})
+                flash('تم تحديث بيانات عضو الإدارة.' if lang != 'en' else 'Staff profile updated.', 'success')
+            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='profile'))
+        if action == 'save_staff_permissions':
+            if (user.role or '').strip().lower() == 'admin':
+                user.permissions_json = json.dumps({key: True for key in PERMISSION_KEYS}, ensure_ascii=False)
+                db.session.commit()
+                flash('حساب المدير الكامل يملك كل الصلاحيات دائماً.' if lang != 'en' else 'Full admin keeps all permissions.', 'info')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
+            perms = {key: request.form.get(key) == 'on' for key in PERMISSION_KEYS}
+            if actor and actor.id == user.id and not perms.get('can_manage_users'):
+                flash('لا يمكنك إزالة صلاحية إدارة المستخدمين من حسابك الحالي.' if lang != 'en' else 'You cannot remove user-management from your current account.', 'warning')
+                return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
+            user.permissions_json = json.dumps(perms, ensure_ascii=False)
+            user.is_admin = _is_admin_role_code(user.role)
+            db.session.commit()
+            _admin_write_log('staff.permissions', f'Updated staff permissions for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'permissions': perms})
+            flash('تم تحديث صلاحيات عضو الإدارة.' if lang != 'en' else 'Staff permissions updated.', 'success')
+            return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
+
+    assigned_threads, assigned_tickets = _assigned_support_for_staff(user)
+    role_perms = role_permissions(user.role)
+    user_overrides = _parse_user_permission_overrides(user)
+    permission_rows = []
+    for perm in permission_catalog(lang):
+        inherited = bool(role_perms.get(perm['key']))
+        has_override = perm['key'] in user_overrides
+        permission_rows.append({
+            **perm,
+            'inherited': inherited,
+            'checked': bool(user_overrides[perm['key']]) if has_override else inherited,
+            'has_override': has_override,
+        })
+    return render_template(
+        'admin_staff_profile.html',
+        user_obj=user,
+        tab=tab,
+        roles=available_roles(),
+        role_label=role_label,
+        permission_rows=permission_rows,
+        assigned_threads=assigned_threads,
+        assigned_tickets=assigned_tickets,
+        activity_rows=_staff_activity_rows(user),
+        ui_lang=lang,
+        is_full_admin=(user.role or '').strip().lower() == 'admin',
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        activity_label=_activity_summary_label,
+    )
 
 def _quota_key_options(lang: str = 'ar'):
     is_en = (lang or 'ar') == 'en'
@@ -191,6 +321,8 @@ def admin_user_profile(user_id: int):
     if guard:
         return guard
     user = AppUser.query.filter_by(id=user_id).first_or_404()
+    if _is_staff_account(user):
+        return _admin_staff_profile(user, requested_tab)
     actor = _active_user()
     tenant, subscription = ensure_user_tenant_and_subscription(user, activated_by_user_id=getattr(actor, 'id', None))
     if tenant and getattr(tenant, 'plan_id', None):
@@ -495,6 +627,9 @@ def admin_users_legacy():
                 user.is_active = False
                 changed += 1
             elif action == 'soft_delete':
+                if user.is_admin or _is_staff_account(user):
+                    skipped += 1
+                    continue
                 # حذف آمن: نخفي الحساب بدون كسر علاقات التذاكر والمالية والأجهزة.
                 user.is_active = False
                 if not (user.username or '').startswith('deleted_'):
@@ -508,38 +643,25 @@ def admin_users_legacy():
         return redirect(url_for('main.admin_users_legacy', lang=_lang()))
 
     seed_access_control(commit=True)
-    users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    staff_roles = _staff_role_codes()
+    all_users = AppUser.query.order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    users = [user for user in all_users if _is_staff_account(user)]
     devices = AppDevice.query.order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
     device_map = {}
     for dev in devices:
         device_map.setdefault(dev.owner_user_id, []).append(dev)
 
-    tenants = TenantAccount.query.all()
-    tenant_owner = {t.id: t.owner_user_id for t in tenants}
     support_map = {}
     for thread in InternalMailThread.query.filter(InternalMailThread.status != 'closed').all():
-        last_msg = InternalMailMessage.query.filter_by(thread_id=thread.id, is_internal_note=False).order_by(InternalMailMessage.created_at.desc(), InternalMailMessage.id.desc()).first()
-        if not last_msg or last_msg.sender_scope != 'user':
-            continue
-        owner_id = thread.created_by_user_id or tenant_owner.get(thread.tenant_id)
-        if owner_id:
-            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['mail'] += 1
+        if thread.assigned_admin_user_id:
+            support_map.setdefault(thread.assigned_admin_user_id, {'mail': 0, 'tickets': 0})['mail'] += 1
     for ticket in SupportTicket.query.filter(SupportTicket.status != 'closed').all():
-        last_msg = SupportTicketMessage.query.filter_by(ticket_id=ticket.id, is_internal_note=False).order_by(SupportTicketMessage.created_at.desc(), SupportTicketMessage.id.desc()).first()
-        if not last_msg or last_msg.sender_scope != 'user':
-            continue
-        owner_id = ticket.opened_by_user_id or tenant_owner.get(ticket.tenant_id)
-        if owner_id:
-            support_map.setdefault(owner_id, {'mail': 0, 'tickets': 0})['tickets'] += 1
+        if ticket.assigned_admin_user_id:
+            support_map.setdefault(ticket.assigned_admin_user_id, {'mail': 0, 'tickets': 0})['tickets'] += 1
 
-    staff_roles = {'admin'}
-    for role in available_roles():
-        code = (getattr(role, 'code', '') or '').strip().lower()
-        if code and code not in {'user', 'subscriber', 'customer'}:
-            staff_roles.add(code)
     stats = {
         'total': len(users),
-        'staff': sum(1 for user in users if (user.role or '').strip().lower() in staff_roles or bool(user.is_admin)),
+        'roles': len(staff_roles),
         'active': sum(1 for user in users if user.is_active),
         'disabled': sum(1 for user in users if not user.is_active),
         'with_support': sum(1 for user in users if support_map.get(user.id, {}).get('mail', 0) or support_map.get(user.id, {}).get('tickets', 0)),
@@ -555,6 +677,11 @@ def admin_users_legacy():
         role_label=role_label,
         ui_lang=_lang(),
     )
+
+
+@users_bp.route('/admin/team', methods=['GET', 'POST'])
+def admin_team():
+    return admin_users_legacy()
 
 
 @users_bp.route('/admin/users/new', methods=['GET', 'POST'])
