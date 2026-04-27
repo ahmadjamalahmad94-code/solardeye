@@ -1,37 +1,55 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set current_role = user_obj.role if user_obj else (default_role or 'assistant_manager') %}
+{% set is_staff_form = current_role not in ['user','subscriber','customer'] %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
   <main class="content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div>
-        <span class="eyebrow">{{ 'User form' if is_en else 'نموذج المستخدم' }}</span>
-        <h1>{{ 'Create user' if is_en and mode == 'create' else ('Edit user' if is_en else ('إنشاء مستخدم' if mode == 'create' else 'تعديل المستخدم')) }}</h1>
-        <p>{{ 'Account setup, role, activation state, and owned devices.' if is_en else 'إعداد الحساب والدور وحالة التفعيل والأجهزة التابعة للمستخدم.' }}</p>
+        <span class="eyebrow">{{ 'Admin team' if is_staff_form and is_en else ('فريق الإدارة' if is_staff_form else ('User form' if is_en else 'نموذج المستخدم')) }}</span>
+        <h1>
+          {% if mode == 'create' %}
+            {{ 'Create staff member' if is_en and is_staff_form else ('إنشاء عضو في فريق الإدارة' if is_staff_form else ('Create subscriber' if is_en else 'إنشاء مشترك')) }}
+          {% else %}
+            {{ 'Edit staff member' if is_en and is_staff_form else ('تعديل عضو الإدارة' if is_staff_form else ('Edit subscriber' if is_en else 'تعديل المشترك')) }}
+          {% endif %}
+        </h1>
+        <p>{{ 'Set identity, login, role, and activation. Subscribers add their own devices from the portal.' if is_en else 'اضبط الهوية وتسجيل الدخول والدور والتفعيل. الأجهزة يضيفها المشترك بنفسه من بوابته ولا يتم تعيينها من هنا.' }}</p>
       </div>
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('users_routes.admin_team' if is_staff_form else 'main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
     </header>
 
-    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="post" class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid-v2 two">
         <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg" name="username" value="{{ user_obj.username if user_obj else '' }}" required></label>
-        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name if user_obj else '' }}"></label>
         <label><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg" name="email" value="{{ user_obj.email if user_obj else '' }}"></label>
         <label><span>{{ 'Password' if is_en else 'كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="password" {{ 'required' if mode == 'create' else '' }} placeholder="{{ 'Leave blank to keep current password' if is_en and mode == 'edit' else '' }}"></label>
-        <label><span>{{ 'Role' if is_en else 'الدور' }}</span>
-          {% set current_role = user_obj.role if user_obj else 'user' %}
+        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name if user_obj else '' }}"></label>
+        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country if user_obj else '' }}"></label>
+        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city if user_obj else '' }}"></label>
+        {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
+        <div class="phone-combo-v124 full">
+          <label>
+            <span>{{ 'Country code' if is_en else 'بدالة الدولة' }}</span>
+            <select class="form-select form-select-lg phone-prefix-select-v124" name="phone_country_code">
+              {% for country in country_options %}
+                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>{{ 'Phone number' if is_en else 'رقم الهاتف' }}</span>
+            <input class="form-control form-control-lg ltr-field-v108" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number if user_obj else '' }}">
+          </label>
+        </div>
+        <label class="full"><span>{{ 'Role' if is_en else 'الدور' }}</span>
           <select class="form-select form-select-lg" name="role">
             {% for role in available_roles() %}
               <option value="{{ role.code }}" {% if current_role == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>
             {% endfor %}
-          </select>
-        </label>
-        <label><span>{{ 'Preferred device' if is_en else 'الجهاز المفضل' }}</span>
-          <select class="form-select form-select-lg" name="preferred_device_id">
-            <option value="">{{ '-- none --' if is_en else '-- بدون تحديد --' }}</option>
-            {% set pref = user_obj.preferred_device_id if user_obj else None %}
-            {% for dev in devices %}<option value="{{ dev.id }}" {% if pref == dev.id %}selected{% endif %}>{{ dev.name }}{% if dev.device_type %} • {{ dev.device_type }}{% endif %}</option>{% endfor %}
           </select>
         </label>
       </div>
@@ -40,27 +58,9 @@
         <label class="switch-row"><span>{{ 'Active account' if is_en else 'الحساب مفعل' }}</span><input type="checkbox" name="is_active" {% if user_obj is none or user_obj.is_active %}checked{% endif %}></label>
       </div>
 
-      <div class="device-picker-panel">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Ownership' if is_en else 'الملكية' }}</small>
-            <h3>{{ 'Devices available for this user' if is_en else 'الأجهزة المتاحة لهذا المستخدم' }}</h3>
-          </div>
-        </div>
-        <p class="table-sub">{{ 'Only unassigned devices and devices already owned by this user can be assigned here.' if is_en else 'يظهر هنا فقط الأجهزة غير المخصصة، أو الأجهزة المملوكة لهذا المستخدم بالفعل.' }}</p>
-        <div class="chip-picker-grid">
-          {% for dev in devices %}
-          <label class="chip-picker {% if dev.id in selected_device_ids %}selected{% endif %}">
-            <input type="checkbox" name="device_ids" value="{{ dev.id }}" {% if dev.id in selected_device_ids %}checked{% endif %}>
-            <span>{{ dev.name }}{% if dev.device_type %} • {{ dev.device_type }}{% endif %}</span>
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-
       <div class="action-row-v2 mt-3">
-        <button class="btn btn-solar" type="submit">{{ 'Save changes' if is_en and mode == 'edit' else ('Create user' if is_en else ('حفظ التعديلات' if mode == 'edit' else 'إنشاء المستخدم')) }}</button>
-        <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
+        <button class="btn btn-solar" type="submit">{{ 'Save changes' if is_en and mode == 'edit' else ('Create staff member' if is_en and is_staff_form else ('إنشاء عضو الإدارة' if is_staff_form else ('Create subscriber' if is_en else 'إنشاء مشترك'))) }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('users_routes.admin_team' if is_staff_form else 'main.admin_subscribers', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
       </div>
     </form>
   </main>

@@ -31,22 +31,39 @@
     </nav>
 
     {% if tab == 'profile' %}
-    <form method="post" class="admin-card-v2 staff-form-v122">
+    <form method="post" class="admin-card-v2 staff-form-v122" id="staffProfileFormV127">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="save_staff_profile">
       <div class="staff-card-title-v122"><small>{{ 'Personal data' if is_en else 'البيانات الشخصية' }}</small><h3>{{ 'Identity and login' if is_en else 'الهوية وتسجيل الدخول' }}</h3></div>
-      <div class="form-grid-v2 two">
-        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
-        <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
-        <label><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg ltr-field-v108" name="email" value="{{ user_obj.email or '' }}"></label>
-        <label><span>{{ 'Phone' if is_en else 'الجوال' }}</span><input class="form-control form-control-lg ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}"></label>
-        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country or '' }}"></label>
-        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city or '' }}"></label>
-        <label><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="form-select form-select-lg" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
-        <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-select form-select-lg" name="role">{% for role in roles %}<option value="{{ role.code }}" {% if (user_obj.role or 'user') == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>{% endfor %}</select></label>
-        <label class="full"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control form-control-lg" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للإبقاء على كلمة المرور الحالية' }}"></label>
+      <div class="form-grid-v2 two staff-personal-grid-v127">
+        <label class="staff-field-username-v127"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
+        <label class="staff-field-name-v127"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
+        <label class="staff-field-email-v127"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg ltr-field-v108" name="email" value="{{ user_obj.email or '' }}"></label>
+        <label class="staff-field-country-v127"><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country or '' }}"></label>
+        <label class="staff-field-city-v127"><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city or '' }}"></label>
+        {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
+        <div class="phone-combo-v124 staff-phone-v127">
+          <label class="staff-phone-prefix-v127">
+            <span>{{ 'Country code' if is_en else 'بدالة الدولة' }}</span>
+            <select class="form-select form-select-lg phone-prefix-select-v124" name="phone_country_code">
+              {% for country in country_options %}
+                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="staff-phone-number-v127">
+            <span>{{ 'Phone' if is_en else 'الجوال' }}</span>
+            <input class="form-control form-control-lg ltr-field-v108" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}">
+          </label>
+        </div>
+        <label class="staff-password-v127"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control form-control-lg" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للإبقاء على كلمة المرور الحالية' }}"></label>
+        <label class="staff-field-role-v127"><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-select form-select-lg" name="role">{% for role in roles %}<option value="{{ role.code }}" {% if (user_obj.role or 'user') == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>{% endfor %}</select></label>
+        <label class="staff-active-inline-v128">
+          <span>{{ 'Account enabled' if is_en else 'الحساب مفعّل' }}</span>
+          <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
+        </label>
+        <label class="staff-field-language-v127"><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="form-select form-select-lg" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
       </div>
-      <label class="profile-switch-v118 staff-active-switch-v122"><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span><b>{{ 'Account enabled' if is_en else 'الحساب مفعّل' }}</b></label>
       <div class="action-row-v2"><button class="btn btn-solar">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button></div>
     </form>
     {% elif tab == 'permissions' %}

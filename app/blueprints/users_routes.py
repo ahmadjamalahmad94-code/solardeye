@@ -16,8 +16,29 @@ for _legacy_name in dir(_legacy_main):
 
 from ..services.rbac import PERMISSION_KEYS, available_roles, permission_catalog, portal_pages, role_label, role_permissions, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
+from ..services.location_catalog import countries_for_template
 
 users_bp = Blueprint('users_routes', __name__)
+
+def _country_flag(code: str | None) -> str:
+    code = (code or '').strip().upper()
+    if len(code) != 2 or not code.isalpha():
+        return '🌐'
+    return ''.join(chr(127397 + ord(char)) for char in code)
+
+
+def _phone_country_options(lang: str | None = None) -> list[dict]:
+    is_en = (lang or _lang()) == 'en'
+    rows = []
+    for country in countries_for_template():
+        code = (country.get('code') or '').strip()
+        rows.append({
+            **country,
+            'flag': _country_flag(code),
+            'label': country.get('name_en') if is_en else country.get('name_ar'),
+        })
+    return rows
+
 
 def _is_admin_role_code(role: str | None) -> bool:
     role = (role or '').strip().lower()
@@ -90,6 +111,7 @@ def _admin_staff_profile(user, tab: str):
                 user.username = username
                 user.full_name = (request.form.get('full_name') or '').strip()
                 user.email = (request.form.get('email') or '').strip()
+                user.phone_country_code = (request.form.get('phone_country_code') or '').strip() or None
                 user.phone_number = (request.form.get('phone_number') or '').strip() or None
                 user.country = (request.form.get('country') or '').strip() or None
                 user.city = (request.form.get('city') or '').strip() or None
@@ -146,6 +168,7 @@ def _admin_staff_profile(user, tab: str):
         assigned_threads=assigned_threads,
         assigned_tickets=assigned_tickets,
         activity_rows=_staff_activity_rows(user),
+        country_options=_phone_country_options(lang),
         ui_lang=lang,
         is_full_admin=(user.role or '').strip().lower() == 'admin',
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
@@ -599,10 +622,72 @@ def admin_users_legacy():
         selected_ids = sorted(set(selected_ids))
         if not selected_ids:
             flash('اختر مستخدمًا واحدًا على الأقل لتنفيذ العملية.', 'warning')
-            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
-        if action not in {'activate', 'disable', 'soft_delete', 'hard_delete'}:
+            return redirect(url_for('users_routes.admin_team', lang=_lang()))
+        if action == 'quick_permissions':
+            user = AppUser.query.filter(AppUser.id.in_(selected_ids)).first()
+            if not user or not _is_staff_account(user):
+                flash('عضو الإدارة غير موجود.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            role = (request.form.get('role') or user.role or 'user').strip().lower()
+            if actor and actor.id == user.id and role in {'user', 'subscriber', 'customer'}:
+                flash('لا يمكنك إزالة نفسك من فريق الإدارة.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            if role == 'admin':
+                perms = {key: True for key in PERMISSION_KEYS}
+            else:
+                perms = {key: request.form.get(key) == 'on' for key in PERMISSION_KEYS}
+            if actor and actor.id == user.id and not perms.get('can_manage_users'):
+                flash('لا يمكنك إزالة صلاحية إدارة المستخدمين من حسابك الحالي.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            user.role = role or user.role or 'user'
+            user.is_admin = _is_admin_role_code(user.role)
+            user.permissions_json = json.dumps(perms, ensure_ascii=False)
+            db.session.commit()
+            _admin_write_log('staff.quick_permissions', f'Quick permissions update for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'role': user.role, 'permissions': perms})
+            flash('تم تحديث صلاحيات عضو الإدارة.', 'success')
+            return redirect(url_for('users_routes.admin_team', lang=_lang()))
+        if action == 'send_staff_message':
+            recipient = AppUser.query.filter(AppUser.id.in_(selected_ids)).first()
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            priority = (request.form.get('priority') or 'normal').strip()
+            if not recipient or not _is_staff_account(recipient):
+                flash('اختر عضو إدارة صحيح لإرسال الرسالة.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            if not subject or not body:
+                flash('عنوان الرسالة ونصها مطلوبان.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            thread = InternalMailThread(
+                created_by_user_id=getattr(actor, 'id', None),
+                assigned_admin_user_id=recipient.id,
+                subject=subject,
+                category='admin_internal',
+                priority=priority if priority in {'normal', 'important', 'urgent'} else 'normal',
+                status='open',
+                last_reply_at=datetime.utcnow(),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.session.add(thread)
+            db.session.flush()
+            db.session.add(InternalMailMessage(
+                thread_id=thread.id,
+                sender_user_id=getattr(actor, 'id', None),
+                sender_scope='admin',
+                is_internal_note=True,
+                body=body,
+            ))
+            try:
+                notify_user(recipient.id, source_type='message', source_id=thread.id, tenant_id=None, title='رسالة داخلية من الإدارة', message=subject, direct_url=url_for('main.admin_user_profile', user_id=recipient.id, lang=_lang(), staff=1, tab='support') + f'#case-mail-{thread.id}')
+            except Exception:
+                pass
+            db.session.commit()
+            _admin_write_log('staff.message', f'Sent internal staff message #{thread.id}', 'internal_mail_thread', thread.id, {'recipient_user_id': recipient.id})
+            flash('تم إرسال الرسالة الداخلية.', 'success')
+            return redirect(url_for('users_routes.admin_team', lang=_lang()))
+        if action not in {'activate', 'disable', 'soft_delete', 'hard_delete', 'remove_staff'}:
             flash('إجراء جماعي غير معروف.', 'warning')
-            return redirect(url_for('main.admin_users_legacy', lang=_lang()))
+            return redirect(url_for('users_routes.admin_team', lang=_lang()))
         changed = 0
         skipped = 0
         if action == 'hard_delete':
@@ -626,6 +711,15 @@ def admin_users_legacy():
             elif action == 'disable':
                 user.is_active = False
                 changed += 1
+            elif action == 'remove_staff':
+                if (actor and user.id == actor.id) or (user.role or '').strip().lower() == 'admin' or user.username == current_app.config.get('ADMIN_USERNAME'):
+                    skipped += 1
+                    continue
+                user.role = 'user'
+                user.is_admin = False
+                user.is_active = False
+                user.permissions_json = None
+                changed += 1
             elif action == 'soft_delete':
                 if user.is_admin or _is_staff_account(user):
                     skipped += 1
@@ -640,7 +734,7 @@ def admin_users_legacy():
         db.session.commit()
         _admin_write_log('users.bulk', f'Bulk action {action} on users', 'app_user', None, {'action': action, 'user_ids': selected_ids, 'changed': changed, 'skipped': skipped})
         flash(f'تم تنفيذ العملية على {changed} مستخدم. تم تخطي {skipped}.', 'success')
-        return redirect(url_for('main.admin_users_legacy', lang=_lang()))
+        return redirect(url_for('users_routes.admin_team', lang=_lang()))
 
     seed_access_control(commit=True)
     staff_roles = _staff_role_codes()
@@ -666,6 +760,18 @@ def admin_users_legacy():
         'disabled': sum(1 for user in users if not user.is_active),
         'with_support': sum(1 for user in users if support_map.get(user.id, {}).get('mail', 0) or support_map.get(user.id, {}).get('tickets', 0)),
     }
+    permission_rows_by_user = {}
+    catalog = permission_catalog(_lang())
+    for user in users:
+        role_perms = role_permissions(user.role)
+        overrides = _parse_user_permission_overrides(user)
+        permission_rows_by_user[user.id] = [
+            {
+                **perm,
+                'checked': bool(overrides[perm['key']]) if perm['key'] in overrides else bool(role_perms.get(perm['key'])),
+            }
+            for perm in catalog
+        ]
 
     return render_template(
         'admin_users.html',
@@ -675,6 +781,7 @@ def admin_users_legacy():
         support_map=support_map,
         role_badge=_role_badge,
         role_label=role_label,
+        permission_rows_by_user=permission_rows_by_user,
         ui_lang=_lang(),
     )
 
@@ -690,18 +797,18 @@ def admin_user_create():
     if guard:
         return guard
     seed_access_control(commit=True)
-    devices = _available_devices_for_admin()
+    default_role = (request.args.get('role') or 'assistant_manager').strip().lower() or 'assistant_manager'
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip()
+        country = request.form.get('country', '').strip()
+        city = request.form.get('city', '').strip()
+        phone_country_code = request.form.get('phone_country_code', '').strip()
+        phone_number = request.form.get('phone_number', '').strip()
         role = (request.form.get('role', 'user') or 'user').strip().lower()
         is_active = request.form.get('is_active') == 'on'
-        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
-        preferred_device_id = request.form.get('preferred_device_id', '').strip()
-        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
-
         if not username or not password:
             flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
         elif AppUser.query.filter_by(username=username).first():
@@ -712,20 +819,22 @@ def admin_user_create():
                 password_hash=generate_password_hash(password),
                 full_name=full_name,
                 email=email,
+                country=country or None,
+                city=city or None,
+                phone_country_code=phone_country_code or None,
+                phone_number=phone_number or None,
                 role=role or 'user',
                 preferred_device_type='deye',
                 is_active=is_active,
                 is_admin=_is_admin_role_code(role),
             )
             db.session.add(user)
-            db.session.flush()
-            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم إنشاء المستخدم بنجاح.', 'success')
-            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'main.admin_users_legacy'
+            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'users_routes.admin_team'
             return redirect(url_for(target, lang=_lang()))
 
-    return render_template('admin_user_form.html', mode='create', user_obj=None, devices=devices, selected_device_ids=[], ui_lang=_lang())
+    return render_template('admin_user_form.html', mode='create', user_obj=None, default_role=default_role, country_options=_phone_country_options(_lang()), ui_lang=_lang())
 
 
 @users_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
@@ -735,20 +844,17 @@ def admin_user_edit(user_id: int):
         return guard
     seed_access_control(commit=True)
     user = AppUser.query.filter_by(id=user_id).first_or_404()
-    devices = _available_devices_for_admin(user)
-    owned_ids = [d.id for d in devices if d.owner_user_id == user.id]
-
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip()
+        country = request.form.get('country', '').strip()
+        city = request.form.get('city', '').strip()
+        phone_country_code = request.form.get('phone_country_code', '').strip()
+        phone_number = request.form.get('phone_number', '').strip()
         role = (request.form.get('role', 'user') or 'user').strip().lower()
         is_active = request.form.get('is_active') == 'on'
-        selected_device_ids = [int(v) for v in request.form.getlist('device_ids') if v.isdigit()]
-        preferred_device_id = request.form.get('preferred_device_id', '').strip()
-        preferred_device_id = int(preferred_device_id) if preferred_device_id.isdigit() else None
-
         other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
         if not username:
             flash('اسم المستخدم مطلوب.', 'warning')
@@ -758,18 +864,21 @@ def admin_user_edit(user_id: int):
             user.username = username
             user.full_name = full_name
             user.email = email
+            user.country = country or None
+            user.city = city or None
+            user.phone_country_code = phone_country_code or None
+            user.phone_number = phone_number or None
             user.role = role or 'user'
             user.is_admin = _is_admin_role_code(user.role)
             user.is_active = is_active
             if password:
                 user.password_hash = generate_password_hash(password)
-            _assign_devices_to_user(user, selected_device_ids, preferred_device_id)
             db.session.commit()
             flash('تم تحديث المستخدم بنجاح.', 'success')
-            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'main.admin_users_legacy'
+            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'users_routes.admin_team'
             return redirect(url_for(target, lang=_lang()))
 
-    return render_template('admin_user_form.html', mode='edit', user_obj=user, devices=devices, selected_device_ids=owned_ids, ui_lang=_lang())
+    return render_template('admin_user_form.html', mode='edit', user_obj=user, default_role=user.role or 'user', country_options=_phone_country_options(_lang()), ui_lang=_lang())
 
 
 @users_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])
