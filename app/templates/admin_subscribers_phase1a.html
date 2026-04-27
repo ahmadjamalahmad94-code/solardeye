@@ -88,15 +88,23 @@
           <div class="subscriber-data-cell-v116">
             <small>{{ 'Plan' if is_en else 'الخطة' }}</small>
             <strong>{{ plan_name }}</strong>
-            <span>{{ plan_price }} · {{ row.plan.max_devices if row.plan else '-' }} {{ 'devices' if is_en else 'أجهزة' }}</span>
+            <span class="subscriber-plan-meta-v131"><b>{{ 'Price' if is_en else 'السعر' }}: {{ plan_price }}</b><b>{{ 'Devices' if is_en else 'الأجهزة' }}: {{ row.plan.max_devices if row.plan else '-' }}</b></span>
           </div>
-          <div class="subscriber-data-cell-v116">
+          <a class="subscriber-data-cell-v116 subscriber-support-cell-v131" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">
+            <small>{{ 'Support' if is_en else 'الدعم' }}</small>
+            <strong>{{ (row.open_message_count or 0) + (row.open_ticket_count or 0) }} {{ 'open' if is_en else 'مفتوح' }}</strong>
+            <div class="support-slices-v134">
+              <span class="messages"><b>{{ row.open_message_count or 0 }}</b> {{ 'messages' if is_en else 'رسائل' }}</span>
+              <span class="tickets"><b>{{ row.open_ticket_count or 0 }}</b> {{ 'tickets' if is_en else 'تذاكر' }}</span>
+            </div>
+          </a>
+          <div class="subscriber-data-cell-v116 subscriber-lifecycle-cell-v135">
             <small>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</small>
+            <strong class="lifecycle-days-v135">{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ انتهاء' }}{% endif %}</strong>
             <div class="status-stack-v116"><span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span><span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Active account' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Disabled account' if is_en else 'الحساب معطل')) }}</span></div>
-            <span>{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'لا يوجد تاريخ انتهاء' }}{% endif %}</span>
           </div>
           <div class="subscriber-data-cell-v116 compact">
-            <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+            <small>{{ 'Active devices' if is_en else 'الأجهزة الفعالة' }}</small>
             <strong>🔌 {{ row.device_count }}</strong>
           </div>
         </article>

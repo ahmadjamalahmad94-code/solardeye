@@ -102,7 +102,11 @@ def admin_subscribers():
     if guard:
         return guard
     rows=[]
-    users=AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    subscriber_roles = ('', 'user', 'subscriber', 'customer')
+    users=AppUser.query.filter(
+        db.or_(AppUser.is_admin.is_(False), AppUser.is_admin.is_(None)),
+        db.or_(AppUser.role.is_(None), AppUser.role.in_(subscriber_roles)),
+    ).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
     stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
     now = datetime.utcnow()
@@ -118,7 +122,11 @@ def admin_subscribers():
         days_left = None
         if sub and sub.ends_at:
             days_left = (sub.ends_at.date() - now.date()).days
-        rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id).count()})
+        support_scope = db.or_(SupportCase.tenant_id == tenant.id, SupportCase.user_id == user.id)
+        support_open = db.or_(SupportCase.status.is_(None), ~SupportCase.status.in_(('closed', 'resolved')))
+        open_message_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'message').count()
+        open_ticket_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'ticket').count()
+        rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count(),'open_message_count':open_message_count,'open_ticket_count':open_ticket_count})
     active_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
     return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, plans=active_plans, ui_lang=_lang())
 
@@ -282,5 +290,3 @@ def admin_quotas():
             percent = round((quota.used_value / quota.limit_value) * 100, 1)
         rows.append({'quota': quota, 'tenant': tenant, 'percent': percent})
     return render_template('admin_quotas.html', rows=rows, tenants=TenantAccount.query.order_by(TenantAccount.display_name.asc()).all(), ui_lang=_lang())
-
-

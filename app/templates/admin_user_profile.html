@@ -29,6 +29,93 @@
 </div>
 
 {% if tab == 'profile' %}
+{% set current_phone_code = user_obj.phone_country_code or '+970' %}
+<section class="subscriber-profile-v130">
+  <div class="subscriber-profile-cover-v130">
+    <div class="subscriber-avatar-v130">{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}</div>
+    <div class="subscriber-profile-title-v130">
+      <small>{{ 'Subscriber profile' if is_en else 'ملف المستفيد' }}</small>
+      <h3>{{ user_obj.full_name or user_obj.username }}</h3>
+      <p>{{ user_obj.email or ('No email saved' if is_en else 'لا يوجد بريد محفوظ') }}</p>
+    </div>
+    <div class="subscriber-profile-meta-v130">
+      <span class="{{ 'is-active' if user_obj.is_active else 'is-disabled' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
+      <span>{{ user_obj.city or ('City' if is_en else 'المدينة') }} · {{ user_obj.country or ('Country' if is_en else 'الدولة') }}</span>
+      <span>{{ user_obj.timezone or 'Asia/Hebron' }}</span>
+    </div>
+  </div>
+
+  <form method="post" class="subscriber-profile-form-v130">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_profile">
+
+    <article class="subscriber-profile-panel-v130 identity-v130">
+      <div class="subscriber-panel-head-v130">
+        <span>ID</span>
+        <div>
+          <small>{{ 'Identity' if is_en else 'الهوية' }}</small>
+          <h4>{{ 'Basic account information' if is_en else 'بيانات الحساب الأساسية' }}</h4>
+        </div>
+      </div>
+      <div class="subscriber-fields-v130 identity-grid-v130">
+        <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
+        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'اسم المستفيد الكامل' }}"></label>
+        <label><span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com"></label>
+        <label class="phone-field-v130"><span>{{ 'Phone' if is_en else 'رقم الهاتف' }}</span>
+          <div class="subscriber-phone-v130">
+            <select class="form-control phone-code-select-v130" name="phone_country_code">
+              {% for country in country_options %}
+                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+              {% endfor %}
+            </select>
+            <input class="form-control ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="{{ '599000000' if is_en else 'رقم الجوال' }}">
+          </div>
+        </label>
+      </div>
+    </article>
+
+    <article class="subscriber-profile-panel-v130 location-v130">
+      <div class="subscriber-panel-head-v130">
+        <span>LOC</span>
+        <div>
+          <small>{{ 'Location' if is_en else 'الموقع' }}</small>
+          <h4>{{ 'Country, city, and local time' if is_en else 'الدولة والمدينة والتوقيت' }}</h4>
+        </div>
+      </div>
+      <div class="subscriber-fields-v130">
+        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}"></label>
+        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}"></label>
+        <label><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control ltr-field-v108" name="timezone">
+          {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
+          {% for tz,label in [('Asia/Hebron','Asia/Hebron - فلسطين'),('Asia/Jerusalem','Asia/Jerusalem'),('Asia/Amman','Asia/Amman - الأردن'),('Asia/Riyadh','Asia/Riyadh - السعودية'),('Asia/Dubai','Asia/Dubai - الإمارات'),('Africa/Cairo','Africa/Cairo - مصر'),('Europe/Istanbul','Europe/Istanbul - تركيا'),('UTC','UTC')] %}
+            <option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+        <label><span>{{ 'Preferred language' if is_en else 'لغة الواجهة' }}</span><select class="form-control" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+      </div>
+    </article>
+
+    <article class="subscriber-profile-panel-v130 access-v130">
+      <div class="subscriber-panel-head-v130">
+        <span>SEC</span>
+        <div>
+          <small>{{ 'Access' if is_en else 'الوصول' }}</small>
+          <h4>{{ 'Password and account state' if is_en else 'كلمة المرور وحالة الحساب' }}</h4>
+        </div>
+      </div>
+      <div class="subscriber-fields-v130">
+        <label><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة بدون تغيير' }}"></label>
+        <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-control" name="role"><option value="user" {% if user_obj.role in ['user','subscriber','customer',''] %}selected{% endif %}>{{ 'Subscriber' if is_en else 'مستفيد' }}</option></select></label>
+        <label class="subscriber-profile-switch-v130"><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span><b>{{ 'Account enabled' if is_en else 'الحساب مفعل' }}</b></label>
+      </div>
+    </article>
+
+    <div class="subscriber-profile-actions-v130">
+      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_edit', user_id=user_obj.id, lang=ui_lang) }}">{{ 'Advanced edit' if is_en else 'تعديل متقدم' }}</a>
+      <button class="btn btn-solar">{{ 'Save profile' if is_en else 'حفظ البيانات' }}</button>
+    </div>
+  </form>
+</section>
 <section class="subscriber360-profile-v118">
   <div class="subscriber360-section-head-v108 profile-head-v118">
     <div>

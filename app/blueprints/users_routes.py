@@ -362,14 +362,16 @@ def admin_user_profile(user_id: int):
                 user.username = username
                 user.full_name = (request.form.get('full_name') or '').strip()
                 user.email = (request.form.get('email') or '').strip()
+                user.phone_country_code = (request.form.get('phone_country_code') or '').strip() or None
+                user.phone_number = (request.form.get('phone_number') or '').strip() or None
                 user.country = (request.form.get('country') or '').strip() or None
                 user.city = (request.form.get('city') or '').strip() or None
                 user.timezone = (request.form.get('timezone') or 'Asia/Hebron').strip() or 'Asia/Hebron'
                 user.preferred_language = (request.form.get('preferred_language') or 'ar').strip() or 'ar'
                 user.is_active = request.form.get('is_active') == 'on'
                 role = (request.form.get('role') or user.role or 'user').strip().lower()
-                user.role = role or 'user'
-                user.is_admin = _is_admin_role_code(user.role)
+                user.role = role if role in {'user', 'subscriber', 'customer'} else 'user'
+                user.is_admin = False
                 if request.form.get('password'):
                     user.password_hash = generate_password_hash((request.form.get('password') or '').strip())
                 db.session.commit()
@@ -589,6 +591,7 @@ def admin_user_profile(user_id: int):
         labels=_support_label_maps(is_en),
         status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
         priority_options=['low', 'normal', 'high', 'urgent'],
+        country_options=_phone_country_options(_lang()),
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
         activity_label=_activity_summary_label,

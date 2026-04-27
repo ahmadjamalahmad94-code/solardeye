@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, DeviceType, NotificationLog, ServiceHeartbeat, SubscriptionPlan, SyncLog, TenantAccount, TenantSubscription
+from ..models import AppDevice, AppUser, DeviceType, NotificationLog, ServiceHeartbeat, SubscriptionPlan, SupportCase, SyncLog, TenantAccount, TenantSubscription
 from ..services.backup_service import backup_settings
 from ..services.i18n import translate
 from ..services.labels import label
@@ -35,7 +35,11 @@ def admin_subscribers_v9():
     guard = _admin_guard('can_manage_users')
     if guard:
         return guard
-    users = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    subscriber_roles = ('', 'user', 'subscriber', 'customer')
+    users = AppUser.query.filter(
+        db.or_(AppUser.is_admin.is_(False), AppUser.is_admin.is_(None)),
+        db.or_(AppUser.role.is_(None), AppUser.role.in_(subscriber_roles)),
+    ).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
     stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
     rows = []
@@ -52,6 +56,10 @@ def admin_subscribers_v9():
         days_left = None
         if sub and sub.ends_at:
             days_left = (sub.ends_at.date() - now.date()).days
+        support_scope = db.or_(SupportCase.tenant_id == tenant.id, SupportCase.user_id == user.id)
+        support_open = db.or_(SupportCase.status.is_(None), ~SupportCase.status.in_(('closed', 'resolved')))
+        open_message_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'message').count()
+        open_ticket_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'ticket').count()
         rows.append({
             'user': user,
             'tenant': tenant,
@@ -59,7 +67,9 @@ def admin_subscribers_v9():
             'plan': plan,
             'status': status,
             'days_left': days_left,
-            'device_count': AppDevice.query.filter_by(owner_user_id=user.id).count(),
+            'device_count': AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count(),
+            'open_message_count': open_message_count,
+            'open_ticket_count': open_ticket_count,
         })
     active_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
     return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, plans=active_plans, ui_lang=_lang())
@@ -144,4 +154,3 @@ def admin_devices_center_v9():
         'types': len(device_types),
     }
     return render_template('admin_devices_center.html', rows=rows, device_types=device_types, device_stats=device_stats, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
-
