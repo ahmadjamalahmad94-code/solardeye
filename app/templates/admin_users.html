@@ -1,115 +1,191 @@
 {% extends 'base.html' %}
-{% block title %}{{ t('مستخدمو النظام') }}{% endblock %}
+{% block title %}{{ 'System users' if (ui_lang or 'ar') == 'en' else 'مستخدمو النظام' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set role_options = available_roles() %}
 <div class="app-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
-    <header class="admin-page-head compact">
+  <main class="content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116 users-redesign-v121">
+    <header class="admin-page-head subscribers-hero-v71">
       <div>
         <span class="eyebrow">{{ 'System users' if is_en else 'مستخدمو النظام' }}</span>
-        <h1>{{ 'Legacy user tools and admin accounts' if is_en else 'أدوات المستخدمين القديمة وحسابات الإدارة' }}</h1>
-        <p>{{ 'Use Subscribers CRM for daily subscriber management; keep this screen for system/admin-level maintenance.' if is_en else 'استخدم إدارة المشتركين للعمل اليومي، واترك هذه الصفحة لصيانة حسابات النظام والإدارة.' }}</p>
-      </div>
-      <div class="admin-head-actions">
-        <a class="btn btn-solar" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Open Subscribers CRM' if is_en else 'فتح إدارة المشتركين' }}</a><a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ 'Create user' if is_en else 'إنشاء مستخدم' }}</a>
+        <h1>{{ 'Team accounts, roles, and permissions' if is_en else 'حسابات الفريق والأدوار والصلاحيات' }}</h1>
+        <p>{{ 'Manage staff accounts from the same clean workflow used for subscribers, with each role limited to the permissions it needs.' if is_en else 'إدارة حسابات الفريق بنفس تجربة إدارة المستفيدين، مع صلاحيات محددة لكل دور حسب طبيعة عمله.' }}</p>
       </div>
     </header>
 
-    <section class="admin-layout-v2 single">
-      <form method="post" id="usersBulkForm" class="admin-card-v2 ui-reactive" data-hover-card onsubmit="const v=this.querySelector('[name=bulk_action]')?.value; return v!=='hard_delete' || confirm('{{ 'Permanent delete selected users? A backup is recommended before continuing.' if is_en else 'حذف نهائي للمستخدمين المحددين؟ يفضل وجود نسخة احتياطية قبل المتابعة.' }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="users-toolbar-v5">
-          <div>
-            <small>{{ users|length }} {{ 'accounts' if is_en else 'حساب' }}</small>
-            <h3>{{ 'All users' if is_en else 'كل المستخدمين' }}</h3>
-            <p>{{ 'Select subscribers then apply a bulk action.' if is_en else 'حدد المشتركين ثم نفّذ إجراءً جماعيًا عليهم.' }}</p>
-          </div>
-          <div class="users-toolbar-actions-v5">
-            <label class="select-all-v5"><input type="checkbox" id="selectAllUsers"> {{ 'Select all' if is_en else 'تحديد الكل' }}</label>
-            <select name="bulk_action" class="form-control bulk-select-v5">
-              <option value="">{{ 'Choose action' if is_en else 'اختر إجراء' }}</option>
-              <option value="activate">{{ 'Activate selected' if is_en else 'تفعيل المحدد' }}</option>
-              <option value="disable">{{ 'Disable selected' if is_en else 'تعطيل المحدد' }}</option>
-              <option value="soft_delete">{{ 'Safe delete selected' if is_en else 'حذف آمن للمحدد' }}</option>
-              <option value="hard_delete">{{ 'Permanent delete selected' if is_en else 'حذف نهائي للمحدد' }}</option>
-            </select>
-            <button class="btn btn-solar" type="submit">{{ 'Apply' if is_en else 'تنفيذ' }}</button>
-          </div>
-        </div>
-        <div class="table-shell-v2">
-          <table class="admin-table-v2 users-table-v5">
-            <thead>
-              <tr>
-                <th></th>
-                <th>{{ 'User' if is_en else 'المستخدم' }}</th>
-                <th>{{ 'Support' if is_en else 'الدعم' }}</th>
-                <th>{{ 'Role' if is_en else 'الدور' }}</th>
-                <th>{{ 'Status' if is_en else 'الحالة' }}</th>
-                <th>{{ 'Owned devices' if is_en else 'الأجهزة التابعة' }}</th>
-                <th>{{ 'Actions' if is_en else 'الإجراءات' }}</th>
-              </tr>
-            </thead>
-            <tbody>
-            {% for u in users %}
-              {% set badge = role_badge(u.role, u.is_active) %}
-              {% set devs = device_map.get(u.id, []) %}
-              {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
-              <tr class="{% if support.mail or support.tickets %}has-open-support{% endif %}">
-                <td><input type="checkbox" class="user-row-checkbox" name="user_ids" value="{{ u.id }}"></td>
-                <td>
-                  <strong>{{ u.full_name or u.username }}</strong>
-                  {% if support.mail or support.tickets %}
-                    <div class="support-alert-v5">
-                      {% if support.tickets %}<span class="support-badge-v5 ticket">🎫 {{ support.tickets }} {{ 'open' if is_en else 'مفتوحة' }}</span>{% endif %}
-                      {% if support.mail %}<span class="support-badge-v5 mail">✉️ {{ support.mail }} {{ 'new' if is_en else 'جديدة' }}</span>{% endif %}
-                    </div>
-                  {% endif %}
-                  <div class="table-sub">@{{ u.username }}</div>
-                  {% if u.email %}<div class="table-sub">{{ mask_email(u.email) }}</div>{% endif %}
-                </td>
-                <td>
-                  {% if support.mail or support.tickets %}
-                    <a class="support-open-link-v5" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, tab='support') }}">{{ 'Open support' if is_en else 'فتح الدعم' }}</a>
-                  {% else %}
-                    <span class="table-sub">{{ 'No open items' if is_en else 'لا يوجد مفتوح' }}</span>
-                  {% endif %}
-                </td>
-                <td><span class="status-pill {{ 'warning' if badge[0] == 'مستخدم' or badge[0] == 'User' else 'success' }}">{{ t(badge[0]) }}</span></td>
-                <td><span class="status-pill {{ 'success' if u.is_active else 'danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span></td>
-                <td>
-                  {% if devs %}
-                    <div class="chip-row-v2">
-                      {% for d in devs %}<span class="chip-v2">{{ d.name }}{% if d.device_type %} • {{ d.device_type }}{% endif %}</span>{% endfor %}
-                    </div>
-                  {% else %}
-                    <span class="table-sub">{{ 'No owned devices' if is_en else 'لا توجد أجهزة تابعة' }}</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="action-row-v2">
-                    <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">{{ 'Open 360 page' if is_en else 'فتح صفحة المشترك' }}</a>
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
-                    <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-                      <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
-                    </form>
-                    {% if not u.is_admin %}<form method="post" action="{{ url_for('main.admin_user_delete', user_id=u.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
-                    </form>{% endif %}
-                  </div>
-                </td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </form>
+    <section class="subscriber-action-strip-v108 admin-card-v2">
+      <div class="subscriber-action-title-v108">
+        <small>{{ 'Fast actions' if is_en else 'إجراءات سريعة' }}</small>
+        <strong>{{ 'System user operations' if is_en else 'عمليات مستخدمي النظام' }}</strong>
+      </div>
+      <div class="subscriber-action-buttons-v108">
+        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ '+ New user' if is_en else '+ مستخدم جديد' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('access_control.admin_roles_v10', lang=ui_lang) }}">{{ 'Roles & permissions' if is_en else 'الأدوار والصلاحيات' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Subscribers CRM' if is_en else 'إدارة المستفيدين' }}</a>
+      </div>
     </section>
+
+    <section class="subscriber-kpi-grid-v71 users-kpi-grid-v121">
+      <article><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ stats.total }}</strong><span>{{ 'User accounts' if is_en else 'حساب مستخدم' }}</span></article>
+      <article class="success"><small>{{ 'Active' if is_en else 'النشط' }}</small><strong>{{ stats.active }}</strong><span>{{ 'Can sign in' if is_en else 'يمكنهم الدخول' }}</span></article>
+      <article class="warning"><small>{{ 'Staff roles' if is_en else 'أدوار إدارية' }}</small><strong>{{ stats.staff }}</strong><span>{{ 'Permission based' if is_en else 'حسب الصلاحيات' }}</span></article>
+      <article class="danger"><small>{{ 'Support' if is_en else 'الدعم' }}</small><strong>{{ stats.with_support }}</strong><span>{{ 'Need follow-up' if is_en else 'تحتاج متابعة' }}</span></article>
+      <article class="muted"><small>{{ 'Disabled' if is_en else 'معطل' }}</small><strong>{{ stats.disabled }}</strong><span>{{ 'Inactive accounts' if is_en else 'حسابات غير مفعلة' }}</span></article>
+    </section>
+
+    <form method="post" id="usersBulkForm" class="admin-card-v2 subscribers-table-card-v71 subscribers-command-card-v116 ui-reactive" data-hover-card onsubmit="const v=this.querySelector('[name=bulk_action]')?.value; return v!=='hard_delete' || confirm('{{ 'Permanent delete selected users? A backup is recommended before continuing.' if is_en else 'حذف نهائي للمستخدمين المحددين؟ يفضل وجود نسخة احتياطية قبل المتابعة.' }}');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="subscriber-toolbar-v71 subscriber-toolbar-v116 users-toolbar-v121">
+        <div class="command-search-v61"><span>⌕</span><input id="systemUserSearchV121" type="search" placeholder="{{ 'Search system users...' if is_en else 'ابحث في مستخدمي النظام...' }}"></div>
+        <div class="subscriber-filter-pills-v71" data-user-filter-v121>
+          <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
+          <button type="button" data-filter="staff">{{ 'Staff' if is_en else 'الفريق' }}</button>
+          <button type="button" data-filter="subscriber">{{ 'Subscribers' if is_en else 'مستفيدون' }}</button>
+          <button type="button" data-filter="support">{{ 'Has support' if is_en else 'لديه دعم' }}</button>
+          <button type="button" data-filter="disabled">{{ 'Disabled' if is_en else 'معطل' }}</button>
+        </div>
+      </div>
+
+      <div class="users-role-filter-v121">
+        <label>
+          <span>{{ 'Role filter' if is_en else 'فلترة حسب الدور' }}</span>
+          <select id="systemUserRoleFilterV121" class="form-select">
+            <option value="all">{{ 'All roles' if is_en else 'كل الأدوار' }}</option>
+            {% for role in role_options %}
+              <option value="{{ role.code }}">{{ role.name_en if is_en else role.name_ar }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="bulk-action-bar-v116 is-disabled" id="usersBulkBarV121" aria-live="polite">
+        <div class="bulk-action-status-v117">
+          <strong><span id="usersBulkCountV121">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
+          <small id="usersBulkHintV121">{{ 'Select users to enable bulk actions' if is_en else 'حدد مستخدمين لتفعيل الإجراءات الجماعية' }}</small>
+        </div>
+        <div class="bulk-action-buttons-v117">
+          <label class="select-all-v5"><input type="checkbox" id="selectAllUsersV121"> {{ 'Select all' if is_en else 'تحديد الكل' }}</label>
+          <select name="bulk_action" class="form-select bulk-select-v5">
+            <option value="">{{ 'Choose action' if is_en else 'اختر إجراء' }}</option>
+            <option value="activate">{{ 'Activate selected' if is_en else 'تفعيل المحدد' }}</option>
+            <option value="disable">{{ 'Disable selected' if is_en else 'تعطيل المحدد' }}</option>
+            <option value="soft_delete">{{ 'Safe delete selected' if is_en else 'حذف آمن للمحدد' }}</option>
+            <option value="hard_delete">{{ 'Permanent delete selected' if is_en else 'حذف نهائي للمحدد' }}</option>
+          </select>
+          <button class="btn btn-solar btn-sm" type="submit" id="usersBulkApplyV121" disabled>{{ 'Apply' if is_en else 'تنفيذ' }}</button>
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="usersBulkClearV121" disabled>{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
+        </div>
+      </div>
+
+      <div class="subscriber-data-list-v116 users-data-list-v121">
+        {% for u in users %}
+          {% set devs = device_map.get(u.id, []) %}
+          {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
+          {% set role_code = (u.role or 'user')|lower %}
+          {% set is_staff = u.is_admin or role_code not in ['user','subscriber','customer'] %}
+          {% set support_count = (support.mail or 0) + (support.tickets or 0) %}
+          <article class="subscriber-data-row-v116 system-user-row-v121" data-system-user-row-v121 data-role="{{ role_code }}" data-kind="{{ 'staff' if is_staff else 'subscriber' }}" data-status="{{ 'active' if u.is_active else 'disabled' }}" data-support="{{ 'support' if support_count else 'none' }}" data-search="{{ (u.full_name or '')|lower }} {{ u.username|lower }} {{ (u.email or '')|lower }} {{ role_label(role_code, ui_lang)|lower }}">
+            <div class="subscriber-select-v116"><input type="checkbox" class="user-row-checkbox-v121" name="user_ids" value="{{ u.id }}" aria-label="{{ 'Select user' if is_en else 'تحديد المستخدم' }}"></div>
+            <a class="subscriber-identity-v116" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">
+              <span class="subscriber-avatar-v108">{{ (u.full_name or u.username or 'U')[:1] }}</span>
+              <span>
+                <strong>{{ u.full_name or u.username }}</strong>
+                <small>@{{ u.username }}{% if u.email %} · {{ mask_email(u.email) }}{% endif %}</small>
+              </span>
+            </a>
+            <div class="subscriber-data-cell-v116">
+              <small>{{ 'Role' if is_en else 'الدور' }}</small>
+              <strong>{{ role_label(role_code, ui_lang) }}</strong>
+              <span>{{ 'Staff account' if is_en and is_staff else ('حساب فريق' if is_staff else ('Subscriber account' if is_en else 'حساب مستفيد')) }}</span>
+            </div>
+            <div class="subscriber-data-cell-v116">
+              <small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small>
+              <div class="status-stack-v116">
+                <span class="ui-badge-v70 {{ 'is-success' if u.is_active else 'is-danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span>
+                <span class="ui-badge-v70 {{ 'is-warning' if is_staff else 'is-muted' }}">{{ 'Limited by role' if is_en else 'حسب الدور' }}</span>
+              </div>
+              <span>{{ 'Full admin bypass' if is_en and role_code == 'admin' else ('صلاحية مدير كامل' if role_code == 'admin' else ('No full admin bypass' if is_en else 'بدون صلاحية مدير كامل')) }}</span>
+            </div>
+            <div class="subscriber-data-cell-v116">
+              <small>{{ 'Support' if is_en else 'الدعم' }}</small>
+              {% if support_count %}
+                <div class="status-stack-v116">
+                  {% if support.tickets %}<span class="support-badge-v5 ticket">{{ support.tickets }} {{ 'open' if is_en else 'مفتوحة' }}</span>{% endif %}
+                  {% if support.mail %}<span class="support-badge-v5 mail">{{ support.mail }} {{ 'new' if is_en else 'جديدة' }}</span>{% endif %}
+                </div>
+              {% else %}
+                <span>{{ 'No open items' if is_en else 'لا يوجد مفتوح' }}</span>
+              {% endif %}
+            </div>
+            <div class="subscriber-data-cell-v116 compact">
+              <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+              <strong>{{ devs|length }}</strong>
+              {% if devs %}<span>{{ devs[0].name }}{% if devs|length > 1 %} +{{ devs|length - 1 }}{% endif %}</span>{% endif %}
+            </div>
+            <div class="system-user-actions-v121">
+              <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">{{ 'Open' if is_en else 'فتح' }}</a>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_edit', user_id=u.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a>
+              <form method="post" action="{{ url_for('main.admin_user_toggle', user_id=u.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+                <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disable' if is_en and u.is_active else ('Enable' if is_en else ('تعطيل' if u.is_active else 'تفعيل')) }}</button>
+              </form>
+              {% if not u.is_admin %}
+                <form method="post" action="{{ url_for('main.admin_user_delete', user_id=u.id, lang=ui_lang) }}" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولاً.' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% else %}
+          <div class="empty-box-v2">{{ 'No users yet.' if is_en else 'لا يوجد مستخدمون بعد.' }}</div>
+        {% endfor %}
+      </div>
+    </form>
   </main>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function(){
-  const all = document.getElementById('selectAllUsers');
-  if(all){ all.addEventListener('change', function(){ document.querySelectorAll('.user-row-checkbox').forEach(cb => cb.checked = all.checked); }); }
-});
+(function(){
+  const search = document.getElementById('systemUserSearchV121');
+  const roleFilter = document.getElementById('systemUserRoleFilterV121');
+  const rows = Array.from(document.querySelectorAll('[data-system-user-row-v121]'));
+  const filterButtons = Array.from(document.querySelectorAll('[data-user-filter-v121] button'));
+  const checks = Array.from(document.querySelectorAll('.user-row-checkbox-v121'));
+  const bulkBar = document.getElementById('usersBulkBarV121');
+  const bulkCount = document.getElementById('usersBulkCountV121');
+  const bulkHint = document.getElementById('usersBulkHintV121');
+  const bulkApply = document.getElementById('usersBulkApplyV121');
+  const bulkClear = document.getElementById('usersBulkClearV121');
+  const selectAll = document.getElementById('selectAllUsersV121');
+  let filter = 'all';
+  function rowMatches(row){
+    const q = (search && search.value || '').toLowerCase().trim();
+    const role = roleFilter && roleFilter.value || 'all';
+    const matchesText = !q || (row.dataset.search || '').includes(q);
+    const matchesRole = role === 'all' || row.dataset.role === role;
+    const matchesFilter = filter === 'all' || row.dataset.kind === filter || row.dataset.status === filter || row.dataset.support === filter;
+    return matchesText && matchesRole && matchesFilter;
+  }
+  function applyFilters(){ rows.forEach(row => { row.style.display = rowMatches(row) ? '' : 'none'; }); }
+  function selectedChecks(){ return checks.filter(c => c.checked); }
+  function updateBulk(){
+    const selected = selectedChecks();
+    const count = selected.length;
+    if(bulkCount) bulkCount.textContent = count;
+    if(bulkHint) bulkHint.textContent = count ? selected.map(c => c.closest('[data-system-user-row-v121]')?.querySelector('.subscriber-identity-v116 strong')?.textContent || '').filter(Boolean).slice(0,2).join('، ') : "{{ 'Select users to enable bulk actions' if is_en else 'حدد مستخدمين لتفعيل الإجراءات الجماعية' }}";
+    if(bulkBar){ bulkBar.classList.toggle('is-disabled', count === 0); bulkBar.classList.toggle('is-active', count > 0); }
+    if(bulkApply) bulkApply.disabled = count === 0;
+    if(bulkClear) bulkClear.disabled = count === 0;
+    rows.forEach(row => row.classList.toggle('is-selected', !!row.querySelector('.user-row-checkbox-v121')?.checked));
+    if(selectAll) selectAll.checked = checks.length > 0 && checks.every(c => c.checked);
+  }
+  search && search.addEventListener('input', applyFilters);
+  roleFilter && roleFilter.addEventListener('change', applyFilters);
+  filterButtons.forEach(btn => btn.addEventListener('click', () => { filter = btn.dataset.filter || 'all'; filterButtons.forEach(b => b.classList.toggle('active', b === btn)); applyFilters(); }));
+  checks.forEach(c => c.addEventListener('change', updateBulk));
+  selectAll && selectAll.addEventListener('change', () => { checks.forEach(c => { if(c.closest('[data-system-user-row-v121]').style.display !== 'none') c.checked = selectAll.checked; }); updateBulk(); });
+  bulkClear && bulkClear.addEventListener('click', () => { checks.forEach(c => c.checked = false); updateBulk(); });
+  applyFilters();
+  updateBulk();
+})();
 </script>
 {% endblock %}
