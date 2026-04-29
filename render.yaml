@@ -1,54 +1,7 @@
+
 services:
   - type: web
     name: solardeye
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -c gunicorn.conf.py --bind 0.0.0.0:$PORT wsgi:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: SECRET_KEY
-        generateValue: true
-      - key: ADMIN_PASSWORD
-        generateValue: true
-      - key: LOCAL_TIMEZONE
-        value: Asia/Hebron
-      - key: AUTO_SYNC_ENABLED
-        value: true
-      - key: AUTO_SYNC_MINUTES
-        value: 5
-      - key: WEB_CONCURRENCY
-        value: 1
-      - key: SESSION_COOKIE_SECURE
-        value: true
-      - key: CSRF_ENABLED
-        value: true
-      - key: DEBUG_TOOLS_ENABLED
-        value: false
-      - key: TELEGRAM_WEBHOOK_SECRET
-        generateValue: true
-      - key: MOBILE_ACCESS_TOKEN_SECONDS
-        value: 900
-      - key: MOBILE_REFRESH_TOKEN_DAYS
-        value: 30
-      - key: BACKUP_ENABLED
-        value: true
-      - key: BACKUP_FREQUENCY
-        value: daily
-      - key: BACKUP_KEEP_LOCAL
-        value: 12
-      - key: GOOGLE_DRIVE_BACKUP_ENABLED
-        value: false
-      - key: GOOGLE_DRIVE_BACKUP_FOLDER_ID
-        value: ""
-      - key: DATABASE_URL
-        fromDatabase:
-          name: solardeye-db
-          property: connectionString
-
-databases:
-  - name: solardeye-db
-    plan: free
-    databaseName: solardeye_db
-    user: solardeye_db_user
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn wsgi:app"

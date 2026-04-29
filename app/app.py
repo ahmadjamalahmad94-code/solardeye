@@ -1,15 +1,10 @@
 
-from flask import Flask, render_template
+from flask import Flask
+from app.blueprints.main import main_bp
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(main_bp)
+    return app
 
-@app.route("/")
-def admin():
-    return render_template("admin.html")
-
-@app.route("/user")
-def user():
-    return render_template("user.html")
-
-if __name__ == "__main__":
-    app.run(debug=True)
+app = create_app()
