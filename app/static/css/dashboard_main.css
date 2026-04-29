@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v27-dashboard-header-polish-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v28-dashboard-header-single-row-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v27-dashboard-header-polish-20260429
+/* Build: v28-dashboard-header-single-row-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v27-dashboard-header-polish-20260429
+/* Build: v28-dashboard-header-single-row-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -563,5 +563,239 @@ body.dashboard-page-v27 .notification-bell-wrap {
     width: 38px !important;
     height: 38px !important;
     min-width: 38px !important;
+  }
+}
+
+/* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
+/* Build: v28-dashboard-header-single-row-20260429
+   True single-row header fix: keep brand and actions in one line on desktop. */
+
+.dashboard-main-v28 .dashboard-header-v27 {
+  margin: 0 0 18px !important;
+}
+
+.dashboard-main-v28 .dashboard-header-card-v27 {
+  min-height: 128px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 22px !important;
+  flex-wrap: nowrap !important;
+  padding: 22px 28px !important;
+  overflow: visible !important;
+  direction: rtl !important;
+}
+
+.dashboard-main-v28 .dashboard-brand-v27 {
+  order: 1 !important;
+  flex: 1 1 auto !important;
+  min-width: 360px !important;
+  max-width: none !important;
+  justify-content: flex-start !important;
+  gap: 18px !important;
+}
+
+.dashboard-main-v28 .dashboard-header-actions-v27 {
+  order: 2 !important;
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  direction: rtl !important;
+}
+
+.dashboard-main-v28 .dashboard-brand-icon-v27 {
+  width: 74px !important;
+  height: 74px !important;
+  min-width: 74px !important;
+  border-radius: 20px !important;
+}
+
+.dashboard-main-v28 .solar-panel-v27 {
+  font-size: 2.18rem !important;
+}
+
+.dashboard-main-v28 .sun-v27 {
+  font-size: 1.18rem !important;
+}
+
+.dashboard-main-v28 .dashboard-brand-copy-v27 {
+  padding-inline-start: 20px !important;
+  border-inline-start: 1px solid #cfd8e6 !important;
+}
+
+.dashboard-main-v28 .dashboard-brand-copy-v27 h1 {
+  font-size: clamp(1.85rem, 2.35vw, 2.55rem) !important;
+  line-height: 1.08 !important;
+  margin-bottom: 6px !important;
+}
+
+.dashboard-main-v28 .dashboard-brand-copy-v27 p {
+  font-size: clamp(.84rem, 1.02vw, 1rem) !important;
+  line-height: 1.45 !important;
+}
+
+.dashboard-main-v28 .dash-head-btn-v27,
+.dashboard-main-v28 .dash-head-meta-v27,
+.dashboard-main-v28 .dash-head-bell-v27 {
+  height: 66px !important;
+  border-radius: 16px !important;
+}
+
+.dashboard-main-v28 .dash-head-btn-v27 {
+  min-width: 142px !important;
+  padding: 0 16px !important;
+  font-size: .9rem !important;
+  gap: 9px !important;
+}
+
+.dashboard-main-v28 .dash-head-btn-v27.sync {
+  min-width: 162px !important;
+}
+
+.dashboard-main-v28 .dash-head-btn-v27 i {
+  font-size: 1.15rem !important;
+}
+
+.dashboard-main-v28 .dash-head-meta-v27 {
+  min-width: 148px !important;
+  padding: 0 13px !important;
+  gap: 9px !important;
+}
+
+.dashboard-main-v28 .meta-icon-v27 {
+  width: 39px !important;
+  height: 39px !important;
+  min-width: 39px !important;
+  font-size: 1.12rem !important;
+}
+
+.dashboard-main-v28 .dash-head-meta-v27 span:not(.meta-icon-v27) {
+  font-size: .8rem !important;
+}
+
+.dashboard-main-v28 .dash-head-meta-v27 strong {
+  font-size: .84rem !important;
+}
+
+.dashboard-main-v28 .dash-head-bell-v27 {
+  width: 66px !important;
+  min-width: 66px !important;
+}
+
+.dashboard-main-v28 .bell-core-v27 {
+  font-size: 1.62rem !important;
+}
+
+.dashboard-main-v28 .dash-head-bell-v27 em {
+  top: -13px !important;
+  min-width: 31px !important;
+  height: 31px !important;
+  font-size: .8rem !important;
+  border-width: 4px !important;
+}
+
+/* Cancel v27 desktop stacking at normal laptop widths. */
+@media (max-width: 1680px) {
+  .dashboard-main-v28 .dashboard-header-card-v27 {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-main-v28 .dashboard-header-actions-v27 {
+    overflow: visible !important;
+    padding-block: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+}
+
+@media (max-width: 1380px) {
+  .dashboard-main-v28 .dashboard-header-card-v27 {
+    gap: 12px !important;
+    padding: 18px 20px !important;
+  }
+
+  .dashboard-main-v28 .dashboard-brand-v27 {
+    min-width: 320px !important;
+    gap: 13px !important;
+  }
+
+  .dashboard-main-v28 .dashboard-brand-icon-v27 {
+    width: 60px !important;
+    height: 60px !important;
+    min-width: 60px !important;
+  }
+
+  .dashboard-main-v28 .solar-panel-v27 {
+    font-size: 1.85rem !important;
+  }
+
+  .dashboard-main-v28 .dashboard-brand-copy-v27 h1 {
+    font-size: clamp(1.45rem, 1.95vw, 1.9rem) !important;
+  }
+
+  .dashboard-main-v28 .dashboard-brand-copy-v27 p {
+    font-size: .78rem !important;
+  }
+
+  .dashboard-main-v28 .dash-head-btn-v27,
+  .dashboard-main-v28 .dash-head-meta-v27,
+  .dashboard-main-v28 .dash-head-bell-v27 {
+    height: 56px !important;
+  }
+
+  .dashboard-main-v28 .dash-head-btn-v27 {
+    min-width: 116px !important;
+    padding: 0 10px !important;
+    font-size: .75rem !important;
+  }
+
+  .dashboard-main-v28 .dash-head-btn-v27.sync {
+    min-width: 134px !important;
+  }
+
+  .dashboard-main-v28 .dash-head-meta-v27 {
+    min-width: 120px !important;
+    padding: 0 9px !important;
+  }
+
+  .dashboard-main-v28 .meta-icon-v27 {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: .95rem !important;
+  }
+
+  .dashboard-main-v28 .dash-head-bell-v27 {
+    width: 56px !important;
+    min-width: 56px !important;
+  }
+}
+
+/* Only small screens can stack. */
+@media (max-width: 1080px) {
+  .dashboard-main-v28 .dashboard-header-card-v27 {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    min-height: auto !important;
+  }
+
+  .dashboard-main-v28 .dashboard-brand-v27 {
+    min-width: 0 !important;
+  }
+
+  .dashboard-main-v28 .dashboard-header-actions-v27 {
+    overflow-x: auto !important;
+    padding-block: 4px !important;
+    scrollbar-width: thin !important;
   }
 }

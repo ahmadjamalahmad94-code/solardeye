@@ -3,7 +3,7 @@
 <script>document.body.classList.add('dashboard-page-v27');</script>
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27">
+  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28">
     
 <header class="topbar dashboard-topbar clean-header dashboard-header-v27">
   <div class="dashboard-header-card-v27">
@@ -82,7 +82,7 @@
 @media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
 </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v27-dashboard-header-polish-20260429') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v28-dashboard-header-single-row-20260429') }}">
 {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
