@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v31-dashboard-notifications-left-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v32-notification-kind-badges-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -567,7 +567,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    True single-row header fix: keep brand and actions in one line on desktop. */
 
 .dashboard-main-v28 .dashboard-header-v27 {
@@ -801,7 +801,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V29 DASHBOARD HEADER NOTIFICATIONS DROPDOWN === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    Header notification dropdown: latest 5 notifications, mark read on open. */
 
 .dashboard-main-v29 .dash-head-notif-v29 {
@@ -1004,7 +1004,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V30 DASHBOARD NOTIFICATIONS DROPDOWN LAYER FIX === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    Fix notification dropdown being clipped/hidden behind next dashboard cards. */
 
 .dashboard-main-v30,
@@ -1091,7 +1091,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V31 DASHBOARD NOTIFICATIONS LEFT ANCHOR FIX === */
-/* Build: v31-dashboard-notifications-left-20260429
+/* Build: v32-notification-kind-badges-20260429
    Fix: notification dropdown opens from the left corner instead of right. */
 
 .dashboard-main-v31 .dash-head-notif-v29 {
@@ -1151,4 +1151,82 @@ body.dashboard-page-v27 .notification-bell-wrap {
   .dashboard-main-v31 .dash-notif-menu-v29::before {
     display: none !important;
   }
+}
+
+/* === V32 DASHBOARD NOTIFICATION KIND BADGES === */
+/* Build: v32-notification-kind-badges-20260429
+   Distinguish ticket notifications from message notifications inside header dropdown. */
+
+.dashboard-main-v32 .dash-notif-item-v29 {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 12px !important;
+  bottom: 12px !important;
+  inset-inline-start: 0 !important;
+  width: 4px !important;
+  border-radius: 999px !important;
+  background: #94a3b8 !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+  border-color: #bfdbfe !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message::before {
+  background: #2563eb !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message .dash-notif-kind-v29 {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message .dash-notif-kind-v29::before {
+  content: "✉️" !important;
+  margin-inline-end: 4px !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket {
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%) !important;
+  border-color: #fed7aa !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket::before {
+  background: #f59e0b !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket .dash-notif-kind-v29 {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket .dash-notif-kind-v29::before {
+  content: "🎫" !important;
+  margin-inline-end: 4px !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket h4 {
+  color: #7c2d12 !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message h4 {
+  color: #172554 !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-ticket:hover {
+  border-color: #fdba74 !important;
+  box-shadow: 0 10px 22px rgba(245,158,11,.10) !important;
+}
+
+.dashboard-main-v32 .dash-notif-item-v29.kind-message:hover {
+  border-color: #93c5fd !important;
+  box-shadow: 0 10px 22px rgba(37,99,235,.10) !important;
 }

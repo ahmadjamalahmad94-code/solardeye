@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v31-dashboard-notifications-left-20260429";
+  var buildId = "v32-notification-kind-badges-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {
