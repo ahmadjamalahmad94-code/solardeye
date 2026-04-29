@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area account-subscription-v114">
+  <main class="app-main content-area account-subscription-v114">
     <header class="admin-page-head compact">
       <div><span class="eyebrow">{{ 'Subscription' if is_en else 'الاشتراك' }}</span><h1>{{ 'My plan and account status' if is_en else 'خطتي وحالة الحساب' }}</h1><p>{{ 'A cleaner subscription view for the subscriber portal.' if is_en else 'عرض أنظف للاشتراك داخل بوابة المشترك.' }}</p></div>
     </header>

@@ -2,9 +2,9 @@
 {% block title %}{{ 'Services Health' if is_en else 'صحة الخدمات' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 services-health-v71 services-health-v90">
+  <main class="app-main content-area admin-shell-v2 services-health-v71 services-health-v90">
     <header class="admin-page-head service-hero-v71">
       <div>
         <span class="eyebrow">{{ 'Operations' if is_en else 'التشغيل' }}</span>

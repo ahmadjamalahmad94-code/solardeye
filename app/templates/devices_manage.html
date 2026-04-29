@@ -2,9 +2,9 @@
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set providers = provider_specs or [] %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area devices-dynamic-page-v10519">
+  <main class="app-main content-area devices-dynamic-page-v10519">
     <header class="topbar admin-page-head">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>

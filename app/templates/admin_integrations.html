@@ -2,7 +2,7 @@
 {% block title %}{{ 'Energy Integrations' if is_en else 'تكاملات الطاقة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2 integrations-v90">
+<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2 integrations-v90">
 <header class="admin-page-head integrations-hero-v90">
   <div>
     <span class="eyebrow">{{ 'Heavy v9.0' if is_en else 'Heavy v9.0' }}</span>

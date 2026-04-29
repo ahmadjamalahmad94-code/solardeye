@@ -2,9 +2,9 @@
 {% block title %}{{ 'Admin Team' if (ui_lang or 'ar') == 'en' else 'فريق الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 admin-team-v122">
+  <main class="app-main content-area admin-shell-v2 admin-team-v122">
     <header class="admin-page-head compact admin-team-head-v122">
       <div>
         <span class="eyebrow">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</span>
@@ -37,8 +37,19 @@
       <article><small>{{ 'Disabled' if is_en else 'معطل' }}</small><strong>{{ stats.disabled }}</strong><span>{{ 'inactive' if is_en else 'غير نشط' }}</span></article>
     </section>
 
-    <form method="post" id="adminTeamBulkFormV122" class="admin-card-v2 admin-team-card-v122">
+    <form method="post" id="adminTeamBulkFormV122" class="admin-card-v2 admin-team-card-v122 staff-board-card-v150">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="staff-action-head-v150">
+        <div>
+          <span class="staff-action-icon-v150">♙</span>
+          <h2>{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</h2>
+          <p>{{ 'Select an admin team member to enable the available actions.' if is_en else 'حدد عضو إدارة لتفعيل الإجراءات' }}</p>
+        </div>
+        <div class="staff-selected-card-v150">
+          <strong id="adminTeamSelectedMirrorV150">0</strong>
+          <span>{{ 'selected' if is_en else 'محدد' }}</span>
+        </div>
+      </div>
       <div class="admin-team-action-bar-v125 is-disabled" id="adminTeamBulkV122" aria-live="polite">
         <div class="bulk-action-status-v117 admin-team-action-status-v125">
           <strong><span id="adminTeamSelectedV122">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
@@ -54,27 +65,33 @@
         </div>
       </div>
 
-      <div class="admin-team-list-v122">
+      <div class="staff-board-v150">
+        <div class="staff-board-head-v150">
+          <span>{{ 'Team member' if is_en else 'مدير النظام' }}</span>
+          <span>{{ 'Role' if is_en else 'الدور' }}</span>
+          <span>{{ 'Access' if is_en else 'الوصول' }}</span>
+          <span>{{ 'Assigned support' if is_en else 'الدعم المكلف' }}</span>
+          <span><input type="checkbox" id="adminTeamSelectAllV150" aria-label="{{ 'Select visible staff' if is_en else 'تحديد الظاهر من فريق الإدارة' }}"></span>
+        </div>
         {% for u in users %}
           {% set role_code = (u.role or 'user')|lower %}
           {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
           {% set support_total = (support.mail or 0) + (support.tickets or 0) %}
-          <article class="admin-team-row-v122" data-admin-team-row data-user-id="{{ u.id }}" data-role="{{ role_code }}" data-status="{{ 'active' if u.is_active else 'disabled' }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}" data-display-name="{{ u.full_name or u.username }}" data-search="{{ (u.full_name or '')|lower }} {{ u.username|lower }} {{ (u.email or '')|lower }} {{ role_label(role_code, ui_lang)|lower }}">
-            <input type="checkbox" class="admin-team-check-v122" name="user_ids" value="{{ u.id }}">
-            <a class="admin-team-person-v122" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}">
+          <article class="admin-team-row-v122 staff-row-v150" data-admin-team-row data-user-id="{{ u.id }}" data-role="{{ role_code }}" data-status="{{ 'active' if u.is_active else 'disabled' }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}" data-display-name="{{ u.full_name or u.username }}" data-search="{{ (u.full_name or '')|lower }} {{ u.username|lower }} {{ (u.email or '')|lower }} {{ role_label(role_code, ui_lang)|lower }}">
+            <a class="admin-team-person-v122 staff-person-v150" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}">
               <span>{{ (u.full_name or u.username or 'U')[:1] }}</span>
               <div><strong>{{ u.full_name or u.username }}</strong><small>@{{ u.username }}{% if u.email %} · {{ mask_email(u.email) }}{% endif %}</small></div>
             </a>
-            <div class="admin-team-cell-v122">
+            <div class="admin-team-cell-v122 staff-role-v150">
               <small>{{ 'Role' if is_en else 'الدور' }}</small>
               <strong>{{ role_label(role_code, ui_lang) }}</strong>
             </div>
-            <div class="admin-team-cell-v122">
+            <div class="admin-team-cell-v122 staff-access-v150">
               <small>{{ 'Access' if is_en else 'الوصول' }}</small>
               <span class="ui-badge-v70 {{ 'is-success' if u.is_active else 'is-danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span>
               <span class="ui-badge-v70 {{ 'is-warning' if role_code == 'admin' else 'is-muted' }}">{{ 'Full admin' if is_en and role_code == 'admin' else ('مدير كامل' if role_code == 'admin' else ('Limited' if is_en else 'محدد')) }}</span>
             </div>
-            <div class="admin-team-cell-v122">
+            <div class="admin-team-cell-v122 staff-support-v150">
               <small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small>
               {% if support_total %}
                 <span class="support-badge-v5 mail">{{ support.mail or 0 }} {{ 'mail' if is_en else 'رسائل' }}</span>
@@ -83,9 +100,8 @@
                 <strong>{{ 'None' if is_en else 'لا يوجد' }}</strong>
               {% endif %}
             </div>
-            <div class="admin-team-actions-v122">
-              <a class="btn btn-solar btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}">{{ 'Manage' if is_en else 'إدارة' }}</a>
-              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1, tab='permissions') }}">{{ 'Permissions' if is_en else 'الصلاحيات' }}</a>
+            <div class="staff-check-v150">
+              <input type="checkbox" class="admin-team-check-v122" name="user_ids" value="{{ u.id }}">
             </div>
           </article>
         {% else %}
@@ -165,8 +181,10 @@
   const role = document.getElementById('adminTeamRoleFilterV122');
   const rows = Array.from(document.querySelectorAll('[data-admin-team-row]'));
   const checks = Array.from(document.querySelectorAll('.admin-team-check-v122'));
+  const selectAll = document.getElementById('adminTeamSelectAllV150');
   const bar = document.getElementById('adminTeamBulkV122');
   const count = document.getElementById('adminTeamSelectedV122');
+  const mirror = document.getElementById('adminTeamSelectedMirrorV150');
   const hint = document.getElementById('adminTeamSelectedHintV125');
   const clear = document.getElementById('adminTeamClearV122');
   const profile = document.getElementById('adminTeamProfileV125');
@@ -188,6 +206,7 @@
   function update(){
     const selected = checks.filter(c => c.checked);
     if(count) count.textContent = selected.length;
+    if(mirror) mirror.textContent = selected.length;
     const disabled = selected.length === 0;
     bar?.classList.toggle('is-disabled', disabled);
     bar?.classList.toggle('is-active', !disabled);
@@ -211,6 +230,13 @@
   }
   q?.addEventListener('input', filter);
   role?.addEventListener('change', filter);
+  selectAll?.addEventListener('change', () => {
+    rows.filter(row => row.style.display !== 'none').forEach(row => {
+      const check = row.querySelector('.admin-team-check-v122');
+      if(check) check.checked = selectAll.checked;
+    });
+    update();
+  });
   checks.forEach(c => c.addEventListener('change', () => {
     if(c.checked) checks.forEach(other => { if(other !== c) other.checked = false; });
     update();

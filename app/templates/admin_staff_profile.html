@@ -2,9 +2,9 @@
 {% block title %}{{ 'Staff profile' if (ui_lang or 'ar') == 'en' else 'ملف عضو الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 staff-profile-v122">
+  <main class="app-main content-area admin-shell-v2 staff-profile-v122">
     <header class="admin-page-head compact">
       <div>
         <span class="eyebrow">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</span>

@@ -2,9 +2,9 @@
 {% block title %}{{ 'Subscribers' if (ui_lang or 'ar') == 'en' else 'المشتركون' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116">
+  <main class="app-main content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116">
     <header class="admin-page-head subscribers-hero-v71">
       <div>
         <span class="eyebrow">{{ 'Subscribers CRM' if is_en else 'إدارة المشتركين' }}</span>
@@ -69,49 +69,56 @@
         </div>
       </div>
 
-      <div class="subscriber-data-list-v116">
+      <div class="subscriber-life-board-v140">
+        <div class="subscriber-life-title-v140">
+          <div><span>♛</span><strong>{{ 'Subscribers' if is_en else 'المشتركين' }}</strong><small>{{ 'Manage subscribers, plans, support, and account states' if is_en else 'إدارة المشتركين والخطط والدعم وحالات الحساب' }}</small></div>
+        </div>
+        <div class="subscriber-life-header-v140">
+          <span>{{ 'Subscriber' if is_en else 'المستخدم' }}</span>
+          <span>{{ 'Plan' if is_en else 'الخطة' }}</span>
+          <span>{{ 'Support' if is_en else 'الدعم' }}</span>
+          <span>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</span>
+          <span>{{ 'Devices' if is_en else 'الأجهزة' }}</span>
+          <span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span>
+          <span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span>
+          <span><input type="checkbox" id="subscriberSelectAllV140" aria-label="{{ 'Select all subscribers' if is_en else 'تحديد كل المستفيدين' }}"></span>
+        </div>
         {% for row in rows %}
         {% set status = row.status or 'trial' %}
         {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
         {% set plan_price = ((row.plan.price|string) ~ ' ' ~ row.plan.currency) if row.plan else '-' %}
         {% set end_date = row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '-' %}
         {% set trial_date = row.subscription.trial_ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.trial_ends_at else '-' %}
-        <article class="subscriber-data-row-v116" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}" data-support-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}" data-subscription-url="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" data-toggle-url="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" data-delete-url="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
-          <div class="subscriber-select-v116"><input type="checkbox" class="subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}"></div>
-          <a class="subscriber-identity-v116" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
-            <span class="subscriber-avatar-v108">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
-            <span>
-              <strong>{{ row.user.full_name or row.user.username }}</strong>
+        <article class="subscriber-life-row-v140" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}" data-support-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}" data-subscription-url="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" data-toggle-url="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" data-delete-url="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
+          <a class="life-user-v140" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
+            <span class="life-avatar-v140">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
+            <strong>{{ row.user.full_name or row.user.username }}</strong>
               <small>@{{ row.user.username }}{% if row.user.email %} · {{ mask_email(row.user.email) }}{% endif %}</small>
-            </span>
           </a>
-          <div class="subscriber-data-cell-v116">
-            <small>{{ 'Plan' if is_en else 'الخطة' }}</small>
+          <div class="life-plan-card-v140">
+            <span class="life-icon-v140">♕</span>
             <strong>{{ plan_name }}</strong>
-            <span class="subscriber-plan-meta-v131"><b>{{ 'Price' if is_en else 'السعر' }}: {{ plan_price }}</b><b>{{ 'Devices' if is_en else 'الأجهزة' }}: {{ row.plan.max_devices if row.plan else '-' }}</b></span>
+            <small>{{ 'Price' if is_en else 'السعر' }}: {{ plan_price }}</small>
+            <b>{{ 'Devices' if is_en else 'الأجهزة' }}: {{ row.plan.max_devices if row.plan else '-' }}</b>
           </div>
-          <a class="subscriber-data-cell-v116 subscriber-support-cell-v131" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">
-            <small>{{ 'Support' if is_en else 'الدعم' }}</small>
-            <strong>{{ (row.open_message_count or 0) + (row.open_ticket_count or 0) }} {{ 'open' if is_en else 'مفتوح' }}</strong>
-            <div class="support-slices-v134">
-              <span class="messages"><b>{{ row.open_message_count or 0 }}</b> {{ 'messages' if is_en else 'رسائل' }}</span>
-              <span class="tickets"><b>{{ row.open_ticket_count or 0 }}</b> {{ 'tickets' if is_en else 'تذاكر' }}</span>
-            </div>
+          <a class="life-support-v140" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">
+            <span class="mail"><b>{{ row.open_message_count or 0 }}</b> {{ 'messages' if is_en else 'رسائل' }}</span>
+            <span class="ticket"><b>{{ row.open_ticket_count or 0 }}</b> {{ 'tickets' if is_en else 'تذاكر' }}</span>
+            <span class="total"><b>{{ (row.open_message_count or 0) + (row.open_ticket_count or 0) }}</b> {{ 'open' if is_en else 'مفتوح' }}</span>
           </a>
-          <div class="subscriber-data-cell-v116 subscriber-lifecycle-cell-v135">
-            <small>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</small>
-            <strong class="lifecycle-days-v135">{% if row.days_left is not none %}{{ row.days_left }} {{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ انتهاء' }}{% endif %}</strong>
-            <div class="status-stack-v116"><span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span><span class="ui-badge-v70 {{ 'is-success' if row.user.is_active else 'is-danger' }}">{{ 'Active account' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Disabled account' if is_en else 'الحساب معطل')) }}</span></div>
-          </div>
-          <div class="subscriber-data-cell-v116 compact">
-            <small>{{ 'Active devices' if is_en else 'الأجهزة الفعالة' }}</small>
-            <strong>🔌 {{ row.device_count }}</strong>
+          <div class="life-days-v140"><span>▣</span><strong>{% if row.days_left is not none %}{{ row.days_left }}{% else %}—{% endif %}</strong><small>{% if row.days_left is not none %}{{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ' }}{% endif %}</small></div>
+          <div class="life-devices-v140"><span>▯</span><strong>{{ row.device_count }}</strong></div>
+          <div class="life-account-v140"><span class="{{ 'on' if row.user.is_active else 'off' }}">{{ 'Active account' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Disabled account' if is_en else 'الحساب معطل')) }}</span></div>
+          <div class="life-status-v140"><span class="{{ 'on' if status in ['active','trial'] else 'off' }}">{{ ui_label(status, 'status', ui_lang) }}</span></div>
+          <div class="life-controls-v140">
+            <input type="checkbox" class="subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}">
           </div>
         </article>
         {% else %}
         <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
         {% endfor %}
       </div>
+
     </section>
   </main>
 </div>
@@ -171,6 +178,7 @@
   buttons.forEach(btn => btn.addEventListener('click', () => { filter = btn.dataset.filter || 'all'; buttons.forEach(b => b.classList.toggle('active', b === btn)); apply(); }));
 
   const checks = Array.from(document.querySelectorAll('.subscriber-check-v116'));
+  const selectAll = document.getElementById('subscriberSelectAllV140');
   const bulkBar = document.getElementById('subscriberBulkBarV116');
   const bulkCount = document.getElementById('bulkCountV116');
   const selectedName = document.getElementById('bulkSelectedNameV117');
@@ -225,6 +233,13 @@
     }
   }
   checks.forEach(c=>c.addEventListener('change', updateBulk));
+  selectAll?.addEventListener('change', ()=>{
+    rows.filter(row => row.style.display !== 'none').forEach(row => {
+      const check = row.querySelector('.subscriber-check-v116');
+      if(check) check.checked = selectAll.checked;
+    });
+    updateBulk();
+  });
   clearBtn?.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); updateBulk(); });
   [profileLink, supportLink, subscriptionLink].forEach(a=>a?.addEventListener('click', (e)=>{ if(a.getAttribute('aria-disabled') === 'true') e.preventDefault(); }));
 

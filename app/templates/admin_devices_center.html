@@ -5,9 +5,9 @@
 {% set total = device_stats.total %}
 {% set connected = device_stats.connected %}
 {% set inactive = device_stats.inactive %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 admin-devices-v80">
+  <main class="app-main content-area admin-shell-v2 admin-devices-v80">
     <header class="admin-page-head">
       <div>
         <span class="eyebrow">{{ 'Device Fleet' if is_en else 'أسطول الأجهزة' }}</span>

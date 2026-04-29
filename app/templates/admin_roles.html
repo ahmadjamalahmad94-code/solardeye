@@ -2,7 +2,7 @@
 {% block title %}{{ 'Roles & Permissions' if (ui_lang or 'ar') == 'en' else 'الأدوار والصلاحيات' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2 roles-v100">
+<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2 roles-v100">
 <header class="admin-page-head roles-hero-v100">
   <div>
     <span class="eyebrow">Heavy v10.1</span>

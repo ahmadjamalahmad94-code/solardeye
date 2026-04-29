@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
+  <main class="app-main content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div><span class="eyebrow">{{ 'Subscriber activation' if is_en else 'تفعيل المشترك' }}</span><h1>{{ user.full_name or user.username }}</h1><p>{{ 'Assign or renew plan access without exposing runtime device data.' if is_en else 'تعيين أو تجديد الخطة بدون كشف بيانات التشغيل الخاصة بالجهاز.' }}</p></div>
       <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>

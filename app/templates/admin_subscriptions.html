@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
+<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2">
   <header class="admin-page-head"><div><span class="eyebrow">{{ 'Subscriptions' if is_en else 'الاشتراكات' }}</span><h1>{{ 'Subscription lifecycle' if is_en else 'دورة حياة الاشتراكات' }}</h1><p>{{ 'Track plans, trials, expirations, and manual activations.' if is_en else 'تابع الخطط والتجارب والانتهاء والتفعيل اليدوي.' }}</p></div></header>
   <section class="admin-kpi-grid-v2">
     <article class="admin-kpi-card"><small>{{ 'Subscribers' if is_en else 'المشتركون' }}</small><strong>{{ summary.users }}</strong><span>{{ 'All tenant users' if is_en else 'كل مستخدمي المشتركين' }}</span></article>

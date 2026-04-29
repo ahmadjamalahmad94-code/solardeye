@@ -3,9 +3,9 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set providers = provider_specs or [] %}
 {% set current_provider = device.device_type or 'deye' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area devices-dynamic-page-v10519">
+  <main class="app-main content-area devices-dynamic-page-v10519">
     <header class="topbar admin-page-head">
       <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><span class="eyebrow">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span><h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1><p class="mb-0">{{ 'Choose the provider and keep secret fields blank to preserve saved values.' if is_en else 'اختر نوع الجهاز، واترك الحقول السرية فارغة للاحتفاظ بالقيم المحفوظة.' }}</p></div></div>
       <div><a class="btn btn-outline-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">↩ {{ 'Back' if is_en else 'الرجوع' }}</a></div>

@@ -1,79 +1,129 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<aside class="sidebar sidebar-fancy-v104 {% if g.is_admin %}admin-sidebar admin-sidebar-v2{% else %}portal-sidebar-v104{% endif %}" id="sidebar">
-  <button class="sidebar-mobile-close-v70" id="sidebarMobileCloseV70" type="button" aria-label="{{ 'Close navigation' if is_en else 'إغلاق القائمة' }}">×</button>
-  <div>
-    <div class="brand-row">
-      <div class="brand-icon">☀️</div>
-      <div>
-        {% if g.is_admin %}
-          <h4 class="mb-0">{{ 'Admin Console' if is_en else 'لوحة الإدارة' }}</h4>
-          <small>SolarDeye Command v10.5.19</small>
-        {% else %}
-          <h4 class="mb-0">{{ 'Solar Platform' if is_en else 'منصة الطاقة' }}</h4>
-          <small>{{ 'Smart Portal v10.5.19' if is_en else 'البوابة الذكية v10.5.19' }}</small>
-        {% endif %}
-      </div>
-    </div>
+{% set unread_total = (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) %}
 
-    <div class="sidebar-user-box">
-      <div class="sidebar-user-avatar">{{ (g.current_user_display or 'U')[:1] }}</div>
-      <div>
-        <strong>{{ g.current_user_display or ('Admin' if g.is_admin else 'User') }}</strong>
-        <small>{{ 'Administrator' if g.is_admin and is_en else ('مدير المنصة' if g.is_admin else ('Signed in account' if is_en else 'الحساب الحالي')) }}</small>
-      </div>
-    </div>
+{% macro icon(name) -%}
+  {% set paths = {
+    'grid':'<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+    'users':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    'user-check':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>',
+    'headset':'<path d="M3 14v-1a9 9 0 0 1 18 0v1"/><path d="M5 14h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2Z"/><path d="M16 14h3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3v-6Z"/><path d="M13 20h3"/>',
+    'tag':'<path d="M20.59 13.41 11 3.83A2.83 2.83 0 0 0 9 3H4a1 1 0 0 0-1 1v5a2.83 2.83 0 0 0 .83 2l9.58 9.59a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r=".5"/>',
+    'monitor':'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    'link':'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    'activity':'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    'shield':'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+    'home':'<path d="m3 10 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    'phone':'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/>',
+    'database':'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>',
+    'wallet':'<path d="M20 7H5a2 2 0 0 0 0 4h15v8H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h13v4"/><path d="M16 14h.01"/>',
+    'clock':'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    'lock':'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    'panel':'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+    'zap':'<path d="M13 2 3 14h8l-1 8 11-13h-8l1-7Z"/>',
+    'wand':'<path d="m15 4 5 5-9 9-5-5 9-9Z"/><path d="m4 20 3-3"/><path d="M9 5 7 3M19 15l2 2M3 9l2-2"/>',
+    'id':'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h4"/>',
+    'chart':'<path d="M3 3v18h18"/><path d="M7 16V9M12 16V5M17 16v-3"/>',
+    'file':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/>',
+    'gauge':'<path d="M12 14 16 9"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/><path d="M12 21a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Z"/>',
+    'bell':'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    'send':'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    'message':'<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
+    'logout':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+    'menu':'<path d="M4 6h16M4 12h16M4 18h16"/>'
+  } %}
+  <svg class="hs-icon-v180" viewBox="0 0 24 24" aria-hidden="true">{{ paths.get(name, paths['grid'])|safe }}</svg>
+{%- endmacro %}
 
-    <div class="sidebar-lang-box">
-      <div class="sidebar-lang-inline">
-        <a class="sidebar-lang-btn compact {% if not is_en %}active{% endif %}" href="{{ lang_url('ar') }}">عربي</a>
-        <a class="sidebar-lang-btn compact {% if is_en %}active{% endif %}" href="{{ lang_url('en') }}">English</a>
-      </div>
-    </div>
+{% macro nav_item(key, label_ar, label_en, endpoint_names, href, icon_name, badge=0) -%}
+  {% set active = request.endpoint in endpoint_names %}
+  <a class="hs-nav-item-v180 {% if active %}active{% endif %}" href="{{ href }}" data-tooltip="{{ label_en if is_en else label_ar }}" aria-label="{{ label_en if is_en else label_ar }}">
+    <span class="hs-nav-dot-v180"></span>
+    <span class="hs-nav-icon-v180">{{ icon(icon_name) }}</span>
+    <span class="hs-nav-label-v180">{{ label_en if is_en else label_ar }}</span>
+    {% if badge %}<span class="hs-nav-badge-v180">{{ badge }}</span>{% endif %}
+  </a>
+{%- endmacro %}
 
-    <nav class="nav-menu mt-4">
-      {% if g.is_admin %}
-        <div class="nav-group-title">{{ 'Administration' if is_en else 'الإدارة' }}</div>
-        <a class="{% if request.endpoint in ['main.admin_dashboard','energy.admin_dashboard'] %}active{% endif %}" href="{{ url_for('main.admin_dashboard', lang=ui_lang) }}">{{ 'Overview' if is_en else 'لوحة الإدارة' }}</a>
-        {% if has_permission('can_manage_users') or has_permission('can_manage_roles') %}
-          <a class="{% if request.endpoint in ['users_routes.admin_team','users_routes.admin_users_legacy','main.admin_users_legacy'] or (request.endpoint in ['users_routes.admin_user_profile','main.admin_user_profile'] and request.args.get('staff')) %}active{% endif %}" href="{{ url_for('users_routes.admin_team', lang=ui_lang) }}">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</a>
-        {% endif %}
-        {% if has_permission('can_manage_users') or has_permission('can_manage_subscriptions') %}
-          <a class="{% if request.endpoint in ['admin_ops.admin_subscribers_v9','billing.admin_subscribers','billing.admin_subscriber_activate','main.admin_subscribers','main.admin_subscriber_activate'] or (request.endpoint in ['users_routes.admin_user_profile','main.admin_user_profile'] and not request.args.get('staff')) %}active{% endif %}" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Subscribers CRM' if is_en else 'إدارة المستفيدين' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class="nav-badge">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>
-        {% endif %}
-        {% if has_permission('can_manage_support') %}<a class="{% if request.endpoint in ['support.admin_support_command_center','main.admin_support_command_center'] %}active{% endif %}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">{{ 'Support Command' if is_en else 'مركز الدعم' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class="nav-badge">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>{% endif %}
-        {% if has_permission('can_manage_subscriptions') or has_permission('can_manage_users') %}<a class="{% if request.endpoint in ['billing.admin_plans','billing.admin_plan_create','billing.admin_plan_edit','main.admin_plans','main.admin_plan_create','main.admin_plan_edit'] %}active{% endif %}" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Plans & Offers' if is_en else 'الخطط والعروض' }}</a>{% endif %}
-        {% if has_permission('can_manage_devices') %}<a class="{% if request.endpoint == 'admin_ops.admin_devices_center_v9' %}active{% endif %}" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">{{ 'Devices' if is_en else 'الأجهزة' }}</a>{% endif %}
-        {% if has_permission('can_manage_integrations') %}<a class="{% if request.endpoint in ['integrations.admin_integrations','integrations.admin_test_device_integration'] %}active{% endif %}" href="{{ url_for('integrations.admin_integrations', lang=ui_lang) }}">{{ 'Device Types / Integrations' if is_en else 'أنواع الأجهزة / التكاملات' }}</a>{% endif %}
-        {% if has_permission('can_view_logs') %}<a class="{% if request.endpoint == 'admin_ops.admin_services_health_v9' %}active{% endif %}" href="{{ url_for('admin_ops.admin_services_health_v9', lang=ui_lang) }}">{{ 'Services Health' if is_en else 'صحة الخدمات' }}</a>{% endif %}
-        {% if has_permission('can_view_logs') %}<a class="{% if request.endpoint == 'platform.admin_platform_review' %}active{% endif %}" href="{{ url_for('platform.admin_platform_review', lang=ui_lang) }}">{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}</a>{% endif %}
-        {% if has_permission('can_manage_system') or has_permission('can_manage_users') %}<a class="{% if request.endpoint == 'platform.admin_landing_settings' %}active{% endif %}" href="{{ url_for('platform.admin_landing_settings', lang=ui_lang) }}">{{ 'Homepage' if is_en else 'الصفحة الرئيسية' }}</a>{% endif %}
-        {% if has_permission('can_manage_system') or has_permission('can_access_mobile_api') %}<a class="{% if request.endpoint in ['openapi_api.api_docs','openapi_api.openapi_json'] %}active{% endif %}" href="{{ url_for('openapi_api.api_docs', lang=ui_lang) }}">{{ 'Mobile API Docs' if is_en else 'توثيق تطبيق الموبايل' }}</a>{% endif %}
-        {% if has_permission('can_manage_backups') or has_permission('can_view_logs') %}<a class="{% if request.endpoint in ['platform.admin_backups','platform.admin_backup_download'] %}active{% endif %}" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">{{ 'Backups & Recovery' if is_en else 'النسخ والاستعادة' }}</a>{% endif %}
-        {% if has_permission('can_manage_finance') %}<a class="{% if request.endpoint in ['billing.admin_finance','main.admin_finance'] %}active{% endif %}" href="{{ url_for('main.admin_finance', lang=ui_lang) }}">{{ 'Wallet & Finance' if is_en else 'المحفظة والمالية' }}</a>{% endif %}
-        {% if has_permission('can_view_logs') %}<a class="{% if request.endpoint in ['users_routes.admin_activity_log','main.admin_activity_log'] %}active{% endif %}" href="{{ url_for('main.admin_activity_log', lang=ui_lang) }}">{{ 'Activity Log' if is_en else 'سجل العمليات' }}</a>{% endif %}
-        {% if has_permission('can_manage_roles') or has_permission('can_manage_users') %}<a class="{% if request.endpoint in ['access_control.admin_roles_v10','main.admin_roles'] %}active{% endif %}" href="{{ url_for('access_control.admin_roles_v10', lang=ui_lang) }}">{{ 'Roles & Permissions' if is_en else 'الأدوار والصلاحيات' }}</a>{% endif %}
-        {% if has_permission('can_view_logs') %}<a class="{% if request.endpoint in ['users_routes.admin_system_logs','main.admin_system_logs'] %}active{% endif %}" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ 'System Logs' if is_en else 'لوج النظام والخدمات' }}</a>{% endif %}
-      {% else %}
-        <div class="nav-group-title">{{ 'Portal' if is_en else 'البوابة' }}</div>
-        {% if portal_page_visible('dashboard') %}<a class="{% if request.endpoint in ['energy.dashboard','main.dashboard'] %}active{% endif %}" href="{{ url_for('main.dashboard', lang=ui_lang) }}">{{ 'Overview' if is_en else 'النظرة العامة' }}</a>{% endif %}
-        {% if portal_page_visible('devices_manage') %}<a class="{% if request.endpoint in ['devices_routes.devices_manage','main.devices_manage'] %}active{% endif %}" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">{{ 'My Devices' if is_en else 'أجهزتي' }}</a>{% endif %}
-        {% if portal_page_visible('onboarding') %}<a class="{% if request.endpoint in ['devices_routes.onboarding_wizard','main.onboarding_wizard'] %}active{% endif %}" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}">{{ 'Setup Wizard' if is_en else 'معالج الإعداد' }}</a>{% endif %}
-        {% if portal_page_visible('subscription') %}<a class="{% if request.endpoint in ['billing.account_subscription','main.account_subscription'] %}active{% endif %}" href="{{ url_for('main.account_subscription', lang=ui_lang) }}">{{ 'Subscription' if is_en else 'اشتراكي' }}</a>{% endif %}
-        <div class="nav-group-title">{{ 'Monitoring' if is_en else 'المتابعة' }}</div>
-        {% if portal_page_visible('statistics') %}<a class="{% if request.endpoint in ['energy.statistics','main.statistics'] %}active{% endif %}" href="{{ url_for('main.statistics', lang=ui_lang) }}">{{ 'Statistics' if is_en else 'الإحصائيات' }}</a>{% endif %}
-        {% if portal_page_visible('reports') %}<a class="{% if request.endpoint in ['energy.reports','main.reports'] %}active{% endif %}" href="{{ url_for('main.reports', lang=ui_lang) }}">{{ 'Reports' if is_en else 'التقارير' }}</a>{% endif %}
-        {% if portal_page_visible('live_data') %}<a class="{% if request.endpoint in ['energy.live_data','main.live_data'] %}active{% endif %}" href="{{ url_for('main.live_data', lang=ui_lang) }}">{{ 'Live Data' if is_en else 'البيانات الحية' }}</a>{% endif %}
-        {% if portal_page_visible('loads') %}<a class="{% if request.endpoint in ['energy.loads_page','main.loads_page'] %}active{% endif %}" href="{{ url_for('main.loads_page', lang=ui_lang) }}">{{ 'Loads' if is_en else 'الأحمال' }}</a>{% endif %}
-        {% if portal_page_visible('notifications') %}<a class="{% if request.endpoint in ['notifications_routes.notifications_settings','main.notifications_settings'] %}active{% endif %}" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">{{ 'Notifications' if is_en else 'الإشعارات' }}</a>{% endif %}
-        {% if portal_page_visible('channels') %}<a class="{% if request.endpoint in ['notifications_routes.channels','main.channels'] %}active{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">{{ 'Telegram & SMS' if is_en else 'Telegram و SMS' }}</a>{% endif %}
-        {% if portal_page_visible('support') %}<a class="{% if request.endpoint in ['support.portal_support','support.portal_messages','support.portal_tickets','main.portal_support','main.portal_messages','main.portal_tickets'] %}active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang) }}">{{ 'Support Center' if is_en else 'الدعم والمراسلات' }}{% if g.mail_notification_count or g.ticket_notification_count %}<span class="nav-badge">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>{% endif %}</a>{% endif %}
-      {% endif %}
-    </nav>
+<aside class="sidebar app-sidebar sidebar-panel sidebar-system-v180 {% if g.is_admin %}admin-sidebar-v180{% else %}subscriber-sidebar-v180{% endif %}" id="sidebar" data-sidebar-system-v180 data-sidebar-mode="{{ 'admin' if g.is_admin else 'subscriber' }}">
+  <button class="sidebar-mobile-close-v70 hs-mobile-close-v180" id="sidebarMobileCloseV70" type="button" aria-label="{{ 'Close navigation' if is_en else 'إغلاق القائمة' }}">×</button>
+
+  <div class="hs-sidebar-top-v180">
+    {% if g.is_admin %}
+      <div class="hs-admin-head-v180">
+        <div class="hs-avatar-v180 admin">MA<span></span></div>
+        <div class="hs-user-copy-v180">
+          <strong>{{ g.current_user_display or 'المشرف الافتراضي' }}</strong>
+          <small>{{ 'Platform manager' if is_en else 'مدير المنصة' }}</small>
+        </div>
+        <button class="hs-collapse-v180" type="button" data-sidebar-toggle-v180 aria-label="{{ 'Toggle sidebar' if is_en else 'طي وفتح القائمة' }}">{{ icon('menu') }}</button>
+      </div>
+    {% else %}
+      <div class="hs-subscriber-brand-v180">
+        <span class="hs-logo-v180">{{ icon('zap') }}</span>
+        <div class="hs-brand-copy-v180">
+          <strong>{{ 'Energy Platform' if is_en else 'منصة الطاقة' }}</strong>
+          <small>{{ 'Your smart energy portal' if is_en else 'بوابتك للطاقة الذكية' }}</small>
+        </div>
+        <button class="hs-collapse-v180" type="button" data-sidebar-toggle-v180 aria-label="{{ 'Toggle sidebar' if is_en else 'طي وفتح القائمة' }}">{{ icon('menu') }}</button>
+      </div>
+      <div class="hs-subscriber-user-v180">
+        <div class="hs-avatar-v180 subscriber">{{ (g.current_user_display or 'ت')[:1] }}<span></span></div>
+        <div class="hs-user-copy-v180">
+          <strong>{{ g.current_user_display or 'تجريب' }}</strong>
+          <small>{{ 'Current account' if is_en else 'الحساب الحالي' }}</small>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="hs-lang-v180">
+      <a class="{% if is_en %}active{% endif %}" href="{{ lang_url('en') }}">English</a>
+      <a class="{% if not is_en %}active{% endif %}" href="{{ lang_url('ar') }}">عربي</a>
+    </div>
   </div>
 
-  <div class="sidebar-footer">
-    <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-light w-100">{{ 'Sign out' if is_en else 'تسجيل الخروج' }}</button>
+  <nav class="hs-nav-v180" aria-label="{{ 'Main navigation' if is_en else 'القائمة الرئيسية' }}">
+    {% if g.is_admin %}
+      <div class="hs-group-title-v180"><span>{{ 'Administration' if is_en else 'الإدارة' }}</span></div>
+      {{ nav_item('admin_dashboard','لوحة الإدارة','Dashboard',['main.admin_dashboard','energy.admin_dashboard'],url_for('main.admin_dashboard', lang=ui_lang),'grid') }}
+      {% if has_permission('can_manage_users') or has_permission('can_manage_roles') %}{{ nav_item('team','فريق الإدارة','Admin Team',['users_routes.admin_team','users_routes.admin_users_legacy','main.admin_users_legacy','users_routes.admin_user_profile','main.admin_user_profile'],url_for('users_routes.admin_team', lang=ui_lang),'users') }}{% endif %}
+      {% if has_permission('can_manage_users') or has_permission('can_manage_subscriptions') %}{{ nav_item('subscribers','إدارة المستفيدين','Subscribers',['admin_ops.admin_subscribers_v9','billing.admin_subscribers','billing.admin_subscriber_activate','main.admin_subscribers','main.admin_subscriber_activate'],url_for('main.admin_subscribers', lang=ui_lang),'user-check') }}{% endif %}
+      {% if has_permission('can_manage_support') %}{{ nav_item('support','مركز الدعم','Support Center',['support.admin_support_command_center','main.admin_support_command_center'],url_for('main.admin_support_command_center', lang=ui_lang),'headset', unread_total) }}{% endif %}
+      {% if has_permission('can_manage_subscriptions') or has_permission('can_manage_users') %}{{ nav_item('plans','الخطط والعروض','Plans & Offers',['billing.admin_plans','billing.admin_plan_create','billing.admin_plan_edit','main.admin_plans','main.admin_plan_create','main.admin_plan_edit'],url_for('main.admin_plans', lang=ui_lang),'tag') }}{% endif %}
+      {% if has_permission('can_manage_devices') %}{{ nav_item('devices','الأجهزة','Devices',['admin_ops.admin_devices_center_v9'],url_for('admin_ops.admin_devices_center_v9', lang=ui_lang),'monitor') }}{% endif %}
+      {% if has_permission('can_manage_integrations') %}{{ nav_item('integrations','أنواع الأجهزة / التكاملات','Device Types / Integrations',['integrations.admin_integrations','integrations.admin_test_device_integration'],url_for('integrations.admin_integrations', lang=ui_lang),'link') }}{% endif %}
+      {% if has_permission('can_view_logs') %}{{ nav_item('health','صحة الخدمات','Services Health',['admin_ops.admin_services_health_v9'],url_for('admin_ops.admin_services_health_v9', lang=ui_lang),'activity') }}{% endif %}
+      {% if has_permission('can_view_logs') %}{{ nav_item('review','مراجعة المنصة','Platform Review',['platform.admin_platform_review'],url_for('platform.admin_platform_review', lang=ui_lang),'shield') }}{% endif %}
+      {% if has_permission('can_manage_system') or has_permission('can_manage_users') %}{{ nav_item('home','الصفحة الرئيسية','Homepage',['platform.admin_landing_settings'],url_for('platform.admin_landing_settings', lang=ui_lang),'home') }}{% endif %}
+      {% if has_permission('can_manage_system') or has_permission('can_access_mobile_api') %}{{ nav_item('mobile','توثيق تطبيق الموبايل','Mobile API Docs',['openapi_api.api_docs','openapi_api.openapi_json'],url_for('openapi_api.api_docs', lang=ui_lang),'phone') }}{% endif %}
+      {% if has_permission('can_manage_backups') or has_permission('can_view_logs') %}{{ nav_item('backups','النسخ والاستعادة','Backups & Recovery',['platform.admin_backups','platform.admin_backup_download'],url_for('platform.admin_backups', lang=ui_lang),'database') }}{% endif %}
+      {% if has_permission('can_manage_finance') %}{{ nav_item('finance','المحفظة والمالية','Wallet & Finance',['billing.admin_finance','main.admin_finance'],url_for('main.admin_finance', lang=ui_lang),'wallet') }}{% endif %}
+      {% if has_permission('can_view_logs') %}{{ nav_item('activity','سجل العمليات','Activity Log',['users_routes.admin_activity_log','main.admin_activity_log'],url_for('main.admin_activity_log', lang=ui_lang),'clock') }}{% endif %}
+      {% if has_permission('can_manage_roles') or has_permission('can_manage_users') %}{{ nav_item('roles','الأدوار والصلاحيات','Roles & Permissions',['access_control.admin_roles_v10','main.admin_roles'],url_for('access_control.admin_roles_v10', lang=ui_lang),'lock') }}{% endif %}
+      {% if has_permission('can_view_logs') %}{{ nav_item('logs','لوح النظام والخدمات','System Logs',['users_routes.admin_system_logs','main.admin_system_logs'],url_for('main.admin_system_logs', lang=ui_lang),'panel') }}{% endif %}
+    {% else %}
+      <div class="hs-group-title-v180"><span>{{ 'Portal' if is_en else 'البوابة' }}</span></div>
+      {% if portal_page_visible('dashboard') %}{{ nav_item('overview','النظرة العامة','Overview',['energy.dashboard','main.dashboard'],url_for('main.dashboard', lang=ui_lang),'grid') }}{% endif %}
+      {% if portal_page_visible('devices_manage') %}{{ nav_item('devices','أجهزتي','My Devices',['devices_routes.devices_manage','main.devices_manage'],url_for('main.devices_manage', lang=ui_lang),'monitor') }}{% endif %}
+      {% if portal_page_visible('onboarding') %}{{ nav_item('wizard','معالج الإعداد','Setup Wizard',['devices_routes.onboarding_wizard','main.onboarding_wizard'],url_for('main.onboarding_wizard', lang=ui_lang),'wand') }}{% endif %}
+      {% if portal_page_visible('subscription') %}{{ nav_item('subscription','اشتراكي','Subscription',['billing.account_subscription','main.account_subscription'],url_for('main.account_subscription', lang=ui_lang),'id') }}{% endif %}
+      <div class="hs-group-title-v180"><span>{{ 'Monitoring' if is_en else 'المتابعة' }}</span></div>
+      {% if portal_page_visible('statistics') %}{{ nav_item('statistics','الإحصائيات','Statistics',['energy.statistics','main.statistics'],url_for('main.statistics', lang=ui_lang),'chart') }}{% endif %}
+      {% if portal_page_visible('reports') %}{{ nav_item('reports','التقارير','Reports',['energy.reports','main.reports'],url_for('main.reports', lang=ui_lang),'file') }}{% endif %}
+      {% if portal_page_visible('live_data') %}{{ nav_item('live','البيانات الحية','Live Data',['energy.live_data','main.live_data'],url_for('main.live_data', lang=ui_lang),'activity') }}{% endif %}
+      {% if portal_page_visible('loads') %}{{ nav_item('loads','الأحمال','Loads',['energy.loads_page','main.loads_page'],url_for('main.loads_page', lang=ui_lang),'gauge') }}{% endif %}
+      {% if portal_page_visible('notifications') %}{{ nav_item('notifications','الإشعارات','Notifications',['notifications_routes.notifications_settings','main.notifications_settings'],url_for('main.notifications_settings', lang=ui_lang),'bell') }}{% endif %}
+      {% if portal_page_visible('channels') %}{{ nav_item('channels','SMS و Telegram','Telegram & SMS',['notifications_routes.channels','main.channels'],url_for('main.channels', lang=ui_lang),'send') }}{% endif %}
+      {% if portal_page_visible('support') %}{{ nav_item('support','الدعم والمراسلات','Support Center',['support.portal_support','support.portal_messages','support.portal_tickets','main.portal_support','main.portal_messages','main.portal_tickets'],url_for('main.portal_support', lang=ui_lang),'message', unread_total) }}{% endif %}
+    {% endif %}
+  </nav>
+
+  <div class="hs-sidebar-footer-v180">
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="hs-logout-v180" type="submit" data-tooltip="{{ 'Sign out' if is_en else 'تسجيل الخروج' }}">
+        {{ icon('logout') }}
+        <span>{{ 'Sign out' if is_en else 'تسجيل الخروج' }}</span>
+      </button>
     </form>
   </div>
 </aside>

@@ -3,9 +3,9 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set current_role = user_obj.role if user_obj else (default_role or 'assistant_manager') %}
 {% set is_staff_form = current_role not in ['user','subscriber','customer'] %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
+  <main class="app-main content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div>
         <span class="eyebrow">{{ 'Admin team' if is_staff_form and is_en else ('فريق الإدارة' if is_staff_form else ('User form' if is_en else 'نموذج المستخدم')) }}</span>

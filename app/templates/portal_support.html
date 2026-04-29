@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% block title %}{{ 'My Support Mailbox' if (ui_lang or 'ar') == 'en' else 'صندوق دعم المشترك' }}{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set type_filter = selected_type if selected_type in ['mail','ticket'] else 'all' %}
 {% set status_labels = {'new': ('New' if is_en else 'جديد'), 'open': ('Open' if is_en else 'مفتوح'), 'assigned': ('Assigned' if is_en else 'مخصص'), 'pending': ('Pending' if is_en else 'قيد الانتظار'), 'in_progress': ('In progress' if is_en else 'قيد المتابعة'), 'waiting_user': ('Waiting for you' if is_en else 'بانتظار ردك'), 'resolved': ('Resolved' if is_en else 'تم الحل'), 'closed': ('Closed' if is_en else 'مغلق')} %}
@@ -12,277 +10,161 @@
   {% if row.kind == 'ticket' %}{% set ns.ticket = ns.ticket + 1 %}{% endif %}
   {% if type_filter == 'all' or row.kind == type_filter %}
     {% set ns.filtered = ns.filtered + 1 %}
-    {% if row.status in ['closed','resolved'] %}
-      {% set ns.closed = ns.closed + 1 %}
-    {% else %}
-      {% set ns.open = ns.open + 1 %}
-      {% if row.status in ['waiting_user','pending'] %}{% set ns.waiting = ns.waiting + 1 %}{% endif %}
-      {% if not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}
-    {% endif %}
+    {% if row.status in ['closed','resolved'] %}{% set ns.closed = ns.closed + 1 %}{% else %}{% set ns.open = ns.open + 1 %}{% if row.status in ['waiting_user','pending'] %}{% set ns.waiting = ns.waiting + 1 %}{% endif %}{% if not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}{% endif %}
   {% endif %}
 {% endfor %}
-{% if not ns.selected_key %}
-  {% for row in rows %}
-    {% if (type_filter == 'all' or row.kind == type_filter) and not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}
-  {% endfor %}
-{% endif %}
-<div class="app-shell" id="appShell">
+{% if not ns.selected_key %}{% for row in rows %}{% if (type_filter == 'all' or row.kind == type_filter) and not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}{% endfor %}{% endif %}
+{% block title %}{{ 'Mail & Support Center' if is_en else 'مركز البريد والدعم' }}{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area portal-support-mailbox-page-v63">
-    <section class="portal-support-hero-v63 ui-reactive" data-hover-card>
-      <div class="portal-hero-glow-v63 one"></div>
-      <div class="portal-hero-glow-v63 two"></div>
-      <div class="portal-hero-copy-v63">
-        <span class="hero-pill-v61">{{ 'Heavy v6.3 — Subscriber Mailbox' if is_en else 'Heavy v6.3 — صندوق المشترك' }}</span>
-        <h1>{{ 'Your support mailbox' if is_en else 'صندوق الدعم الخاص بك' }}</h1>
-        <p>{{ 'Track messages and tickets like email: compact inbox, live thread preview, quick replies, and a clear frozen archive.' if is_en else 'تابع رسائلك وتذاكرك مثل البريد: قائمة مضغوطة، معاينة مباشرة، رد سريع، وأرشيف مغلق واضح.' }}</p>
-      </div>
-      <div class="portal-hero-metrics-v63">
-        <article><small>{{ 'Open' if is_en else 'مفتوح' }}</small><strong>{{ ns.open }}</strong></article>
-        <article class="warning"><small>{{ 'Waiting' if is_en else 'بانتظارك' }}</small><strong>{{ ns.waiting }}</strong></article>
-        <article class="success"><small>{{ 'Messages' if is_en else 'رسائل' }}</small><strong>{{ ns.mail }}</strong></article>
-        <article class="ticket"><small>{{ 'Tickets' if is_en else 'تذاكر' }}</small><strong>{{ ns.ticket }}</strong></article>
-      </div>
-    </section>
+  <main class="app-main content-area portal-support-mailbox-page-v63 support-desk-v151 support-desk-portal-v151">
+    <aside class="support-rail-v151 portal-rail-v151" aria-label="Support navigation">
+      <div class="support-rail-logo-v151">☊</div>
+      <a class="active" href="{{ url_for('main.portal_support', lang=ui_lang) }}"><span>▣</span><b>{{ 'Chats' if is_en else 'المحادثات' }}</b></a>
+      <a href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}"><span>✉</span><b>{{ 'All' if is_en else 'كل الرسائل' }}</b></a>
+      <a href="#new-support-request-v151"><span>＋</span><b>{{ 'New' if is_en else 'طلب جديد' }}</b></a>
+      <a href="#support-attachments-v151"><span>⌘</span><b>{{ 'Files' if is_en else 'المرفقات' }}</b></a>
+      <button type="button" data-support-theme-toggle><span>◐</span><b>{{ 'Night' if is_en else 'الوضع الليلي' }}</b></button>
+      <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit"><span>↵</span><b>{{ 'Sign out' if is_en else 'تسجيل خروج' }}</b></button></form>
+    </aside>
 
-    <section class="portal-mailbox-toolbar-v63">
-      <div class="command-filter-row-v61 portal-kind-tabs-v63" role="tablist" aria-label="Support type">
-        <a class="command-filter-chip-v61 {{ 'active' if type_filter == 'all' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}"><span>{{ 'All' if is_en else 'الكل' }}</span><b>{{ rows|length }}</b></a>
-        <a class="command-filter-chip-v61 {{ 'active' if type_filter == 'mail' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}"><span>✉️ {{ 'Messages' if is_en else 'الرسائل' }}</span><b>{{ ns.mail }}</b></a>
-        <a class="command-filter-chip-v61 {{ 'active' if type_filter == 'ticket' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}"><span>🎫 {{ 'Tickets' if is_en else 'التذاكر' }}</span><b>{{ ns.ticket }}</b></a>
-      </div>
-      <div class="portal-mailbox-tools-v63">
-        <div class="command-search-v61 mailbox-search-v62">
-          <span>⌕</span>
-          <input id="portalSupportSearch" type="search" placeholder="{{ 'Search your support history...' if is_en else 'ابحث في رسائلك وتذاكرك...' }}">
+    <section class="support-desk-main-v151">
+      <header class="support-desk-head-v151">
+        <div>
+          <h1>{{ 'Mail & Support Center' if is_en else 'مركز البريد والدعم' }}</h1>
+          <p>{{ 'Track messages and requests from one clean workspace.' if is_en else 'تابع رسائلك وطلباتك من مساحة واحدة واضحة.' }}</p>
         </div>
-        <div class="portal-status-segment-v63" aria-label="Status filter">
-          <button type="button" class="active" data-portal-filter="all">{{ 'All' if is_en else 'الكل' }} <b>{{ ns.filtered }}</b></button>
-          <button type="button" data-portal-filter="open">{{ 'Open' if is_en else 'المفتوح' }} <b>{{ ns.open }}</b></button>
-          <button type="button" data-portal-filter="closed">{{ 'Archive' if is_en else 'الأرشيف' }} <b>{{ ns.closed }}</b></button>
-        </div>
-        <div class="mailbox-view-toggle-v62" data-mailbox-view-toggle>
-          <button type="button" class="active" data-view="list">☰ {{ 'List' if is_en else 'قائمة' }}</button>
-          <button type="button" data-view="cards">▦ {{ 'Cards' if is_en else 'بطاقات' }}</button>
-        </div>
-      </div>
-    </section>
+        <a class="btn btn-primary" href="#new-support-request-v151">{{ 'New request' if is_en else 'رسالة جديدة' }}</a>
+      </header>
 
-    <section class="portal-support-mailbox-v63" data-support-mailbox data-portal-support-mailbox data-view="list">
-      <div class="portal-mailbox-grid-v63">
-        <aside class="mailbox-list-panel-v62 portal-mail-list-v63">
-          <div class="mailbox-panel-head-v62">
-            <div>
-              <small>{{ 'Inbox' if is_en else 'صندوق المتابعة' }}</small>
-              <h2>{{ ns.filtered }} {{ 'items' if is_en else 'عنصر' }}</h2>
-            </div>
-            <a class="btn btn-solar btn-sm" href="#new-support-request-v63">＋ {{ 'New' if is_en else 'طلب جديد' }}</a>
+      <section class="support-kpis-v151 support-kpis-portal-v151">
+        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}"><span>✉</span><small>{{ 'All messages' if is_en else 'كل الرسائل' }}</small><strong>{{ ns.filtered }}</strong></a>
+        <button type="button" data-portal-filter="open"><span>⌛</span><small>{{ 'Open' if is_en else 'بانتظار الرد' }}</small><strong>{{ ns.open }}</strong></button>
+        <button type="button" data-portal-filter="closed"><span>✓</span><small>{{ 'Solved' if is_en else 'تم الحل' }}</small><strong>{{ ns.closed }}</strong></button>
+        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}"><span>▤</span><small>{{ 'Messages' if is_en else 'رسائل' }}</small><strong>{{ ns.mail }}</strong></a>
+        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}"><span>▧</span><small>{{ 'Tickets' if is_en else 'تذاكر' }}</small><strong>{{ ns.ticket }}</strong></a>
+      </section>
+
+      <section class="support-workspace-v151 support-portal-workspace-v151" data-support-mailbox data-portal-support-mailbox>
+        <aside class="support-list-v151">
+          <div class="support-search-row-v151">
+            <input id="portalSupportSearch" type="search" class="form-control" placeholder="{{ 'Search your support history' if is_en else 'ابحث في الرسائل أو رقم التذكرة' }}">
           </div>
-          <div class="mailbox-list-v62" id="portalSupportQueueList">
+          <div class="support-filter-row-v151">
+            <a class="{{ 'active' if type_filter == 'all' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}">{{ 'All' if is_en else 'الكل' }} <b>{{ rows|length }}</b></a>
+            <a class="{{ 'active' if type_filter == 'mail' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}">{{ 'Messages' if is_en else 'الرسائل' }} <b>{{ ns.mail }}</b></a>
+            <a class="{{ 'active' if type_filter == 'ticket' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}">{{ 'Tickets' if is_en else 'التذاكر' }} <b>{{ ns.ticket }}</b></a>
+          </div>
+          <div class="support-case-list-v151">
             {% for row in rows %}
               {% if type_filter == 'all' or row.kind == type_filter %}
                 {% set key = row.kind ~ '-' ~ row.id %}
-                {% set last_msg = row.messages|last %}
                 {% set status_value = row.status or 'open' %}
                 {% set priority_value = row.priority or 'normal' %}
                 {% set is_closed = status_value in ['closed','resolved'] %}
-                {% set kind_label = ('Message' if is_en else 'رسالة') if row.kind == 'mail' else ('Ticket' if is_en else 'تذكرة') %}
-                {% set type_class = 'message' if row.kind == 'mail' else 'ticket' %}
-                <button type="button" class="mailbox-row-v62 kind-{{ type_class }} status-{{ status_value }} {{ 'is-active' if key == ns.selected_key else '' }} {{ 'is-closed' if is_closed else '' }}" data-case-row data-case-target="{{ key }}" data-case-state="{{ 'closed' if is_closed else 'open' }}" data-case-kind="{{ row.kind }}" data-title="{{ row.subject|lower }}" data-owner="{{ (row.category or '')|lower }}" data-status="{{ status_labels.get(status_value, status_value)|lower }} {{ status_value|lower }}" id="case-{{ key }}">
-                  <span class="mailbox-row-accent-v62"></span>
-                  <span class="mailbox-row-top-v62">
-                    <span class="mailbox-type-v62 {{ type_class }}">{{ '✉️' if row.kind == 'mail' else '🎫' }} {{ kind_label }}</span>
-                    <span class="mailbox-status-v62 status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
-                    <span class="mailbox-priority-v62 priority-{{ priority_value }}">{{ priority_labels.get(priority_value, priority_value) }}</span>
+                {% set last_msg = row.messages[-1] if row.messages else none %}
+                <button class="support-case-row-v151 {{ 'is-active' if key == ns.selected_key else '' }} status-{{ status_value }} priority-{{ priority_value }}" type="button" data-case-row data-case-target="{{ key }}" data-case-state="{{ 'closed' if is_closed else 'open' }}" data-title="{{ row.subject|lower }}" data-owner="{{ (row.category or '')|lower }}" data-status="{{ status_labels.get(status_value, status_value)|lower }} {{ priority_labels.get(priority_value, priority_value)|lower }}" id="case-{{ key }}">
+                  <i>{{ (row.subject or '?')[:1] }}</i>
+                  <span>
+                    <strong>{{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</strong>
+                    <small>#SUP-{{ '%06d'|format(row.id) }} · {{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }}</small>
+                    <em>{{ last_msg.body if last_msg else ('No conversation yet' if is_en else 'لا توجد محادثة بعد') }}</em>
                   </span>
-                  <strong>#{{ row.id }} — {{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</strong>
-                  <span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else ('No conversation yet' if is_en else 'لا توجد محادثة بعد') }}</span>
-                  <span class="mailbox-row-meta-v62">
-                    <span>{{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }}</span>
-                    <span>{{ format_local(row.updated_at) if row.updated_at else '' }}</span>
-                  </span>
+                  <b class="support-status-chip-v151 status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</b>
                 </button>
               {% endif %}
             {% else %}
-              <div class="empty-state-card-v61 mailbox-empty-v62"><div>📭</div><h3>{{ 'No support history yet' if is_en else 'لا يوجد سجل دعم بعد' }}</h3><p>{{ 'Start by opening your first request.' if is_en else 'ابدأ بفتح أول طلب دعم من اللوحة الجانبية.' }}</p></div>
+              <div class="support-empty-v151">{{ 'No support history yet.' if is_en else 'لا يوجد سجل دعم بعد.' }}</div>
             {% endfor %}
-            {% if ns.filtered == 0 %}<div class="empty-state-card-v61 mailbox-empty-v62"><div>📭</div><h3>{{ 'No items in this view' if is_en else 'لا توجد عناصر في هذا العرض' }}</h3></div>{% endif %}
           </div>
         </aside>
 
-        <section class="mailbox-thread-panel-v62 portal-thread-panel-v63">
+        <section class="support-thread-area-v151">
           {% for row in rows %}
             {% if type_filter == 'all' or row.kind == type_filter %}
               {% set key = row.kind ~ '-' ~ row.id %}
               {% set status_value = row.status or 'open' %}
               {% set priority_value = row.priority or 'normal' %}
               {% set is_closed = status_value in ['closed','resolved'] %}
-              {% set kind_label = ('Message' if is_en else 'رسالة') if row.kind == 'mail' else ('Ticket' if is_en else 'تذكرة') %}
-              {% set type_class = 'message' if row.kind == 'mail' else 'ticket' %}
-              <article class="mailbox-thread-v62 portal-thread-v63 {{ 'is-active' if key == ns.selected_key else '' }}" data-case-panel="{{ key }}">
-                <header class="thread-head-v62 portal-thread-head-v63">
+              {% set atts = attachment_map.get(key, []) %}
+              <article class="support-thread-v151 {{ 'is-active' if key == ns.selected_key else '' }}" data-case-panel="{{ key }}">
+                <header>
                   <div>
-                    <div class="thread-kickers-v62">
-                      <span class="mailbox-type-v62 {{ type_class }}">{{ '✉️' if row.kind == 'mail' else '🎫' }} {{ kind_label }}</span>
-                      <span class="mailbox-status-v62 status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
-                      <span class="mailbox-priority-v62 priority-{{ priority_value }}">{{ priority_labels.get(priority_value, priority_value) }}</span>
-                    </div>
-                    <h2>#{{ row.id }} — {{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</h2>
-                    <p>{{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }} · {{ format_local(row.updated_at) if row.updated_at else '' }}</p>
+                    <h2>{{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</h2>
+                    <p>#SUP-{{ '%06d'|format(row.id) }} · {{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }} · {{ format_local(row.updated_at) if row.updated_at else '' }}</p>
                   </div>
-                  <a class="btn btn-outline-primary btn-sm" href="#new-support-request-v63">＋ {{ 'New request' if is_en else 'طلب جديد' }}</a>
+                  <div class="support-thread-badges-v151">
+                    <span class="status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
+                    <span class="priority-{{ priority_value }}">{{ priority_labels.get(priority_value, priority_value) }}</span>
+                  </div>
                 </header>
-
-                <div class="thread-messages-v62 portal-thread-messages-v63" data-thread-scroll>
+                <div class="support-message-stream-v151" data-thread-scroll>
                   {% for msg in row.messages %}
-                    <div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}">
-                      <div class="message-meta-v62">
-                        <strong>{{ 'Management' if is_en and msg.sender_scope == 'admin' else ('You' if is_en else ('الإدارة' if msg.sender_scope == 'admin' else 'أنت')) }}</strong>
-                        <small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small>
-                      </div>
+                    <div class="support-message-v151 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}">
+                      <div><strong>{% if msg.sender_scope == 'admin' %}{{ 'Support team' if is_en else 'فريق الدعم' }}{% else %}{{ 'You' if is_en else 'أنت' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div>
                       <p>{{ msg.body }}</p>
                     </div>
                   {% else %}
-                    <div class="empty-box-v2">{{ 'No conversation yet.' if is_en else 'لا توجد محادثة بعد.' }}</div>
+                    <div class="support-empty-v151">{{ 'No conversation yet.' if is_en else 'لا توجد محادثة بعد.' }}</div>
                   {% endfor %}
                 </div>
-
-                {% if is_closed %}
-                  <div class="portal-frozen-reply-v63">🔒 {{ 'This item is closed and frozen. Open a new request if you need additional help.' if is_en else 'هذا الطلب مغلق ومجمّد. افتح طلبًا جديدًا إذا احتجت متابعة إضافية.' }}</div>
-                {% else %}
-                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="reply-composer-v62 portal-reply-composer-v63" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="support-client-actions-v151">
+                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="{{ row.kind }}">{% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}{% if is_closed %}<input type="hidden" name="action" value="reopen"><button class="btn btn-warning">{{ 'Reopen' if is_en else 'إعادة فتح' }}</button>{% else %}<input type="hidden" name="action" value="close"><button class="btn btn-outline-danger">{{ 'Close request' if is_en else 'إغلاق الطلب' }}</button>{% endif %}</form>
+                </div>
+                {% if not is_closed %}
+                  <form method="post" enctype="multipart/form-data" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="support-reply-v151" data-support-reply-form data-case-key="{{ key }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="reply">
                     <input type="hidden" name="kind" value="{{ row.kind }}">
                     {% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}
-                    <textarea class="form-control" name="body" rows="4" required data-reply-textarea placeholder="{{ 'Write a clear reply to management...' if is_en else 'اكتب ردك للإدارة بوضوح...' }}"></textarea>
-                    <div class="composer-footer-v62">
-                      <div class="composer-left-v62"><span class="portal-reply-hint-v63">{{ 'Your reply will notify the assigned manager.' if is_en else 'سيصل ردك للمسؤول عن الطلب مباشرة.' }}</span></div>
-                      <div class="composer-actions-v62"><button class="btn btn-solar" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div>
-                    </div>
+                    <textarea class="form-control" name="body" rows="4" required data-reply-textarea placeholder="{{ 'Write your reply clearly...' if is_en else 'اكتب ردك بوضوح...' }}"></textarea>
+                    <div class="support-composer-tools-v151"><label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach file' if is_en else 'إرفاق ملف' }}</span></label><span class="support-muted-v151">{{ 'Your reply notifies the support team.' if is_en else 'سيصل ردك لفريق الدعم مباشرة.' }}</span><button class="btn btn-primary" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div>
                   </form>
                 {% endif %}
               </article>
             {% endif %}
           {% endfor %}
-          {% if ns.selected_key == '' %}
-            <div class="mailbox-no-thread-v62"><div>📭</div><h2>{{ 'No conversation selected' if is_en else 'لا توجد محادثة محددة' }}</h2><p>{{ 'Open a new support request from the side panel.' if is_en else 'افتح طلب دعم جديد من اللوحة الجانبية.' }}</p></div>
-          {% endif %}
         </section>
 
-        <aside class="portal-inspector-v63">
+        <aside class="support-info-v151">
           {% for row in rows %}
             {% if type_filter == 'all' or row.kind == type_filter %}
               {% set key = row.kind ~ '-' ~ row.id %}
               {% set status_value = row.status or 'open' %}
               {% set priority_value = row.priority or 'normal' %}
-              {% set is_closed = status_value in ['closed','resolved'] %}
-              {% set type_class = 'message' if row.kind == 'mail' else 'ticket' %}
-              <section class="inspector-panel-v62 {{ 'is-active' if key == ns.selected_key else '' }}" data-inspector-panel="{{ key }}">
-                <div class="inspector-card-v62 portal-status-card-v63">
-                  <small>{{ 'Request details' if is_en else 'تفاصيل الطلب' }}</small>
-                  <h3>{{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</h3>
-                  <dl>
-                    <div><dt>{{ 'Type' if is_en else 'النوع' }}</dt><dd>{{ ('Message' if is_en else 'رسالة') if row.kind == 'mail' else ('Ticket' if is_en else 'تذكرة') }}</dd></div>
-                    <div><dt>{{ 'Status' if is_en else 'الحالة' }}</dt><dd>{{ status_labels.get(status_value, status_value) }}</dd></div>
-                    <div><dt>{{ 'Priority' if is_en else 'الأولوية' }}</dt><dd>{{ priority_labels.get(priority_value, priority_value) }}</dd></div>
-                    <div><dt>{{ 'Category' if is_en else 'التصنيف' }}</dt><dd>{{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }}</dd></div>
-                    <div><dt>{{ 'Manager' if is_en else 'المسؤول' }}</dt><dd>{% if row.assignee is defined and row.assignee %}{{ row.assignee.full_name or row.assignee.username }}{% else %}{{ 'Support team' if is_en else 'فريق الدعم' }}{% endif %}</dd></div>
-                    <div><dt>{{ 'Last update' if is_en else 'آخر تحديث' }}</dt><dd>{{ format_local(row.updated_at) if row.updated_at else '—' }}</dd></div>
-                  </dl>
-                  {% if is_closed %}<div class="portal-status-note-v63 closed">🔒 {{ 'Closed archive' if is_en else 'أرشيف مغلق' }}</div>{% elif status_value in ['waiting_user','pending'] %}<div class="portal-status-note-v63 warning">⚠️ {{ 'The support team is waiting for your reply.' if is_en else 'فريق الدعم بانتظار ردك.' }}</div>{% else %}<div class="portal-status-note-v63 open">✅ {{ 'Request is active and follow-up is available.' if is_en else 'الطلب نشط ويمكنك المتابعة.' }}</div>{% endif %}
-                </div>
+              {% set atts = attachment_map.get(key, []) %}
+              <section class="support-info-panel-v151 {{ 'is-active' if key == ns.selected_key else '' }}" data-inspector-panel="{{ key }}">
+                <article>
+                  <h3>{{ 'Request details' if is_en else 'تفاصيل الطلب' }}</h3>
+                  <dl><div><dt>{{ 'Type' if is_en else 'النوع' }}</dt><dd>{{ ('Message' if is_en else 'رسالة') if row.kind == 'mail' else ('Ticket' if is_en else 'تذكرة') }}</dd></div><div><dt>{{ 'Status' if is_en else 'الحالة' }}</dt><dd>{{ status_labels.get(status_value, status_value) }}</dd></div><div><dt>{{ 'Priority' if is_en else 'الأولوية' }}</dt><dd>{{ priority_labels.get(priority_value, priority_value) }}</dd></div><div><dt>{{ 'Manager' if is_en else 'المسؤول' }}</dt><dd>{% if row.assignee %}{{ row.assignee.full_name or row.assignee.username }}{% else %}{{ 'Support team' if is_en else 'فريق الدعم' }}{% endif %}</dd></div><div><dt>{{ 'Last update' if is_en else 'آخر تحديث' }}</dt><dd>{{ format_local(row.updated_at) if row.updated_at else '—' }}</dd></div></dl>
+                </article>
+                <article id="support-attachments-v151">
+                  <h3>{{ 'Attachments' if is_en else 'الملفات المرفقة' }}</h3>
+                  {% for att in atts %}<a class="support-attachment-v151" href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}"><span>PDF</span><b>{{ att.original_filename or att.filename }}</b><small>{{ (att.file_size / 1024)|round(1) }} KB</small></a>{% else %}<p class="support-muted-v151">{{ 'No attachments.' if is_en else 'لا توجد مرفقات.' }}</p>{% endfor %}
+                </article>
+                <article class="support-new-card-v151" id="new-support-request-v151">
+                  <h3>{{ 'New request' if is_en else 'طلب جديد' }}</h3>
+                  <form method="post" enctype="multipart/form-data" class="support-create-v151" data-support-reply-form>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+                    <div class="support-form-pair-v151"><select name="kind" class="form-control"><option value="mail">{{ 'Message' if is_en else 'رسالة' }}</option><option value="ticket">{{ 'Ticket' if is_en else 'تذكرة' }}</option></select><select name="priority" class="form-control"><option value="normal">{{ priority_labels.get('normal') }}</option><option value="high">{{ priority_labels.get('high') }}</option><option value="urgent">{{ priority_labels.get('urgent') }}</option></select></div>
+                    <select name="category" class="form-control"><option value="support">{{ category_labels.get('support') }}</option><option value="billing">{{ category_labels.get('billing') }}</option><option value="device">{{ category_labels.get('device') }}</option><option value="complaint">{{ category_labels.get('complaint') }}</option></select>
+                    <input name="subject" class="form-control" required placeholder="{{ 'Subject' if is_en else 'العنوان' }}">
+                    <textarea name="body" rows="4" class="form-control" required placeholder="{{ 'Write the details' if is_en else 'اكتب التفاصيل' }}"></textarea>
+                    <label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach files' if is_en else 'إرفاق ملفات' }}</span></label>
+                    <button class="btn btn-solar" type="submit">{{ 'Send request' if is_en else 'إرسال الطلب' }}</button>
+                  </form>
+                </article>
               </section>
             {% endif %}
           {% endfor %}
-
-          <section class="inspector-card-v62 portal-new-request-card-v63" id="new-support-request-v63">
-            <small>{{ 'New request' if is_en else 'طلب جديد' }}</small>
-            <h3>{{ 'Send a message or open a ticket' if is_en else 'أرسل رسالة أو افتح تذكرة' }}</h3>
-            <section class="support-unified-composer-v54 portal-new-request-v63" data-default-kind="{{ 'ticket' if type_filter == 'ticket' else 'mail' }}">
-              <article class="support-compose-card-v54" id="supportComposerCard">
-                <div class="composer-accent-v54" id="composerAccent"></div>
-                <div class="composer-header-v54">
-                  <div>
-                    <span class="eyebrow" id="composerEyebrow">{{ 'Unified composer' if is_en else 'محرر موحد' }}</span>
-                    <h2 id="composerTitle">{{ 'Send a message to management' if is_en else 'إرسال رسالة للإدارة' }}</h2>
-                    <p id="composerHint">{{ 'Use messages for quick follow-up, or tickets for tracked issues.' if is_en else 'استخدم الرسائل للمتابعة السريعة، والتذاكر للمشاكل التي تحتاج تتبع.' }}</p>
-                  </div>
-                  <div class="composer-toggle-v54" role="tablist" aria-label="support type">
-                    <button type="button" class="active" data-kind="mail">✉️ {{ 'Message' if is_en else 'رسالة' }}</button>
-                    <button type="button" data-kind="ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</button>
-                  </div>
-                </div>
-
-                <form method="post" class="support-compose-form-v53 support-compose-form-v54" id="supportComposerForm" data-support-reply-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="action" value="create">
-                  <input type="hidden" name="kind" value="mail" id="supportKindInput">
-                  <label><span>{{ 'Subject' if is_en else 'العنوان' }}</span><input name="subject" class="form-control" required placeholder="{{ 'Write a clear subject...' if is_en else 'اكتب عنوانًا واضحًا...' }}"></label>
-                  <div class="compose-row-v53">
-                    <label><span id="categoryLabel">{{ 'Category' if is_en else 'التصنيف' }}</span><select name="category" class="form-control" id="supportCategorySelect"><option value="support">Support</option><option value="billing">Billing</option><option value="complaint">Complaint</option></select></label>
-                    <label><span>{{ 'Priority' if is_en else 'الأولوية' }}</span><select name="priority" class="form-control" id="supportPrioritySelect"><option value="normal">Normal</option><option value="high">High</option></select></label>
-                  </div>
-                  <label class="ticket-only-v54" id="ticketDeviceField" style="display:none;"><span>{{ 'Device' if is_en else 'الجهاز' }}</span><select name="related_device_id" class="form-control"><option value="">-</option>{% for device in devices %}<option value="{{ device.id }}">{{ device.name }}</option>{% endfor %}</select></label>
-                  <label><span id="bodyLabel">{{ 'Message' if is_en else 'الرسالة' }}</span><textarea name="body" rows="5" class="form-control" required placeholder="{{ 'Write your message clearly...' if is_en else 'اكتب رسالتك بوضوح...' }}"></textarea></label>
-                  <div class="composer-submit-row-v54"><div class="composer-mini-note-v54" id="composerMiniNote">{{ 'The administration will receive this as an internal message.' if is_en else 'ستصل هذه كرسالة داخلية للإدارة.' }}</div><button class="btn btn-solar" id="composerSubmitBtn">{{ 'Send message' if is_en else 'إرسال الرسالة' }}</button></div>
-                </form>
-              </article>
-            </section>
-          </section>
+          {% if ns.filtered == 0 %}
+            <section class="support-info-panel-v151 is-active"><article class="support-new-card-v151" id="new-support-request-v151"><h3>{{ 'New request' if is_en else 'طلب جديد' }}</h3><form method="post" enctype="multipart/form-data" class="support-create-v151" data-support-reply-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create"><input type="hidden" name="kind" value="mail"><input name="subject" class="form-control" required placeholder="{{ 'Subject' if is_en else 'العنوان' }}"><textarea name="body" rows="4" class="form-control" required placeholder="{{ 'Write the details' if is_en else 'اكتب التفاصيل' }}"></textarea><label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach files' if is_en else 'إرفاق ملفات' }}</span></label><button class="btn btn-solar" type="submit">{{ 'Send request' if is_en else 'إرسال الطلب' }}</button></form></article></section>
+          {% endif %}
         </aside>
-      </div>
+      </section>
     </section>
   </main>
 </div>
-<script>
-(function(){
-  const root = document.querySelector('.support-unified-composer-v54');
-  if(!root) return;
-  const isEn = {{ 'true' if is_en else 'false' }};
-  const kindInput = document.getElementById('supportKindInput');
-  const card = document.getElementById('supportComposerCard');
-  const title = document.getElementById('composerTitle');
-  const hint = document.getElementById('composerHint');
-  const mini = document.getElementById('composerMiniNote');
-  const btn = document.getElementById('composerSubmitBtn');
-  const bodyLabel = document.getElementById('bodyLabel');
-  const categoryLabel = document.getElementById('categoryLabel');
-  const deviceField = document.getElementById('ticketDeviceField');
-  const cat = document.getElementById('supportCategorySelect');
-  const pri = document.getElementById('supportPrioritySelect');
-  const buttons = root.querySelectorAll('.composer-toggle-v54 button');
-  function setOptions(select, values){
-    select.innerHTML = '';
-    values.forEach(([v,t]) => { const o = document.createElement('option'); o.value=v; o.textContent=t; select.appendChild(o); });
-  }
-  function setKind(kind){
-    const ticket = kind === 'ticket';
-    kindInput.value = kind;
-    card.classList.toggle('is-ticket', ticket);
-    card.classList.toggle('is-mail', !ticket);
-    deviceField.style.display = ticket ? '' : 'none';
-    buttons.forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
-    if(ticket){
-      title.textContent = isEn ? 'Open a support ticket' : 'فتح تذكرة دعم';
-      hint.textContent = isEn ? 'Use tickets for issues that need tracking and status.' : 'استخدم التذكرة للمشاكل التي تحتاج متابعة وحالة واضحة.';
-      mini.textContent = isEn ? 'The ticket will be tracked until it is solved or closed.' : 'سيتم تتبع التذكرة حتى حل المشكلة أو إغلاقها.';
-      btn.textContent = isEn ? 'Open ticket' : 'فتح التذكرة';
-      bodyLabel.textContent = isEn ? 'Details' : 'التفاصيل';
-      categoryLabel.textContent = isEn ? 'Category' : 'الفئة';
-      setOptions(cat, [['support', isEn ? 'Support' : 'دعم'],['billing', isEn ? 'Billing' : 'فوترة'],['device', isEn ? 'Device' : 'جهاز']]);
-      setOptions(pri, [['normal', isEn ? 'Normal' : 'عادي'],['high', isEn ? 'Important' : 'مهم'],['urgent', isEn ? 'Urgent' : 'عاجل']]);
-    } else {
-      title.textContent = isEn ? 'Send a message to management' : 'إرسال رسالة للإدارة';
-      hint.textContent = isEn ? 'Use messages for general follow-up, notes, or quick questions.' : 'استخدم الرسالة للمتابعة العامة أو الملاحظات أو الأسئلة السريعة.';
-      mini.textContent = isEn ? 'The administration will receive this as an internal message.' : 'ستصل هذه كرسالة داخلية للإدارة.';
-      btn.textContent = isEn ? 'Send message' : 'إرسال الرسالة';
-      bodyLabel.textContent = isEn ? 'Message' : 'الرسالة';
-      categoryLabel.textContent = isEn ? 'Category' : 'التصنيف';
-      setOptions(cat, [['support', isEn ? 'Support' : 'دعم'],['billing', isEn ? 'Billing' : 'فوترة'],['complaint', isEn ? 'Complaint' : 'شكوى']]);
-      setOptions(pri, [['normal', isEn ? 'Normal' : 'عادي'],['high', isEn ? 'Important' : 'مهم']]);
-    }
-  }
-  buttons.forEach(b => b.addEventListener('click', () => setKind(b.dataset.kind)));
-  setKind(root.dataset.defaultKind || 'mail');
-})();
-</script>
 {% endblock %}

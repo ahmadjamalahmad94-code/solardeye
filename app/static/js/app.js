@@ -46,15 +46,72 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(tick, 1000);
 
   const parse = (v, fallback = []) => { try { return JSON.parse(v || '[]'); } catch { return fallback; } };
+  const hasPremiumSidebarV180 = !!document.querySelector('[data-sidebar-system-v180]');
+  const firstAppShell = document.getElementById('appShell') || document.querySelector('.app-shell');
+  if(hasPremiumSidebarV180) {
+    document.body.classList.add('has-sidebar-system-v180');
+    const savedSidebarState = localStorage.getItem('sidebar-state') || localStorage.getItem(`heavy_sidebar_${document.querySelector('[data-sidebar-system-v180]')?.dataset.sidebarMode || 'default'}_collapsed`);
+    const shouldExpand = savedSidebarState === 'expanded' || savedSidebarState === 'false';
+    const shouldCollapse = savedSidebarState === 'collapsed' || savedSidebarState === 'true' || !savedSidebarState;
+    if(firstAppShell){
+      firstAppShell.classList.toggle('sidebar-expanded', shouldExpand);
+      firstAppShell.classList.toggle('sidebar-collapsed', shouldCollapse && !shouldExpand);
+    }
+  }
+
   const sidebarToggle = document.getElementById('sidebarToggle');
-  const appShell = document.getElementById('appShell');
-  if (sidebarToggle && appShell) {
+  const appShell = firstAppShell;
+  if (sidebarToggle && appShell && !hasPremiumSidebarV180) {
     if (localStorage.getItem('sidebar_collapsed') === 'true') appShell.classList.add('sidebar-collapsed');
     sidebarToggle.addEventListener('click', () => {
       appShell.classList.toggle('sidebar-collapsed');
       localStorage.setItem('sidebar_collapsed', appShell.classList.contains('sidebar-collapsed'));
     });
   }
+
+  function initPremiumSidebarV180(){
+    const sidebar = document.querySelector('[data-sidebar-system-v180]');
+    if(!sidebar) return;
+    document.body.classList.add('has-sidebar-system-v180');
+    document.documentElement.classList.remove('sidebar-collapsed-v150');
+    document.body.classList.remove('sidebar-collapsed-v180', 'sidebar-collapsed', 'sidebar-expanded', 'sidebar-open-v70');
+    sidebar.classList.remove('is-open-v70');
+    const shell = document.getElementById('appShell') || document.querySelector('.app-shell');
+    const toggles = Array.from(document.querySelectorAll('[data-sidebar-toggle-v180]'));
+    const storageKey = `heavy_sidebar_${sidebar.dataset.sidebarMode || 'default'}_collapsed`;
+    const readState = () => {
+      const namedState = localStorage.getItem('sidebar-state');
+      if(namedState === 'expanded') return false;
+      if(namedState === 'collapsed') return true;
+      const legacyState = localStorage.getItem(storageKey);
+      if(legacyState === 'false') return false;
+      if(legacyState === 'true') return true;
+      return true;
+    };
+    const apply = (collapsed) => {
+      document.documentElement.classList.remove('sidebar-collapsed-v150');
+      document.body.classList.remove('sidebar-collapsed-v180', 'sidebar-collapsed', 'sidebar-expanded', 'sidebar-open-v70');
+      sidebar.classList.remove('is-open-v70');
+      if(shell){
+        shell.classList.remove('sidebar-collapsed-v180');
+        shell.classList.toggle('sidebar-collapsed', collapsed);
+        shell.classList.toggle('sidebar-expanded', !collapsed);
+      }
+      toggles.forEach(btn => btn.setAttribute('aria-expanded', String(!collapsed)));
+    };
+    apply(readState());
+      toggles.forEach(btn => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        const next = shell ? !shell.classList.contains('sidebar-collapsed') : !readState();
+        localStorage.setItem(storageKey, String(next));
+        localStorage.setItem('sidebar-state', next ? 'collapsed' : 'expanded');
+        apply(next);
+      });
+    });
+    window.addEventListener('resize', () => apply(readState()));
+  }
+  initPremiumSidebarV180();
 
 const baseOptions = {
     responsive: true,
@@ -577,6 +634,60 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       });
     });
 
+    document.querySelectorAll('[data-reply-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const form = btn.closest('[data-support-reply-form]');
+        if(!form) return;
+        const mode = btn.dataset.replyMode || 'reply';
+        const noteInput = form.querySelector('[data-internal-note-input]');
+        const textarea = form.querySelector('[data-reply-textarea]');
+        form.querySelectorAll('[data-reply-mode]').forEach(item => item.classList.toggle('active', item === btn));
+        if(noteInput) noteInput.value = mode === 'internal' ? '1' : '0';
+        if(mode === 'forward' && textarea && !textarea.value.trim()){
+          textarea.value = 'إعادة توجيه للمتابعة: ';
+          textarea.focus();
+        } else if(textarea) {
+          textarea.focus();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-open-new-case]').forEach(btn => {
+      btn.addEventListener('click', (event) => {
+        const details = document.querySelector('#new-case-form');
+        if(details){
+          event.preventDefault();
+          details.open = true;
+          const first = details.querySelector('select, input, textarea, button');
+          if(first) first.focus();
+        }
+      });
+    });
+
+    document.querySelectorAll('.sc-toolbar-v170 button[type="button"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const form = btn.closest('[data-support-reply-form]');
+        const textarea = form && form.querySelector('[data-reply-textarea]');
+        if(!textarea || textarea.disabled) return;
+        const label = (btn.textContent || '').trim();
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || start;
+        const selected = textarea.value.slice(start, end) || 'نص';
+        let replacement = selected;
+        if(label === 'B') replacement = `**${selected}**`;
+        else if(label === 'I') replacement = `_${selected}_`;
+        else if(label === 'U') replacement = `<u>${selected}</u>`;
+        else if(label === '<>') replacement = `\`${selected}\``;
+        else if(label === '☷' || label === '☰') replacement = `- ${selected}`;
+        else if(label === '⌁') replacement = `[${selected}](https://)`;
+        else if(label === '☺') replacement = `${selected} 🙂`;
+        else replacement = selected;
+        textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
+        textarea.focus();
+        textarea.setSelectionRange(start, start + replacement.length);
+      });
+    });
+
     document.querySelectorAll('[data-support-reply-form]').forEach(form => {
       form.addEventListener('submit', (event) => {
         if(form.dataset.submitted === '1'){
@@ -598,6 +709,28 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
           button.dataset.originalText = button.textContent;
           button.textContent = document.body.dataset.lang === 'en' ? 'Saving…' : 'جاري الحفظ…';
         });
+      });
+    });
+  });
+})();
+
+// Heavy v10.5.52 support desk polish
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-support-theme-toggle]').forEach(button => {
+      button.addEventListener('click', () => {
+        const page = button.closest('.support-desk-v151') || document.querySelector('.support-desk-v151');
+        if(page) page.classList.toggle('support-night-v151');
+      });
+    });
+    document.querySelectorAll('.support-file-drop-v151 input[type="file"]').forEach(input => {
+      input.addEventListener('change', () => {
+        const label = input.closest('.support-file-drop-v151');
+        const text = label && label.querySelector('span');
+        if(!text) return;
+        if(input.files && input.files.length){
+          text.textContent = input.files.length === 1 ? input.files[0].name : `${input.files.length} ملفات محددة`;
+        }
       });
     });
   });
@@ -666,27 +799,42 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     window.fetch = wrapped;
   }
 
-  // Mobile sidebar drawer instead of hiding navigation completely.
+  // Sidebar drawer: closed on every page load, opened only by the launcher.
   function initMobileSidebar(){
     const sidebar = document.getElementById('sidebar');
     const launcher = document.getElementById('mobileSidebarLauncher');
     const backdrop = document.getElementById('sidebarBackdropV70');
     const closeBtn = document.getElementById('sidebarMobileCloseV70');
     if(!sidebar || !launcher) return;
+    const isSmallScreen = () => window.matchMedia('(max-width: 900px)').matches;
+    const setLauncherState = (open) => {
+      launcher.setAttribute('aria-expanded', String(open));
+      launcher.classList.toggle('is-open-v150', open);
+    };
     function open(){
+      document.documentElement.classList.remove('sidebar-collapsed-v150');
       document.body.classList.add('sidebar-open-v70');
       sidebar.classList.add('is-open-v70');
-      if(backdrop) backdrop.hidden = false;
+      if(backdrop) backdrop.hidden = !isSmallScreen();
+      setLauncherState(true);
     }
     function close(){
+      document.documentElement.classList.add('sidebar-collapsed-v150');
       document.body.classList.remove('sidebar-open-v70');
       sidebar.classList.remove('is-open-v70');
       if(backdrop) backdrop.hidden = true;
+      setLauncherState(false);
     }
-    launcher.addEventListener('click', open);
+    close();
+    launcher.addEventListener('click', () => {
+      document.documentElement.classList.contains('sidebar-collapsed-v150') ? open() : close();
+    });
     closeBtn && closeBtn.addEventListener('click', close);
     backdrop && backdrop.addEventListener('click', close);
     document.addEventListener('keydown', (event) => { if(event.key === 'Escape') close(); });
+    window.addEventListener('resize', () => {
+      if(document.documentElement.classList.contains('sidebar-collapsed-v150') && backdrop) backdrop.hidden = true;
+    });
   }
 
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell">{% include '_sidebar.html' %}<main class="content-area admin-shell-v2">
+<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2">
 <header class="admin-page-head">
   <div>
     <span class="eyebrow">{{ 'Users hub' if is_en else 'مركز المستخدمين' }}</span>

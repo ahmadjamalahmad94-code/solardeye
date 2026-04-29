@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 landing-admin-v10529">
+  <main class="app-main content-area admin-shell-v2 landing-admin-v10529">
     <header class="admin-page-head compact">
       <div>
         <span class="eyebrow">{{ 'Homepage' if is_en else 'الصفحة الرئيسية' }}</span>

@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area">
+  <main class="app-main content-area">
     <header class="topbar">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>

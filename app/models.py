@@ -357,6 +357,22 @@ class SupportTicketMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
+class SupportAttachment(db.Model):
+    __tablename__ = 'support_attachment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    case_type = db.Column(db.String(30), nullable=False, index=True)
+    source_id = db.Column(db.Integer, nullable=False, index=True)
+    message_id = db.Column(db.Integer, nullable=True, index=True)
+    uploaded_by_user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=True, index=True)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=True)
+    content_type = db.Column(db.String(120), nullable=True)
+    file_size = db.Column(db.Integer, default=0, nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
 class NotificationEvent(db.Model):
     __tablename__ = 'notification_event'
 

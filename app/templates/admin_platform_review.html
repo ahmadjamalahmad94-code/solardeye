@@ -2,9 +2,9 @@
 {% block title %}{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 platform-review-v80 platform-review-v90">
+  <main class="app-main content-area admin-shell-v2 platform-review-v80 platform-review-v90">
     <header class="admin-page-head platform-review-hero-v80">
       <div>
         <span class="eyebrow">Heavy v9</span>

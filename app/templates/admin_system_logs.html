@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
+  <main class="app-main content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div><span class="eyebrow">{{ 'Observability' if is_en else 'المراقبة' }}</span><h1>{{ 'System and service logs' if is_en else 'سجل النظام والخدمات' }}</h1><p>{{ 'Background jobs, sync activity, and notification traces for the platform—not subscriber runtime pages.' if is_en else 'مهام الخلفية وأنشطة المزامنة وآثار الإشعارات الخاصة بالمنصة—وليس صفحات تشغيل المشترك.' }}</p></div>
     </header>

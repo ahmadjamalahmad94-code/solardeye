@@ -2,9 +2,9 @@
 {% block title %}{{ 'Backups' if is_en else 'النسخ الاحتياطي' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2 backup-page-v71">
+  <main class="app-main content-area admin-shell-v2 backup-page-v71">
     <header class="admin-page-head backup-hero-v71">
       <div>
         <span class="eyebrow">{{ 'Platform Recovery' if is_en else 'استعادة المنصة' }}</span>

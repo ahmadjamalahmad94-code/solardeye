@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="content-area admin-shell-v2">
+  <main class="app-main content-area admin-shell-v2">
     <header class="admin-page-head compact">
       <div><span class="eyebrow">{{ 'Plans' if is_en else 'الخطط' }}</span><h1>{{ 'Subscriptions and packaging' if is_en else 'الباقات والاشتراكات' }}</h1><p>{{ 'Create and manage productized plans for subscribers.' if is_en else 'إنشاء وإدارة باقات واضحة للمشتركين.' }}</p></div>
       <a class="btn btn-solar" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ 'Create plan' if is_en else 'إضافة خطة' }}</a>
