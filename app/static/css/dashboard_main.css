@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v29-dashboard-header-notifications-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v30-dashboard-notifications-dropdown-layer-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v29-dashboard-header-notifications-20260429
+/* Build: v30-dashboard-notifications-dropdown-layer-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v29-dashboard-header-notifications-20260429
+/* Build: v30-dashboard-notifications-dropdown-layer-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -567,7 +567,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
-/* Build: v29-dashboard-header-notifications-20260429
+/* Build: v30-dashboard-notifications-dropdown-layer-20260429
    True single-row header fix: keep brand and actions in one line on desktop. */
 
 .dashboard-main-v28 .dashboard-header-v27 {
@@ -801,7 +801,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V29 DASHBOARD HEADER NOTIFICATIONS DROPDOWN === */
-/* Build: v29-dashboard-header-notifications-20260429
+/* Build: v30-dashboard-notifications-dropdown-layer-20260429
    Header notification dropdown: latest 5 notifications, mark read on open. */
 
 .dashboard-main-v29 .dash-head-notif-v29 {
@@ -1000,5 +1000,92 @@ body.dashboard-page-v27 .notification-bell-wrap {
   .dashboard-main-v29 .dash-notif-menu-v29 {
     inset-inline-start: auto !important;
     inset-inline-end: 0 !important;
+  }
+}
+
+/* === V30 DASHBOARD NOTIFICATIONS DROPDOWN LAYER FIX === */
+/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+   Fix notification dropdown being clipped/hidden behind next dashboard cards. */
+
+.dashboard-main-v30,
+.dashboard-main-v30 .dashboard-header-v27,
+.dashboard-main-v30 .dashboard-header-card-v27 {
+  overflow: visible !important;
+}
+
+.dashboard-main-v30 .dashboard-header-v27 {
+  position: relative !important;
+  z-index: 5000 !important;
+  isolation: isolate !important;
+}
+
+.dashboard-main-v30 .dashboard-header-card-v27 {
+  position: relative !important;
+  z-index: 5001 !important;
+  isolation: visible !important;
+}
+
+.dashboard-main-v30 .dashboard-header-actions-v27 {
+  position: relative !important;
+  z-index: 5002 !important;
+  overflow: visible !important;
+}
+
+.dashboard-main-v30 .dash-head-notif-v29 {
+  position: relative !important;
+  z-index: 7000 !important;
+  overflow: visible !important;
+}
+
+.dashboard-main-v30 .dash-head-notif-v29.open {
+  z-index: 99999 !important;
+}
+
+.dashboard-main-v30 .dash-notif-menu-v29 {
+  z-index: 999999 !important;
+  top: calc(100% + 14px) !important;
+  width: 380px !important;
+  max-width: min(380px, calc(100vw - 42px)) !important;
+  overflow: hidden !important;
+  clip-path: none !important;
+  transform-origin: top right !important;
+}
+
+.dashboard-main-v30 .dash-head-notif-v29.open .dash-notif-menu-v29 {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+}
+
+/* Prevent following dashboard panels from painting above the dropdown. */
+.dashboard-main-v30 .panel-card,
+.dashboard-main-v30 .overview-shell,
+.dashboard-main-v30 .top-scroll-cards,
+.dashboard-main-v30 .smart-archive-panel,
+.dashboard-main-v30 .weather-smart-panel {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Slightly lower dropdown so the title is not hidden by the header edge. */
+.dashboard-main-v30 .dash-notif-head-v29 {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+@media (max-width: 1080px) {
+  .dashboard-main-v30 .dashboard-header-actions-v27 {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+
+  .dashboard-main-v30 .dash-notif-menu-v29 {
+    position: fixed !important;
+    top: 96px !important;
+    inset-inline-start: 12px !important;
+    inset-inline-end: 12px !important;
+    width: auto !important;
+    max-width: none !important;
   }
 }

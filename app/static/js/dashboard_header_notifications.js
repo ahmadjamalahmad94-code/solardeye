@@ -1,3 +1,4 @@
+window.SOLARDEYE_DASH_HEADER_NOTIF_BUILD = "v30-dashboard-notifications-dropdown-layer-20260429";
 
 (function(){
   const root = document.querySelector('.dash-head-notif-v29');

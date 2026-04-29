@@ -3,7 +3,7 @@
 <script>document.body.classList.add('dashboard-page-v27');</script>
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28 dashboard-main-v29">
+  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28 dashboard-main-v29 dashboard-main-v30">
     
 <header class="topbar dashboard-topbar clean-header dashboard-header-v27">
   <div class="dashboard-header-card-v27">
@@ -102,7 +102,7 @@
 @media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
 </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v29-dashboard-header-notifications-20260429') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v30-dashboard-notifications-dropdown-layer-20260429') }}">
 {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
@@ -474,5 +474,5 @@
     </section>
   </main>
 </div>
-<script src="{{ url_for('static', filename='js/dashboard_header_notifications.js', v='v29-dashboard-header-notifications-20260429') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard_header_notifications.js', v='v30-dashboard-notifications-dropdown-layer-20260429') }}" defer></script>
 {% endblock %}
