@@ -15,8 +15,8 @@
   {% else %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='v19-sidebar-width-logout-20260429') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_rebuild_v11.css', v='v19-sidebar-width-logout-20260429') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='v20-sidebar-true-width-20260429') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_rebuild_v11.css', v='v20-sidebar-true-width-20260429') }}">
 </head>
 <body class="theme-saas saas-only heavy-v70 heavy-v71 heavy-v72 heavy-v721 heavy-v80 heavy-v90 heavy-v100 no-global-utility-bar {% if account_preview_restricted %}account-preview-v107{% endif %}" data-lang="{{ ui_lang or 'ar' }}" data-account-restricted="{{ '1' if account_preview_restricted else '0' }}" data-restricted-message="{{ account_preview_message|e }}" data-csrf-token="{{ csrf_token() if session.get('logged_in') or request.endpoint in ['auth.login','auth.register'] else '' }}">
   {% include '_header_notifications.html' %}
@@ -40,20 +40,20 @@
     {% endwith %}
   {% endif %}
 
-  <div id="devBuildNoticeV11" class="dev-build-notice-v11" data-build-id="v19-sidebar-width-logout-20260429" hidden>
+  <div id="devBuildNoticeV11" class="dev-build-notice-v11" data-build-id="v20-sidebar-true-width-20260429" hidden>
     <div>
       <strong>تم تحميل نسخة تطوير جديدة ✅</strong>
-      <span>Build: v19-sidebar-width-logout-20260429</span>
+      <span>Build: v20-sidebar-true-width-20260429</span>
     </div>
     <button type="button" id="devBuildNoticeCloseV11">تم</button>
   </div>
-  <div class="dev-build-badge-v11">Build: v19-sidebar-width-logout-20260429</div>
+  <div class="dev-build-badge-v11">Build: v20-sidebar-true-width-20260429</div>
 
   {% block body %}{% endblock %}
   {% block content %}{% endblock %}
   <script>window.SOLARDEYE_I18N = {{ i18n_client_catalog_json|safe }};</script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script defer src="{{ url_for('static', filename='js/app.js', v='v19-sidebar-width-logout-20260429') }}"></script>
-  <script src="{{ url_for('static', filename='js/sidebar_rebuild_v11.js', v='v19-sidebar-width-logout-20260429') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/app.js', v='v20-sidebar-true-width-20260429') }}"></script>
+  <script src="{{ url_for('static', filename='js/sidebar_rebuild_v11.js', v='v20-sidebar-true-width-20260429') }}"></script>
 </body>
 </html>

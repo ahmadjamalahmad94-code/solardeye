@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v19-sidebar-width-logout-20260429";
+  var buildId = "v20-sidebar-true-width-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {

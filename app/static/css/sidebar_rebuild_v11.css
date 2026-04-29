@@ -1155,3 +1155,171 @@ html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
 .dev-build-badge-v11::after {
   content: " / v19-sidebar-width-logout-20260429" !important;
 }
+
+
+/* === V20 TRUE SIDEBAR WIDTH + NO OVERLAY FIX === */
+/*
+  V20:
+  - Open width and collapsed width are controlled by ONE source.
+  - The grid column and actual sidebar width are always equal.
+  - This prevents the opened sidebar from covering the dashboard.
+*/
+:root {
+  --sd-open-w-v20: 230px;
+  --sd-closed-w-v20: 69px;
+}
+
+/* Expanded: grid column = actual sidebar width */
+html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar,
+html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-expanded,
+html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  display: grid !important;
+  grid-template-columns: var(--sd-open-w-v20) minmax(0, 1fr) !important;
+  min-height: 100vh !important;
+  align-items: stretch !important;
+  overflow-x: hidden !important;
+}
+
+/* Collapsed: grid column = actual sidebar width */
+html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar,
+html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-expanded,
+html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  display: grid !important;
+  grid-template-columns: var(--sd-closed-w-v20) minmax(0, 1fr) !important;
+  min-height: 100vh !important;
+  align-items: stretch !important;
+  overflow-x: hidden !important;
+}
+
+/* Sidebar itself follows the same width */
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-sidebar-v11 {
+  width: var(--sd-open-w-v20) !important;
+  min-width: var(--sd-open-w-v20) !important;
+  max-width: var(--sd-open-w-v20) !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-sidebar-v11 {
+  width: var(--sd-closed-w-v20) !important;
+  min-width: var(--sd-closed-w-v20) !important;
+  max-width: var(--sd-closed-w-v20) !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+}
+
+/* Prevent fixed/absolute old mobile/sidebar behavior on desktop */
+@media (min-width: 901px) {
+  html body.heavy-v100 .sd-sidebar-v11 {
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    align-self: stretch !important;
+    z-index: 20 !important;
+  }
+}
+
+/* Content must start in the second grid column and never sit under sidebar */
+html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding-inline-start: 24px !important;
+  padding-inline-end: 24px !important;
+  transform: none !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Keep text readable inside the narrower open sidebar */
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-item-v11 {
+  grid-template-columns: 22px minmax(0, 1fr) auto !important;
+  gap: 7px !important;
+  padding-inline: 8px !important;
+  min-height: 44px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-icon-v11 {
+  width: 22px !important;
+  min-width: 22px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-icon-v11 .hs-icon-v180 {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-text-v11 {
+  font-size: .72rem !important;
+  line-height: 1.22 !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-v11 {
+  grid-template-columns: 38px minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-avatar-v11 {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 strong {
+  font-size: .76rem !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 small {
+  font-size: .58rem !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 {
+  gap: 6px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 a {
+  min-height: 32px !important;
+  font-size: .64rem !important;
+}
+
+/* Collapsed remains compact */
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-menu-btn-v11 {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-avatar-v11 {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
+  min-height: 40px !important;
+  padding: 6px !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-icon-v11 .hs-icon-v180 {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* logout duplicate safety */
+html body.heavy-v100 .sd-logout-v11::after {
+  content: none !important;
+  display: none !important;
+}
+
+.dev-build-badge-v11::after {
+  content: " / v20-sidebar-true-width-20260429" !important;
+}
