@@ -6,22 +6,27 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
 </head>
 <body>
+
 <div class="layout">
+
 <div id="sidebar" class="sidebar">
-<div class="top">
-<button id="toggleBtn">☰</button>
-</div>
+<div class="logo">⚡</div>
+
+<button id="toggleBtn" class="toggle">☰</button>
+
 <ul class="nav">
 {% block sidebar %}{% endblock %}
 </ul>
-<div class="logout">
-<button>تسجيل الخروج</button>
+
+<div class="logout">⎋</div>
 </div>
-</div>
+
 <div class="content">
 {% block content %}{% endblock %}
 </div>
+
 </div>
+
 <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
 </body>
 </html>
