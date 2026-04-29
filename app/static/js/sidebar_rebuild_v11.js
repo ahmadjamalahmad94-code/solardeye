@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v17-real-sidebar-toggle-20260429";
+  var buildId = "v18-purge-old-sidebar-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {
@@ -8,40 +8,44 @@
   }
 
   function setState(state) {
+    document.body.classList.remove("sd-sidebar-expanded-v18", "sd-sidebar-collapsed-v18");
+    document.body.classList.add(state === "expanded" ? "sd-sidebar-expanded-v18" : "sd-sidebar-collapsed-v18");
+
     shells().forEach(function(shell) {
       shell.classList.remove("sidebar-expanded", "sidebar-collapsed");
       shell.classList.add(state === "expanded" ? "sidebar-expanded" : "sidebar-collapsed");
+      shell.dataset.sdSidebarState = state;
     });
   }
 
-  function toggle(event) {
+  function getState() {
+    var shell = shells()[0];
+    if (!shell) return "collapsed";
+    return shell.classList.contains("sidebar-expanded") ? "expanded" : "collapsed";
+  }
+
+  window.sdToggleSidebarV18 = function(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    var shell = shells()[0];
-    if (!shell) return false;
-    var isCollapsed = shell.classList.contains("sidebar-collapsed");
-    setState(isCollapsed ? "expanded" : "collapsed");
+    setState(getState() === "collapsed" ? "expanded" : "collapsed");
     return false;
-  }
+  };
 
-  window.sdToggleSidebarV17 = toggle;
-  window.sdToggleSidebarV16 = toggle;
-  window.sdToggleSidebarV15 = toggle;
-  window.sdToggleSidebarV14 = toggle;
-  window.sdToggleSidebarV13 = toggle;
+  // compatibility aliases
+  window.sdToggleSidebarV17 = window.sdToggleSidebarV18;
+  window.sdToggleSidebarV16 = window.sdToggleSidebarV18;
+  window.sdToggleSidebarV15 = window.sdToggleSidebarV18;
+  window.sdToggleSidebarV14 = window.sdToggleSidebarV18;
+  window.sdToggleSidebarV13 = window.sdToggleSidebarV18;
 
   function wire() {
-    var buttons = Array.prototype.slice.call(document.querySelectorAll("#sdSidebarToggleV17, [data-sd-toggle-sidebar], .sd-menu-btn-v11"));
-    buttons.forEach(function(btn) {
-      if (btn.dataset.v17Wired === "1") return;
-      btn.dataset.v17Wired = "1";
-      btn.onclick = toggle;
-      btn.addEventListener("click", toggle, false);
-      btn.addEventListener("pointerup", function(e) {
-        if (e.pointerType !== "mouse") toggle(e);
-      }, false);
+    document.querySelectorAll("#sdSidebarToggleV18, [data-sd-toggle-sidebar-v18], .sd-menu-btn-v11").forEach(function(btn) {
+      if (btn.dataset.v18Wired === "1") return;
+      btn.dataset.v18Wired = "1";
+      btn.onclick = window.sdToggleSidebarV18;
+      btn.addEventListener("click", window.sdToggleSidebarV18, true);
     });
   }
 
@@ -53,8 +57,8 @@
     var seen = false;
     try { seen = localStorage.getItem(key) === "1"; } catch(e) {}
     if (!seen) notice.hidden = false;
-    if (closeBtn && closeBtn.dataset.v17Wired !== "1") {
-      closeBtn.dataset.v17Wired = "1";
+    if (closeBtn && closeBtn.dataset.v18Wired !== "1") {
+      closeBtn.dataset.v18Wired = "1";
       closeBtn.addEventListener("click", function() {
         try { localStorage.setItem(key, "1"); } catch(e) {}
         notice.hidden = true;
@@ -63,18 +67,18 @@
   }
 
   function init() {
-    // As requested: default collapsed on every refresh, no localStorage state restore.
+    // default closed every reload, exactly as requested
     setState("collapsed");
     wire();
     buildNotice();
-    console.log("SolarDeye sidebar v17 loaded", buildId);
+    console.log("SolarDeye V18 sidebar loaded:", buildId);
   }
 
   document.addEventListener("click", function(e) {
-    if (e.target.closest("#sdSidebarToggleV17, [data-sd-toggle-sidebar], .sd-menu-btn-v11")) {
-      toggle(e);
+    if (e.target.closest("#sdSidebarToggleV18, [data-sd-toggle-sidebar-v18], .sd-menu-btn-v11")) {
+      window.sdToggleSidebarV18(e);
     }
-  }, false);
+  }, true);
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
@@ -82,6 +86,6 @@
     init();
   }
 
-  setTimeout(wire, 100);
+  setTimeout(init, 100);
   setTimeout(wire, 500);
 })();

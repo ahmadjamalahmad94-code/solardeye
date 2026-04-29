@@ -46,73 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(tick, 1000);
 
   const parse = (v, fallback = []) => { try { return JSON.parse(v || '[]'); } catch { return fallback; } };
-  const hasPremiumSidebarV180 = !!document.querySelector('[data-sidebar-system-v180]');
-  const firstAppShell = document.getElementById('appShell') || document.querySelector('.app-shell');
-  if(hasPremiumSidebarV180) {
-    document.body.classList.add('has-sidebar-system-v180');
-    const savedSidebarState = localStorage.getItem('sidebar-state') || localStorage.getItem(`heavy_sidebar_${document.querySelector('[data-sidebar-system-v180]')?.dataset.sidebarMode || 'default'}_collapsed`);
-    const shouldExpand = savedSidebarState === 'expanded' || savedSidebarState === 'false';
-    const shouldCollapse = savedSidebarState === 'collapsed' || savedSidebarState === 'true' || !savedSidebarState;
-    if(firstAppShell){
-      firstAppShell.classList.toggle('sidebar-expanded', shouldExpand);
-      firstAppShell.classList.toggle('sidebar-collapsed', shouldCollapse && !shouldExpand);
-    }
-  }
-
-  const sidebarToggle = document.getElementById('sidebarToggle');
-  const appShell = firstAppShell;
-  if (sidebarToggle && appShell && !hasPremiumSidebarV180) {
-    if (localStorage.getItem('sidebar_collapsed') === 'true') appShell.classList.add('sidebar-collapsed');
-    sidebarToggle.addEventListener('click', () => {
-      appShell.classList.toggle('sidebar-collapsed');
-      localStorage.setItem('sidebar_collapsed', appShell.classList.contains('sidebar-collapsed'));
-    });
-  }
-
-  function initPremiumSidebarV180(){
-    const sidebar = document.querySelector('[data-sidebar-system-v180]');
-    if(!sidebar) return;
-    document.body.classList.add('has-sidebar-system-v180');
-    document.documentElement.classList.remove('sidebar-collapsed-v150');
-    document.body.classList.remove('sidebar-collapsed-v180', 'sidebar-collapsed', 'sidebar-expanded', 'sidebar-open-v70');
-    sidebar.classList.remove('is-open-v70');
-    const shell = document.getElementById('appShell') || document.querySelector('.app-shell');
-    const toggles = Array.from(document.querySelectorAll('[data-sidebar-toggle-v180]'));
-    const storageKey = `heavy_sidebar_${sidebar.dataset.sidebarMode || 'default'}_collapsed`;
-    const readState = () => {
-      const namedState = localStorage.getItem('sidebar-state');
-      if(namedState === 'expanded') return false;
-      if(namedState === 'collapsed') return true;
-      const legacyState = localStorage.getItem(storageKey);
-      if(legacyState === 'false') return false;
-      if(legacyState === 'true') return true;
-      return true;
-    };
-    const apply = (collapsed) => {
-      document.documentElement.classList.remove('sidebar-collapsed-v150');
-      document.body.classList.remove('sidebar-collapsed-v180', 'sidebar-collapsed', 'sidebar-expanded', 'sidebar-open-v70');
-      sidebar.classList.remove('is-open-v70');
-      if(shell){
-        shell.classList.remove('sidebar-collapsed-v180');
-        shell.classList.toggle('sidebar-collapsed', collapsed);
-        shell.classList.toggle('sidebar-expanded', !collapsed);
-      }
-      toggles.forEach(btn => btn.setAttribute('aria-expanded', String(!collapsed)));
-    };
-    apply(readState());
-      toggles.forEach(btn => {
-      btn.addEventListener('click', (event) => {
-        event.preventDefault();
-        const next = shell ? !shell.classList.contains('sidebar-collapsed') : !readState();
-        localStorage.setItem(storageKey, String(next));
-        localStorage.setItem('sidebar-state', next ? 'collapsed' : 'expanded');
-        apply(next);
-      });
-    });
-    window.addEventListener('resize', () => apply(readState()));
-  }
-  initPremiumSidebarV180();
-
+  // V18: old sidebar logic removed. New sidebar handled by sidebar_rebuild_v11.js
 const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,

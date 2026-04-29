@@ -1,1 +1,1 @@
-/* Deprecated sidebar.js disabled by v11 sidebar rebuild. */
+/* Disabled by v18: old sidebar implementation removed. */
