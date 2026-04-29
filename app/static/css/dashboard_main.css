@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v25-dashboard-weather-flow-finetune-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v27-dashboard-header-polish-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v25-dashboard-weather-flow-finetune-20260429
+/* Build: v27-dashboard-header-polish-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -266,5 +266,302 @@
   }
   .dashboard-main-v25 .deye-flow-stage.official-flow-stage {
     min-height: 360px !important;
+  }
+}
+
+/* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
+/* Build: v27-dashboard-header-polish-20260429
+   Header aligned to requested reference image: one soft card, same row,
+   brand on the right, actions/meta/bell on the left. */
+
+body.dashboard-page-v27 .notification-bell-wrap {
+  display: none !important;
+}
+
+.dashboard-main-v27 .dashboard-header-v27 {
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.dashboard-main-v27 .dashboard-header-card-v27 {
+  min-height: 132px !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(360px, 1fr) auto !important;
+  gap: 28px !important;
+  align-items: center !important;
+  padding: 24px 28px !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(520px circle at 98% 0%, rgba(37,99,235,.05), transparent 58%),
+    linear-gradient(180deg,#ffffff 0%, #fbfdff 100%) !important;
+  border: 1px solid #e3e9f2 !important;
+  box-shadow: 0 12px 34px rgba(15,23,42,.07) !important;
+  overflow: visible !important;
+}
+
+.dashboard-main-v27 .dashboard-brand-v27 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 24px !important;
+  min-width: 0 !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.dashboard-main-v27 .dashboard-brand-icon-v27 {
+  width: 88px !important;
+  height: 88px !important;
+  min-width: 88px !important;
+  border-radius: 22px !important;
+  display: grid !important;
+  place-items: center !important;
+  position: relative !important;
+  background: linear-gradient(180deg,#f8fbff,#eef5ff) !important;
+  border: 1px solid #e6edf7 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 10px 22px rgba(15,23,42,.05) !important;
+}
+
+.dashboard-main-v27 .solar-panel-v27 {
+  color: #3b82f6 !important;
+  font-size: 2.65rem !important;
+  line-height: 1 !important;
+  text-shadow: 0 4px 12px rgba(59,130,246,.18) !important;
+}
+
+.dashboard-main-v27 .sun-v27 {
+  position: absolute !important;
+  top: 8px !important;
+  inset-inline-end: 7px !important;
+  font-size: 1.45rem !important;
+  filter: drop-shadow(0 5px 8px rgba(245,158,11,.25)) !important;
+}
+
+.dashboard-main-v27 .dashboard-brand-copy-v27 {
+  min-width: 0 !important;
+  padding-inline-start: 28px !important;
+  border-inline-start: 1px solid #cfd8e6 !important;
+}
+
+.dashboard-main-v27 .dashboard-brand-copy-v27 h1 {
+  margin: 0 0 7px !important;
+  color: #152033 !important;
+  font-size: clamp(1.95rem, 3vw, 3.05rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.035em !important;
+  line-height: 1.08 !important;
+}
+
+.dashboard-main-v27 .dashboard-brand-copy-v27 p {
+  margin: 0 !important;
+  color: #66748d !important;
+  font-size: clamp(.92rem, 1.25vw, 1.18rem) !important;
+  font-weight: 750 !important;
+  line-height: 1.55 !important;
+}
+
+.dashboard-main-v27 .dashboard-header-actions-v27 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 18px !important;
+  flex-wrap: nowrap !important;
+  direction: rtl !important;
+  white-space: nowrap !important;
+}
+
+.dashboard-main-v27 .dash-head-form-v27 {
+  margin: 0 !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27,
+.dashboard-main-v27 .dash-head-meta-v27,
+.dashboard-main-v27 .dash-head-bell-v27 {
+  height: 76px !important;
+  border-radius: 17px !important;
+  border: 1px solid #d9e2f0 !important;
+  background: #fff !important;
+  color: #24304a !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 13px !important;
+  text-decoration: none !important;
+  box-shadow: 0 6px 18px rgba(15,23,42,.035) !important;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27 {
+  min-width: 170px !important;
+  padding: 0 22px !important;
+  font-size: 1.05rem !important;
+  font-weight: 900 !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27 i {
+  font-style: normal !important;
+  font-size: 1.35rem !important;
+  color: #475569 !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27.sync {
+  min-width: 190px !important;
+  border-color: #f5c16e !important;
+  background: linear-gradient(180deg,#ffd68a 0%,#ffc057 100%) !important;
+  color: #1f2937 !important;
+  box-shadow: 0 10px 24px rgba(245,158,11,.14) !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27.sync i {
+  color: #1f2937 !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27:disabled {
+  opacity: .62 !important;
+  cursor: not-allowed !important;
+}
+
+.dashboard-main-v27 .dash-head-btn-v27:hover,
+.dashboard-main-v27 .dash-head-meta-v27:hover,
+.dashboard-main-v27 .dash-head-bell-v27:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 12px 26px rgba(15,23,42,.075) !important;
+}
+
+.dashboard-main-v27 .dash-head-meta-v27 {
+  min-width: 170px !important;
+  padding: 0 18px !important;
+  justify-content: flex-start !important;
+}
+
+.dashboard-main-v27 .meta-icon-v27 {
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  background: #f2f5fa !important;
+  color: #334155 !important;
+  font-size: 1.45rem !important;
+  font-weight: 900 !important;
+}
+
+.dashboard-main-v27 .dash-head-meta-v27 div {
+  display: grid !important;
+  gap: 4px !important;
+  text-align: right !important;
+  min-width: 0 !important;
+}
+
+.dashboard-main-v27 .dash-head-meta-v27 span:not(.meta-icon-v27) {
+  color: #26344f !important;
+  font-size: .94rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+}
+
+.dashboard-main-v27 .dash-head-meta-v27 strong {
+  color: #172033 !important;
+  font-size: .98rem !important;
+  font-weight: 850 !important;
+  line-height: 1.2 !important;
+}
+
+.dashboard-main-v27 .dash-head-bell-v27 {
+  width: 76px !important;
+  min-width: 76px !important;
+  position: relative !important;
+  padding: 0 !important;
+}
+
+.dashboard-main-v27 .bell-core-v27 {
+  font-size: 2rem !important;
+  line-height: 1 !important;
+  filter: grayscale(.15) !important;
+}
+
+.dashboard-main-v27 .dash-head-bell-v27 em {
+  position: absolute !important;
+  top: -14px !important;
+  inset-inline-start: 50% !important;
+  transform: translateX(-50%) !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: #ef4444 !important;
+  color: #fff !important;
+  border: 4px solid #fff !important;
+  box-shadow: 0 10px 18px rgba(239,68,68,.23) !important;
+  font-style: normal !important;
+  font-size: .86rem !important;
+  font-weight: 950 !important;
+}
+
+@media (max-width: 1680px) {
+  .dashboard-main-v27 .dashboard-header-card-v27 {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .dashboard-main-v27 .dashboard-header-actions-v27 {
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    padding-block: 3px !important;
+    scrollbar-width: thin !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .dashboard-main-v27 .dashboard-header-card-v27 {
+    padding: 18px !important;
+    min-height: auto !important;
+  }
+  .dashboard-main-v27 .dashboard-brand-v27 {
+    gap: 14px !important;
+  }
+  .dashboard-main-v27 .dashboard-brand-icon-v27 {
+    width: 64px !important;
+    height: 64px !important;
+    min-width: 64px !important;
+    border-radius: 18px !important;
+  }
+  .dashboard-main-v27 .solar-panel-v27 {
+    font-size: 2rem !important;
+  }
+  .dashboard-main-v27 .sun-v27 {
+    font-size: 1.05rem !important;
+  }
+  .dashboard-main-v27 .dashboard-brand-copy-v27 {
+    padding-inline-start: 14px !important;
+  }
+  .dashboard-main-v27 .dashboard-brand-copy-v27 h1 {
+    font-size: 1.55rem !important;
+  }
+  .dashboard-main-v27 .dashboard-header-actions-v27 {
+    gap: 10px !important;
+  }
+  .dashboard-main-v27 .dash-head-btn-v27,
+  .dashboard-main-v27 .dash-head-meta-v27 {
+    min-width: 145px !important;
+    height: 64px !important;
+    padding-inline: 14px !important;
+    font-size: .86rem !important;
+  }
+  .dashboard-main-v27 .dash-head-bell-v27 {
+    width: 64px !important;
+    min-width: 64px !important;
+    height: 64px !important;
+  }
+  .dashboard-main-v27 .meta-icon-v27 {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
   }
 }

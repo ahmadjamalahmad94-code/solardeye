@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v26-notifications-center-polish-20260429";
+  var buildId = "v27-dashboard-header-polish-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {
