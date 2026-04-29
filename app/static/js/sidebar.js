@@ -1,3 +1,1 @@
-
-// simple future toggle hook
-console.log("Heavy v6 layout loaded");
+/* Deprecated sidebar.js disabled by v11 sidebar rebuild. */

@@ -1,0 +1,418 @@
+
+/* ==========================================================================
+   SolarDeye Sidebar Rebuild V11
+   Build: v11-sidebar-rebuild-20260429
+   ========================================================================== */
+
+:root {
+  --sd-sidebar-width-v11: 360px;
+  --sd-sidebar-bg-1-v11: #08172f;
+  --sd-sidebar-bg-2-v11: #102e70;
+  --sd-sidebar-card-v11: rgba(255,255,255,.065);
+  --sd-sidebar-card-strong-v11: rgba(59,130,246,.75);
+  --sd-sidebar-text-v11: #ffffff;
+  --sd-sidebar-muted-v11: #b9c8e7;
+  --sd-sidebar-border-v11: rgba(191,219,254,.18);
+}
+
+/* Full page shell column */
+html body.heavy-v100 .app-shell.has-layout-sidebar,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  display: grid !important;
+  grid-template-columns: var(--sd-sidebar-width-v11) minmax(0, 1fr) !important;
+  min-height: 100vh !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  background: #f5f8ff !important;
+  direction: rtl !important;
+}
+
+html[dir="ltr"] body.heavy-v100 .app-shell.has-layout-sidebar {
+  direction: ltr !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  overflow-x: hidden !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Sidebar rebuilt from scratch */
+html body.heavy-v100 .sd-sidebar-v11 {
+  position: sticky !important;
+  top: 0 !important;
+  width: var(--sd-sidebar-width-v11) !important;
+  min-width: var(--sd-sidebar-width-v11) !important;
+  max-width: var(--sd-sidebar-width-v11) !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  padding: 18px !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  gap: 14px !important;
+  color: var(--sd-sidebar-text-v11) !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background:
+    radial-gradient(300px circle at 18% 0%, rgba(96,165,250,.26), transparent 62%),
+    linear-gradient(180deg, var(--sd-sidebar-bg-1-v11) 0%, var(--sd-sidebar-bg-2-v11) 100%) !important;
+  box-shadow: none !important;
+  isolation: isolate !important;
+  z-index: 20 !important;
+}
+
+html body.heavy-v100 .sd-sidebar-head-v11 {
+  display: grid !important;
+  gap: 14px !important;
+}
+
+html body.heavy-v100 .sd-user-v11 {
+  display: grid !important;
+  grid-template-columns: 58px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+html body.heavy-v100 .sd-avatar-v11 {
+  width: 58px !important;
+  height: 58px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  position: relative !important;
+  background: linear-gradient(145deg, #3b5bff, #1d4ed8) !important;
+  color: #fff !important;
+  font-weight: 950 !important;
+  box-shadow: 0 16px 34px rgba(37,99,235,.35), inset 0 0 0 1px rgba(255,255,255,.18) !important;
+}
+
+html body.heavy-v100 .sd-avatar-v11 span {
+  position: absolute !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 999px !important;
+  right: 3px !important;
+  bottom: 6px !important;
+  background: #22c55e !important;
+  box-shadow: 0 0 0 4px #0b1b3d !important;
+}
+
+html body.heavy-v100 .sd-user-copy-v11 {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 4px !important;
+}
+
+html body.heavy-v100 .sd-user-copy-v11 strong {
+  color: #fff !important;
+  font-size: 1.05rem !important;
+  line-height: 1.2 !important;
+  font-weight: 950 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+html body.heavy-v100 .sd-user-copy-v11 small {
+  color: var(--sd-sidebar-muted-v11) !important;
+  font-size: .82rem !important;
+  line-height: 1.25 !important;
+  font-weight: 800 !important;
+  white-space: normal !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 {
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--sd-sidebar-border-v11) !important;
+  color: #dbeafe !important;
+  background: rgba(255,255,255,.06) !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: default !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 .hs-icon-v180 {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+html body.heavy-v100 .sd-lang-v11 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+}
+
+html body.heavy-v100 .sd-lang-v11 a {
+  min-height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 14px !important;
+  color: #d7e4ff !important;
+  text-decoration: none !important;
+  font-size: .9rem !important;
+  font-weight: 900 !important;
+  border: 1px solid var(--sd-sidebar-border-v11) !important;
+  background: rgba(255,255,255,.055) !important;
+}
+
+html body.heavy-v100 .sd-lang-v11 a.active {
+  color: #fff !important;
+  border-color: rgba(147,197,253,.55) !important;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  box-shadow: 0 12px 24px rgba(37,99,235,.22) !important;
+}
+
+html body.heavy-v100 .sd-nav-v11 {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 9px !important;
+  padding: 2px 0 12px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(147,197,253,.38) transparent !important;
+}
+
+html body.heavy-v100 .sd-nav-v11::-webkit-scrollbar {
+  width: 5px !important;
+}
+
+html body.heavy-v100 .sd-nav-v11::-webkit-scrollbar-thumb {
+  background: rgba(147,197,253,.4) !important;
+  border-radius: 999px !important;
+}
+
+html body.heavy-v100 .sd-group-title-v11 {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin: 8px 2px 4px !important;
+  color: #9fb3d8 !important;
+  font-size: .78rem !important;
+  font-weight: 900 !important;
+}
+
+html body.heavy-v100 .sd-group-title-v11::before,
+html body.heavy-v100 .sd-group-title-v11::after {
+  content: "" !important;
+  height: 1px !important;
+  background: rgba(191,219,254,.18) !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11 {
+  width: 100% !important;
+  min-height: 58px !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+  color: #e5efff !important;
+  text-decoration: none !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  background: rgba(255,255,255,.055) !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11:hover {
+  color: #fff !important;
+  background: rgba(59,130,246,.18) !important;
+  border-color: rgba(147,197,253,.25) !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11.active {
+  color: #fff !important;
+  background: linear-gradient(135deg, #4f9cff, #2563eb) !important;
+  border-color: rgba(147,197,253,.55) !important;
+  box-shadow: 0 14px 30px rgba(37,99,235,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+
+html body.heavy-v100 .sd-nav-icon-v11 {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #c8d8f5 !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11.active .sd-nav-icon-v11 {
+  color: #fff !important;
+}
+
+html body.heavy-v100 .sd-nav-icon-v11 .hs-icon-v180 {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+html body.heavy-v100 .sd-nav-text-v11 {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  color: inherit !important;
+  font-size: 1rem !important;
+  line-height: 1.35 !important;
+  font-weight: 900 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  text-align: start !important;
+}
+
+html body.heavy-v100 .sd-nav-badge-v11 {
+  min-width: 24px !important;
+  height: 24px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #0f1b3d !important;
+  background: #fbbf24 !important;
+  font-size: .75rem !important;
+  font-weight: 950 !important;
+}
+
+html body.heavy-v100 .sd-sidebar-footer-v11 {
+  border-top: 1px solid rgba(191,219,254,.16) !important;
+  padding-top: 12px !important;
+}
+
+html body.heavy-v100 .sd-sidebar-footer-v11 form {
+  margin: 0 !important;
+}
+
+html body.heavy-v100 .sd-logout-v11 {
+  width: 100% !important;
+  min-height: 54px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(248,113,113,.56) !important;
+  background: rgba(127,29,29,.12) !important;
+  color: #fca5a5 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  font: inherit !important;
+  font-size: .95rem !important;
+  font-weight: 950 !important;
+  cursor: pointer !important;
+}
+
+html body.heavy-v100 .sd-logout-v11:hover {
+  background: rgba(239,68,68,.17) !important;
+  border-color: #f87171 !important;
+}
+
+.dev-build-notice-v11 {
+  position: fixed;
+  top: 18px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  width: min(560px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0f172a, #1d4ed8);
+  color: #fff;
+  border: 1px solid rgba(147,197,253,.35);
+  box-shadow: 0 18px 50px rgba(15,23,42,.28);
+}
+
+.dev-build-notice-v11[hidden] {
+  display: none !important;
+}
+
+.dev-build-notice-v11 strong,
+.dev-build-notice-v11 span {
+  display: block;
+  line-height: 1.35;
+}
+
+.dev-build-notice-v11 span {
+  color: #bfdbfe;
+  font-size: .85rem;
+  direction: ltr;
+  text-align: start;
+}
+
+.dev-build-notice-v11 button {
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 14px;
+  background: #fbbf24;
+  color: #111827;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.dev-build-badge-v11 {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 9999;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.82);
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 800;
+  direction: ltr;
+  box-shadow: 0 8px 22px rgba(15,23,42,.18);
+}
+
+/* Mobile: sidebar becomes drawer-width and still readable */
+@media (max-width: 900px) {
+  html body.heavy-v100 .app-shell.has-layout-sidebar,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  html body.heavy-v100 .sd-sidebar-v11 {
+    position: fixed !important;
+    width: min(90vw, 360px) !important;
+    min-width: min(90vw, 360px) !important;
+    max-width: min(90vw, 360px) !important;
+    z-index: 1055 !important;
+  }
+
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
+    padding: 14px 12px 78px !important;
+  }
+}
