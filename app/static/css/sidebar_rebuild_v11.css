@@ -829,3 +829,125 @@ html body.heavy-v100 .sd-menu-btn-v11 * {
 .dev-build-badge-v11::after {
   content: " / v16-missing-sidebar-script-20260429";
 }
+
+
+/* === V17 REAL SIDEBAR TOGGLE FINAL OVERRIDE === */
+:root {
+  --sd-open-w-v17: 288px;
+  --sd-closed-w-v17: 86px;
+}
+
+/* Widths controlled by class on the app shell */
+html body.heavy-v100 .app-shell.has-layout-sidebar {
+  display: grid !important;
+  min-height: 100vh !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  transition: grid-template-columns .22s ease !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
+  grid-template-columns: var(--sd-open-w-v17) minmax(0,1fr) !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  grid-template-columns: var(--sd-closed-w-v17) minmax(0,1fr) !important;
+}
+
+/* Sidebar actual width must follow the shell */
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-sidebar-v11 {
+  width: var(--sd-open-w-v17) !important;
+  min-width: var(--sd-open-w-v17) !important;
+  max-width: var(--sd-open-w-v17) !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
+  width: var(--sd-closed-w-v17) !important;
+  min-width: var(--sd-closed-w-v17) !important;
+  max-width: var(--sd-closed-w-v17) !important;
+}
+
+html body.heavy-v100 .sd-sidebar-v11 {
+  position: relative !important;
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  align-self: stretch !important;
+  overflow: visible !important;
+  padding: 14px 10px !important;
+  transition: width .22s ease, min-width .22s ease, max-width .22s ease !important;
+}
+
+/* Button */
+html body.heavy-v100 #sdSidebarToggleV17,
+html body.heavy-v100 [data-sd-toggle-sidebar],
+html body.heavy-v100 .sd-menu-btn-v11 {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  z-index: 2147483647 !important;
+  position: relative !important;
+  user-select: none !important;
+  touch-action: manipulation !important;
+}
+html body.heavy-v100 #sdSidebarToggleV17 *,
+html body.heavy-v100 [data-sd-toggle-sidebar] *,
+html body.heavy-v100 .sd-menu-btn-v11 * {
+  pointer-events: none !important;
+}
+
+/* Collapsed = icons only */
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-copy-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-lang-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-group-title-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-text-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-badge-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 span {
+  display: none !important;
+}
+
+/* Expanded = show text */
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-user-copy-v11 {
+  display: grid !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-lang-v11 {
+  display: grid !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-group-title-v11 {
+  display: grid !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-nav-text-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-logout-v11 span {
+  display: block !important;
+}
+
+/* Layout details */
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-user-v11 {
+  grid-template-columns: 46px minmax(0,1fr) !important;
+  justify-items: stretch !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  padding: 8px !important;
+  min-height: 44px !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-nav-item-v11 {
+  grid-template-columns: 27px minmax(0,1fr) auto !important;
+  justify-items: stretch !important;
+  padding: 9px 11px !important;
+  min-height: 46px !important;
+}
+
+html body.heavy-v100 .sd-sidebar-footer-v11 {
+  margin-top: auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.94) 25%, rgba(16,46,112,1) 100%) !important;
+  padding-top: 14px !important;
+}
+
+.dev-build-badge-v11::after {
+  content: " / v17-real-sidebar-toggle-20260429";
+}
