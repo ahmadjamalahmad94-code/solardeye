@@ -3,7 +3,7 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set providers = provider_specs or [] %}
 {% set current_provider = device.device_type or 'deye' %}
-<div class="app-shell has-layout-sidebar sidebar-expanded" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area devices-dynamic-page-v10519">
     <header class="topbar admin-page-head">

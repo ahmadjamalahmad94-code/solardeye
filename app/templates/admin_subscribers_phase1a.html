@@ -2,7 +2,7 @@
 {% block title %}{{ 'Subscribers' if (ui_lang or 'ar') == 'en' else 'المشتركون' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-expanded" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116">
     <header class="admin-page-head subscribers-hero-v71">

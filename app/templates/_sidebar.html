@@ -37,7 +37,7 @@
 {% macro nav_item(key, label_ar, label_en, endpoint_names, href, icon_name, badge=0) -%}
   {% set active = request.endpoint in endpoint_names %}
   {% set shown_label = label_en if is_en else label_ar %}
-  <a class="sd-nav-item-v11 {% if active %}active{% endif %}" href="{{ href }}" title="{{ shown_label }}" aria-label="{{ shown_label }}">
+  <a class="sd-nav-item-v11 {% if active %}active{% endif %}" href="{{ href }}" title="{{ shown_label }}" aria-label="{{ shown_label }}" data-label="{{ shown_label }}">
     <span class="sd-nav-icon-v11">{{ icon(icon_name) }}</span>
     <span class="sd-nav-text-v11">{{ shown_label }}</span>
     {% if badge %}<span class="sd-nav-badge-v11">{{ badge }}</span>{% endif %}
@@ -46,7 +46,7 @@
 
 <aside class="sd-sidebar-v11 {% if g.is_admin %}sd-admin-v11{% else %}sd-subscriber-v11{% endif %}" id="sidebarV11" data-sidebar-v11>
   <div class="sd-sidebar-head-v11">
-    <button class="sd-menu-btn-v11" type="button" aria-label="{{ 'Menu' if is_en else 'القائمة' }}">
+    <button class="sd-menu-btn-v11" id="sdSidebarToggleV12" type="button" aria-label="{{ 'Menu' if is_en else 'القائمة' }}">
       {{ icon('menu') }}
     </button>
 
@@ -103,7 +103,7 @@
   <div class="sd-sidebar-footer-v11">
     <form method="post" action="{{ url_for('auth.logout') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="sd-logout-v11" type="submit">
+      <button class="sd-logout-v11" type="submit" data-label="{{ 'Sign out' if is_en else 'تسجيل الخروج' }}">
         {{ icon('logout') }}
         <span>{{ 'Sign out' if is_en else 'تسجيل الخروج' }}</span>
       </button>

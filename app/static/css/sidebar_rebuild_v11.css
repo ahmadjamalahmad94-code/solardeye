@@ -416,3 +416,188 @@ html body.heavy-v100 .sd-logout-v11:hover {
     padding: 14px 12px 78px !important;
   }
 }
+
+
+/* === V12 COLLAPSIBLE SIDEBAR OVERRIDES === */
+:root {
+  --sd-sidebar-width-v12: 288px;
+  --sd-sidebar-collapsed-v12: 86px;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  grid-template-columns: var(--sd-sidebar-width-v12) minmax(0,1fr) !important;
+  min-height: 100vh !important;
+  align-items: stretch !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  grid-template-columns: var(--sd-sidebar-collapsed-v12) minmax(0,1fr) !important;
+}
+
+html body.heavy-v100 .sd-sidebar-v11 {
+  position: relative !important;
+  top: auto !important;
+  width: var(--sd-sidebar-width-v12) !important;
+  min-width: var(--sd-sidebar-width-v12) !important;
+  max-width: var(--sd-sidebar-width-v12) !important;
+  min-height: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  align-self: stretch !important;
+  padding: 14px !important;
+  gap: 12px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
+  width: var(--sd-sidebar-collapsed-v12) !important;
+  min-width: var(--sd-sidebar-collapsed-v12) !important;
+  max-width: var(--sd-sidebar-collapsed-v12) !important;
+  padding: 14px 10px !important;
+}
+
+html body.heavy-v100 .sd-sidebar-head-v11 {
+  gap: 12px !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 {
+  cursor: pointer !important;
+}
+
+html body.heavy-v100 .sd-user-v11 {
+  grid-template-columns: 52px minmax(0,1fr) !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-copy-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-lang-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-group-title-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-text-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-badge-v11,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 span {
+  display: none !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-avatar-v11 {
+  margin-inline: auto !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-menu-btn-v11 {
+  margin-inline: auto !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-v11 {
+  overflow-y: visible !important;
+  gap: 10px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  min-height: 52px !important;
+  padding: 10px !important;
+  position: relative !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-icon-v11 {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-footer-v11 {
+  position: sticky !important;
+  bottom: 0 !important;
+  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.92) 25%, rgba(16,46,112,1) 100%) !important;
+  padding-top: 16px !important;
+  margin-top: auto !important;
+}
+
+html body.heavy-v100 .sd-sidebar-footer-v11 {
+  margin-top: auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.92) 25%, rgba(16,46,112,1) 100%) !important;
+  padding-top: 16px !important;
+}
+
+html body.heavy-v100 .sd-logout-v11 {
+  justify-content: center !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 {
+  padding: 0 !important;
+  min-height: 52px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 .hs-icon-v180 {
+  margin: 0 auto !important;
+}
+
+/* tooltip for collapsed state */
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11::after,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11::after {
+  content: attr(data-label) !important;
+  position: absolute !important;
+  inset-inline-start: calc(100% + 10px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: rgba(15,23,42,.98) !important;
+  color: #fff !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  box-shadow: 0 10px 24px rgba(15,23,42,.22) !important;
+  z-index: 50 !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11:hover::after,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11:hover::after {
+  opacity: 1 !important;
+}
+html body.heavy-v100 .sd-logout-v11 {
+  position: relative !important;
+}
+html body.heavy-v100 .sd-logout-v11::after {
+  content: 'تسجيل الخروج';
+}
+html[dir="ltr"] body.heavy-v100 .sd-logout-v11::after {
+  content: 'Sign out';
+}
+
+@media (max-width: 900px) {
+  html body.heavy-v100 .app-shell.has-layout-sidebar,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  html body.heavy-v100 .sd-sidebar-v11 {
+    position: fixed !important;
+    inset-inline-start: 0 !important;
+    top: 0 !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    width: min(84vw, var(--sd-sidebar-width-v12)) !important;
+    min-width: min(84vw, var(--sd-sidebar-width-v12)) !important;
+    max-width: min(84vw, var(--sd-sidebar-width-v12)) !important;
+    transform: translateX(0) !important;
+    transition: transform .24s ease !important;
+  }
+
+  html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
+    transform: translateX(100%) !important;
+  }
+  html[dir="ltr"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
+    transform: translateX(-100%) !important;
+  }
+}
