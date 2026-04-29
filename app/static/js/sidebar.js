@@ -1,6 +1,5 @@
-const sidebar=document.getElementById("sidebar");
-const toggleBtn=document.getElementById("toggleBtn");
 
-toggleBtn.onclick=()=>{
+const sidebar=document.getElementById("sidebar");
+document.getElementById("toggleBtn").onclick=()=>{
 sidebar.classList.toggle("expanded");
 };
