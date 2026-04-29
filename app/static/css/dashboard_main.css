@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v32-notification-kind-badges-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v33-notification-read-keep-list-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -567,7 +567,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    True single-row header fix: keep brand and actions in one line on desktop. */
 
 .dashboard-main-v28 .dashboard-header-v27 {
@@ -801,7 +801,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V29 DASHBOARD HEADER NOTIFICATIONS DROPDOWN === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Header notification dropdown: latest 5 notifications, mark read on open. */
 
 .dashboard-main-v29 .dash-head-notif-v29 {
@@ -1004,7 +1004,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V30 DASHBOARD NOTIFICATIONS DROPDOWN LAYER FIX === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Fix notification dropdown being clipped/hidden behind next dashboard cards. */
 
 .dashboard-main-v30,
@@ -1091,7 +1091,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V31 DASHBOARD NOTIFICATIONS LEFT ANCHOR FIX === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Fix: notification dropdown opens from the left corner instead of right. */
 
 .dashboard-main-v31 .dash-head-notif-v29 {
@@ -1154,7 +1154,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V32 DASHBOARD NOTIFICATION KIND BADGES === */
-/* Build: v32-notification-kind-badges-20260429
+/* Build: v33-notification-read-keep-list-20260429
    Distinguish ticket notifications from message notifications inside header dropdown. */
 
 .dashboard-main-v32 .dash-notif-item-v29 {
@@ -1229,4 +1229,15 @@ body.dashboard-page-v27 .notification-bell-wrap {
 .dashboard-main-v32 .dash-notif-item-v29.kind-message:hover {
   border-color: #93c5fd !important;
   box-shadow: 0 10px 22px rgba(37,99,235,.10) !important;
+}
+
+/* === V33 DASHBOARD NOTIFICATION READ KEEP LIST === */
+/* Build: v33-notification-read-keep-list-20260429
+   Keeps latest five visible after marking notifications as read. */
+.dashboard-main-v33 .dash-notif-item-v29.is-seen-v33 {
+  opacity: .96 !important;
+}
+.dashboard-main-v33 .dash-notif-item-v29.is-seen-v33 .dash-notif-status-v29 {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
 }
