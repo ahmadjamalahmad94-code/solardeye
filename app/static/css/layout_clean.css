@@ -52,3 +52,55 @@ body, html {
     flex:1;
     padding:20px;
 }
+
+/* ===== SaaS Enhanced UI ===== */
+
+body {
+    background: #f4f6fb;
+}
+
+/* sidebar */
+.sidebar {
+    background: linear-gradient(180deg,#1e2a5a,#2e3fa3);
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+}
+
+.sidebar-header h3 {
+    margin:0;
+    font-size:18px;
+}
+
+.sidebar-header span {
+    font-size:12px;
+    opacity:0.7;
+}
+
+/* menu */
+.menu a {
+    border-radius:10px;
+    margin:5px 10px;
+    transition:0.3s;
+}
+
+.menu a:hover {
+    background: rgba(255,255,255,0.15);
+    transform: translateX(-3px);
+}
+
+/* active example */
+.menu a:first-child {
+    background: linear-gradient(90deg,#4a7dff,#6aa3ff);
+}
+
+/* content */
+.content {
+    padding:30px;
+}
+
+/* cards example */
+.card {
+    background:#fff;
+    border-radius:20px;
+    padding:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.05);
+}
