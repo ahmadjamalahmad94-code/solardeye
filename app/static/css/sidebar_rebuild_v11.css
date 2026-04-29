@@ -1078,3 +1078,80 @@ html body.heavy-v100 .sd-sidebar-footer-v11 {
 .dev-build-badge-v11::after {
   content: " / v18-purge-old-sidebar-20260429";
 }
+
+
+/* === V19 WIDTH REDUCTION + LOGOUT DUPLICATE FIX === */
+/* 20% narrower than V18:
+   open: 288px -> 230px
+   closed: 86px -> 69px */
+:root {
+  --sd-open-w-v18: 230px !important;
+  --sd-closed-w-v18: 69px !important;
+  --sd-open-w-v19: 230px;
+  --sd-closed-w-v19: 69px;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-expanded {
+  grid-template-columns: var(--sd-open-w-v19) minmax(0,1fr) !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  grid-template-columns: var(--sd-closed-w-v19) minmax(0,1fr) !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-sidebar-v11 {
+  width: var(--sd-open-w-v19) !important;
+  min-width: var(--sd-open-w-v19) !important;
+  max-width: var(--sd-open-w-v19) !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-sidebar-v11 {
+  width: var(--sd-closed-w-v19) !important;
+  min-width: var(--sd-closed-w-v19) !important;
+  max-width: var(--sd-closed-w-v19) !important;
+}
+
+/* remove duplicate logout label caused by old ::after tooltip/content rules */
+html body.heavy-v100 .sd-logout-v11::after,
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-logout-v11::after,
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-logout-v11::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* compensate spacing after width reduction */
+html body.heavy-v100 .sd-sidebar-v11 {
+  padding-inline: 9px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-item-v11 {
+  grid-template-columns: 24px minmax(0,1fr) auto !important;
+  gap: 8px !important;
+  padding-inline: 9px !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-text-v11 {
+  font-size: .76rem !important;
+  line-height: 1.25 !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 strong {
+  font-size: .80rem !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 small {
+  font-size: .62rem !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 a {
+  font-size: .68rem !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
+  min-height: 42px !important;
+  padding: 7px !important;
+}
+
+.dev-build-badge-v11::after {
+  content: " / v19-sidebar-width-logout-20260429" !important;
+}
