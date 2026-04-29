@@ -186,28 +186,37 @@ def unread_counts(user):
 
 def _filtered_query(filter_key='all', actor_id=None):
     q = SupportCase.query
+    now = datetime.utcnow()
     if filter_key == 'mine' and actor_id:
-        q = q.filter_by(assigned_admin_user_id=actor_id)
+        q = q.filter_by(assigned_admin_user_id=actor_id).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'unassigned':
         q = q.filter(SupportCase.assigned_admin_user_id.is_(None)).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'urgent':
         q = q.filter(SupportCase.priority.in_(['urgent', 'high'])).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
+    elif filter_key == 'overdue':
+        q = q.filter(SupportCase.sla_due_at.isnot(None), SupportCase.sla_due_at < now).filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'waiting_user':
         q = q.filter_by(status='waiting_user')
     elif filter_key == 'closed':
         q = q.filter(SupportCase.status.in_(list(CLOSED_STATUSES)))
     elif filter_key == 'unanswered':
         q = q.filter(SupportCase.last_reply_by == 'user').filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
-    elif filter_key != 'all':
+    elif filter_key == 'all':
         q = q.filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     return q
 
 
 def support_queue_stats(actor_id=None):
+    """Counts shown on the KPI cards.
+
+    'all' counts only active (non-closed) cases so the badge matches what the
+    'all' filter actually shows in the queue.
+    """
     now = datetime.utcnow()
     active_q = SupportCase.query.filter(~SupportCase.status.in_(list(CLOSED_STATUSES)))
     stats = {
-        'all': SupportCase.query.count(),
+        'all': active_q.count(),
+        'total': SupportCase.query.count(),
         'active': active_q.count(),
         'mine': SupportCase.query.filter_by(assigned_admin_user_id=actor_id).filter(~SupportCase.status.in_(list(CLOSED_STATUSES))).count() if actor_id else 0,
         'unassigned': active_q.filter(SupportCase.assigned_admin_user_id.is_(None)).count(),
@@ -247,24 +256,59 @@ def _preview(text: str | None, limit: int = 150) -> str:
     return text[:limit].rstrip() + '…'
 
 
-def build_support_queue(filter_key='all', actor_id=None, lang='ar', limit: int = 150, auto_sync: bool = False):
+def build_support_queue(filter_key='all', actor_id=None, lang='ar', limit: int = 150, auto_sync: bool = False, include_messages: bool = True):
+    """Build the support queue rows.
+
+    Bulk-loads users / tenants / sources / messages in a few queries instead of
+    per-row N+1 lookups. Pass include_messages=False to skip message hydration
+    when only the inbox list is needed (e.g. AJAX list refresh).
+    """
     if auto_sync:
         sync_existing_cases(commit=True)
     q = _filtered_query(filter_key, actor_id)
-    rows = []
     now = datetime.utcnow()
     cases_query = q.order_by(SupportCase.updated_at.desc(), SupportCase.id.desc())
     if limit:
         cases_query = cases_query.limit(limit)
     cases = cases_query.all()
+    if not cases:
+        return []
+
+    # Bulk fetch related rows in a few queries instead of per-case lookups.
+    user_ids = {c.user_id for c in cases if c.user_id}
+    user_ids |= {c.assigned_admin_user_id for c in cases if c.assigned_admin_user_id}
+    tenant_ids = {c.tenant_id for c in cases if c.tenant_id}
+    message_thread_ids = [c.source_id for c in cases if c.case_type == 'message']
+    ticket_ids = [c.source_id for c in cases if c.case_type == 'ticket']
+
+    users_map = {u.id: u for u in AppUser.query.filter(AppUser.id.in_(user_ids)).all()} if user_ids else {}
+    tenants_map = {t.id: t for t in TenantAccount.query.filter(TenantAccount.id.in_(tenant_ids)).all()} if tenant_ids else {}
+
+    threads_map = {t.id: t for t in InternalMailThread.query.filter(InternalMailThread.id.in_(message_thread_ids)).all()} if message_thread_ids else {}
+    tickets_map = {t.id: t for t in SupportTicket.query.filter(SupportTicket.id.in_(ticket_ids)).all()} if ticket_ids else {}
+
+    messages_by_case = {}
+    if include_messages:
+        if message_thread_ids:
+            mail_msgs = InternalMailMessage.query.filter(InternalMailMessage.thread_id.in_(message_thread_ids)).order_by(InternalMailMessage.thread_id.asc(), InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
+            for m in mail_msgs:
+                messages_by_case.setdefault(('message', m.thread_id), []).append(m)
+        if ticket_ids:
+            ticket_msgs = SupportTicketMessage.query.filter(SupportTicketMessage.ticket_id.in_(ticket_ids)).order_by(SupportTicketMessage.ticket_id.asc(), SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
+            for m in ticket_msgs:
+                messages_by_case.setdefault(('ticket', m.ticket_id), []).append(m)
+
+    rows = []
     for case in cases:
-        source = _source_for_case(case)
-        messages = _messages_for_case(case)
+        if case.case_type == 'message':
+            source = threads_map.get(case.source_id)
+        else:
+            source = tickets_map.get(case.source_id)
+        messages = messages_by_case.get((case.case_type, case.source_id), []) if include_messages else []
         last_message = messages[-1] if messages else None
-        user = AppUser.query.get(case.user_id) if case.user_id else None
-        assignee = AppUser.query.get(case.assigned_admin_user_id) if case.assigned_admin_user_id else None
-        tenant = TenantAccount.query.get(case.tenant_id) if case.tenant_id else None
-        audits = SupportAuditLog.query.filter_by(case_type=case.case_type, source_id=case.source_id).order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(10).all()
+        user = users_map.get(case.user_id) if case.user_id else None
+        assignee = users_map.get(case.assigned_admin_user_id) if case.assigned_admin_user_id else None
+        tenant = tenants_map.get(case.tenant_id) if case.tenant_id else None
         overdue = bool(case.sla_due_at and case.sla_due_at < now and case.status not in CLOSED_STATUSES)
         age_hours = round(((now - (case.created_at or now)).total_seconds() / 3600), 1)
         updated_at = case.updated_at or case.last_reply_at or case.created_at
@@ -283,7 +327,7 @@ def build_support_queue(filter_key='all', actor_id=None, lang='ar', limit: int =
             'user': user,
             'assignee': assignee,
             'tenant': tenant,
-            'audits': audits,
+            'audits': [],  # Audits hydrated lazily via build_case_detail when a case is opened.
             'overdue': overdue,
             'age_hours': age_hours,
             'updated_hours': updated_hours,
@@ -292,3 +336,67 @@ def build_support_queue(filter_key='all', actor_id=None, lang='ar', limit: int =
             'portal_url': portal_case_url(case.case_type, case.source_id, lang=lang),
         })
     return rows
+
+
+def build_case_detail(case_type: str, source_id: int, lang='ar'):
+    """Hydrate a single case with full messages + audits + attachments-friendly shape.
+
+    Used by the AJAX endpoint that loads one case on demand without redrawing
+    the full queue.
+    """
+    case = SupportCase.query.filter_by(case_type=case_type, source_id=source_id).first()
+    if not case:
+        return None
+    if case_type == 'message':
+        source = InternalMailThread.query.get(source_id)
+        messages = InternalMailMessage.query.filter_by(thread_id=source_id).order_by(InternalMailMessage.created_at.asc(), InternalMailMessage.id.asc()).all()
+    else:
+        source = SupportTicket.query.get(source_id)
+        messages = SupportTicketMessage.query.filter_by(ticket_id=source_id).order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()).all()
+    user = AppUser.query.get(case.user_id) if case.user_id else None
+    assignee = AppUser.query.get(case.assigned_admin_user_id) if case.assigned_admin_user_id else None
+    tenant = TenantAccount.query.get(case.tenant_id) if case.tenant_id else None
+    audits = SupportAuditLog.query.filter_by(case_type=case_type, source_id=source_id).order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(20).all()
+    now = datetime.utcnow()
+    overdue = bool(case.sla_due_at and case.sla_due_at < now and case.status not in CLOSED_STATUSES)
+    until_sla_hours = None
+    if case.sla_due_at and case.status not in CLOSED_STATUSES:
+        until_sla_hours = round(((case.sla_due_at - now).total_seconds() / 3600), 1)
+    last_message = messages[-1] if messages else None
+    return {
+        'case': case,
+        'case_key': f'{case_type}-{source_id}',
+        'source': source,
+        'messages': messages,
+        'last_message': last_message,
+        'last_preview': _preview(getattr(last_message, 'body', '') if last_message else ''),
+        'last_sender_scope': getattr(last_message, 'sender_scope', None) if last_message else None,
+        'user': user,
+        'assignee': assignee,
+        'tenant': tenant,
+        'audits': audits,
+        'overdue': overdue,
+        'until_sla_hours': until_sla_hours,
+        'url': case_url(case_type, source_id, case.user_id, lang=lang),
+        'portal_url': portal_case_url(case_type, source_id, lang=lang),
+    }
+
+
+def recent_cases_for_user(user_id, exclude_case_key=None, limit: int = 5):
+    """Return a small list of the user's other support cases.
+
+    Used by the right-side details card to show 'last tickets' as real data
+    instead of placeholder text.
+    """
+    if not user_id:
+        return []
+    rows = SupportCase.query.filter(SupportCase.user_id == user_id).order_by(SupportCase.updated_at.desc(), SupportCase.id.desc()).limit(limit + 1).all()
+    out = []
+    for c in rows:
+        key = f'{c.case_type}-{c.source_id}'
+        if exclude_case_key and key == exclude_case_key:
+            continue
+        out.append({'case': c, 'case_key': key})
+        if len(out) >= limit:
+            break
+    return out

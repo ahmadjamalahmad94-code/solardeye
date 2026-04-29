@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Blueprint, abort, send_file
+from flask import Blueprint, abort, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
@@ -18,8 +18,57 @@ for _legacy_name in dir(_legacy_main):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
 from ..services.quota_engine import consume_quota_for_user
+from ..services.support_ops import build_case_detail, recent_cases_for_user
 
 support_bp = Blueprint('support', __name__)
+
+
+def _support_assignable_admins():
+    """Users who can be assigned to a support case.
+
+    Includes is_admin=True OR any role with the can_manage_support permission.
+    Falls back to is_admin filter if the role catalog isn't available.
+    """
+    candidates = AppUser.query.filter_by(is_active=True).order_by(AppUser.full_name.asc(), AppUser.username.asc()).all()
+    out = []
+    for u in candidates:
+        if getattr(u, 'is_admin', False):
+            out.append(u)
+            continue
+        try:
+            from ..services.scope import get_user_permissions
+            perms = get_user_permissions(u) or {}
+            if perms.get('can_manage_support'):
+                out.append(u)
+        except Exception:
+            continue
+    return out
+
+
+def _wants_json_response():
+    """Detect whether the caller wants a JSON response (AJAX) instead of redirect."""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    if (request.args.get('format') or request.form.get('format') or '').strip().lower() == 'json':
+        return True
+    accept = (request.accept_mimetypes.best or '').lower()
+    return accept == 'application/json'
+
+
+def _ajax_action_response(case_type: str, source_id: int, message_text: str, category: str = 'success', filter_key: str = 'all', extra: dict | None = None):
+    """Standard JSON envelope for AJAX action submissions."""
+    payload = {
+        'ok': category != 'danger',
+        'category': category,
+        'message': message_text,
+        'case_type': case_type,
+        'source_id': source_id,
+        'case_key': f'{case_type}-{source_id}' if case_type and source_id else '',
+        'filter_key': filter_key,
+    }
+    if extra:
+        payload.update(extra)
+    return jsonify(payload), (200 if payload['ok'] else 400)
 
 SUPPORT_ATTACHMENT_EXTENSIONS = {
     '.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.csv', '.doc', '.docx',
@@ -447,12 +496,13 @@ def admin_support_command_center():
         return guard
     actor = _active_user()
     filter_key = (request.args.get('filter') or 'all').strip()
-    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang())
+    # The list view doesn't need every message body — it only renders the
+    # inbox cards. Messages for the selected case are loaded separately.
+    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang(), include_messages=False)
     stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
     canned_replies = CannedReply.query.filter_by(is_active=True).order_by(CannedReply.title.asc()).all()
     canned_rows = [{'item': r, 'suggested_status': _suggest_status_for_canned(r.title, r.body)} for r in canned_replies]
-    audits = SupportAuditLog.query.order_by(SupportAuditLog.created_at.desc(), SupportAuditLog.id.desc()).limit(80).all()
-    admin_users = AppUser.query.filter_by(is_admin=True).order_by(AppUser.username.asc()).all()
+    admin_users = _support_assignable_admins()
     subscriber_users = [u for u in AppUser.query.order_by(AppUser.full_name.asc(), AppUser.username.asc()).all() if not _is_admin_like_user(u)]
     is_en = _lang() == 'en'
     labels = _support_label_maps(is_en)
@@ -460,11 +510,28 @@ def admin_support_command_center():
     available_keys = {row.get('case_key') for row in rows}
     if not selected_key or selected_key not in available_keys:
         selected_key = rows[0].get('case_key') if rows else ''
+    selected_detail = None
+    selected_attachments = []
+    selected_recent = []
+    if selected_key:
+        case_type, _, source_id_str = selected_key.partition('-')
+        try:
+            source_id = int(source_id_str)
+        except ValueError:
+            source_id = 0
+        if case_type and source_id:
+            selected_detail = build_case_detail(case_type, source_id, lang=_lang())
+            if selected_detail:
+                selected_attachments = _support_attachments_for(case_type, source_id)
+                user_id = getattr(selected_detail.get('user'), 'id', None)
+                if user_id:
+                    selected_recent = recent_cases_for_user(user_id, exclude_case_key=selected_key, limit=5)
     filter_defs = [
         ('all', 'كل الدعم', 'All support', stats.get('all', 0)),
         ('mine', 'المخصص لي', 'Assigned to me', stats.get('mine', 0)),
         ('unassigned', 'بدون مدير', 'Unassigned', stats.get('unassigned', 0)),
         ('urgent', 'عاجل', 'Urgent', stats.get('urgent', 0)),
+        ('overdue', 'متأخر', 'Overdue', stats.get('overdue', 0)),
         ('waiting_user', 'بانتظار المستخدم', 'Waiting user', stats.get('waiting_user', 0)),
         ('unanswered', 'لم يتم الرد عليه', 'Unanswered', stats.get('unanswered', 0)),
         ('closed', 'مغلق', 'Closed', stats.get('closed', 0)),
@@ -476,18 +543,137 @@ def admin_support_command_center():
         filter_defs=filter_defs,
         filter_key=filter_key,
         selected_key=selected_key,
+        selected_detail=selected_detail,
+        selected_attachments=selected_attachments,
+        selected_recent=selected_recent,
         canned_replies=canned_replies,
         canned_rows=canned_rows,
-        audits=audits,
         admin_users=admin_users,
         subscriber_users=subscriber_users,
-        attachment_map=_support_attachment_map(rows),
         labels=labels,
         status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
         priority_options=['low', 'normal', 'high', 'urgent'],
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
+
+
+@support_bp.route('/admin/support-command-center/list.json')
+def admin_support_command_list_json():
+    """Return inbox cards + KPI stats as JSON for AJAX filter switching."""
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        # Guard returns a redirect; convert to a JSON 403 for AJAX.
+        return jsonify({'ok': False, 'message': 'Access denied'}), 403
+    actor = _active_user()
+    filter_key = (request.args.get('filter') or 'all').strip()
+    is_en = _lang() == 'en'
+    labels = _support_label_maps(is_en)
+    rows = build_support_queue(filter_key=filter_key, actor_id=getattr(actor, 'id', None), lang=_lang(), include_messages=False)
+    stats = support_queue_stats(actor_id=getattr(actor, 'id', None))
+    fmt = lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']) if dt else ''
+    items = []
+    for row in rows:
+        case = row['case']
+        owner = row.get('user')
+        owner_label = (getattr(owner, 'full_name', None) or getattr(owner, 'username', None)) if owner else (getattr(row.get('tenant'), 'display_name', None) if row.get('tenant') else '')
+        items.append({
+            'case_key': row['case_key'],
+            'case_type': case.case_type,
+            'source_id': case.source_id,
+            'subject': case.subject or '',
+            'owner_label': owner_label or '',
+            'owner_initial': (owner_label or '?')[:1].upper(),
+            'status': case.status,
+            'status_label': labels['status'].get(case.status, case.status),
+            'priority': case.priority,
+            'priority_label': labels['priority'].get(case.priority, case.priority),
+            'updated_at': fmt(case.updated_at or case.last_reply_at or case.created_at),
+            'preview': row.get('last_preview') or '',
+            'overdue': bool(row.get('overdue')),
+            'until_sla_hours': row.get('until_sla_hours'),
+            'reference': f'#SUP-{(case.created_at or datetime.utcnow()).strftime("%Y-%m%d")}-{case.source_id:05d}' if case.created_at else f'#SUP-{case.source_id:05d}',
+        })
+    return jsonify({
+        'ok': True,
+        'filter_key': filter_key,
+        'stats': stats,
+        'items': items,
+        'total': len(items),
+    })
+
+
+@support_bp.route('/admin/support-command-center/case/<case_type>-<int:source_id>.json')
+def admin_support_command_case_json(case_type: str, source_id: int):
+    """Return a single case (details + messages + attachments + recent) as JSON."""
+    guard = _admin_guard('can_manage_support')
+    if guard:
+        return jsonify({'ok': False, 'message': 'Access denied'}), 403
+    if case_type not in {'message', 'ticket'}:
+        return jsonify({'ok': False, 'message': 'Invalid case type'}), 400
+    detail = build_case_detail(case_type, source_id, lang=_lang())
+    if not detail:
+        return jsonify({'ok': False, 'message': 'Case not found'}), 404
+    is_en = _lang() == 'en'
+    labels = _support_label_maps(is_en)
+    fmt = lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']) if dt else ''
+    case = detail['case']
+    user = detail.get('user')
+    tenant = detail.get('tenant')
+    assignee = detail.get('assignee')
+    owner_label = (getattr(user, 'full_name', None) or getattr(user, 'username', None)) if user else (getattr(tenant, 'display_name', None) if tenant else '')
+    attachments = _support_attachments_for(case_type, source_id)
+    recent = recent_cases_for_user(getattr(user, 'id', None), exclude_case_key=detail['case_key'], limit=5)
+    return jsonify({
+        'ok': True,
+        'case_key': detail['case_key'],
+        'case_type': case_type,
+        'source_id': source_id,
+        'subject': case.subject or '',
+        'status': case.status,
+        'status_label': labels['status'].get(case.status, case.status),
+        'priority': case.priority,
+        'priority_label': labels['priority'].get(case.priority, case.priority),
+        'category': case.case_type,
+        'created_at': fmt(case.created_at),
+        'updated_at': fmt(case.updated_at),
+        'until_sla_hours': detail.get('until_sla_hours'),
+        'overdue': detail.get('overdue', False),
+        'owner': {
+            'id': getattr(user, 'id', None),
+            'name': owner_label,
+            'email': getattr(user, 'email', None) or '',
+            'phone': ((getattr(user, 'phone_country_code', '') or '') + ' ' + (getattr(user, 'phone_number', '') or '')).strip(),
+            'created_at': fmt(getattr(user, 'created_at', None)) if user else '',
+        },
+        'tenant': {
+            'id': getattr(tenant, 'id', None),
+            'name': getattr(tenant, 'display_name', '') or '',
+        },
+        'assignee': {
+            'id': getattr(assignee, 'id', None),
+            'name': (getattr(assignee, 'full_name', None) or getattr(assignee, 'username', None)) if assignee else '',
+        },
+        'messages': [{
+            'id': m.id,
+            'sender_scope': getattr(m, 'sender_scope', '') or '',
+            'is_internal_note': bool(getattr(m, 'is_internal_note', False)),
+            'body': getattr(m, 'body', '') or '',
+            'created_at': fmt(getattr(m, 'created_at', None)),
+        } for m in detail.get('messages', [])],
+        'attachments': [{
+            'id': a.id,
+            'name': a.original_filename or a.filename,
+            'size_kb': round((a.file_size or 0) / 1024, 1),
+            'download_url': url_for('support.support_attachment_download', attachment_id=a.id),
+        } for a in attachments],
+        'recent': [{
+            'case_key': r['case_key'],
+            'subject': r['case'].subject or '',
+            'status': r['case'].status,
+            'reference': f'#SUP-{r["case"].source_id:05d}',
+        } for r in recent],
+    })
 
 
 @support_bp.route('/admin/support-command-center/action', methods=['POST'])
@@ -502,6 +688,20 @@ def admin_support_command_action():
     action = (request.form.get('case_action') or '').strip()
     filter_key = (request.args.get('filter') or request.form.get('filter_key') or 'all').strip()
     case_key = f'{case_type}-{source_id}' if case_type and source_id else ''
+    wants_json = _wants_json_response()
+
+    def _finish(message_text: str, category: str = 'success', case_type_override: str | None = None, source_id_override: int | None = None, extra: dict | None = None):
+        """Either flash + redirect, or return JSON, depending on the caller."""
+        ct = case_type_override if case_type_override is not None else case_type
+        sid = source_id_override if source_id_override is not None else source_id
+        ck = f'{ct}-{sid}' if ct and sid else ''
+        if wants_json:
+            return _ajax_action_response(ct, sid, message_text, category=category, filter_key=filter_key, extra=extra)
+        flash(message_text, category)
+        if ck:
+            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=ck) + f'#case-{ck}')
+        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
+
     if action == 'create_case':
         kind = (request.form.get('kind') or 'message').strip()
         target_user = AppUser.query.get(int(request.form.get('target_user_id') or 0))
@@ -510,8 +710,7 @@ def admin_support_command_action():
         priority = (request.form.get('priority') or 'normal').strip()
         category = (request.form.get('category') or 'support').strip()
         if not target_user or not subject or not body:
-            flash('اختر المشترك واكتب العنوان والرسالة قبل الإنشاء.', 'warning')
-            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
+            return _finish('اختر المشترك واكتب العنوان والرسالة قبل الإنشاء.', 'warning')
         tenant_id = _support_owner_tenant_id(target_user)
         if kind == 'ticket':
             source = SupportTicket(
@@ -553,17 +752,14 @@ def admin_support_command_action():
         notify_user(target_user.id, source_type=case_type, source_id=source.id, tenant_id=tenant_id, title='طلب دعم جديد من الإدارة', message=subject, direct_url=portal_case_url(case_type, source.id, _lang()))
         audit_case(case_type, source.id, actor_id, 'case.admin_create', 'Admin created support case from command center', {'target_user_id': target_user.id, 'attachments': len(attachments)}, commit=False)
         db.session.commit()
-        flash('تم إنشاء طلب الدعم وإشعار المشترك.', 'success')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=f'{case_type}-{source.id}') + f'#case-{case_type}-{source.id}')
+        return _finish('تم إنشاء طلب الدعم وإشعار المشترك.', 'success', case_type_override=case_type, source_id_override=source.id)
     source = _support_source_for(case_type, source_id)
     if not source:
-        flash('تعذر العثور على عنصر الدعم.', 'danger')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
+        return _finish('تعذر العثور على عنصر الدعم.', 'danger')
 
     old_status = (getattr(source, 'status', None) or 'open').strip()
     if old_status in ('closed', 'resolved') and action not in ('reopen',):
-        flash('هذا الطلب مغلق ومجمّد. استخدم إعادة فتح أولًا.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+        return _finish('هذا الطلب مغلق ومجمّد. استخدم إعادة فتح أولًا.', 'warning')
 
     owner_id = _support_owner_id_for_source(case_type, source)
     title = getattr(source, 'subject', '') or 'طلب دعم'
@@ -606,8 +802,7 @@ def admin_support_command_action():
             changed = True
 
         if not changed:
-            flash('لا يوجد رد أو تغيير جديد للحفظ.', 'warning')
-            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+            return _finish('لا يوجد رد أو تغيير جديد للحفظ.', 'warning')
 
         source.updated_at = datetime.utcnow()
         last_reply_by = None if is_internal_note else ('admin' if msg else None)
@@ -620,8 +815,14 @@ def admin_support_command_action():
         elif changed and not is_internal_note:
             notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تم تحديث حالة طلب الدعم', message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
         db.session.commit()
-        flash('تم حفظ الرد وتحديث المحادثة.', 'success')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+        return _finish('تم حفظ الرد وتحديث المحادثة.', 'success')
+
+    # Each branch records the user-facing message + category in result_message
+    # so the same text is shown both via flash (HTML flow) and via JSON toast
+    # (AJAX flow). Avoids the previous behaviour where AJAX showed a generic
+    # 'done' message and ignored the per-action wording.
+    result_message = 'تم تنفيذ الإجراء.'
+    result_category = 'success'
 
     if action == 'start_processing':
         source.assigned_admin_user_id = actor_id
@@ -629,7 +830,7 @@ def admin_support_command_action():
         _support_add_public_message(case_type, source, 'بدأ فريق الدعم معالجة طلبك الآن.', actor_id)
         audit_action = 'case.start_processing'
         notification_title = 'بدأت معالجة طلب الدعم'
-        flash('تم بدء المعالجة وتحديث حالة الطلب.', 'success')
+        result_message = 'تم بدء المعالجة وتحديث حالة الطلب.'
     elif action == 'assign_me':
         assigned_admin = actor
         source.assigned_admin_user_id = actor_id
@@ -640,13 +841,14 @@ def admin_support_command_action():
             _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
         audit_action = 'case.assign_me'
         notification_title = 'تم اعتماد المدير المسؤول'
-        flash('تم اعتمادك كمدير مسؤول وإشعار المشترك.', 'success')
+        result_message = 'تم اعتمادك كمدير مسؤول وإشعار المشترك.'
     elif action == 'assign_admin':
         assigned_id = int(request.form.get('assigned_admin_user_id') or 0)
         assigned_admin = AppUser.query.get(assigned_id) if assigned_id else actor
-        if not assigned_admin or not _is_admin_like_user(assigned_admin):
-            flash('اختر عضو إدارة صالح للتعيين.', 'warning')
-            return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+        # Allow any user with can_manage_support, not just is_admin=True roles.
+        valid_assignees = {u.id for u in _support_assignable_admins()}
+        if not assigned_admin or assigned_admin.id not in valid_assignees:
+            return _finish('اختر عضو دعم صالح للتعيين.', 'warning')
         source.assigned_admin_user_id = assigned_admin.id
         if old_status in ('new', 'open', 'pending'):
             source.status = 'assigned'
@@ -655,33 +857,34 @@ def admin_support_command_action():
             _support_add_public_message(case_type, source, _assignment_notice_body('ticket' if case_type == 'ticket' else 'mail', assigned_admin), actor_id)
         audit_action = 'case.assign_admin'
         notification_title = 'تم تعيين مسؤول لطلب الدعم'
-        flash('تم تعيين المسؤول وتسجيل الحركة.', 'success')
+        result_message = 'تم تعيين المسؤول وتسجيل الحركة.'
     elif action == 'mark_urgent':
         source.priority = 'urgent'
         if old_status in ('new', 'open', 'pending'):
             source.status = 'assigned'
         audit_action = 'case.mark_urgent'
         notification_title = 'تم رفع أولوية طلب الدعم'
-        flash('تم وضع علامة عاجل على الطلب.', 'success')
+        result_message = 'تم وضع علامة عاجل على الطلب.'
     elif action == 'tag_followup':
         _support_add_admin_message(case_type, source, 'ملاحظة داخلية: تم وضع علامة متابعة على هذا الطلب.', actor_id, is_internal_note=True)
         audit_action = 'case.tag_followup'
         notification_title = 'تم تحديث طلب الدعم'
         should_notify = False
-        flash('تم تسجيل علامة متابعة داخلية.', 'success')
+        result_message = 'تم تسجيل علامة متابعة داخلية.'
     elif action == 'merge_note':
         _support_add_admin_message(case_type, source, 'ملاحظة داخلية: تم تسجيل هذا الطلب للمراجعة قبل الدمج مع طلب مشابه.', actor_id, is_internal_note=True)
         audit_action = 'case.merge_review'
         notification_title = 'تم تحديث طلب الدعم'
         should_notify = False
-        flash('تم تسجيل طلب الدمج للمراجعة داخل السجل.', 'success')
+        result_message = 'تم تسجيل طلب الدمج للمراجعة داخل السجل.'
     elif action == 'waiting_user':
         if old_status != 'waiting_user':
             source.status = 'waiting_user'
             _support_add_public_message(case_type, source, 'نحتاج منك معلومات إضافية حتى نكمل معالجة الطلب.', actor_id)
-            flash('تم نقل الطلب إلى بانتظار المستخدم.', 'success')
+            result_message = 'تم نقل الطلب إلى بانتظار المستخدم.'
         else:
-            flash('الطلب موجود مسبقًا في حالة بانتظار المستخدم.', 'info')
+            result_message = 'الطلب موجود مسبقًا في حالة بانتظار المستخدم.'
+            result_category = 'info'
         audit_action = 'case.waiting_user'
         notification_title = 'نحتاج معلومات إضافية'
     elif action == 'close':
@@ -689,16 +892,15 @@ def admin_support_command_action():
         _support_add_public_message(case_type, source, 'تم إغلاق الطلب بعد الحل. يمكنك طلب إعادة فتحه عند الحاجة.', actor_id)
         audit_action = 'case.close'
         notification_title = 'تم إغلاق طلب الدعم'
-        flash('تم إغلاق الطلب وتجميده.', 'success')
+        result_message = 'تم إغلاق الطلب وتجميده.'
     elif action == 'reopen':
         source.status = 'open'
         _support_add_public_message(case_type, source, 'تمت إعادة فتح الطلب وسيتم متابعته من جديد.', actor_id)
         audit_action = 'case.reopen'
         notification_title = 'تمت إعادة فتح طلب الدعم'
-        flash('تمت إعادة فتح الطلب.', 'success')
+        result_message = 'تمت إعادة فتح الطلب.'
     else:
-        flash('الإجراء غير معروف.', 'warning')
-        return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key))
+        return _finish('الإجراء غير معروف.', 'warning')
 
     source.updated_at = datetime.utcnow()
     if not getattr(source, 'last_reply_at', None):
@@ -708,7 +910,11 @@ def admin_support_command_action():
     if should_notify:
         notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
     db.session.commit()
-    return redirect(url_for('main.admin_support_command_center', lang=_lang(), filter=filter_key, case=case_key) + f'#case-{case_key}')
+    return _finish(result_message, result_category, extra={
+        'new_status': getattr(source, 'status', None),
+        'new_priority': getattr(source, 'priority', None),
+        'new_assignee_id': getattr(source, 'assigned_admin_user_id', None),
+    })
 
 
 @support_bp.route('/admin/support-command-center/reopen', methods=['POST'])

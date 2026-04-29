@@ -1,250 +1,460 @@
 {% extends "base.html" %}
-{% set is_en = ui_lang == 'en' %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set status_map = labels['status'] %}
 {% set priority_map = labels['priority'] %}
-{% block title %}{{ 'Mail & Technical Support Center' if is_en else 'مركز البريد والدعم الفني' }}{% endblock %}
+{% set t_dash = '—' %}
+{% set t_na = ('Not available' if is_en else 'غير متوفر') %}
+
+{% block title %}{{ 'Support Center' if is_en else 'مركز الدعم' }}{% endblock %}
+
 {% block body %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed support-command-shell-v22" id="appShell">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/support_center.css', v='v23-support-rebuild-20260429') }}">
+<div class="app-shell has-layout-sidebar sidebar-collapsed support-center-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area support-command-main-v22 support-command-main-v23" data-support-mailbox>
-    <section class="support-center-v170 support-center-v22 support-center-v23">
-      <section class="sc-content-v170">
-    <!-- Header and KPI cards -->
-    <header class="sc-header-v170">
-      <div class="sc-title-v170">
-        <h1>مركز البريد والدعم الفني</h1>
-        <p>إدارة الرسائل، التذاكر، والمتابعة من مكان واحد</p>
+  <main class="app-main content-area support-center-main"
+        data-support-center
+        data-current-filter="{{ filter_key }}"
+        data-current-case="{{ selected_key or '' }}"
+        data-list-url="{{ url_for('support.admin_support_command_list_json') }}"
+        data-case-base-url="{{ url_for('support.admin_support_command_center') }}"
+        data-action-url="{{ url_for('main.admin_support_command_action', lang=ui_lang) }}">
+
+    <header class="sc-page-head">
+      <div class="sc-page-head-text">
+        <h1>{{ 'Support &amp; Mail Center' if is_en else 'مركز البريد والدعم الفني' }}</h1>
+        <p>{{ 'Manage messages, tickets, and follow-ups in one place.' if is_en else 'إدارة الرسائل والتذاكر والمتابعة من مكان واحد.' }}</p>
       </div>
-      <section class="sc-kpis-v170" aria-label="Support counters">
-        <a class="kpi green" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='closed') }}"><i>✓</i><span>تم الحل</span><strong>{{ stats.get('closed', 0) }}</strong><small>⌄</small></a>
-        <a class="kpi purple" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='waiting_user') }}"><i>⌛</i><span>بانتظار الرد</span><strong>{{ stats.get('waiting_user', 0) }}</strong><small>⌄</small></a>
-        <a class="kpi red" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>◔</i><span>متأخر</span><strong>{{ stats.get('overdue', 0) }}</strong><small>⌄</small></a>
-        <a class="kpi danger" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>!</i><span>عاجل</span><strong>{{ stats.get('urgent', 0) }}</strong><small>⌄</small></a>
-        <a class="kpi orange" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='unanswered') }}"><i>✉</i><span>غير مقروءة</span><strong>{{ stats.get('unanswered', 0) }}</strong><small>⌄</small></a>
-        <a class="kpi blue" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}"><i>✉</i><span>كل الرسائل</span><strong>{{ stats.get('all', 0) }}</strong><small>⌄</small></a>
-      </section>
+      <div class="sc-page-head-actions">
+        <button type="button" class="sc-btn-v2 ghost" data-sc-refresh>↻ {{ 'Refresh' if is_en else 'تحديث' }}</button>
+      </div>
     </header>
 
-    <!-- Desktop workspace: details / conversation / inbox -->
-    <section class="sc-workspace-v170">
-      <aside class="sc-details-v170">
-        {% for row in rows %}
-          {% set c = row.case %}
-          {% set key = row.case_key %}
-          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else ((row.tenant.display_name) if row.tenant else 'غير محدد')) %}
-          {% set assignee_label = ((row.assignee.full_name or row.assignee.username) if row.assignee else 'خدمة العملاء') %}
-          {% set atts = attachment_map.get(key, []) %}
-          <section class="sc-detail-set-v170 {{ 'is-active' if key == selected_key else '' }}" data-inspector-panel="{{ key }}">
-            <article class="sc-info-card-v170">
-              <h3>تفاصيل التذكرة <span>ⓘ</span></h3>
-              <dl>
-                <div><dt>المعرف</dt><dd>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }}</dd></div>
-                <div><dt>الحالة</dt><dd><b class="sc-badge-v170 status-{{ c.status }}">{{ status_map.get(c.status, 'جديد') }}</b></dd></div>
-                <div><dt>الأولوية</dt><dd><b class="sc-badge-v170 priority-{{ c.priority }}">{{ priority_map.get(c.priority, 'عادي') }}</b></dd></div>
-                <div><dt>القسم</dt><dd>{{ c.category or 'الدعم الفني' }}</dd></div>
-                <div><dt>المسؤول</dt><dd>{{ assignee_label }}</dd></div>
-                <div><dt>تاريخ الإنشاء</dt><dd>{{ format_local(c.created_at) if c.created_at else '-' }}</dd></div>
-                <div><dt>آخر تحديث</dt><dd>{{ format_local(c.updated_at) if c.updated_at else 'منذ 6 دقائق' }}</dd></div>
-              </dl>
-            </article>
-            <article class="sc-info-card-v170">
-              <h3>معلومات المستخدم <span>♙</span></h3>
-              <dl>
-                <div><dt>الاسم</dt><dd>{{ owner_label }}</dd></div>
-                <div><dt>البريد الإلكتروني</dt><dd>{{ row.user.email if row.user and row.user.email else 'alaa.jamal@example.com' }}</dd></div>
-                <div><dt>رقم الجوال</dt><dd>{{ ((row.user.phone_country_code or '') ~ ' ' ~ (row.user.phone_number or '')) if row.user else '+966 50 123 4567' }}</dd></div>
-                <div><dt>العضوية</dt><dd>{{ format_local(row.user.created_at) if row.user and row.user.created_at else 'منذ مارس 2026' }}</dd></div>
-                <div><dt>نوع الاشتراك</dt><dd>{{ row.tenant.display_name if row.tenant else 'باقة برو' }}</dd></div>
-              </dl>
-            </article>
-            <article class="sc-info-card-v170">
-              <h3>آخر التذاكر <span>◷</span></h3>
-              <ul class="sc-recent-v170">
-                <li><span class="dot green"></span><b>مشكلة في الفاتورة</b><small>#SUP-2026-0418-00071</small></li>
-                <li><span class="dot orange"></span><b>تغيير الخطة</b><small>#SUP-2026-0415-00059</small></li>
-                <li><span class="dot blue"></span><b>استفسار عن الفاتورة</b><small>#SUP-2026-0410-00033</small></li>
+    <section class="sc-kpi-row" aria-label="{{ 'Support counters' if is_en else 'عدّادات الدعم' }}">
+      {% set kpi_defs = [
+        ('all',         'all',          'كل الرسائل',  'All messages',  'blue'),
+        ('overdue',     'overdue',      'متأخر',        'Overdue',       'red'),
+        ('waiting_user','waiting_user', 'بانتظار الرد', 'Waiting user',  'purple'),
+        ('urgent',      'urgent',       'عاجل',         'Urgent',        'danger'),
+        ('unanswered',  'unanswered',   'غير مقروءة',  'Unanswered',    'orange'),
+        ('closed',      'closed',       'تم الحل',     'Resolved',      'green')
+      ] %}
+      {% for stat_key, filter_target, ar, en, color in kpi_defs %}
+        <a class="sc-kpi {{ color }} {% if filter_key == filter_target %}is-active{% endif %}"
+           data-filter-target="{{ filter_target }}"
+           href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter=filter_target) }}">
+          <span class="sc-kpi-label">{{ en if is_en else ar }}</span>
+          <strong class="sc-kpi-value" data-stat-key="{{ stat_key }}">{{ stats.get(stat_key, 0) }}</strong>
+        </a>
+      {% endfor %}
+    </section>
+
+    <section class="sc-workspace">
+      <!-- ───────── Right rail: ticket details ───────── -->
+      <aside class="sc-details-panel" data-detail-panel>
+        {% if selected_detail %}
+          {% set c = selected_detail.case %}
+          {% set u = selected_detail.user %}
+          {% set tenant = selected_detail.tenant %}
+          {% set assignee = selected_detail.assignee %}
+          {% set ref = '#SUP-' ~ ('%05d'|format(c.source_id)) %}
+
+          <article class="sc-detail-card">
+            <header class="sc-detail-card-head">
+              <h3>{{ 'Ticket details' if is_en else 'تفاصيل التذكرة' }}</h3>
+              <span class="sc-detail-ref" title="{{ 'Reference' if is_en else 'المعرف' }}">{{ ref }}</span>
+            </header>
+            <dl class="sc-detail-list">
+              <div><dt>{{ 'Status' if is_en else 'الحالة' }}</dt>
+                   <dd><span class="sc-pill status-{{ c.status }}">{{ status_map.get(c.status, c.status) }}</span></dd></div>
+              <div><dt>{{ 'Priority' if is_en else 'الأولوية' }}</dt>
+                   <dd><span class="sc-pill priority-{{ c.priority }}">{{ priority_map.get(c.priority, c.priority) }}</span></dd></div>
+              <div><dt>{{ 'Type' if is_en else 'النوع' }}</dt>
+                   <dd>{{ ('Ticket' if is_en else 'تذكرة') if c.case_type == 'ticket' else ('Message' if is_en else 'رسالة') }}</dd></div>
+              <div><dt>{{ 'Assignee' if is_en else 'المسؤول' }}</dt>
+                   <dd>{{ (assignee.full_name or assignee.username) if assignee else t_na }}</dd></div>
+              <div><dt>{{ 'Created' if is_en else 'تاريخ الإنشاء' }}</dt>
+                   <dd>{{ format_local(c.created_at) if c.created_at else t_na }}</dd></div>
+              <div><dt>{{ 'Last update' if is_en else 'آخر تحديث' }}</dt>
+                   <dd>{{ format_local(c.updated_at) if c.updated_at else t_na }}</dd></div>
+              {% if selected_detail.until_sla_hours is not none %}
+              <div><dt>SLA</dt>
+                   <dd>
+                     {% if selected_detail.until_sla_hours < 0 %}
+                       <span class="sc-pill priority-urgent">{{ 'Overdue' if is_en else 'متأخر' }}</span>
+                     {% else %}
+                       {{ selected_detail.until_sla_hours }} {{ 'h left' if is_en else 'ساعة متبقية' }}
+                     {% endif %}
+                   </dd></div>
+              {% endif %}
+            </dl>
+          </article>
+
+          <article class="sc-detail-card">
+            <header class="sc-detail-card-head">
+              <h3>{{ 'User information' if is_en else 'معلومات المستخدم' }}</h3>
+            </header>
+            <dl class="sc-detail-list">
+              <div><dt>{{ 'Name' if is_en else 'الاسم' }}</dt>
+                   <dd>{{ (u.full_name or u.username) if u else (tenant.display_name if tenant else t_na) }}</dd></div>
+              <div><dt>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</dt>
+                   <dd class="sc-detail-mono">{{ u.email if (u and u.email) else t_na }}</dd></div>
+              <div><dt>{{ 'Phone' if is_en else 'رقم الجوال' }}</dt>
+                   <dd class="sc-detail-mono">{% if u and (u.phone_country_code or u.phone_number) %}{{ (u.phone_country_code or '') }} {{ u.phone_number or '' }}{% else %}{{ t_na }}{% endif %}</dd></div>
+              <div><dt>{{ 'Member since' if is_en else 'العضوية منذ' }}</dt>
+                   <dd>{{ format_local(u.created_at) if (u and u.created_at) else t_na }}</dd></div>
+              <div><dt>{{ 'Tenant' if is_en else 'الحساب' }}</dt>
+                   <dd>{{ tenant.display_name if tenant else t_na }}</dd></div>
+            </dl>
+          </article>
+
+          <article class="sc-detail-card">
+            <header class="sc-detail-card-head">
+              <h3>{{ 'Recent tickets' if is_en else 'آخر التذاكر' }}</h3>
+            </header>
+            {% if selected_recent %}
+              <ul class="sc-recent-list">
+                {% for r in selected_recent %}
+                  {% set rc = r.case %}
+                  <li>
+                    <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter=filter_key, case=r.case_key) }}"
+                       data-case-link="{{ r.case_key }}">
+                      <span class="sc-status-dot status-{{ rc.status }}"></span>
+                      <strong>{{ rc.subject or t_na }}</strong>
+                      <small>#{{ '%05d'|format(rc.source_id) }}</small>
+                    </a>
+                  </li>
+                {% endfor %}
               </ul>
-            </article>
-            <article class="sc-info-card-v170">
-              <h3>الملفات المرفقة <span>⌘</span></h3>
-              {% for att in atts %}
-                <a class="sc-attachment-v170" href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}"><i>PDF</i><span>{{ att.original_filename or att.filename }}</span><small>{{ (att.file_size / 1024)|round(1) }} KB</small><b>⇩</b></a>
-              {% else %}
-                <a class="sc-attachment-v170" href="#"><i>PDF</i><span>INV-2026-4587.pdf</span><small>240 KB • 25 أبريل 2026</small><b>⇩</b></a>
-              {% endfor %}
-            </article>
-            <article class="sc-info-card-v170">
-              <h3>إجراءات سريعة <span>⚡</span></h3>
-              <div class="sc-quick-v170">
-                <a href="{{ row.url }}">فتح ملف المشترك</a>
-                <a href="#reply-{{ key }}">إرسال رسالة</a>
-                <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="case_type" value="{{ c.case_type }}">
-                  <input type="hidden" name="source_id" value="{{ c.source_id }}">
-                  <input type="hidden" name="filter_key" value="{{ filter_key }}">
-                  <button type="submit" name="case_action" value="assign_me">تعيين مسؤول</button>
-                </form>
-              </div>
-            </article>
-          </section>
+            {% else %}
+              <p class="sc-empty-mini">{{ 'No other tickets for this user.' if is_en else 'لا توجد تذاكر أخرى لهذا المستخدم.' }}</p>
+            {% endif %}
+          </article>
+
+          <article class="sc-detail-card">
+            <header class="sc-detail-card-head">
+              <h3>{{ 'Attached files' if is_en else 'الملفات المرفقة' }}</h3>
+            </header>
+            {% if selected_attachments %}
+              <ul class="sc-attachment-list">
+                {% for att in selected_attachments %}
+                  <li>
+                    <a href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}">
+                      <span class="sc-attach-ext">{{ (att.original_filename or att.filename).rsplit('.', 1)[-1][:4]|upper }}</span>
+                      <span class="sc-attach-name">{{ att.original_filename or att.filename }}</span>
+                      <small>{{ ((att.file_size or 0) / 1024)|round(1) }} KB</small>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="sc-empty-mini">{{ 'No attachments.' if is_en else 'لا توجد مرفقات.' }}</p>
+            {% endif %}
+          </article>
+
+          <article class="sc-detail-card">
+            <header class="sc-detail-card-head">
+              <h3>{{ 'Quick actions' if is_en else 'إجراءات سريعة' }}</h3>
+            </header>
+            <div class="sc-quick-actions">
+              {% if u %}
+                <a class="sc-btn-v2 ghost" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang) }}">{{ 'Open user profile' if is_en else 'فتح ملف المشترك' }}</a>
+              {% endif %}
+              <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-sc-action-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="case_type" value="{{ c.case_type }}">
+                <input type="hidden" name="source_id" value="{{ c.source_id }}">
+                <input type="hidden" name="filter_key" value="{{ filter_key }}">
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="assign_me">{{ 'Assign to me' if is_en else 'تعيين مسؤول' }}</button>
+              </form>
+            </div>
+          </article>
+
         {% else %}
-          <article class="sc-info-card-v170"><p class="sc-empty-v170">لا توجد بيانات.</p></article>
-        {% endfor %}
+          <article class="sc-detail-card">
+            <p class="sc-empty-mini">{{ 'Select a ticket to view details.' if is_en else 'اختر تذكرة لعرض التفاصيل.' }}</p>
+          </article>
+        {% endif %}
       </aside>
 
-      <section class="sc-conversation-v170">
-        {% for row in rows %}
-          {% set c = row.case %}
-          {% set key = row.case_key %}
-          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'غير محدد') %}
+      <!-- ───────── Center: conversation thread ───────── -->
+      <section class="sc-thread-panel" data-thread-panel>
+        {% if selected_detail %}
+          {% set c = selected_detail.case %}
+          {% set u = selected_detail.user %}
           {% set is_closed = c.status in ['closed','resolved'] %}
-          <article class="sc-thread-v170 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}" id="case-{{ key }}">
-            <header class="sc-thread-head-v170">
-              <form class="sc-thread-tools-v170" method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="case_type" value="{{ c.case_type }}">
-                <input type="hidden" name="source_id" value="{{ c.source_id }}">
-                <input type="hidden" name="filter_key" value="{{ filter_key }}">
-                <button type="submit" name="case_action" value="merge_note" title="تسجيل للمراجعة">...</button>
-                <button type="submit" name="case_action" value="tag_followup" title="علامة متابعة">◇</button>
-                <button type="submit" name="case_action" value="mark_urgent" title="عاجل">☆</button>
-              </form>
-              <div>
-                <h2><span></span>{{ c.subject or 'بدون عنوان' }}</h2>
-                <p>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }}</p>
-              </div>
-            </header>
-            <div class="sc-thread-meta-v170">
-              <span class="sc-avatar-v170">{{ (owner_label or 'A')[:1] }}</span>
-              <strong>{{ owner_label }}</strong>
-              {% if row.until_sla_hours is not none %}<b class="sc-badge-v170 sla">SLA باقي {{ row.until_sla_hours }} ساعة</b>{% else %}<b class="sc-badge-v170 sla">SLA باقي 42 دقيقة</b>{% endif %}
-              <b class="sc-badge-v170 priority-{{ c.priority }}">{{ priority_map.get(c.priority, 'عادي') }}</b>
-              <b class="sc-badge-v170 status-{{ c.status }}">{{ status_map.get(c.status, 'جديد') }}</b>
-            </div>
-            <div class="sc-action-row-v170">
-              <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="case_type" value="{{ c.case_type }}">
-                <input type="hidden" name="source_id" value="{{ c.source_id }}">
-                <input type="hidden" name="filter_key" value="{{ filter_key }}">
-                {% if is_closed %}
-                  <button class="primary" name="case_action" value="reopen">إعادة فتح</button>
-                {% else %}
-                  <button class="primary" name="case_action" value="start_processing">بدء معالجة</button>
-                  <select name="assigned_admin_user_id" aria-label="تعيين مسؤول">
-                    {% for admin in admin_users %}
-                      <option value="{{ admin.id }}" {% if c.assigned_admin_user_id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
-                    {% endfor %}
-                  </select>
-                  <button name="case_action" value="assign_admin">تعيين</button>
-                  <button name="case_action" value="waiting_user">↢</button>
-                  <button name="case_action" value="mark_urgent">وضع علامة</button>
-                  <button name="case_action" value="merge_note">دمج</button>
-                  <button class="danger" name="case_action" value="close">إغلاق</button>
+          {% set ref = '#SUP-' ~ ('%05d'|format(c.source_id)) %}
+          {% set owner_label = (u.full_name or u.username) if u else (selected_detail.tenant.display_name if selected_detail.tenant else t_na) %}
+
+          <header class="sc-thread-head">
+            <div class="sc-thread-head-titles">
+              <h2>{{ c.subject or (('Untitled' if is_en else 'بدون عنوان')) }}</h2>
+              <p class="sc-thread-meta-line">
+                <span class="sc-thread-ref">{{ ref }}</span>
+                <span class="sc-thread-owner">{{ owner_label }}</span>
+                <span class="sc-pill status-{{ c.status }}">{{ status_map.get(c.status, c.status) }}</span>
+                <span class="sc-pill priority-{{ c.priority }}">{{ priority_map.get(c.priority, c.priority) }}</span>
+                {% if selected_detail.until_sla_hours is not none %}
+                  <span class="sc-pill {% if selected_detail.until_sla_hours < 0 %}priority-urgent{% else %}sla{% endif %}">
+                    {% if selected_detail.until_sla_hours < 0 %}
+                      {{ 'Overdue' if is_en else 'متأخر' }}
+                    {% else %}
+                      SLA · {{ selected_detail.until_sla_hours }}{{ 'h' if is_en else 'س' }}
+                    {% endif %}
+                  </span>
                 {% endif %}
-              </form>
+              </p>
             </div>
-            <div class="sc-message-list-v170" data-thread-scroll>
-              {% for msg in row.messages %}
-                <section class="sc-message-v170 {{ 'agent' if msg.sender_scope == 'admin' else 'customer' }} {% if msg.is_internal_note %}note{% endif %}">
-                  <span>{{ format_local(msg.created_at) if msg.created_at else 'اليوم 09:08' }}</span>
-                  <strong>{% if msg.is_internal_note %}ملاحظة داخلية{% elif msg.sender_scope == 'admin' %}خدمة العملاء{% else %}{{ owner_label }}{% endif %}</strong>
-                  <p>{{ msg.body }}</p>
-                </section>
-              {% else %}
-                <section class="sc-message-v170 customer"><span>اليوم 09:08</span><strong>Alaa Jamal &lt;alaa.jamal@example.com&gt;</strong><p>لدي استفسار بخصوص الخصم في الفاتورة رقم INV-2026-4587. لم يتم تطبيق خصم الربيع في الحساب. أرجو التحقق من ذلك وإعلامي بالنتيجة. شكراً لكم.</p></section>
-                <section class="sc-message-v170 agent"><span>اليوم 09:13</span><strong>خدمة العملاء</strong><p>مرحباً علاء، شكراً لتواصلك معنا. تم مراجعة الفاتورة وسيتم تصحيح الخصم خلال 24 ساعة. سنقوم بإشعارك عند تحديث الفاتورة.</p></section>
-                <section class="sc-message-v170 note"><span>اليوم 09:15</span><strong>ملاحظة داخلية</strong><p>الخصم مرتبط بحملة الربيع. تم التأكد من النظام وسيتم التحديث.</p></section>
-              {% endfor %}
-              <div class="sc-transfer-v170">تم تحويل التذكرة إلى المدير المسؤول</div>
-            </div>
-            <form id="reply-{{ key }}" class="sc-composer-v170" method="post" enctype="multipart/form-data" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-support-reply-form data-case-key="{{ key }}">
+          </header>
+
+          {# ─── Toolbar — grouped actions, AJAX-aware via JS ─── #}
+          <div class="sc-toolbar" data-sc-toolbar>
+            <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-sc-action-form>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="case_type" value="{{ c.case_type }}">
               <input type="hidden" name="source_id" value="{{ c.source_id }}">
               <input type="hidden" name="filter_key" value="{{ filter_key }}">
-              <input type="hidden" name="is_internal_note" value="0" data-internal-note-input>
-              <div class="sc-tabs-v170">
-                <button type="button" class="active" data-reply-mode="reply">رد</button>
-                <button type="button" data-reply-mode="internal">ملاحظة داخلية</button>
-                <button type="button" data-canned-toggle>رد جاهز</button>
-                <button type="button" data-reply-mode="forward">إعادة توجيه</button>
+
+              <div class="sc-toolbar-group" data-group="primary">
+                {% if is_closed %}
+                  <button type="submit" class="sc-btn-v2 primary" name="case_action" value="reopen">{{ 'Reopen' if is_en else 'إعادة فتح' }}</button>
+                {% else %}
+                  <button type="submit" class="sc-btn-v2 primary" name="case_action" value="start_processing">{{ 'Start processing' if is_en else 'بدء معالجة' }}</button>
+                {% endif %}
               </div>
-              <div class="sc-toolbar-v170">
-                <button type="button">&lt;&gt;</button><button type="button">☷</button><button type="button">☰</button><button type="button">≡</button><button type="button">⌁</button><button type="button">▧</button><button type="button">☺</button><button type="button">⌘</button><button type="button">U</button><button type="button"><i>I</i></button><button type="button"><b>B</b></button>
-                <select name="status" data-status-select>{% for st in status_options %}<option value="{{ st }}" {% if c.status==st %}selected{% endif %}>{{ status_map.get(st, st) }}</option>{% endfor %}</select>
-                <select name="priority">{% for pr in priority_options %}<option value="{{ pr }}" {% if c.priority==pr %}selected{% endif %}>{{ priority_map.get(pr, pr) }}</option>{% endfor %}</select>
-                <select name="assigned_admin_user_id">{% for admin in admin_users %}<option value="{{ admin.id }}" {% if c.assigned_admin_user_id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}</select>
+
+              {% if not is_closed %}
+              <div class="sc-toolbar-group" data-group="assign" title="{{ 'Assign' if is_en else 'تعيين المسؤول' }}">
+                <select name="assigned_admin_user_id" class="sc-select" aria-label="{{ 'Assignee' if is_en else 'المسؤول' }}">
+                  <option value="">{{ '— Unassigned —' if is_en else '— بدون مسؤول —' }}</option>
+                  {% for admin in admin_users %}
+                    <option value="{{ admin.id }}" {% if c.assigned_admin_user_id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="sc-btn-v2" name="case_action" value="assign_admin">{{ 'Assign' if is_en else 'تعيين' }}</button>
               </div>
-              <textarea name="body" data-reply-textarea placeholder="اكتب ردك هنا..." {% if is_closed %}disabled{% endif %}></textarea>
-              <footer>
-                <button type="button" data-canned-toggle>قوالب الردود</button>
-                <label><input type="checkbox" name="close_after_send" value="1"> إرسال وإغلاق المحادثة</label>
-                <label class="attach"><input type="file" name="attachments" multiple {% if is_closed %}disabled{% endif %}> إرفاق ملف</label>
-                <button type="submit" name="case_action" value="save_draft">حفظ مسودة</button>
-                {% if not is_closed %}<button class="send" type="submit" name="case_action" value="send_reply">إرسال الرد</button>{% endif %}
-              </footer>
-              <section class="canned-drawer-v62 sc-canned-v170" data-canned-drawer hidden>
-                <div class="canned-drawer-head-v62"><strong>قوالب الردود</strong><button type="button" data-canned-close>×</button></div>
-                <div class="canned-grid-v62">{% for cr in canned_rows %}{% set reply = cr.item %}<article class="canned-card-v62" data-canned-card data-canned-text="{{ reply.body|e }}" data-canned-status="{{ cr.suggested_status }}"><strong>{{ reply.title }}</strong><p>{{ reply.body }}</p><div><button type="button" class="btn btn-sm btn-outline-primary" data-canned-action="insert">إدراج</button><button type="button" class="btn btn-sm btn-solar" data-canned-action="send">إرسال مباشر</button></div></article>{% else %}<p>لا توجد قوالب رد بعد.</p>{% endfor %}</div>
-              </section>
+
+              <div class="sc-toolbar-group" data-group="status">
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="waiting_user" title="{{ 'Move to waiting user' if is_en else 'بانتظار المستخدم' }}">{{ 'Waiting user' if is_en else 'بانتظار الرد' }}</button>
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="mark_urgent" title="{{ 'Mark urgent' if is_en else 'علامة عاجل' }}">{{ 'Urgent' if is_en else 'عاجل' }}</button>
+              </div>
+
+              <div class="sc-toolbar-group" data-group="meta">
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="tag_followup" title="{{ 'Add follow-up note' if is_en else 'علامة متابعة' }}">{{ 'Follow-up' if is_en else 'متابعة' }}</button>
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="merge_note" title="{{ 'Mark for merge review' if is_en else 'تسجيل للدمج' }}">{{ 'Merge' if is_en else 'دمج' }}</button>
+              </div>
+
+              <div class="sc-toolbar-group" data-group="danger">
+                <button type="submit" class="sc-btn-v2 danger" name="case_action" value="close" data-sc-confirm="{{ 'Close this case?' if is_en else 'هل تريد إغلاق الطلب؟' }}">{{ 'Close' if is_en else 'إغلاق' }}</button>
+              </div>
+              {% endif %}
             </form>
-          </article>
+          </div>
+
+          <div class="sc-message-list" data-thread-scroll>
+            {% if selected_detail.messages %}
+              {% for msg in selected_detail.messages %}
+                {% set msg_role = 'agent' if msg.sender_scope == 'admin' else 'customer' %}
+                <article class="sc-message {{ msg_role }} {% if msg.is_internal_note %}is-note{% endif %}">
+                  <header class="sc-message-head">
+                    <strong>
+                      {% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}
+                      {% elif msg.sender_scope == 'admin' %}{{ 'Support team' if is_en else 'خدمة العملاء' }}
+                      {% else %}{{ owner_label }}{% endif %}
+                    </strong>
+                    <time>{{ format_local(msg.created_at) if msg.created_at else t_dash }}</time>
+                  </header>
+                  <p class="sc-message-body">{{ msg.body }}</p>
+                </article>
+              {% endfor %}
+            {% else %}
+              <p class="sc-empty-mini">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</p>
+            {% endif %}
+          </div>
+
+          <form class="sc-composer"
+                method="post"
+                enctype="multipart/form-data"
+                action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}"
+                data-sc-reply-form
+                data-case-key="{{ c.case_type }}-{{ c.source_id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="case_type" value="{{ c.case_type }}">
+            <input type="hidden" name="source_id" value="{{ c.source_id }}">
+            <input type="hidden" name="filter_key" value="{{ filter_key }}">
+            <input type="hidden" name="is_internal_note" value="0" data-internal-note-input>
+
+            <div class="sc-composer-tabs" role="tablist">
+              <button type="button" class="is-active" data-reply-mode="reply">{{ 'Reply' if is_en else 'رد' }}</button>
+              <button type="button" data-reply-mode="internal">{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</button>
+              <button type="button" data-canned-toggle>{{ 'Canned replies' if is_en else 'رد جاهز' }}</button>
+            </div>
+
+            <div class="sc-composer-meta">
+              <label>
+                <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                <select name="status" class="sc-select" data-status-select {% if is_closed %}disabled{% endif %}>
+                  {% for st in status_options %}<option value="{{ st }}" {% if c.status==st %}selected{% endif %}>{{ status_map.get(st, st) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
+                <select name="priority" class="sc-select" {% if is_closed %}disabled{% endif %}>
+                  {% for pr in priority_options %}<option value="{{ pr }}" {% if c.priority==pr %}selected{% endif %}>{{ priority_map.get(pr, pr) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>{{ 'Assignee' if is_en else 'المسؤول' }}</span>
+                <select name="assigned_admin_user_id" class="sc-select" {% if is_closed %}disabled{% endif %}>
+                  <option value="">{{ '— Unassigned —' if is_en else '— بدون مسؤول —' }}</option>
+                  {% for admin in admin_users %}
+                    <option value="{{ admin.id }}" {% if c.assigned_admin_user_id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
+            <textarea name="body" data-reply-textarea
+                      placeholder="{{ 'Type your reply here…' if is_en else 'اكتب ردك هنا…' }}"
+                      {% if is_closed %}disabled{% endif %}></textarea>
+
+            <footer class="sc-composer-footer">
+              <label class="sc-composer-attach {% if is_closed %}is-disabled{% endif %}">
+                <input type="file" name="attachments" multiple {% if is_closed %}disabled{% endif %}>
+                <span>📎 {{ 'Attach file' if is_en else 'إرفاق ملف' }}</span>
+              </label>
+              <label class="sc-composer-checkbox">
+                <input type="checkbox" name="close_after_send" value="1" {% if is_closed %}disabled{% endif %}>
+                <span>{{ 'Send and close' if is_en else 'إرسال وإغلاق' }}</span>
+              </label>
+              <div class="sc-composer-actions">
+                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="save_draft" {% if is_closed %}disabled{% endif %}>{{ 'Save draft' if is_en else 'حفظ مسودة' }}</button>
+                {% if not is_closed %}
+                  <button type="submit" class="sc-btn-v2 primary" name="case_action" value="send_reply">{{ 'Send reply' if is_en else 'إرسال الرد' }}</button>
+                {% endif %}
+              </div>
+            </footer>
+
+            <section class="sc-canned-drawer" data-canned-drawer hidden>
+              <header>
+                <strong>{{ 'Canned replies' if is_en else 'قوالب الردود' }}</strong>
+                <button type="button" data-canned-close aria-label="{{ 'Close' if is_en else 'إغلاق' }}">×</button>
+              </header>
+              <div class="sc-canned-grid">
+                {% for cr in canned_rows %}
+                  {% set reply = cr.item %}
+                  <article class="sc-canned-card" data-canned-card data-canned-text="{{ reply.body|e }}" data-canned-status="{{ cr.suggested_status }}">
+                    <strong>{{ reply.title }}</strong>
+                    <p>{{ reply.body }}</p>
+                    <div class="sc-canned-actions">
+                      <button type="button" class="sc-btn-v2 ghost sm" data-canned-action="insert">{{ 'Insert' if is_en else 'إدراج' }}</button>
+                      <button type="button" class="sc-btn-v2 primary sm" data-canned-action="send">{{ 'Send now' if is_en else 'إرسال مباشر' }}</button>
+                    </div>
+                  </article>
+                {% else %}
+                  <p class="sc-empty-mini">{{ 'No canned replies yet.' if is_en else 'لا توجد قوالب رد بعد.' }}</p>
+                {% endfor %}
+              </div>
+            </section>
+          </form>
+
         {% else %}
-          <article class="sc-thread-v170 is-active"><p class="sc-empty-v170">لا توجد رسائل دعم حالياً.</p></article>
-        {% endfor %}
+          <div class="sc-thread-empty">
+            <p>{{ 'No support cases match this filter.' if is_en else 'لا توجد طلبات ضمن هذا الفلتر.' }}</p>
+          </div>
+        {% endif %}
       </section>
 
-      <aside class="sc-inbox-v170">
-        <header>
-          <a class="new" href="#new-case-form" data-open-new-case>رسالة جديدة</a>
-          <button class="drop" type="button" data-open-new-case>⌄</button>
-          <input id="supportQueueSearch" type="search" placeholder="Ctrl K ابحث بالاسم، البريد، رقم التذكرة، أو الموضوع">
+      <!-- ───────── Left rail: inbox list ───────── -->
+      <aside class="sc-inbox-panel" data-inbox-panel>
+        <header class="sc-inbox-head">
+          <button type="button" class="sc-btn-v2 primary" data-open-new-case>+ {{ 'New' if is_en else 'رسالة جديدة' }}</button>
+          <input class="sc-inbox-search" type="search" placeholder="{{ 'Search subject, user, or #ID…' if is_en else 'ابحث بالعنوان أو المستخدم أو الرقم…' }}" data-inbox-search>
         </header>
-        <nav class="sc-filters-v170">
-          <a class="{{ 'active' if filter_key == 'all' else '' }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}">كل الدعم</a>
-          <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine') }}">المخصص لي</a>
-          <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='unassigned') }}">بدون مدير</a>
-          <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}">عاجل</a>
-          <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='waiting_user') }}">بانتظار الرد</a>
+
+        <nav class="sc-inbox-filters" aria-label="{{ 'Quick filters' if is_en else 'فلاتر سريعة' }}">
+          {% for fk, ar, en, count in filter_defs %}
+            <a class="sc-filter-chip {% if filter_key == fk %}is-active{% endif %}"
+               data-filter-target="{{ fk }}"
+               href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter=fk) }}">
+              <span>{{ en if is_en else ar }}</span>
+              <b data-stat-key="{{ fk }}">{{ count }}</b>
+            </a>
+          {% endfor %}
         </nav>
-        <details id="new-case-form" class="sc-new-case-v170">
-          <summary>إنشاء رسالة جديدة</summary>
-          <form method="post" enctype="multipart/form-data" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-support-reply-form>
+
+        <details class="sc-new-case" data-new-case>
+          <summary>{{ 'Create new case' if is_en else 'إنشاء طلب جديد' }}</summary>
+          <form method="post" enctype="multipart/form-data" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-sc-action-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="case_action" value="create_case">
-            <select name="target_user_id" required><option value="">اختر المشترك</option>{% for u in subscriber_users %}<option value="{{ u.id }}">{{ u.full_name or u.username }} - {{ u.email or u.username }}</option>{% endfor %}</select>
-            <select name="kind"><option value="message">رسالة</option><option value="ticket">تذكرة</option></select>
-            <select name="priority"><option value="normal">عادي</option><option value="high">مهم</option><option value="urgent">عاجل</option></select>
-            <input name="category" value="support" placeholder="القسم">
-            <input name="subject" required placeholder="العنوان">
-            <textarea name="body" rows="3" required placeholder="نص الرسالة"></textarea>
-            <button type="submit">إرسال</button>
+            <label>
+              <span>{{ 'Subscriber' if is_en else 'المشترك' }}</span>
+              <select name="target_user_id" required class="sc-select">
+                <option value="">{{ 'Select…' if is_en else 'اختر…' }}</option>
+                {% for u in subscriber_users %}<option value="{{ u.id }}">{{ u.full_name or u.username }} {% if u.email %}— {{ u.email }}{% endif %}</option>{% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>{{ 'Type' if is_en else 'النوع' }}</span>
+              <select name="kind" class="sc-select">
+                <option value="message">{{ 'Message' if is_en else 'رسالة' }}</option>
+                <option value="ticket">{{ 'Ticket' if is_en else 'تذكرة' }}</option>
+              </select>
+            </label>
+            <label>
+              <span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
+              <select name="priority" class="sc-select">
+                <option value="normal">{{ 'Normal' if is_en else 'عادي' }}</option>
+                <option value="high">{{ 'High' if is_en else 'مهم' }}</option>
+                <option value="urgent">{{ 'Urgent' if is_en else 'عاجل' }}</option>
+              </select>
+            </label>
+            <label><span>{{ 'Subject' if is_en else 'العنوان' }}</span><input name="subject" required></label>
+            <label><span>{{ 'Body' if is_en else 'نص الرسالة' }}</span><textarea name="body" rows="3" required></textarea></label>
+            <button type="submit" class="sc-btn-v2 primary">{{ 'Create' if is_en else 'إرسال' }}</button>
           </form>
         </details>
-        <section class="sc-ticket-list-v170">
-          {% for row in rows %}
-            {% set c = row.case %}
-            {% set key = row.case_key %}
-            {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'غير محدد') %}
-            <button class="sc-ticket-card-v170 {{ 'is-active' if key == selected_key else '' }} status-{{ c.status }} priority-{{ c.priority }}" type="button" data-case-row data-case-target="{{ key }}" data-title="{{ c.subject|lower }}" data-owner="{{ owner_label|lower }}" data-status="{{ status_map.get(c.status, c.status)|lower }} {{ priority_map.get(c.priority, c.priority)|lower }}">
-              <time>{{ format_local(c.updated_at) if c.updated_at else '-' }}</time>
-              <span class="sc-avatar-v170">{{ (owner_label or 'A')[:1] }}</span>
-              <strong>{{ c.subject or 'بدون عنوان' }}</strong>
-              <small>{{ owner_label }}</small>
-              <em>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }} {{ row.last_preview or '' }}</em>
-              <b class="sc-badge-v170 status-{{ c.status }}">{{ status_map.get(c.status, 'جديد') }}</b>
-            </button>
+
+        <section class="sc-inbox-list" data-inbox-list>
+          {% if rows %}
+            {% for row in rows %}
+              {% set c = row.case %}
+              {% set key = row.case_key %}
+              {% set owner = row.user %}
+              {% set owner_label = (owner.full_name or owner.username) if owner else (row.tenant.display_name if row.tenant else t_na) %}
+              <button type="button"
+                      class="sc-inbox-card {% if key == selected_key %}is-active{% endif %} status-{{ c.status }} priority-{{ c.priority }}"
+                      data-case-link="{{ key }}"
+                      data-case-search="{{ ((c.subject or '') ~ ' ' ~ owner_label ~ ' ' ~ key)|lower }}">
+                <span class="sc-inbox-avatar">{{ (owner_label or '?')[:1]|upper }}</span>
+                <div class="sc-inbox-text">
+                  <div class="sc-inbox-row1">
+                    <strong>{{ c.subject or (('Untitled' if is_en else 'بدون عنوان')) }}</strong>
+                    <time>{{ format_local(c.updated_at) if c.updated_at else t_dash }}</time>
+                  </div>
+                  <div class="sc-inbox-row2">
+                    <span class="sc-inbox-owner">{{ owner_label }}</span>
+                    <span class="sc-inbox-ref">#{{ '%05d'|format(c.source_id) }}</span>
+                  </div>
+                  {% if row.last_preview %}<p class="sc-inbox-preview">{{ row.last_preview }}</p>{% endif %}
+                  <div class="sc-inbox-row3">
+                    <span class="sc-pill status-{{ c.status }}">{{ status_map.get(c.status, c.status) }}</span>
+                    {% if c.priority in ['high','urgent'] %}<span class="sc-pill priority-{{ c.priority }}">{{ priority_map.get(c.priority, c.priority) }}</span>{% endif %}
+                    {% if row.overdue %}<span class="sc-pill priority-urgent">{{ 'Overdue' if is_en else 'متأخر' }}</span>{% endif %}
+                  </div>
+                </div>
+              </button>
+            {% endfor %}
           {% else %}
-            <p class="sc-empty-v170">لا توجد تذاكر ضمن هذا الفلتر.</p>
-          {% endfor %}
+            <p class="sc-empty-mini">{{ 'No cases match this filter.' if is_en else 'لا توجد طلبات ضمن هذا الفلتر.' }}</p>
+          {% endif %}
         </section>
-        <footer class="sc-pagination-v170"><select><option>10</option></select><span>‹</span><b>1</b><span>2</span><span>3</span><span>4</span><span>...</span><span>›</span></footer>
       </aside>
     </section>
-  </section>
-    </section>
+
+    <div class="sc-toast" data-sc-toast hidden></div>
   </main>
 </div>
+
+<script src="{{ url_for('static', filename='js/support_center.js', v='v23-support-rebuild-20260429') }}" defer></script>
 {% endblock %}
