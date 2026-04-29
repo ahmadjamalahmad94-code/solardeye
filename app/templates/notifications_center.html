@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block body %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_center.css', v='v31-notifications-aggregated-center') }}">
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area nc-page-v31" data-notifications-aggregated-center data-mark-read-url="{{ url_for('main.notifications_mark_read', lang=ui_lang) }}">
+    <header class="nc-hero-v31">
+      <div>
+        <h1>مركز الإشعارات</h1>
+        <p>تابع الرسائل والتذاكر والتنبيهات المهمة من مكان واحد، بشكل منظم ومجمّع.</p>
+      </div>
+    </header>
+
+    <section class="nc-stats-v31">
+      <article><i>✉️</i><span>غير المقروءة</span><strong data-stat-unread>{{ stats.unread_groups or 0 }}</strong><small>مجموعات تحتاج متابعة</small></article>
+      <article><i>💬</i><span>محادثات نشطة</span><strong>{{ stats.active_conversations or 0 }}</strong><small>آخر نشاطات الرسائل</small></article>
+      <article><i>🎫</i><span>تذاكر مفتوحة</span><strong>{{ stats.open_tickets or 0 }}</strong><small>قيد المعالجة</small></article>
+      <article><i>🔔</i><span>تنبيهات النظام</span><strong>{{ stats.system_alerts or 0 }}</strong><small>تحديثات تشغيلية</small></article>
+    </section>
+
+    <nav class="nc-tabs-v31" aria-label="تبويبات الإشعارات">
+      <button class="active" type="button" data-nc-tab="all">الكل</button>
+      <button type="button" data-nc-tab="unread">غير المقروء</button>
+      <button type="button" data-nc-tab="message">الرسائل</button>
+      <button type="button" data-nc-tab="ticket">التذاكر</button>
+      <button type="button" data-nc-tab="system">النظام</button>
+      <button type="button" data-nc-tab="archive">الأرشيف</button>
+    </nav>
+
+    <section class="nc-layout-v31">
+      <section class="nc-main-v31">
+        <div class="nc-list-head-v31">
+          <strong><span data-nc-visible-count>{{ groups|length }}</span> عناصر مجمّعة</strong>
+          <div>
+            <button type="button" class="nc-soft-btn-v31" data-nc-mark-all>اعتبار الكل كمقروء</button>
+          </div>
+        </div>
+
+        <div class="nc-list-v31" data-nc-list>
+          {% for item in groups %}
+          <article class="nc-row-v31 kind-{{ item.kind }} status-{{ item.status }}{% if item.is_archived %} is-archived{% endif %}{% if item.unread_count > 0 %} is-unread{% endif %}"
+                   data-nc-item
+                   data-kind="{{ item.kind }}"
+                   data-status="{{ item.status }}"
+                   data-priority="{{ item.priority }}"
+                   data-unread="{{ item.unread_count }}"
+                   data-archived="{{ 1 if item.is_archived else 0 }}"
+                   data-group-key="{{ item.group_key }}">
+            <div class="nc-kind-v31">{{ item.kind_label }}</div>
+            <div class="nc-row-body-v31">
+              <div class="nc-row-title-v31">
+                <h2>{{ item.title }}</h2>
+                <span class="nc-status-v31 status-{{ item.status }}">{{ item.status_label }}</span>
+                {% if item.priority in ['high','urgent'] %}<span class="nc-priority-v31">{{ item.priority_label }}</span>{% endif %}
+              </div>
+              <p>{{ item.details }}</p>
+              <div class="nc-row-meta-v31">
+                <span>المسؤول: {{ item.assignee }}</span>
+                <span>{{ item.last_activity_label }}</span>
+                <span>{{ item.events_count }} تحديث</span>
+              </div>
+            </div>
+            <div class="nc-row-side-v31">
+              <span class="nc-unread-v31{% if item.unread_count == 0 %} is-zero{% endif %}">{{ item.unread_count }} غير مقروءة</span>
+              <a class="nc-open-btn-v31" href="{{ item.url }}" data-nc-open data-group-key="{{ item.group_key }}">فتح المحادثة</a>
+            </div>
+          </article>
+          {% else %}
+          <div class="nc-empty-v31">لا توجد إشعارات مجمّعة حاليًا.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <aside class="nc-side-v31">
+        <section class="nc-filter-card-v31">
+          <h3>تصفية سريعة</h3>
+          <label><input type="radio" name="quick_status" value="open" data-nc-status-filter checked> مفتوح</label>
+          <label><input type="radio" name="quick_status" value="closed" data-nc-status-filter> مغلق</label>
+          <label><input type="checkbox" value="high" data-nc-priority-filter> عالي الأولوية</label>
+          <button type="button" data-nc-reset>إعادة تعيين الفلاتر</button>
+        </section>
+        <section class="nc-timeline-v31">
+          <h3>تنبيهات النظام</h3>
+          <div>
+            {% for ev in timeline %}
+            <article><i></i><strong>{{ ev.title }}</strong><small>{{ ev.last_activity_label }}</small><p>{{ ev.details }}</p></article>
+            {% else %}
+            <article><i></i><strong>لا توجد تنبيهات نظام</strong><small>—</small><p>ستظهر هنا آخر تنبيهات النظام.</p></article>
+            {% endfor %}
+          </div>
+          <a href="{{ url_for('main.notification_center', lang=ui_lang) }}">عرض كل التنبيهات</a>
+        </section>
+      </aside>
+    </section>
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/notifications_center.js', v='v31-notifications-aggregated-center') }}" defer></script>
+{% endblock %}

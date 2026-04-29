@@ -177,11 +177,35 @@ def notification_items_for(user, is_admin: bool, limit=5, include_read=False, la
 
 
 def unread_counts(user):
-    q = NotificationEvent.query.filter_by(target_user_id=user.id, is_read=False)
-    total = q.count()
-    mail = q.filter_by(source_type='message').count()
-    ticket = q.filter_by(source_type='ticket').count()
-    return total, mail, ticket
+    """Return grouped unread counts.
+
+    A support request with many unread messages should count once in the bell.
+    This keeps the header and notification center aligned with the aggregated UI.
+    """
+    if not user:
+        return 0, 0, 0
+    rows = NotificationEvent.query.filter_by(target_user_id=user.id, is_read=False).all()
+    groups = set()
+    mail_groups = set()
+    ticket_groups = set()
+    for ev in rows:
+        raw_type = (getattr(ev, 'source_type', None) or getattr(ev, 'event_type', None) or 'system').strip().lower()
+        if raw_type in {'mail', 'internal_mail', 'thread', 'conversation'}:
+            source_type = 'message'
+        elif raw_type in {'ticket', 'support_ticket'}:
+            source_type = 'ticket'
+        elif raw_type == 'message':
+            source_type = 'message'
+        else:
+            source_type = 'system'
+        source_id = getattr(ev, 'source_id', None) or getattr(ev, 'id', None)
+        key = f'{source_type}:{source_id}'
+        groups.add(key)
+        if source_type == 'message':
+            mail_groups.add(key)
+        elif source_type == 'ticket':
+            ticket_groups.add(key)
+    return len(groups), len(mail_groups), len(ticket_groups)
 
 
 def _filtered_query(filter_key='all', actor_id=None):

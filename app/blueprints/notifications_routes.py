@@ -355,18 +355,161 @@ def telegram_webhook():
         )
 
 
+
+
+# === Aggregated notification center helpers: v31-notifications-aggregated-center ===
+def _agg_norm_source_type(value):
+    raw = (value or '').strip().lower()
+    if raw in {'message', 'mail', 'internal_mail', 'thread', 'conversation'}:
+        return 'message'
+    if raw in {'ticket', 'support_ticket'}:
+        return 'ticket'
+    return 'system'
+
+
+def _agg_group_key(ev):
+    kind = _agg_norm_source_type(getattr(ev, 'source_type', None) or getattr(ev, 'event_type', None))
+    source_id = getattr(ev, 'source_id', None)
+    if source_id:
+        return f'{kind}-{int(source_id)}'
+    return f'event-{getattr(ev, "id", 0)}'
+
+
+def _agg_support_case(kind, source_id):
+    if kind not in {'message', 'ticket'} or not source_id:
+        return None
+    try:
+        return SupportCase.query.filter_by(case_type=kind, source_id=int(source_id)).first()
+    except Exception:
+        return None
+
+
+def _agg_assignee_name(case):
+    if not case or not getattr(case, 'assigned_admin_user_id', None):
+        return ''
+    try:
+        user = AppUser.query.get(case.assigned_admin_user_id)
+        return (getattr(user, 'full_name', None) or getattr(user, 'username', None) or '') if user else ''
+    except Exception:
+        return ''
+
+
+def _agg_status_label(status):
+    labels = {
+        'new': 'جديد', 'open': 'مفتوح', 'assigned': 'مخصص', 'in_progress': 'قيد المتابعة',
+        'waiting_user': 'بانتظار الرد', 'pending': 'بانتظار الرد', 'resolved': 'تم الحل',
+        'closed': 'مغلق', 'read': 'مقروء', 'urgent': 'عالي الأولوية', 'high': 'عالي الأولوية',
+        'normal': 'عادي', 'low': 'منخفض'
+    }
+    return labels.get((status or '').strip().lower(), status or '—')
+
+
+def _agg_priority_label(priority):
+    return _agg_status_label(priority)
+
+
+def _agg_open_url(kind, source_id, ev, lang='ar'):
+    if kind in {'message', 'ticket'} and source_id:
+        try:
+            return url_for('main.admin_support_command_center', lang=lang, case=f'{kind}-{int(source_id)}')
+        except Exception:
+            pass
+    return getattr(ev, 'direct_url', None) or url_for('main.notification_center', lang=lang)
+
+
+def _aggregated_notification_groups(limit=200, include_archived=True):
+    user = _active_user()
+    if not user:
+        return [], {}, []
+    q = NotificationEvent.query.filter_by(target_user_id=user.id)
+    rows = q.order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc()).limit(limit or 300).all()
+    buckets = {}
+    for ev in rows:
+        key = _agg_group_key(ev)
+        buckets.setdefault(key, []).append(ev)
+    groups = []
+    for key, events in buckets.items():
+        events.sort(key=lambda ev: (getattr(ev, 'created_at', None) or datetime.min, getattr(ev, 'id', 0)), reverse=True)
+        last = events[0]
+        kind = _agg_norm_source_type(getattr(last, 'source_type', None) or getattr(last, 'event_type', None))
+        source_id = getattr(last, 'source_id', None)
+        case = _agg_support_case(kind, source_id)
+        status = getattr(case, 'status', None) or getattr(last, 'status', None) or 'new'
+        priority = getattr(case, 'priority', None) or 'normal'
+        unread_count = sum(1 for ev in events if not getattr(ev, 'is_read', False))
+        last_at = getattr(last, 'created_at', None) or getattr(case, 'updated_at', None)
+        title = (getattr(case, 'subject', None) or getattr(last, 'title', None) or '').strip()
+        if not title:
+            if kind == 'ticket': title = f'طلب دعم #{source_id or last.id}'
+            elif kind == 'message': title = f'محادثة دعم #{source_id or last.id}'
+            else: title = 'تنبيه نظام'
+        if kind == 'ticket' and not title.startswith('طلب دعم'):
+            title = f'طلب دعم #{source_id or last.id}'
+        elif kind == 'message' and not title.startswith('محادثة') and not title.startswith('رسالة'):
+            title = f'محادثة دعم #{source_id or last.id}'
+        details = (getattr(last, 'message', None) or '').strip() or (getattr(last, 'title', None) or '').strip() or 'تحديث جديد'
+        group = {
+            'group_key': key,
+            'kind': kind,
+            'kind_label': 'تذكرة' if kind == 'ticket' else ('رسالة' if kind == 'message' else 'نظام'),
+            'id': source_id or getattr(last, 'id', 0),
+            'source_id': source_id or '',
+            'last_event_id': getattr(last, 'id', 0),
+            'title': title,
+            'details': details,
+            'status': status,
+            'status_label': _agg_status_label(status),
+            'priority': priority,
+            'priority_label': _agg_priority_label(priority),
+            'assignee': _agg_assignee_name(case) or '—',
+            'unread_count': unread_count,
+            'events_count': len(events),
+            'last_activity_at': last_at,
+            'last_activity_label': format_local_datetime(last_at, current_app.config['LOCAL_TIMEZONE']) if last_at else '',
+            'url': _agg_open_url(kind, source_id, last, _lang()),
+            'is_closed': (status in {'closed', 'resolved'}),
+            'is_archived': (status in {'closed', 'resolved'}),
+        }
+        if include_archived or not group['is_archived']:
+            groups.append(group)
+    groups.sort(key=lambda g: (g.get('last_activity_at') or datetime.min), reverse=True)
+    stats = {
+        'unread_groups': sum(1 for g in groups if g['unread_count'] > 0),
+        'active_conversations': sum(1 for g in groups if g['kind'] == 'message' and not g['is_closed']),
+        'open_tickets': sum(1 for g in groups if g['kind'] == 'ticket' and not g['is_closed']),
+        'system_alerts': sum(1 for g in groups if g['kind'] == 'system'),
+        'all': len(groups),
+    }
+    timeline = [g for g in groups if g['kind'] == 'system'][:5]
+    if len(timeline) < 4:
+        timeline = (timeline + groups[:5])[:5]
+    return groups, stats, timeline
+
+
+def _aggregated_unread_counts(user):
+    if not user:
+        return 0, 0, 0
+    rows = NotificationEvent.query.filter_by(target_user_id=user.id, is_read=False).all()
+    groups, mail_groups, ticket_groups = set(), set(), set()
+    for ev in rows:
+        kind = _agg_norm_source_type(getattr(ev, 'source_type', None) or getattr(ev, 'event_type', None))
+        key = _agg_group_key(ev)
+        groups.add(key)
+        if kind == 'message': mail_groups.add(key)
+        elif kind == 'ticket': ticket_groups.add(key)
+    return len(groups), len(mail_groups), len(ticket_groups)
+
 @notifications_routes_bp.route('/notifications/feed')
 def notifications_feed():
     if not session.get('logged_in'):
         return jsonify({'count': 0, 'items': []})
-    items = _support_notification_payload(limit=5, include_closed=False)
+    groups, _stats, _timeline = _aggregated_notification_groups(limit=200, include_archived=True)
+    items = groups[:5]
     user = _active_user()
     try:
-        total, mail_count, ticket_count = unread_counts(user)
+        total, mail_count, ticket_count = _aggregated_unread_counts(user)
     except Exception:
-        total = (getattr(g, 'mail_notification_count', 0) or 0) + (getattr(g, 'ticket_notification_count', 0) or 0)
-        mail_count = getattr(g, 'mail_notification_count', 0) or 0
-        ticket_count = getattr(g, 'ticket_notification_count', 0) or 0
+        total, mail_count, ticket_count = 0, 0, 0
     return jsonify({'count': total, 'mail_count': mail_count, 'ticket_count': ticket_count, 'items': items})
 
 
@@ -376,12 +519,19 @@ def notification_center():
     if not session.get('logged_in'):
         return redirect(url_for('auth.login', lang=_lang()))
     try:
-        items = _support_notification_payload(limit=200, include_closed=True)
+        groups, stats, timeline = _aggregated_notification_groups(limit=300, include_archived=True)
     except Exception as exc:
-        current_app.logger.exception('notification_center failed: %s', exc)
-        items = []
+        current_app.logger.exception('aggregated notification_center failed: %s', exc)
+        groups, stats, timeline = [], {'unread_groups': 0, 'active_conversations': 0, 'open_tickets': 0, 'system_alerts': 0, 'all': 0}, []
         flash('تعذر تحميل مركز الإشعارات، تم فتح الصفحة بوضع آمن.', 'warning')
-    return render_template('notification_center.html', items=items, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+    return render_template(
+        'notifications_center.html',
+        groups=groups,
+        stats=stats,
+        timeline=timeline,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE'])
+    )
 
 
 @notifications_routes_bp.route('/notifications/mark-read', methods=['POST'])
@@ -391,9 +541,23 @@ def notifications_mark_read():
     user = _active_user()
     now = datetime.utcnow()
     event_id = int(request.form.get('event_id') or 0)
+    group_key = (request.form.get('group_key') or '').strip()
+    mark_all = (request.form.get('all') or '').strip().lower() in {'1', 'true', 'yes', 'all'}
     q = NotificationEvent.query.filter_by(target_user_id=getattr(user, 'id', None), is_read=False)
     if event_id:
         q = q.filter_by(id=event_id)
+    elif group_key and not mark_all:
+        kind, _, raw_id = group_key.partition('-')
+        if kind == 'event' and raw_id.isdigit():
+            q = q.filter_by(id=int(raw_id))
+        elif raw_id.isdigit():
+            source_id = int(raw_id)
+            if kind == 'message':
+                q = q.filter(NotificationEvent.source_type.in_(['message', 'mail', 'internal_mail', 'thread', 'conversation']), NotificationEvent.source_id == source_id)
+            elif kind == 'ticket':
+                q = q.filter(NotificationEvent.source_type.in_(['ticket', 'support_ticket']), NotificationEvent.source_id == source_id)
+            else:
+                q = q.filter_by(source_id=source_id)
     changed = 0
     for ev in q.all():
         ev.is_read = True
@@ -401,7 +565,7 @@ def notifications_mark_read():
         ev.status = 'read'
         changed += 1
     db.session.commit()
-    total, mail, ticket = unread_counts(user)
+    total, mail, ticket = _aggregated_unread_counts(user)
     return jsonify({'ok': True, 'changed': changed, 'count': total, 'mail_count': mail, 'ticket_count': ticket})
 
 
