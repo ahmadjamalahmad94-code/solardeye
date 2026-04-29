@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v30-dashboard-notifications-dropdown-layer-20260429";
+  var buildId = "v31-dashboard-notifications-left-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {

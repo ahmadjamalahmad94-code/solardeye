@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v30-dashboard-notifications-dropdown-layer-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v31-dashboard-notifications-left-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+/* Build: v31-dashboard-notifications-left-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+/* Build: v31-dashboard-notifications-left-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -567,7 +567,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
-/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+/* Build: v31-dashboard-notifications-left-20260429
    True single-row header fix: keep brand and actions in one line on desktop. */
 
 .dashboard-main-v28 .dashboard-header-v27 {
@@ -801,7 +801,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V29 DASHBOARD HEADER NOTIFICATIONS DROPDOWN === */
-/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+/* Build: v31-dashboard-notifications-left-20260429
    Header notification dropdown: latest 5 notifications, mark read on open. */
 
 .dashboard-main-v29 .dash-head-notif-v29 {
@@ -1004,7 +1004,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V30 DASHBOARD NOTIFICATIONS DROPDOWN LAYER FIX === */
-/* Build: v30-dashboard-notifications-dropdown-layer-20260429
+/* Build: v31-dashboard-notifications-left-20260429
    Fix notification dropdown being clipped/hidden behind next dashboard cards. */
 
 .dashboard-main-v30,
@@ -1087,5 +1087,68 @@ body.dashboard-page-v27 .notification-bell-wrap {
     inset-inline-end: 12px !important;
     width: auto !important;
     max-width: none !important;
+  }
+}
+
+/* === V31 DASHBOARD NOTIFICATIONS LEFT ANCHOR FIX === */
+/* Build: v31-dashboard-notifications-left-20260429
+   Fix: notification dropdown opens from the left corner instead of right. */
+
+.dashboard-main-v31 .dash-head-notif-v29 {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 99999 !important;
+}
+
+.dashboard-main-v31 .dash-notif-menu-v29 {
+  right: auto !important;
+  inset-inline-end: auto !important;
+  inset-inline-start: auto !important;
+  left: 0 !important;
+  transform-origin: top left !important;
+  z-index: 999999 !important;
+}
+
+.dashboard-main-v31 .dash-head-notif-v29.open .dash-notif-menu-v29 {
+  left: 0 !important;
+  right: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.dashboard-main-v31 .dash-notif-menu-v29::before {
+  content: "" !important;
+  position: absolute !important;
+  top: -8px !important;
+  left: 26px !important;
+  width: 16px !important;
+  height: 16px !important;
+  background: #fff !important;
+  border-inline-start: 1px solid #dbe5f2 !important;
+  border-top: 1px solid #dbe5f2 !important;
+  transform: rotate(45deg) !important;
+  z-index: 0 !important;
+}
+
+.dashboard-main-v31 .dash-notif-head-v29,
+.dashboard-main-v31 .dash-notif-list-v29,
+.dashboard-main-v31 .dash-notif-actions-v29 {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+@media (max-width: 1080px) {
+  .dashboard-main-v31 .dash-notif-menu-v29 {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: 96px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .dashboard-main-v31 .dash-notif-menu-v29::before {
+    display: none !important;
   }
 }
