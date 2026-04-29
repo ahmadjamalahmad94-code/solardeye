@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v22-support-command-layout-20260429";
+  var buildId = "v23-support-ui-polish-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {
@@ -40,22 +40,7 @@
     });
   }
 
-  function buildNotice() {
-    var notice = document.getElementById("devBuildNoticeV11");
-    var closeBtn = document.getElementById("devBuildNoticeCloseV11");
-    if (!notice) return;
-    var key = "solardeye_seen_build_" + buildId;
-    var seen = false;
-    try { seen = localStorage.getItem(key) === "1"; } catch(e) {}
-    if (!seen) notice.hidden = false;
-    if (closeBtn && closeBtn.dataset.v21Wired !== "1") {
-      closeBtn.dataset.v21Wired = "1";
-      closeBtn.addEventListener("click", function() {
-        try { localStorage.setItem(key, "1"); } catch(e) {}
-        notice.hidden = true;
-      });
-    }
-  }
+  function buildNotice() { return; }
 
   function init() {
     setState("collapsed");

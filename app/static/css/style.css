@@ -8335,3 +8335,329 @@ body:has(.support-center-v22) {
     min-height: auto !important;
   }
 }
+
+/* === V23 SUPPORT COMMAND CENTER UI POLISH === */
+/*
+  v23 هدفه تحسين الانسيابية فقط:
+  - لا تغيير في منطق الدعم
+  - لا تغيير في تقسيم الصفحة الأساسي
+  - إزالة الضغط وتحسين الأعمدة والكروت
+*/
+
+/* لا نعرض إشعار التحديث العلوي نهائيًا، ونبقي Badge السفلي فقط */
+.dev-build-notice-v11 {
+  display: none !important;
+}
+
+.support-command-main-v23 {
+  padding: 20px 20px 40px !important;
+  background:
+    radial-gradient(900px circle at 92% -12%, rgba(37,99,235,.09), transparent 45%),
+    linear-gradient(180deg, #f8fbff 0%, #eef3fb 100%) !important;
+}
+
+/* الحاوية العامة: مساحة تنفس أكثر */
+.support-center-v23 {
+  display: grid !important;
+  gap: 20px !important;
+  overflow: visible !important;
+}
+
+/* الهيدر والكروت: لا نضغطهم بجانب بعض بشكل خانق */
+.support-center-v23 .sc-content-v170 {
+  gap: 20px !important;
+}
+
+.support-center-v23 .sc-header-v170 {
+  display: grid !important;
+  grid-template-columns: minmax(340px, 1fr) minmax(520px, 1.35fr) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+  min-height: auto !important;
+  height: auto !important;
+  direction: ltr !important;
+}
+
+.support-center-v23 .sc-title-v170 {
+  direction: rtl !important;
+  text-align: right !important;
+  align-self: center !important;
+  padding: 18px 20px !important;
+  border: 1px solid rgba(204,216,235,.8) !important;
+  border-radius: 22px !important;
+  background: rgba(255,255,255,.78) !important;
+  box-shadow: 0 16px 36px rgba(15,23,42,.05) !important;
+}
+
+.support-center-v23 .sc-title-v170 h1 {
+  font-size: clamp(1.6rem, 2.1vw, 2.25rem) !important;
+  line-height: 1.12 !important;
+}
+
+.support-center-v23 .sc-title-v170 p {
+  font-size: .92rem !important;
+  line-height: 1.6 !important;
+}
+
+/* كروت الإحصائيات أخف وأصغر وتلتف عند الحاجة */
+.support-center-v23 .sc-kpis-v170 {
+  direction: rtl !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(145px, 1fr)) !important;
+  gap: 10px !important;
+  align-content: stretch !important;
+}
+
+.support-center-v23 .sc-kpis-v170 .kpi {
+  height: auto !important;
+  min-height: 76px !important;
+  padding: 11px 12px !important;
+  border-radius: 16px !important;
+  grid-template-columns: 36px minmax(0,1fr) !important;
+  box-shadow: 0 12px 28px rgba(15,23,42,.045) !important;
+}
+
+.support-center-v23 .sc-kpis-v170 .kpi i {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 11px !important;
+  font-size: .98rem !important;
+}
+
+.support-center-v23 .sc-kpis-v170 .kpi span {
+  font-size: .76rem !important;
+}
+
+.support-center-v23 .sc-kpis-v170 .kpi strong {
+  font-size: 1.35rem !important;
+}
+
+/* مساحة العمل: نحافظ على 3 مناطق لكن المحادثة تأخذ مساحة أكبر */
+.support-center-v23 .sc-workspace-v170 {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 300px) minmax(560px, 1fr) minmax(330px, 390px) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+  min-height: 740px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* كل الأعمدة تصبح كروت مريحة */
+.support-center-v23 .sc-details-v170,
+.support-center-v23 .sc-conversation-v170,
+.support-center-v23 .sc-inbox-v170 {
+  min-height: 720px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.support-center-v23 .sc-info-card-v170,
+.support-center-v23 .sc-thread-v170,
+.support-center-v23 .sc-inbox-v170 {
+  border-radius: 22px !important;
+  border-color: rgba(204,216,235,.92) !important;
+  box-shadow: 0 16px 38px rgba(15,23,42,.055) !important;
+  background: rgba(255,255,255,.97) !important;
+}
+
+/* تفاصيل التذكرة: قراءة أوضح */
+.support-center-v23 .sc-detail-set-v170 {
+  gap: 12px !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.support-center-v23 .sc-info-card-v170 {
+  padding: 17px 18px !important;
+}
+
+.support-center-v23 .sc-info-card-v170 h3 {
+  font-size: 1.02rem !important;
+  margin-bottom: 14px !important;
+}
+
+.support-center-v23 .sc-info-card-v170 dl {
+  gap: 10px !important;
+}
+
+.support-center-v23 .sc-info-card-v170 dl div {
+  grid-template-columns: 92px minmax(0,1fr) !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+.support-center-v23 .sc-info-card-v170 dt {
+  font-size: .78rem !important;
+  line-height: 1.4 !important;
+}
+
+.support-center-v23 .sc-info-card-v170 dd {
+  font-size: .82rem !important;
+  line-height: 1.55 !important;
+}
+
+/* المحادثة: أكبر وأريح */
+.support-center-v23 .sc-thread-v170 {
+  min-height: 720px !important;
+  grid-template-rows: auto auto auto minmax(420px, 1fr) auto !important;
+}
+
+.support-center-v23 .sc-thread-head-v170 {
+  padding: 18px 20px 14px !important;
+}
+
+.support-center-v23 .sc-thread-head-v170 h2 {
+  font-size: 1.25rem !important;
+}
+
+.support-center-v23 .sc-thread-meta-v170 {
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.support-center-v23 .sc-messages-v170,
+.support-center-v23 [data-thread-scroll] {
+  max-height: 560px !important;
+  min-height: 360px !important;
+  overflow-y: auto !important;
+  padding-inline-end: 4px !important;
+  scrollbar-width: thin !important;
+}
+
+/* مربع الرد أوضح، بدون ضغط */
+.support-center-v23 [data-support-reply-form] {
+  margin: 0 !important;
+}
+
+.support-center-v23 .sc-reply-v170,
+.support-center-v23 .support-reply-v62 {
+  border-top: 1px solid rgba(204,216,235,.85) !important;
+  background: linear-gradient(180deg, rgba(248,251,255,.72), rgba(255,255,255,.98)) !important;
+}
+
+.support-center-v23 textarea {
+  line-height: 1.7 !important;
+}
+
+/* قائمة التذاكر */
+.support-center-v23 .sc-inbox-v170 {
+  min-height: 720px !important;
+  display: grid !important;
+  grid-template-rows: auto auto auto minmax(420px, 1fr) auto !important;
+}
+
+.support-center-v23 .sc-inbox-v170 > header {
+  padding: 14px !important;
+  gap: 10px !important;
+}
+
+.support-center-v23 .sc-inbox-v170 input[type="search"] {
+  min-height: 42px !important;
+  border-radius: 13px !important;
+}
+
+.support-center-v23 .sc-filters-v170 {
+  padding-inline: 14px !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+}
+
+.support-center-v23 .sc-ticket-list-v170 {
+  max-height: 590px !important;
+  overflow-y: auto !important;
+  padding: 12px 14px !important;
+  display: grid !important;
+  gap: 10px !important;
+  scrollbar-width: thin !important;
+}
+
+.support-center-v23 .sc-ticket-card-v170 {
+  border-radius: 16px !important;
+  padding: 12px !important;
+  min-height: 108px !important;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease !important;
+}
+
+.support-center-v23 .sc-ticket-card-v170:hover {
+  transform: translateY(-1px) !important;
+}
+
+.support-center-v23 .sc-ticket-card-v170.is-active {
+  border-color: #93c5fd !important;
+  box-shadow: 0 12px 30px rgba(37,99,235,.12) !important;
+}
+
+.support-center-v23 .sc-ticket-card-v170 strong {
+  font-size: .9rem !important;
+  line-height: 1.35 !important;
+}
+
+.support-center-v23 .sc-ticket-card-v170 em {
+  line-height: 1.45 !important;
+}
+
+/* لا نخفي الصفحة بسبب أي overflow قديم */
+.support-center-v23 *,
+.support-command-main-v23 * {
+  scroll-margin-top: 20px !important;
+}
+
+/* التدرج للشاشات المتوسطة */
+@media (max-width: 1500px) {
+  .support-center-v23 .sc-header-v170 {
+    grid-template-columns: 1fr !important;
+  }
+  .support-center-v23 .sc-title-v170,
+  .support-center-v23 .sc-kpis-v170 {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+  .support-center-v23 .sc-kpis-v170 {
+    grid-template-columns: repeat(6, minmax(110px, 1fr)) !important;
+  }
+  .support-center-v23 .sc-workspace-v170 {
+    grid-template-columns: minmax(300px, 380px) minmax(520px, 1fr) !important;
+  }
+  .support-center-v23 .sc-details-v170 {
+    grid-column: 1 / -1 !important;
+    min-height: auto !important;
+  }
+  .support-center-v23 .sc-detail-set-v170.is-active {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(260px, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 1150px) {
+  .support-center-v23 .sc-kpis-v170 {
+    grid-template-columns: repeat(3, minmax(130px, 1fr)) !important;
+  }
+  .support-center-v23 .sc-workspace-v170 {
+    grid-template-columns: 1fr !important;
+  }
+  .support-center-v23 .sc-inbox-v170,
+  .support-center-v23 .sc-thread-v170,
+  .support-center-v23 .sc-details-v170 {
+    min-height: auto !important;
+  }
+  .support-center-v23 .sc-workspace-v170 {
+    min-height: auto !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .support-command-main-v23 {
+    padding: 12px 10px 28px !important;
+  }
+  .support-center-v23 .sc-kpis-v170 {
+    grid-template-columns: repeat(2, minmax(120px, 1fr)) !important;
+  }
+  .support-center-v23 .sc-detail-set-v170.is-active {
+    grid-template-columns: 1fr !important;
+  }
+}
