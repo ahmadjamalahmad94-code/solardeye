@@ -8115,6 +8115,14 @@ body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180:
   box-shadow:0 12px 28px rgba(15,23,42,.22);
   z-index:50;
 }
+<<<<<<< HEAD
+html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180::after,
+html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180::after{
+  inset-inline-start:auto;
+  inset-inline-end:calc(100% + 12px);
+}
+=======
+>>>>>>> eddc345 (Initial deploy)
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180:hover::after,
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180:hover::after{
   opacity:1;
@@ -8130,4 +8138,237 @@ body.heavy-v100 .app-shell.has-layout-sidebar .hs-logout-v180{
 }
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .hs-logout-v180{
   justify-content:center!important;
+}
+<<<<<<< HEAD
+body.heavy-v100 .app-shell.has-layout-sidebar .hs-mobile-close-v180{
+  display:none!important;
+}
+=======
+>>>>>>> eddc345 (Initial deploy)
+
+
+/* =======================================================================
+   V9 SIDEBAR COLUMN FIX - 2026-04-29
+   Fixes:
+   - Sidebar is a real full-height page column, not floating card.
+   - Desktop sidebar remains expanded/readable even if old templates/localStorage
+     still add sidebar-collapsed.
+   - Navigation labels are visible and not ellipsized.
+   ======================================================================= */
+
+:root {
+  --sidebar-column-width-v9: 330px;
+}
+
+/* Shell: permanent two-column layout on desktop */
+html body.heavy-v100 .app-shell.has-layout-sidebar,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
+html body.heavy-v100 .app-shell.has-layout-sidebar:has(.sidebar-system-v180),
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed:has(.sidebar-system-v180),
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded:has(.sidebar-system-v180) {
+  --sidebar-expanded: var(--sidebar-column-width-v9) !important;
+  --sidebar-collapsed: var(--sidebar-column-width-v9) !important;
+  --sidebar-width: var(--sidebar-column-width-v9) !important;
+  display: grid !important;
+  grid-template-columns: var(--sidebar-column-width-v9) minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  gap: 0 !important;
+  overflow-x: hidden !important;
+}
+
+/* Sidebar: occupy the whole sidebar column */
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-sidebar.sidebar-system-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed > .app-sidebar.sidebar-system-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded > .app-sidebar.sidebar-system-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar:has(.sidebar-system-v180) > .sidebar-system-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed:has(.sidebar-system-v180) > .sidebar-system-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded:has(.sidebar-system-v180) > .sidebar-system-v180 {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  position: sticky !important;
+  top: 0 !important;
+  inset: auto !important;
+  align-self: stretch !important;
+  width: var(--sidebar-column-width-v9) !important;
+  min-width: var(--sidebar-column-width-v9) !important;
+  max-width: var(--sidebar-column-width-v9) !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  transform: none !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  box-sizing: border-box !important;
+  z-index: 20 !important;
+}
+
+/* Dark background fills the entire column */
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-sidebar.sidebar-system-v180::before,
+html body.heavy-v100 .app-shell.has-layout-sidebar:has(.sidebar-system-v180) > .sidebar-system-v180::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background:
+    radial-gradient(260px circle at 22% 0%, rgba(96,165,250,.24), transparent 60%),
+    linear-gradient(180deg, #102b63 0%, #07172f 100%) !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* Inner spacing */
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-sidebar.sidebar-system-v180 > * {
+  position: relative !important;
+  z-index: 1 !important;
+  padding-inline: 18px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-sidebar-top-v180 {
+  padding-top: 18px !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-sidebar-footer-v180 {
+  padding-bottom: 16px !important;
+  margin-top: auto !important;
+}
+
+/* Content column */
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  overflow-x: hidden !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Force readable expanded state even when old class says collapsed */
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-admin-head-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-subscriber-brand-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-subscriber-user-v180 {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-user-copy-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-brand-copy-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-lang-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-group-title-v180 span,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-logout-v180 span,
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-nav-label-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-user-copy-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-brand-copy-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-lang-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-group-title-v180 span,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180 span,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-label-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-user-copy-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-brand-copy-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-lang-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-group-title-v180 span,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-logout-v180 span,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-nav-label-v180 {
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: auto !important;
+  position: static !important;
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/* Nav layout and labels */
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-nav-v180 {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-inline: 0 !important;
+  padding-bottom: 12px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(147,197,253,.38) transparent !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-nav-item-v180,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-nav-item-v180 {
+  width: auto !important;
+  min-height: 56px !important;
+  grid-template-columns: 12px 28px minmax(0, 1fr) auto !important;
+  gap: 10px !important;
+  padding: 10px 14px !important;
+  margin-inline: 0 !important;
+  justify-items: stretch !important;
+  border-radius: 14px !important;
+  overflow: visible !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar .hs-nav-label-v180 {
+  text-align: start !important;
+  line-height: 1.35 !important;
+  font-size: .96rem !important;
+  font-weight: 850 !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-dot-v180,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-nav-dot-v180 {
+  display: block !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180::after,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-nav-item-v180::after,
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180::after,
+html body.heavy-v100 .app-shell.sidebar-collapsed:has(.sidebar-system-v180) .hs-logout-v180::after {
+  content: none !important;
+}
+
+/* Mobile keeps drawer behavior */
+@media (max-width: 900px) {
+  html body.heavy-v100 .app-shell.has-layout-sidebar,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed,
+  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .app-sidebar.sidebar-system-v180 {
+    position: fixed !important;
+    width: min(88vw, 340px) !important;
+    min-width: min(88vw, 340px) !important;
+    max-width: min(88vw, 340px) !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    z-index: 1055 !important;
+  }
+
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
+    padding: 14px 12px 78px !important;
+  }
 }

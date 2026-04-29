@@ -3,7 +3,7 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set current_role = user_obj.role if user_obj else (default_role or 'assistant_manager') %}
 {% set is_staff_form = current_role not in ['user','subscriber','customer'] %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-expanded" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area admin-shell-v2">
     <header class="admin-page-head compact">

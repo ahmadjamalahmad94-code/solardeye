@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggles = Array.from(document.querySelectorAll('[data-sidebar-toggle-v180]'));
     const storageKey = `heavy_sidebar_${sidebar.dataset.sidebarMode || 'default'}_collapsed`;
     const readState = () => {
+      if (window.innerWidth > 900) return false; // desktop default: expanded/readable
       const namedState = localStorage.getItem('sidebar-state');
       if(namedState === 'expanded') return false;
       if(namedState === 'collapsed') return true;
@@ -100,6 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
       toggles.forEach(btn => btn.setAttribute('aria-expanded', String(!collapsed)));
     };
     apply(readState());
+    if (window.innerWidth > 900) {
+      localStorage.setItem(storageKey, 'false');
+      localStorage.setItem('sidebar-state', 'expanded');
+    }
       toggles.forEach(btn => {
       btn.addEventListener('click', (event) => {
         event.preventDefault();

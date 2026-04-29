@@ -16,7 +16,7 @@
 {% if not ns.selected_key %}{% for row in rows %}{% if (type_filter == 'all' or row.kind == type_filter) and not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}{% endfor %}{% endif %}
 {% block title %}{{ 'Mail & Support Center' if is_en else 'مركز البريد والدعم' }}{% endblock %}
 {% block body %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-expanded" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area portal-support-mailbox-page-v63 support-desk-v151 support-desk-portal-v151">
     <aside class="support-rail-v151 portal-rail-v151" aria-label="Support navigation">

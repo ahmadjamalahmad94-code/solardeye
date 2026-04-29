@@ -2,7 +2,7 @@
 {% block title %}{{ 'Admin Team' if (ui_lang or 'ar') == 'en' else 'فريق الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-expanded" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area admin-shell-v2 admin-team-v122">
     <header class="admin-page-head compact admin-team-head-v122">

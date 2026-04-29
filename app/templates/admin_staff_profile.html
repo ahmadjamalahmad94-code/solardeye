@@ -2,7 +2,7 @@
 {% block title %}{{ 'Staff profile' if (ui_lang or 'ar') == 'en' else 'ملف عضو الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">
+<div class="app-shell has-layout-sidebar sidebar-expanded">
   {% include '_sidebar.html' %}
   <main class="app-main content-area admin-shell-v2 staff-profile-v122">
     <header class="admin-page-head compact">
