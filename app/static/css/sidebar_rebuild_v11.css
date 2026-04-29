@@ -742,3 +742,56 @@ html body.heavy-v100 .sd-sidebar-footer-v11 {
 .dev-build-badge-v11::after {
   content: " / v13-sidebar-toggle-scale-20260429";
 }
+
+
+/* === V14 TOGGLE HARD FIX === */
+:root {
+  --sd-sidebar-width-v14: 288px;
+  --sd-sidebar-collapsed-v14: 86px;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
+  grid-template-columns: var(--sd-sidebar-width-v14) minmax(0,1fr) !important;
+}
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+  grid-template-columns: var(--sd-sidebar-collapsed-v14) minmax(0,1fr) !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-sidebar-v11 {
+  width: var(--sd-sidebar-width-v14) !important;
+  min-width: var(--sd-sidebar-width-v14) !important;
+  max-width: var(--sd-sidebar-width-v14) !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
+  width: var(--sd-sidebar-collapsed-v14) !important;
+  min-width: var(--sd-sidebar-collapsed-v14) !important;
+  max-width: var(--sd-sidebar-collapsed-v14) !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11,
+html body.heavy-v100 #sdSidebarToggleV14 {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 99999 !important;
+  user-select: none !important;
+  touch-action: manipulation !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 *,
+html body.heavy-v100 #sdSidebarToggleV14 * {
+  pointer-events: none !important;
+}
+
+html body.heavy-v100 .sd-sidebar-v11 {
+  overflow: visible !important;
+}
+
+html body.heavy-v100 .sd-nav-v11 {
+  overflow-x: visible !important;
+}
+
+.dev-build-badge-v11::after {
+  content: " / v14-toggle-hard-fix-20260429";
+}
