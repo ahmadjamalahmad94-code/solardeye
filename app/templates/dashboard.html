@@ -2,7 +2,7 @@
 {% block body %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dashboard-main-v24">
+  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25">
     
 <header class="topbar dashboard-topbar clean-header">
   <div class="header-row">
@@ -63,9 +63,8 @@
 @media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
 </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v24-dashboard-main-polish-20260429') }}">
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v25-dashboard-weather-flow-finetune-20260429') }}">
+{% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
 
@@ -214,8 +213,7 @@
       </div>
     </section>
 
-    {% if solar_prediction or weather %}
-    <section class="panel-card mt-4 weather-smart-panel compact-weather-layout">
+    <section class="panel-card mt-4 weather-smart-panel compact-weather-layout weather-always-v25">
       <div class="weather-overview-card">
         <div class="weather-overview-icon">{{ weather.icon if weather else '🌤️' }}</div>
         <div class="weather-overview-main">
@@ -225,8 +223,13 @@
       </div>
 
       <div class="weather-title-block">
-        <div class="weather-status-chip {{ solar_prediction.level if solar_prediction else 'success' }}">{{ solar_prediction.verdict if solar_prediction else 'تحليل الطقس' }}</div>
-        <div class="weather-big-title">تحليل ما قبل الغروب</div>
+        <div class="weather-status-chip {{ solar_prediction.level if solar_prediction else 'muted' }}">{{ solar_prediction.verdict if solar_prediction else 'تحليل الطقس' }}</div>
+        <div class="weather-big-title">الطقس وتحليل الشمس</div>
+        {% if not solar_prediction and not weather %}
+        <div class="weather-empty-v25">
+          لا توجد بيانات طقس متاحة حاليًا. تأكد من إعدادات الموقع أو نفّذ مزامنة جديدة.
+        </div>
+        {% endif %}
       </div>
 
       <div class="weather-summary-grid">
@@ -262,7 +265,6 @@
         </div>
       </div>
     </section>
-    {% endif %}
 
 <section class="panel-card mt-4 smart-archive-panel">
   {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
