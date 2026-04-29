@@ -1,5 +1,5 @@
 
-/* SolarDeye Main Dashboard Polish — Build: v28-dashboard-header-single-row-20260429*/
+/* SolarDeye Main Dashboard Polish — Build: v29-dashboard-header-notifications-20260429*/
 :root{--db-bg:#f4f7fb;--db-card:#fff;--db-border:#e3e9f2;--db-border-strong:#cdd6e4;--db-text:#1f2a44;--db-muted:#5a6885;--db-soft:#8895af;--db-primary:#2563eb;--db-shadow:0 4px 16px rgba(15,23,42,.06);--db-shadow-strong:0 10px 32px rgba(15,23,42,.10);--db-radius:14px;--db-radius-lg:18px}
 .dashboard-main-v24{min-height:100vh;background:var(--db-bg)!important;color:var(--db-text);padding:22px 26px 34px!important;overflow:visible!important}
 .dashboard-main-v24 .topbar.dashboard-topbar{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important}
@@ -54,7 +54,7 @@
 @media(max-width:720px){.dashboard-main-v24{padding:12px 10px 28px!important}.dashboard-main-v24 .top-scroll-cards.top-kpis-row,.dashboard-main-v24 .overview-side,.dashboard-main-v24 .weather-summary-grid,.dashboard-main-v24 .weather-advice-grid,.dashboard-main-v24 .smart-archive-grid{grid-template-columns:1fr!important}.dashboard-main-v24 .dashboard-meta-bar{grid-template-columns:1fr!important}}
 
 /* === V25 DASHBOARD WEATHER + FLOW FINE TUNE === */
-/* Build: v28-dashboard-header-single-row-20260429
+/* Build: v29-dashboard-header-notifications-20260429
    Fine tune only: weather visibility + flow layout balance + spacing. */
 
 .dashboard-main-v25 {
@@ -270,7 +270,7 @@
 }
 
 /* === V27 DASHBOARD HEADER SAME-LINE POLISH === */
-/* Build: v28-dashboard-header-single-row-20260429
+/* Build: v29-dashboard-header-notifications-20260429
    Header aligned to requested reference image: one soft card, same row,
    brand on the right, actions/meta/bell on the left. */
 
@@ -567,7 +567,7 @@ body.dashboard-page-v27 .notification-bell-wrap {
 }
 
 /* === V28 DASHBOARD HEADER TRUE SINGLE ROW FIX === */
-/* Build: v28-dashboard-header-single-row-20260429
+/* Build: v29-dashboard-header-notifications-20260429
    True single-row header fix: keep brand and actions in one line on desktop. */
 
 .dashboard-main-v28 .dashboard-header-v27 {
@@ -797,5 +797,208 @@ body.dashboard-page-v27 .notification-bell-wrap {
     overflow-x: auto !important;
     padding-block: 4px !important;
     scrollbar-width: thin !important;
+  }
+}
+
+/* === V29 DASHBOARD HEADER NOTIFICATIONS DROPDOWN === */
+/* Build: v29-dashboard-header-notifications-20260429
+   Header notification dropdown: latest 5 notifications, mark read on open. */
+
+.dashboard-main-v29 .dash-head-notif-v29 {
+  position: relative !important;
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  z-index: 40 !important;
+}
+
+.dashboard-main-v29 .dash-head-bell-v29 {
+  appearance: none !important;
+  cursor: pointer !important;
+}
+
+.dashboard-main-v29 .dash-head-bell-v29 em.is-zero,
+.dashboard-main-v29 .dash-head-bell-v29 em[data-count="0"] {
+  opacity: 0 !important;
+  transform: translateX(-50%) scale(.75) !important;
+}
+
+.dashboard-main-v29 .dash-notif-menu-v29 {
+  position: absolute !important;
+  top: calc(100% + 12px) !important;
+  inset-inline-start: 0 !important;
+  width: 360px !important;
+  max-width: min(360px, calc(100vw - 32px)) !important;
+  border-radius: 18px !important;
+  border: 1px solid #dbe5f2 !important;
+  background: rgba(255,255,255,.98) !important;
+  box-shadow: 0 20px 50px rgba(15,23,42,.18) !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transform: translateY(-8px) scale(.98) !important;
+  pointer-events: none !important;
+  transition: opacity .16s ease, transform .16s ease !important;
+  direction: rtl !important;
+}
+
+.dashboard-main-v29 .dash-head-notif-v29.open .dash-notif-menu-v29 {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+}
+
+.dashboard-main-v29 .dash-notif-head-v29 {
+  min-height: 68px !important;
+  padding: 14px 15px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: linear-gradient(180deg, #f8fbff, #fff) !important;
+  border-bottom: 1px solid #e5edf7 !important;
+}
+
+.dashboard-main-v29 .dash-notif-head-v29 strong {
+  display: block !important;
+  color: #172033 !important;
+  font-size: .95rem !important;
+  font-weight: 900 !important;
+}
+
+.dashboard-main-v29 .dash-notif-head-v29 small {
+  display: block !important;
+  color: #64748b !important;
+  font-size: .72rem !important;
+  font-weight: 750 !important;
+  margin-top: 3px !important;
+}
+
+.dashboard-main-v29 #dashHeaderNotifMiniCountV29 {
+  min-width: 30px !important;
+  height: 30px !important;
+  border-radius: 999px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #fff !important;
+  background: #2563eb !important;
+  font-size: .78rem !important;
+  font-weight: 950 !important;
+}
+
+.dashboard-main-v29 #dashHeaderNotifMiniCountV29.is-zero {
+  background: #94a3b8 !important;
+}
+
+.dashboard-main-v29 .dash-notif-list-v29 {
+  max-height: 390px !important;
+  overflow-y: auto !important;
+  padding: 10px !important;
+  display: grid !important;
+  gap: 8px !important;
+  scrollbar-width: thin !important;
+}
+
+.dashboard-main-v29 .dash-notif-item-v29 {
+  display: grid !important;
+  gap: 6px !important;
+  padding: 11px 12px !important;
+  border-radius: 14px !important;
+  border: 1px solid #e4ebf5 !important;
+  background: #fff !important;
+  color: #172033 !important;
+  text-decoration: none !important;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease !important;
+}
+
+.dashboard-main-v29 .dash-notif-item-v29:hover {
+  background: #f8fbff !important;
+  border-color: #bfdbfe !important;
+  transform: translateY(-1px) !important;
+}
+
+.dashboard-main-v29 .dash-notif-row-v29 {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+.dashboard-main-v29 .dash-notif-kind-v29,
+.dashboard-main-v29 .dash-notif-status-v29 {
+  min-height: 22px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 3px 8px !important;
+  font-size: .66rem !important;
+  font-weight: 900 !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.dashboard-main-v29 .dash-notif-status-v29 {
+  color: #64748b !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.dashboard-main-v29 .dash-notif-item-v29 h4 {
+  margin: 0 !important;
+  color: #172033 !important;
+  font-size: .84rem !important;
+  line-height: 1.4 !important;
+  font-weight: 900 !important;
+}
+
+.dashboard-main-v29 .dash-notif-item-v29 p {
+  margin: 0 !important;
+  color: #64748b !important;
+  font-size: .74rem !important;
+  line-height: 1.55 !important;
+}
+
+.dashboard-main-v29 .dash-notif-meta-v29 {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  color: #94a3b8 !important;
+  font-size: .68rem !important;
+  font-weight: 750 !important;
+}
+
+.dashboard-main-v29 .dash-notif-empty-v29 {
+  min-height: 96px !important;
+  display: grid !important;
+  place-items: center !important;
+  text-align: center !important;
+  color: #64748b !important;
+  font-size: .82rem !important;
+  line-height: 1.6 !important;
+  border: 1px dashed #dbe5f2 !important;
+  border-radius: 14px !important;
+  background: #f8fbff !important;
+}
+
+.dashboard-main-v29 .dash-notif-actions-v29 {
+  padding: 10px !important;
+  border-top: 1px solid #e5edf7 !important;
+  background: #fff !important;
+}
+
+.dashboard-main-v29 .dash-notif-actions-v29 a {
+  min-height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  background: #2563eb !important;
+  text-decoration: none !important;
+  font-size: .82rem !important;
+  font-weight: 900 !important;
+}
+
+@media (max-width: 1080px) {
+  .dashboard-main-v29 .dash-notif-menu-v29 {
+    inset-inline-start: auto !important;
+    inset-inline-end: 0 !important;
   }
 }

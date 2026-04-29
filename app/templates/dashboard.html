@@ -3,7 +3,7 @@
 <script>document.body.classList.add('dashboard-page-v27');</script>
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28">
+  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28 dashboard-main-v29">
     
 <header class="topbar dashboard-topbar clean-header dashboard-header-v27">
   <div class="dashboard-header-card-v27">
@@ -48,10 +48,30 @@
         </div>
       </div>
 
-      <a class="dash-head-bell-v27" href="{{ url_for('main.notification_center', lang=ui_lang) }}" aria-label="الإشعارات">
-        <span class="bell-core-v27">🔔</span>
-        <em>{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</em>
-      </a>
+      <div class="dash-head-notif-v29"
+           data-feed-url="{{ url_for('main.notifications_feed', lang=ui_lang) }}"
+           data-mark-read-url="{{ url_for('main.notifications_mark_read', lang=ui_lang) }}"
+           data-center-url="{{ url_for('main.notification_center', lang=ui_lang) }}">
+        <button class="dash-head-bell-v27 dash-head-bell-v29" type="button" id="dashHeaderNotifBtnV29" aria-label="الإشعارات">
+          <span class="bell-core-v27">🔔</span>
+          <em id="dashHeaderNotifCountV29">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</em>
+        </button>
+        <div class="dash-notif-menu-v29" id="dashHeaderNotifMenuV29" aria-live="polite">
+          <div class="dash-notif-head-v29">
+            <div>
+              <strong>آخر الإشعارات</strong>
+              <small>آخر 5 رسائل وتذاكر دعم</small>
+            </div>
+            <span id="dashHeaderNotifMiniCountV29">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>
+          </div>
+          <div class="dash-notif-list-v29" id="dashHeaderNotifListV29">
+            <div class="dash-notif-empty-v29">اضغط لعرض آخر الإشعارات.</div>
+          </div>
+          <div class="dash-notif-actions-v29">
+            <a href="{{ url_for('main.notification_center', lang=ui_lang) }}">مركز الإشعارات</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -82,7 +102,7 @@
 @media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
 </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v28-dashboard-header-single-row-20260429') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v29-dashboard-header-notifications-20260429') }}">
 {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
     {% endwith %}
@@ -454,4 +474,5 @@
     </section>
   </main>
 </div>
+<script src="{{ url_for('static', filename='js/dashboard_header_notifications.js', v='v29-dashboard-header-notifications-20260429') }}" defer></script>
 {% endblock %}
