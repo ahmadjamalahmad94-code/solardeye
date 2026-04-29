@@ -1,1 +1,1 @@
-/* Disabled by v18: old sidebar implementation removed. */
+/* Disabled by v21: old sidebar implementation removed. */

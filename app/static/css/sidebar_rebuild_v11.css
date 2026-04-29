@@ -1,47 +1,88 @@
 
 /* ==========================================================================
-   SolarDeye Sidebar Rebuild V11
-   Build: v11-sidebar-rebuild-20260429
+   SolarDeye Sidebar Clean CSS V21
+   Build: v21-purge-sidebar-css-20260429
+   This file intentionally replaces all previous sidebar CSS.
    ========================================================================== */
 
 :root {
-  --sd-sidebar-width-v11: 360px;
-  --sd-sidebar-bg-1-v11: #08172f;
-  --sd-sidebar-bg-2-v11: #102e70;
-  --sd-sidebar-card-v11: rgba(255,255,255,.065);
-  --sd-sidebar-card-strong-v11: rgba(59,130,246,.75);
-  --sd-sidebar-text-v11: #ffffff;
-  --sd-sidebar-muted-v11: #b9c8e7;
-  --sd-sidebar-border-v11: rgba(191,219,254,.18);
+  --sd-open-w: 230px;
+  --sd-closed-w: 69px;
+  --sd-bg1: #08172f;
+  --sd-bg2: #102e70;
+  --sd-card: rgba(255,255,255,.065);
+  --sd-card-hover: rgba(59,130,246,.18);
+  --sd-border: rgba(191,219,254,.16);
+  --sd-text: #ffffff;
+  --sd-muted: #b9c8e7;
 }
 
-/* Full page shell column */
-html body.heavy-v100 .app-shell.has-layout-sidebar,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+/* Shell: RTL grid means first column is on the RIGHT */
+html body.heavy-v100 .app-shell.has-layout-sidebar {
   display: grid !important;
-  grid-template-columns: var(--sd-sidebar-width-v11) minmax(0, 1fr) !important;
   min-height: 100vh !important;
-  align-items: stretch !important;
-  gap: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
+  gap: 0 !important;
+  align-items: stretch !important;
   overflow-x: hidden !important;
-  background: #f5f8ff !important;
   direction: rtl !important;
+  background: #f5f8ff !important;
+  transition: grid-template-columns .22s ease !important;
 }
 
-html[dir="ltr"] body.heavy-v100 .app-shell.has-layout-sidebar {
-  direction: ltr !important;
+html body.heavy-v100.sd-sidebar-expanded-v21 .app-shell.has-layout-sidebar {
+  grid-template-columns: var(--sd-open-w) minmax(0,1fr) !important;
 }
 
+html body.heavy-v100.sd-sidebar-collapsed-v21 .app-shell.has-layout-sidebar {
+  grid-template-columns: var(--sd-closed-w) minmax(0,1fr) !important;
+}
+
+/* Sidebar: static grid item, never fixed/absolute */
 html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
   grid-column: 1 !important;
   grid-row: 1 !important;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  align-self: stretch !important;
+  min-height: 100vh !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 12px 9px !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0,1fr) auto !important;
+  gap: 10px !important;
+  color: var(--sd-text) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background:
+    radial-gradient(260px circle at 18% 0%, rgba(96,165,250,.22), transparent 62%),
+    linear-gradient(180deg, var(--sd-bg1) 0%, var(--sd-bg2) 100%) !important;
+  box-shadow: none !important;
+  z-index: 2 !important;
+  transition: width .22s ease, min-width .22s ease, max-width .22s ease !important;
 }
 
-html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
+html body.heavy-v100.sd-sidebar-expanded-v21 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
+  width: var(--sd-open-w) !important;
+  min-width: var(--sd-open-w) !important;
+  max-width: var(--sd-open-w) !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v21 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
+  width: var(--sd-closed-w) !important;
+  min-width: var(--sd-closed-w) !important;
+  max-width: var(--sd-closed-w) !important;
+}
+
+/* Main content: normal second grid column */
 html body.heavy-v100 .app-shell.has-layout-sidebar > main,
+html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
 html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
 html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
   grid-column: 2 !important;
@@ -51,170 +92,154 @@ html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v
   max-width: none !important;
   margin: 0 !important;
   padding: 24px !important;
-  overflow-x: hidden !important;
   position: relative !important;
   z-index: 1 !important;
+  overflow-x: hidden !important;
+  direction: rtl !important;
+  transform: none !important;
 }
 
-/* Sidebar rebuilt from scratch */
-html body.heavy-v100 .sd-sidebar-v11 {
-  position: sticky !important;
-  top: 0 !important;
-  width: var(--sd-sidebar-width-v11) !important;
-  min-width: var(--sd-sidebar-width-v11) !important;
-  max-width: var(--sd-sidebar-width-v11) !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
-  max-height: 100vh !important;
-  overflow: hidden !important;
-  padding: 18px !important;
-  box-sizing: border-box !important;
-  display: grid !important;
-  grid-template-rows: auto minmax(0, 1fr) auto !important;
-  gap: 14px !important;
-  color: var(--sd-sidebar-text-v11) !important;
-  border-radius: 0 !important;
-  border: 0 !important;
-  background:
-    radial-gradient(300px circle at 18% 0%, rgba(96,165,250,.26), transparent 62%),
-    linear-gradient(180deg, var(--sd-sidebar-bg-1-v11) 0%, var(--sd-sidebar-bg-2-v11) 100%) !important;
-  box-shadow: none !important;
-  isolation: isolate !important;
-  z-index: 20 !important;
-}
-
+/* Header */
 html body.heavy-v100 .sd-sidebar-head-v11 {
   display: grid !important;
-  gap: 14px !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 13px !important;
+  border: 1px solid var(--sd-border) !important;
+  color: #dbeafe !important;
+  background: rgba(255,255,255,.06) !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 * {
+  pointer-events: none !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11 .hs-icon-v180 {
+  width: 18px !important;
+  height: 18px !important;
 }
 
 html body.heavy-v100 .sd-user-v11 {
   display: grid !important;
-  grid-template-columns: 58px minmax(0, 1fr) !important;
-  gap: 12px !important;
+  gap: 8px !important;
   align-items: center !important;
+  min-width: 0 !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-user-v11 {
+  grid-template-columns: 38px minmax(0,1fr) !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-user-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
 }
 
 html body.heavy-v100 .sd-avatar-v11 {
-  width: 58px !important;
-  height: 58px !important;
-  border-radius: 50% !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 999px !important;
   display: grid !important;
   place-items: center !important;
   position: relative !important;
-  background: linear-gradient(145deg, #3b5bff, #1d4ed8) !important;
+  background: linear-gradient(145deg,#3b5bff,#1d4ed8) !important;
   color: #fff !important;
+  font-size: .75rem !important;
   font-weight: 950 !important;
-  box-shadow: 0 16px 34px rgba(37,99,235,.35), inset 0 0 0 1px rgba(255,255,255,.18) !important;
+  box-shadow: 0 12px 24px rgba(37,99,235,.28), inset 0 0 0 1px rgba(255,255,255,.18) !important;
 }
 
 html body.heavy-v100 .sd-avatar-v11 span {
   position: absolute !important;
-  width: 14px !important;
-  height: 14px !important;
+  width: 9px !important;
+  height: 9px !important;
   border-radius: 999px !important;
-  right: 3px !important;
-  bottom: 6px !important;
+  right: 2px !important;
+  bottom: 4px !important;
   background: #22c55e !important;
-  box-shadow: 0 0 0 4px #0b1b3d !important;
+  box-shadow: 0 0 0 3px #0b1b3d !important;
 }
 
 html body.heavy-v100 .sd-user-copy-v11 {
   min-width: 0 !important;
   display: grid !important;
-  gap: 4px !important;
+  gap: 2px !important;
 }
 
 html body.heavy-v100 .sd-user-copy-v11 strong {
   color: #fff !important;
-  font-size: 1.05rem !important;
-  line-height: 1.2 !important;
+  font-size: .76rem !important;
+  line-height: 1.15 !important;
   font-weight: 950 !important;
   white-space: normal !important;
   overflow: visible !important;
-  text-overflow: clip !important;
 }
 
 html body.heavy-v100 .sd-user-copy-v11 small {
-  color: var(--sd-sidebar-muted-v11) !important;
-  font-size: .82rem !important;
-  line-height: 1.25 !important;
+  color: var(--sd-muted) !important;
+  font-size: .58rem !important;
+  line-height: 1.2 !important;
   font-weight: 800 !important;
-  white-space: normal !important;
 }
 
-html body.heavy-v100 .sd-menu-btn-v11 {
-  width: 50px !important;
-  height: 50px !important;
-  border-radius: 16px !important;
-  border: 1px solid var(--sd-sidebar-border-v11) !important;
-  color: #dbeafe !important;
-  background: rgba(255,255,255,.06) !important;
-  display: grid !important;
-  place-items: center !important;
-  cursor: default !important;
-}
-
-html body.heavy-v100 .sd-menu-btn-v11 .hs-icon-v180 {
-  width: 24px !important;
-  height: 24px !important;
-}
-
+/* Language */
 html body.heavy-v100 .sd-lang-v11 {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
-  gap: 10px !important;
+  gap: 6px !important;
 }
 
 html body.heavy-v100 .sd-lang-v11 a {
-  min-height: 44px !important;
+  min-height: 32px !important;
   display: grid !important;
   place-items: center !important;
-  border-radius: 14px !important;
+  border-radius: 11px !important;
   color: #d7e4ff !important;
   text-decoration: none !important;
-  font-size: .9rem !important;
+  font-size: .64rem !important;
   font-weight: 900 !important;
-  border: 1px solid var(--sd-sidebar-border-v11) !important;
+  border: 1px solid var(--sd-border) !important;
   background: rgba(255,255,255,.055) !important;
 }
 
 html body.heavy-v100 .sd-lang-v11 a.active {
   color: #fff !important;
   border-color: rgba(147,197,253,.55) !important;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-  box-shadow: 0 12px 24px rgba(37,99,235,.22) !important;
+  background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
 }
 
+/* Nav */
 html body.heavy-v100 .sd-nav-v11 {
   min-height: 0 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   display: grid !important;
   align-content: start !important;
-  gap: 9px !important;
-  padding: 2px 0 12px !important;
+  gap: 7px !important;
+  padding: 0 0 10px !important;
   scrollbar-width: thin !important;
   scrollbar-color: rgba(147,197,253,.38) transparent !important;
-}
-
-html body.heavy-v100 .sd-nav-v11::-webkit-scrollbar {
-  width: 5px !important;
-}
-
-html body.heavy-v100 .sd-nav-v11::-webkit-scrollbar-thumb {
-  background: rgba(147,197,253,.4) !important;
-  border-radius: 999px !important;
 }
 
 html body.heavy-v100 .sd-group-title-v11 {
   display: grid !important;
   grid-template-columns: 1fr auto 1fr !important;
-  gap: 10px !important;
+  gap: 8px !important;
   align-items: center !important;
-  margin: 8px 2px 4px !important;
+  margin: 7px 2px 3px !important;
   color: #9fb3d8 !important;
-  font-size: .78rem !important;
+  font-size: .58rem !important;
   font-weight: 900 !important;
 }
 
@@ -222,18 +247,17 @@ html body.heavy-v100 .sd-group-title-v11::before,
 html body.heavy-v100 .sd-group-title-v11::after {
   content: "" !important;
   height: 1px !important;
-  background: rgba(191,219,254,.18) !important;
+  background: rgba(191,219,254,.16) !important;
 }
 
 html body.heavy-v100 .sd-nav-item-v11 {
   width: 100% !important;
-  min-height: 58px !important;
+  min-height: 42px !important;
   display: grid !important;
-  grid-template-columns: 34px minmax(0, 1fr) auto !important;
-  gap: 12px !important;
   align-items: center !important;
-  padding: 12px 14px !important;
-  border-radius: 16px !important;
+  gap: 7px !important;
+  padding: 8px !important;
+  border-radius: 13px !important;
   color: #e5efff !important;
   text-decoration: none !important;
   border: 1px solid rgba(255,255,255,.06) !important;
@@ -242,44 +266,40 @@ html body.heavy-v100 .sd-nav-item-v11 {
   overflow: visible !important;
 }
 
-html body.heavy-v100 .sd-nav-item-v11:hover {
-  color: #fff !important;
-  background: rgba(59,130,246,.18) !important;
-  border-color: rgba(147,197,253,.25) !important;
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-nav-item-v11 {
+  grid-template-columns: 22px minmax(0,1fr) auto !important;
+  justify-items: stretch !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-item-v11 {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
 }
 
 html body.heavy-v100 .sd-nav-item-v11.active {
   color: #fff !important;
-  background: linear-gradient(135deg, #4f9cff, #2563eb) !important;
+  background: linear-gradient(135deg,#4f9cff,#2563eb) !important;
   border-color: rgba(147,197,253,.55) !important;
-  box-shadow: 0 14px 30px rgba(37,99,235,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
 }
 
 html body.heavy-v100 .sd-nav-icon-v11 {
-  width: 34px !important;
-  min-width: 34px !important;
-  height: 34px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  height: 22px !important;
   display: grid !important;
   place-items: center !important;
   color: #c8d8f5 !important;
 }
 
-html body.heavy-v100 .sd-nav-item-v11.active .sd-nav-icon-v11 {
-  color: #fff !important;
-}
-
 html body.heavy-v100 .sd-nav-icon-v11 .hs-icon-v180 {
-  width: 22px !important;
-  height: 22px !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 html body.heavy-v100 .sd-nav-text-v11 {
-  display: block !important;
-  min-width: 0 !important;
-  max-width: none !important;
   color: inherit !important;
-  font-size: 1rem !important;
-  line-height: 1.35 !important;
+  font-size: .72rem !important;
+  line-height: 1.22 !important;
   font-weight: 900 !important;
   white-space: normal !important;
   overflow: visible !important;
@@ -288,20 +308,25 @@ html body.heavy-v100 .sd-nav-text-v11 {
 }
 
 html body.heavy-v100 .sd-nav-badge-v11 {
-  min-width: 24px !important;
-  height: 24px !important;
-  padding: 0 8px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 5px !important;
   border-radius: 999px !important;
   display: grid !important;
   place-items: center !important;
   color: #0f1b3d !important;
   background: #fbbf24 !important;
-  font-size: .75rem !important;
+  font-size: .6rem !important;
   font-weight: 950 !important;
 }
 
+/* Footer/logout */
 html body.heavy-v100 .sd-sidebar-footer-v11 {
+  margin-top: auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
   border-top: 1px solid rgba(191,219,254,.16) !important;
+  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.94) 25%, rgba(16,46,112,1) 100%) !important;
   padding-top: 12px !important;
 }
 
@@ -311,24 +336,51 @@ html body.heavy-v100 .sd-sidebar-footer-v11 form {
 
 html body.heavy-v100 .sd-logout-v11 {
   width: 100% !important;
-  min-height: 54px !important;
-  border-radius: 16px !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
   border: 1px solid rgba(248,113,113,.56) !important;
   background: rgba(127,29,29,.12) !important;
   color: #fca5a5 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
   font: inherit !important;
-  font-size: .95rem !important;
+  font-size: .7rem !important;
   font-weight: 950 !important;
   cursor: pointer !important;
+  position: relative !important;
 }
 
-html body.heavy-v100 .sd-logout-v11:hover {
-  background: rgba(239,68,68,.17) !important;
-  border-color: #f87171 !important;
+html body.heavy-v100 .sd-logout-v11::after {
+  content: none !important;
+  display: none !important;
+}
+
+html body.heavy-v100 .sd-logout-v11 .hs-icon-v180 {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* collapsed hides text only */
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-user-copy-v11,
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-lang-v11,
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-group-title-v11,
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-text-v11,
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-badge-v11,
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-logout-v11 span {
+  display: none !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-user-copy-v11,
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-lang-v11,
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-group-title-v11 {
+  display: grid !important;
+}
+
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-nav-text-v11,
+html body.heavy-v100.sd-sidebar-expanded-v21 .sd-logout-v11 span {
+  display: block !important;
 }
 
 .dev-build-notice-v11 {
@@ -344,7 +396,7 @@ html body.heavy-v100 .sd-logout-v11:hover {
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #0f172a, #1d4ed8);
+  background: linear-gradient(135deg,#0f172a,#1d4ed8);
   color: #fff;
   border: 1px solid rgba(147,197,253,.35);
   box-shadow: 0 18px 50px rgba(15,23,42,.28);
@@ -354,13 +406,8 @@ html body.heavy-v100 .sd-logout-v11:hover {
   display: none !important;
 }
 
-.dev-build-notice-v11 strong,
 .dev-build-notice-v11 span {
   display: block;
-  line-height: 1.35;
-}
-
-.dev-build-notice-v11 span {
   color: #bfdbfe;
   font-size: .85rem;
   direction: ltr;
@@ -392,934 +439,26 @@ html body.heavy-v100 .sd-logout-v11:hover {
   box-shadow: 0 8px 22px rgba(15,23,42,.18);
 }
 
-/* Mobile: sidebar becomes drawer-width and still readable */
-@media (max-width: 900px) {
-  html body.heavy-v100 .app-shell.has-layout-sidebar,
-  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
-  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
+.dev-build-badge-v11::after {
+  content: " / v21-purge-sidebar-css-20260429";
+}
+
+@media(max-width:900px) {
+  html body.heavy-v100 .app-shell.has-layout-sidebar {
     display: block !important;
     grid-template-columns: 1fr !important;
   }
-
-  html body.heavy-v100 .sd-sidebar-v11 {
+  html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
     position: fixed !important;
-    width: min(90vw, 360px) !important;
-    min-width: min(90vw, 360px) !important;
-    max-width: min(90vw, 360px) !important;
-    z-index: 1055 !important;
-  }
-
-  html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
-  html body.heavy-v100 .app-shell.has-layout-sidebar > main,
-  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
-  html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
-    padding: 14px 12px 78px !important;
-  }
-}
-
-
-/* === V12 COLLAPSIBLE SIDEBAR OVERRIDES === */
-:root {
-  --sd-sidebar-width-v12: 288px;
-  --sd-sidebar-collapsed-v12: 86px;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-sidebar-width-v12) minmax(0,1fr) !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-sidebar-collapsed-v12) minmax(0,1fr) !important;
-}
-
-html body.heavy-v100 .sd-sidebar-v11 {
-  position: relative !important;
-  top: auto !important;
-  width: var(--sd-sidebar-width-v12) !important;
-  min-width: var(--sd-sidebar-width-v12) !important;
-  max-width: var(--sd-sidebar-width-v12) !important;
-  min-height: 100% !important;
-  height: auto !important;
-  max-height: none !important;
-  align-self: stretch !important;
-  padding: 14px !important;
-  gap: 12px !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-  width: var(--sd-sidebar-collapsed-v12) !important;
-  min-width: var(--sd-sidebar-collapsed-v12) !important;
-  max-width: var(--sd-sidebar-collapsed-v12) !important;
-  padding: 14px 10px !important;
-}
-
-html body.heavy-v100 .sd-sidebar-head-v11 {
-  gap: 12px !important;
-}
-
-html body.heavy-v100 .sd-menu-btn-v11 {
-  cursor: pointer !important;
-}
-
-html body.heavy-v100 .sd-user-v11 {
-  grid-template-columns: 52px minmax(0,1fr) !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-copy-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-lang-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-group-title-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-text-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-badge-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 span {
-  display: none !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-avatar-v11 {
-  margin-inline: auto !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-menu-btn-v11 {
-  margin-inline: auto !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-v11 {
-  overflow-y: visible !important;
-  gap: 10px !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-  min-height: 52px !important;
-  padding: 10px !important;
-  position: relative !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-icon-v11 {
-  width: 28px !important;
-  min-width: 28px !important;
-  height: 28px !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-footer-v11 {
-  position: sticky !important;
-  bottom: 0 !important;
-  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.92) 25%, rgba(16,46,112,1) 100%) !important;
-  padding-top: 16px !important;
-  margin-top: auto !important;
-}
-
-html body.heavy-v100 .sd-sidebar-footer-v11 {
-  margin-top: auto !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.92) 25%, rgba(16,46,112,1) 100%) !important;
-  padding-top: 16px !important;
-}
-
-html body.heavy-v100 .sd-logout-v11 {
-  justify-content: center !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 {
-  padding: 0 !important;
-  min-height: 52px !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 .hs-icon-v180 {
-  margin: 0 auto !important;
-}
-
-/* tooltip for collapsed state */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11::after,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11::after {
-  content: attr(data-label) !important;
-  position: absolute !important;
-  inset-inline-start: calc(100% + 10px) !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  background: rgba(15,23,42,.98) !important;
-  color: #fff !important;
-  padding: 8px 10px !important;
-  border-radius: 10px !important;
-  white-space: nowrap !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  box-shadow: 0 10px 24px rgba(15,23,42,.22) !important;
-  z-index: 50 !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11:hover::after,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11:hover::after {
-  opacity: 1 !important;
-}
-html body.heavy-v100 .sd-logout-v11 {
-  position: relative !important;
-}
-html body.heavy-v100 .sd-logout-v11::after {
-  content: 'تسجيل الخروج';
-}
-html[dir="ltr"] body.heavy-v100 .sd-logout-v11::after {
-  content: 'Sign out';
-}
-
-@media (max-width: 900px) {
-  html body.heavy-v100 .app-shell.has-layout-sidebar,
-  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded,
-  html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-    display: block !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  html body.heavy-v100 .sd-sidebar-v11 {
-    position: fixed !important;
-    inset-inline-start: 0 !important;
     top: 0 !important;
+    inset-inline-start: 0 !important;
     min-height: 100vh !important;
     height: 100vh !important;
-    width: min(84vw, var(--sd-sidebar-width-v12)) !important;
-    min-width: min(84vw, var(--sd-sidebar-width-v12)) !important;
-    max-width: min(84vw, var(--sd-sidebar-width-v12)) !important;
-    transform: translateX(0) !important;
-    transition: transform .24s ease !important;
+    z-index: 1055 !important;
   }
-
-  html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-    transform: translateX(100%) !important;
+  html body.heavy-v100.sd-sidebar-expanded-v21 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
+    width: min(84vw, var(--sd-open-w)) !important;
+    min-width: min(84vw, var(--sd-open-w)) !important;
+    max-width: min(84vw, var(--sd-open-w)) !important;
   }
-  html[dir="ltr"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-    transform: translateX(-100%) !important;
-  }
-}
-
-
-/* === V13 TOGGLE FIX + 20 PERCENT SCALE === */
-:root {
-  --sd-sidebar-width-v13: 288px;
-  --sd-sidebar-collapsed-v13: 86px;
-}
-
-/* stable shell widths */
-html body.heavy-v100 .app-shell.has-layout-sidebar,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
-  grid-template-columns: var(--sd-sidebar-width-v13) minmax(0,1fr) !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-sidebar-collapsed-v13) minmax(0,1fr) !important;
-}
-
-/* sidebar fills full column */
-html body.heavy-v100 .sd-sidebar-v11 {
-  width: var(--sd-sidebar-width-v13) !important;
-  min-width: var(--sd-sidebar-width-v13) !important;
-  max-width: var(--sd-sidebar-width-v13) !important;
-  min-height: 100% !important;
-  height: auto !important;
-  max-height: none !important;
-  align-self: stretch !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-  width: var(--sd-sidebar-collapsed-v13) !important;
-  min-width: var(--sd-sidebar-collapsed-v13) !important;
-  max-width: var(--sd-sidebar-collapsed-v13) !important;
-}
-
-/* V13: 20% smaller fonts/icons */
-html body.heavy-v100 .sd-user-copy-v11 strong {
-  font-size: .84rem !important;
-}
-html body.heavy-v100 .sd-user-copy-v11 small {
-  font-size: .66rem !important;
-}
-html body.heavy-v100 .sd-lang-v11 a {
-  min-height: 36px !important;
-  font-size: .72rem !important;
-  border-radius: 12px !important;
-}
-html body.heavy-v100 .sd-nav-item-v11 {
-  min-height: 46px !important;
-  padding: 9px 11px !important;
-  border-radius: 13px !important;
-  gap: 10px !important;
-  grid-template-columns: 27px minmax(0, 1fr) auto !important;
-}
-html body.heavy-v100 .sd-nav-icon-v11 {
-  width: 27px !important;
-  min-width: 27px !important;
-  height: 27px !important;
-}
-html body.heavy-v100 .sd-nav-icon-v11 .hs-icon-v180 {
-  width: 18px !important;
-  height: 18px !important;
-}
-html body.heavy-v100 .sd-nav-text-v11 {
-  font-size: .80rem !important;
-  line-height: 1.25 !important;
-}
-html body.heavy-v100 .sd-group-title-v11 {
-  font-size: .62rem !important;
-}
-html body.heavy-v100 .sd-avatar-v11 {
-  width: 46px !important;
-  height: 46px !important;
-  font-size: .82rem !important;
-}
-html body.heavy-v100 .sd-avatar-v11 span {
-  width: 11px !important;
-  height: 11px !important;
-}
-html body.heavy-v100 .sd-menu-btn-v11 {
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 13px !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 80 !important;
-  pointer-events: auto !important;
-}
-html body.heavy-v100 .sd-menu-btn-v11 .hs-icon-v180 {
-  width: 19px !important;
-  height: 19px !important;
-}
-html body.heavy-v100 .sd-logout-v11 {
-  min-height: 43px !important;
-  font-size: .76rem !important;
-  border-radius: 13px !important;
-}
-html body.heavy-v100 .sd-logout-v11 .hs-icon-v180 {
-  width: 18px !important;
-  height: 18px !important;
-}
-
-/* collapsed state: icons only, but the menu button must remain clickable */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-copy-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-lang-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-group-title-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-text-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-badge-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 span {
-  display: none !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-menu-btn-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-avatar-v11 {
-  margin-inline: auto !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-  min-height: 44px !important;
-  padding: 8px !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 {
-  min-height: 44px !important;
-  padding: 0 !important;
-}
-
-/* fixed bottom logout background */
-html body.heavy-v100 .sd-sidebar-footer-v11 {
-  margin-top: auto !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.92) 25%, rgba(16,46,112,1) 100%) !important;
-  padding-top: 14px !important;
-}
-
-/* Make build badge reflect the new version visually */
-.dev-build-badge-v11::after {
-  content: " / v13-sidebar-toggle-scale-20260429";
-}
-
-
-/* === V14 TOGGLE HARD FIX === */
-:root {
-  --sd-sidebar-width-v14: 288px;
-  --sd-sidebar-collapsed-v14: 86px;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
-  grid-template-columns: var(--sd-sidebar-width-v14) minmax(0,1fr) !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-sidebar-collapsed-v14) minmax(0,1fr) !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-sidebar-v11 {
-  width: var(--sd-sidebar-width-v14) !important;
-  min-width: var(--sd-sidebar-width-v14) !important;
-  max-width: var(--sd-sidebar-width-v14) !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-  width: var(--sd-sidebar-collapsed-v14) !important;
-  min-width: var(--sd-sidebar-collapsed-v14) !important;
-  max-width: var(--sd-sidebar-collapsed-v14) !important;
-}
-
-html body.heavy-v100 .sd-menu-btn-v11,
-html body.heavy-v100 #sdSidebarToggleV14 {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 99999 !important;
-  user-select: none !important;
-  touch-action: manipulation !important;
-}
-
-html body.heavy-v100 .sd-menu-btn-v11 *,
-html body.heavy-v100 #sdSidebarToggleV14 * {
-  pointer-events: none !important;
-}
-
-html body.heavy-v100 .sd-sidebar-v11 {
-  overflow: visible !important;
-}
-
-html body.heavy-v100 .sd-nav-v11 {
-  overflow-x: visible !important;
-}
-
-.dev-build-badge-v11::after {
-  content: " / v14-toggle-hard-fix-20260429";
-}
-
-
-/* === V15 SCRIPT LOAD TOGGLE FIX === */
-html body.heavy-v100 #sdSidebarToggleV15,
-html body.heavy-v100 .sd-menu-btn-v11 {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  z-index: 999999 !important;
-  position: relative !important;
-}
-html body.heavy-v100 #sdSidebarToggleV15 *,
-html body.heavy-v100 .sd-menu-btn-v11 * {
-  pointer-events: none !important;
-}
-.dev-build-badge-v11::after {
-  content: " / v15-toggle-script-load-20260429";
-}
-
-
-/* === V16 MISSING SCRIPT FIX === */
-html body.heavy-v100 #sdSidebarToggleV16,
-html body.heavy-v100 .sd-menu-btn-v11 {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  z-index: 999999 !important;
-  position: relative !important;
-}
-html body.heavy-v100 #sdSidebarToggleV16 *,
-html body.heavy-v100 .sd-menu-btn-v11 * {
-  pointer-events: none !important;
-}
-.dev-build-badge-v11::after {
-  content: " / v16-missing-sidebar-script-20260429";
-}
-
-
-/* === V17 REAL SIDEBAR TOGGLE FINAL OVERRIDE === */
-:root {
-  --sd-open-w-v17: 288px;
-  --sd-closed-w-v17: 86px;
-}
-
-/* Widths controlled by class on the app shell */
-html body.heavy-v100 .app-shell.has-layout-sidebar {
-  display: grid !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-  gap: 0 !important;
-  transition: grid-template-columns .22s ease !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded {
-  grid-template-columns: var(--sd-open-w-v17) minmax(0,1fr) !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-closed-w-v17) minmax(0,1fr) !important;
-}
-
-/* Sidebar actual width must follow the shell */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-sidebar-v11 {
-  width: var(--sd-open-w-v17) !important;
-  min-width: var(--sd-open-w-v17) !important;
-  max-width: var(--sd-open-w-v17) !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-sidebar-v11 {
-  width: var(--sd-closed-w-v17) !important;
-  min-width: var(--sd-closed-w-v17) !important;
-  max-width: var(--sd-closed-w-v17) !important;
-}
-
-html body.heavy-v100 .sd-sidebar-v11 {
-  position: relative !important;
-  height: auto !important;
-  min-height: 100% !important;
-  max-height: none !important;
-  align-self: stretch !important;
-  overflow: visible !important;
-  padding: 14px 10px !important;
-  transition: width .22s ease, min-width .22s ease, max-width .22s ease !important;
-}
-
-/* Button */
-html body.heavy-v100 #sdSidebarToggleV17,
-html body.heavy-v100 [data-sd-toggle-sidebar],
-html body.heavy-v100 .sd-menu-btn-v11 {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  z-index: 2147483647 !important;
-  position: relative !important;
-  user-select: none !important;
-  touch-action: manipulation !important;
-}
-html body.heavy-v100 #sdSidebarToggleV17 *,
-html body.heavy-v100 [data-sd-toggle-sidebar] *,
-html body.heavy-v100 .sd-menu-btn-v11 * {
-  pointer-events: none !important;
-}
-
-/* Collapsed = icons only */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-copy-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-lang-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-group-title-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-text-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-badge-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-logout-v11 span {
-  display: none !important;
-}
-
-/* Expanded = show text */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-user-copy-v11 {
-  display: grid !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-lang-v11 {
-  display: grid !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-group-title-v11 {
-  display: grid !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-nav-text-v11,
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-logout-v11 span {
-  display: block !important;
-}
-
-/* Layout details */
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-user-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-user-v11 {
-  grid-template-columns: 46px minmax(0,1fr) !important;
-  justify-items: stretch !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .sd-nav-item-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-  padding: 8px !important;
-  min-height: 44px !important;
-}
-html body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .sd-nav-item-v11 {
-  grid-template-columns: 27px minmax(0,1fr) auto !important;
-  justify-items: stretch !important;
-  padding: 9px 11px !important;
-  min-height: 46px !important;
-}
-
-html body.heavy-v100 .sd-sidebar-footer-v11 {
-  margin-top: auto !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.94) 25%, rgba(16,46,112,1) 100%) !important;
-  padding-top: 14px !important;
-}
-
-.dev-build-badge-v11::after {
-  content: " / v17-real-sidebar-toggle-20260429";
-}
-
-
-/* === V18 PURGE OLD SIDEBAR FINAL === */
-:root {
-  --sd-open-w-v18: 288px;
-  --sd-closed-w-v18: 86px;
-}
-
-/* No old sidebar classes are allowed to drive layout anymore */
-html body.heavy-v100 .app-shell.has-layout-sidebar,
-html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-expanded {
-  display: grid !important;
-  grid-template-columns: var(--sd-open-w-v18) minmax(0, 1fr) !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-  gap: 0 !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  display: grid !important;
-  grid-template-columns: var(--sd-closed-w-v18) minmax(0, 1fr) !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-  gap: 0 !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-sidebar-v11 {
-  width: var(--sd-open-w-v18) !important;
-  min-width: var(--sd-open-w-v18) !important;
-  max-width: var(--sd-open-w-v18) !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-sidebar-v11 {
-  width: var(--sd-closed-w-v18) !important;
-  min-width: var(--sd-closed-w-v18) !important;
-  max-width: var(--sd-closed-w-v18) !important;
-}
-
-html body.heavy-v100 .sd-sidebar-v11 {
-  grid-column: 1 !important;
-  position: relative !important;
-  top: auto !important;
-  height: auto !important;
-  min-height: 100% !important;
-  max-height: none !important;
-  align-self: stretch !important;
-  overflow: visible !important;
-  padding: 14px 10px !important;
-  transition: width .22s ease, min-width .22s ease, max-width .22s ease !important;
-}
-
-html body.heavy-v100 .app-shell.has-layout-sidebar > main,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
-  grid-column: 2 !important;
-  min-width: 0 !important;
-  margin: 0 !important;
-}
-
-/* collapsed icons only */
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-user-copy-v11,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-lang-v11,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-group-title-v11,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-text-v11,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-badge-v11,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-logout-v11 span {
-  display: none !important;
-}
-
-/* expanded text visible */
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 {
-  display: grid !important;
-}
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11,
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-group-title-v11 {
-  display: grid !important;
-}
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-text-v11,
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-logout-v11 span {
-  display: block !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-user-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-}
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-v11 {
-  grid-template-columns: 46px minmax(0, 1fr) !important;
-  justify-items: stretch !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
-  grid-template-columns: 1fr !important;
-  justify-items: center !important;
-}
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-item-v11 {
-  grid-template-columns: 27px minmax(0,1fr) auto !important;
-  justify-items: stretch !important;
-}
-
-html body.heavy-v100 #sdSidebarToggleV18,
-html body.heavy-v100 [data-sd-toggle-sidebar-v18],
-html body.heavy-v100 .sd-menu-btn-v11 {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  z-index: 2147483647 !important;
-  position: relative !important;
-}
-
-html body.heavy-v100 #sdSidebarToggleV18 *,
-html body.heavy-v100 [data-sd-toggle-sidebar-v18] *,
-html body.heavy-v100 .sd-menu-btn-v11 * {
-  pointer-events: none !important;
-}
-
-html body.heavy-v100 .sd-sidebar-footer-v11 {
-  margin-top: auto !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  background: linear-gradient(180deg, rgba(16,46,112,0) 0%, rgba(16,46,112,.94) 25%, rgba(16,46,112,1) 100%) !important;
-  padding-top: 14px !important;
-}
-
-.dev-build-badge-v11::after {
-  content: " / v18-purge-old-sidebar-20260429";
-}
-
-
-/* === V19 WIDTH REDUCTION + LOGOUT DUPLICATE FIX === */
-/* 20% narrower than V18:
-   open: 288px -> 230px
-   closed: 86px -> 69px */
-:root {
-  --sd-open-w-v18: 230px !important;
-  --sd-closed-w-v18: 69px !important;
-  --sd-open-w-v19: 230px;
-  --sd-closed-w-v19: 69px;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-expanded {
-  grid-template-columns: var(--sd-open-w-v19) minmax(0,1fr) !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  grid-template-columns: var(--sd-closed-w-v19) minmax(0,1fr) !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-sidebar-v11 {
-  width: var(--sd-open-w-v19) !important;
-  min-width: var(--sd-open-w-v19) !important;
-  max-width: var(--sd-open-w-v19) !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-sidebar-v11 {
-  width: var(--sd-closed-w-v19) !important;
-  min-width: var(--sd-closed-w-v19) !important;
-  max-width: var(--sd-closed-w-v19) !important;
-}
-
-/* remove duplicate logout label caused by old ::after tooltip/content rules */
-html body.heavy-v100 .sd-logout-v11::after,
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-logout-v11::after,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-logout-v11::after {
-  content: none !important;
-  display: none !important;
-}
-
-/* compensate spacing after width reduction */
-html body.heavy-v100 .sd-sidebar-v11 {
-  padding-inline: 9px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-item-v11 {
-  grid-template-columns: 24px minmax(0,1fr) auto !important;
-  gap: 8px !important;
-  padding-inline: 9px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-text-v11 {
-  font-size: .76rem !important;
-  line-height: 1.25 !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 strong {
-  font-size: .80rem !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 small {
-  font-size: .62rem !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 a {
-  font-size: .68rem !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
-  min-height: 42px !important;
-  padding: 7px !important;
-}
-
-.dev-build-badge-v11::after {
-  content: " / v19-sidebar-width-logout-20260429" !important;
-}
-
-
-/* === V20 TRUE SIDEBAR WIDTH + NO OVERLAY FIX === */
-/*
-  V20:
-  - Open width and collapsed width are controlled by ONE source.
-  - The grid column and actual sidebar width are always equal.
-  - This prevents the opened sidebar from covering the dashboard.
-*/
-:root {
-  --sd-open-w-v20: 230px;
-  --sd-closed-w-v20: 69px;
-}
-
-/* Expanded: grid column = actual sidebar width */
-html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar,
-html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-expanded,
-html body.heavy-v100.sd-sidebar-expanded-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  display: grid !important;
-  grid-template-columns: var(--sd-open-w-v20) minmax(0, 1fr) !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-  overflow-x: hidden !important;
-}
-
-/* Collapsed: grid column = actual sidebar width */
-html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-expanded,
-html body.heavy-v100.sd-sidebar-collapsed-v18 .app-shell.has-layout-sidebar.sidebar-collapsed {
-  display: grid !important;
-  grid-template-columns: var(--sd-closed-w-v20) minmax(0, 1fr) !important;
-  min-height: 100vh !important;
-  align-items: stretch !important;
-  overflow-x: hidden !important;
-}
-
-/* Sidebar itself follows the same width */
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-sidebar-v11 {
-  width: var(--sd-open-w-v20) !important;
-  min-width: var(--sd-open-w-v20) !important;
-  max-width: var(--sd-open-w-v20) !important;
-  position: relative !important;
-  inset: auto !important;
-  transform: none !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-sidebar-v11 {
-  width: var(--sd-closed-w-v20) !important;
-  min-width: var(--sd-closed-w-v20) !important;
-  max-width: var(--sd-closed-w-v20) !important;
-  position: relative !important;
-  inset: auto !important;
-  transform: none !important;
-}
-
-/* Prevent fixed/absolute old mobile/sidebar behavior on desktop */
-@media (min-width: 901px) {
-  html body.heavy-v100 .sd-sidebar-v11 {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    left: auto !important;
-    bottom: auto !important;
-    height: auto !important;
-    min-height: 100% !important;
-    max-height: none !important;
-    align-self: stretch !important;
-    z-index: 20 !important;
-  }
-}
-
-/* Content must start in the second grid column and never sit under sidebar */
-html body.heavy-v100 .app-shell.has-layout-sidebar > main,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .app-main,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area,
-html body.heavy-v100 .app-shell.has-layout-sidebar > .content-area.admin-shell-v2 {
-  grid-column: 2 !important;
-  grid-row: 1 !important;
-  min-width: 0 !important;
-  width: auto !important;
-  margin: 0 !important;
-  padding-inline-start: 24px !important;
-  padding-inline-end: 24px !important;
-  transform: none !important;
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* Keep text readable inside the narrower open sidebar */
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-item-v11 {
-  grid-template-columns: 22px minmax(0, 1fr) auto !important;
-  gap: 7px !important;
-  padding-inline: 8px !important;
-  min-height: 44px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-icon-v11 {
-  width: 22px !important;
-  min-width: 22px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-icon-v11 .hs-icon-v180 {
-  width: 16px !important;
-  height: 16px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-nav-text-v11 {
-  font-size: .72rem !important;
-  line-height: 1.22 !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-v11 {
-  grid-template-columns: 38px minmax(0, 1fr) !important;
-  gap: 8px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-avatar-v11 {
-  width: 38px !important;
-  height: 38px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 strong {
-  font-size: .76rem !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-user-copy-v11 small {
-  font-size: .58rem !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 {
-  gap: 6px !important;
-}
-
-html body.heavy-v100.sd-sidebar-expanded-v18 .sd-lang-v11 a {
-  min-height: 32px !important;
-  font-size: .64rem !important;
-}
-
-/* Collapsed remains compact */
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-menu-btn-v11 {
-  width: 38px !important;
-  height: 38px !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-avatar-v11 {
-  width: 38px !important;
-  height: 38px !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-item-v11 {
-  min-height: 40px !important;
-  padding: 6px !important;
-}
-
-html body.heavy-v100.sd-sidebar-collapsed-v18 .sd-nav-icon-v11 .hs-icon-v180 {
-  width: 16px !important;
-  height: 16px !important;
-}
-
-/* logout duplicate safety */
-html body.heavy-v100 .sd-logout-v11::after {
-  content: none !important;
-  display: none !important;
-}
-
-.dev-build-badge-v11::after {
-  content: " / v20-sidebar-true-width-20260429" !important;
 }

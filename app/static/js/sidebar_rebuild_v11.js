@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v20-sidebar-true-width-20260429";
+  var buildId = "v21-purge-sidebar-css-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {
@@ -8,8 +8,8 @@
   }
 
   function setState(state) {
-    document.body.classList.remove("sd-sidebar-expanded-v18", "sd-sidebar-collapsed-v18");
-    document.body.classList.add(state === "expanded" ? "sd-sidebar-expanded-v18" : "sd-sidebar-collapsed-v18");
+    document.body.classList.remove("sd-sidebar-expanded-v21", "sd-sidebar-collapsed-v21");
+    document.body.classList.add(state === "expanded" ? "sd-sidebar-expanded-v21" : "sd-sidebar-collapsed-v21");
 
     shells().forEach(function(shell) {
       shell.classList.remove("sidebar-expanded", "sidebar-collapsed");
@@ -19,12 +19,10 @@
   }
 
   function getState() {
-    var shell = shells()[0];
-    if (!shell) return "collapsed";
-    return shell.classList.contains("sidebar-expanded") ? "expanded" : "collapsed";
+    return document.body.classList.contains("sd-sidebar-expanded-v21") ? "expanded" : "collapsed";
   }
 
-  window.sdToggleSidebarV18 = function(event) {
+  window.sdToggleSidebarV21 = function(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -33,19 +31,12 @@
     return false;
   };
 
-  // compatibility aliases
-  window.sdToggleSidebarV17 = window.sdToggleSidebarV18;
-  window.sdToggleSidebarV16 = window.sdToggleSidebarV18;
-  window.sdToggleSidebarV15 = window.sdToggleSidebarV18;
-  window.sdToggleSidebarV14 = window.sdToggleSidebarV18;
-  window.sdToggleSidebarV13 = window.sdToggleSidebarV18;
-
   function wire() {
-    document.querySelectorAll("#sdSidebarToggleV18, [data-sd-toggle-sidebar-v18], .sd-menu-btn-v11").forEach(function(btn) {
-      if (btn.dataset.v18Wired === "1") return;
-      btn.dataset.v18Wired = "1";
-      btn.onclick = window.sdToggleSidebarV18;
-      btn.addEventListener("click", window.sdToggleSidebarV18, true);
+    document.querySelectorAll("#sdSidebarToggleV21, [data-sd-toggle-sidebar-v21], .sd-menu-btn-v11").forEach(function(btn) {
+      if (btn.dataset.v21Wired === "1") return;
+      btn.dataset.v21Wired = "1";
+      btn.onclick = window.sdToggleSidebarV21;
+      btn.addEventListener("click", window.sdToggleSidebarV21, true);
     });
   }
 
@@ -57,8 +48,8 @@
     var seen = false;
     try { seen = localStorage.getItem(key) === "1"; } catch(e) {}
     if (!seen) notice.hidden = false;
-    if (closeBtn && closeBtn.dataset.v18Wired !== "1") {
-      closeBtn.dataset.v18Wired = "1";
+    if (closeBtn && closeBtn.dataset.v21Wired !== "1") {
+      closeBtn.dataset.v21Wired = "1";
       closeBtn.addEventListener("click", function() {
         try { localStorage.setItem(key, "1"); } catch(e) {}
         notice.hidden = true;
@@ -67,16 +58,15 @@
   }
 
   function init() {
-    // default closed every reload, exactly as requested
     setState("collapsed");
     wire();
     buildNotice();
-    console.log("SolarDeye V18 sidebar loaded:", buildId);
+    console.log("SolarDeye V21 clean sidebar loaded:", buildId);
   }
 
   document.addEventListener("click", function(e) {
-    if (e.target.closest("#sdSidebarToggleV18, [data-sd-toggle-sidebar-v18], .sd-menu-btn-v11")) {
-      window.sdToggleSidebarV18(e);
+    if (e.target.closest("#sdSidebarToggleV21, [data-sd-toggle-sidebar-v21], .sd-menu-btn-v11")) {
+      window.sdToggleSidebarV21(e);
     }
   }, true);
 
@@ -86,6 +76,6 @@
     init();
   }
 
-  setTimeout(init, 100);
+  setTimeout(wire, 100);
   setTimeout(wire, 500);
 })();
