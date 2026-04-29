@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v21-purge-sidebar-css-20260429";
+  var buildId = "v22-support-command-layout-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {

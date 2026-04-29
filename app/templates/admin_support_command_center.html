@@ -4,27 +4,11 @@
 {% set priority_map = labels['priority'] %}
 {% block title %}{{ 'Mail & Technical Support Center' if is_en else 'مركز البريد والدعم الفني' }}{% endblock %}
 {% block body %}
-<main class="support-center-v170" data-support-mailbox>
-  <!-- Right Sidebar -->
-  <aside class="sc-sidebar-v170" aria-label="Support navigation">
-    <div class="sc-sidebar-logo-v170" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0v3a3 3 0 0 1-3 3h-2v-2h2a1 1 0 0 0 1-1v-3a6 6 0 0 0-12 0v4H4v-4Zm3 2h3v5H7a3 3 0 0 1 0-6Zm10 0a3 3 0 0 1 0 6h-3v-5h3Z"/></svg>
-    </div>
-    <nav class="sc-nav-v170">
-      <a class="active" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}"><span>▣</span><b>المحادثات</b></a>
-      <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}"><span>✉</span><b>كل الرسائل</b></a>
-      <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine') }}"><span>☑</span><b>مهامي</b><em>{{ stats.get('mine', 0) }}</em></a>
-      <a href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='unanswered') }}"><span>▥</span><b>المعرفة</b></a>
-      <a href="{{ url_for('main.reports', lang=ui_lang) }}"><span>▤</span><b>التقارير</b></a>
-      <a href="{{ url_for('main.notifications_settings', lang=ui_lang) }}"><span>⚙</span><b>الإعدادات</b></a>
-    </nav>
-    <div class="sc-sidebar-bottom-v170">
-      <button type="button" data-support-theme-toggle aria-label="الوضع الليلي">◐</button>
-      <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" aria-label="تسجيل خروج">↵</button></form>
-    </div>
-  </aside>
-
-  <section class="sc-content-v170">
+<div class="app-shell has-layout-sidebar sidebar-collapsed support-command-shell-v22" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area support-command-main-v22" data-support-mailbox>
+    <section class="support-center-v170 support-center-v22">
+      <section class="sc-content-v170">
     <!-- Header and KPI cards -->
     <header class="sc-header-v170">
       <div class="sc-title-v170">
@@ -32,12 +16,12 @@
         <p>إدارة الرسائل، التذاكر، والمتابعة من مكان واحد</p>
       </div>
       <section class="sc-kpis-v170" aria-label="Support counters">
-        <a class="kpi green" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='closed') }}"><i>✓</i><span>تم الحل</span><strong>{{ stats.get('closed', 12) }}</strong><small>⌄</small></a>
-        <a class="kpi purple" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='waiting_user') }}"><i>⌛</i><span>بانتظار الرد</span><strong>{{ stats.get('waiting_user', 18) }}</strong><small>⌄</small></a>
-        <a class="kpi red" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>◔</i><span>متأخر</span><strong>{{ stats.get('overdue', 3) }}</strong><small>⌄</small></a>
-        <a class="kpi danger" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>!</i><span>عاجل</span><strong>{{ stats.get('urgent', 6) }}</strong><small>⌄</small></a>
-        <a class="kpi orange" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='unanswered') }}"><i>✉</i><span>غير مقروءة</span><strong>{{ stats.get('unanswered', 24) }}</strong><small>⌄</small></a>
-        <a class="kpi blue" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}"><i>✉</i><span>كل الرسائل</span><strong>{{ stats.get('all', 128) }}</strong><small>⌄</small></a>
+        <a class="kpi green" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='closed') }}"><i>✓</i><span>تم الحل</span><strong>{{ stats.get('closed', 0) }}</strong><small>⌄</small></a>
+        <a class="kpi purple" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='waiting_user') }}"><i>⌛</i><span>بانتظار الرد</span><strong>{{ stats.get('waiting_user', 0) }}</strong><small>⌄</small></a>
+        <a class="kpi red" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>◔</i><span>متأخر</span><strong>{{ stats.get('overdue', 0) }}</strong><small>⌄</small></a>
+        <a class="kpi danger" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='urgent') }}"><i>!</i><span>عاجل</span><strong>{{ stats.get('urgent', 0) }}</strong><small>⌄</small></a>
+        <a class="kpi orange" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='unanswered') }}"><i>✉</i><span>غير مقروءة</span><strong>{{ stats.get('unanswered', 0) }}</strong><small>⌄</small></a>
+        <a class="kpi blue" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}"><i>✉</i><span>كل الرسائل</span><strong>{{ stats.get('all', 0) }}</strong><small>⌄</small></a>
       </section>
     </header>
 
@@ -47,7 +31,7 @@
         {% for row in rows %}
           {% set c = row.case %}
           {% set key = row.case_key %}
-          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else ((row.tenant.display_name) if row.tenant else 'Alaa Jamal')) %}
+          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else ((row.tenant.display_name) if row.tenant else 'غير محدد')) %}
           {% set assignee_label = ((row.assignee.full_name or row.assignee.username) if row.assignee else 'خدمة العملاء') %}
           {% set atts = attachment_map.get(key, []) %}
           <section class="sc-detail-set-v170 {{ 'is-active' if key == selected_key else '' }}" data-inspector-panel="{{ key }}">
@@ -59,7 +43,7 @@
                 <div><dt>الأولوية</dt><dd><b class="sc-badge-v170 priority-{{ c.priority }}">{{ priority_map.get(c.priority, 'عادي') }}</b></dd></div>
                 <div><dt>القسم</dt><dd>{{ c.category or 'الدعم الفني' }}</dd></div>
                 <div><dt>المسؤول</dt><dd>{{ assignee_label }}</dd></div>
-                <div><dt>تاريخ الإنشاء</dt><dd>{{ format_local(c.created_at) if c.created_at else '25 أبريل 2026 - 08:08' }}</dd></div>
+                <div><dt>تاريخ الإنشاء</dt><dd>{{ format_local(c.created_at) if c.created_at else '-' }}</dd></div>
                 <div><dt>آخر تحديث</dt><dd>{{ format_local(c.updated_at) if c.updated_at else 'منذ 6 دقائق' }}</dd></div>
               </dl>
             </article>
@@ -113,7 +97,7 @@
         {% for row in rows %}
           {% set c = row.case %}
           {% set key = row.case_key %}
-          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'Alaa Jamal') %}
+          {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'غير محدد') %}
           {% set is_closed = c.status in ['closed','resolved'] %}
           <article class="sc-thread-v170 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}" id="case-{{ key }}">
             <header class="sc-thread-head-v170">
@@ -127,7 +111,7 @@
                 <button type="submit" name="case_action" value="mark_urgent" title="عاجل">☆</button>
               </form>
               <div>
-                <h2><span></span>{{ c.subject or 'استفسار حول الفاتورة' }}</h2>
+                <h2><span></span>{{ c.subject or 'بدون عنوان' }}</h2>
                 <p>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }}</p>
               </div>
             </header>
@@ -243,13 +227,13 @@
           {% for row in rows %}
             {% set c = row.case %}
             {% set key = row.case_key %}
-            {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'Alaa Jamal') %}
+            {% set owner_label = ((row.user.full_name or row.user.username) if row.user else 'غير محدد') %}
             <button class="sc-ticket-card-v170 {{ 'is-active' if key == selected_key else '' }} status-{{ c.status }} priority-{{ c.priority }}" type="button" data-case-row data-case-target="{{ key }}" data-title="{{ c.subject|lower }}" data-owner="{{ owner_label|lower }}" data-status="{{ status_map.get(c.status, c.status)|lower }} {{ priority_map.get(c.priority, c.priority)|lower }}">
-              <time>{{ format_local(c.updated_at) if c.updated_at else '09:08' }}</time>
+              <time>{{ format_local(c.updated_at) if c.updated_at else '-' }}</time>
               <span class="sc-avatar-v170">{{ (owner_label or 'A')[:1] }}</span>
-              <strong>{{ c.subject or 'استفسار حول الفاتورة' }}</strong>
+              <strong>{{ c.subject or 'بدون عنوان' }}</strong>
               <small>{{ owner_label }}</small>
-              <em>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }} {{ row.last_preview or 'لدي استفسار بخصوص الخصم في الفاتورة...' }}</em>
+              <em>#SUP-2026-0425-{{ '%05d'|format(c.source_id) }} {{ row.last_preview or '' }}</em>
               <b class="sc-badge-v170 status-{{ c.status }}">{{ status_map.get(c.status, 'جديد') }}</b>
             </button>
           {% else %}
@@ -260,5 +244,7 @@
       </aside>
     </section>
   </section>
-</main>
+    </section>
+  </main>
+</div>
 {% endblock %}
