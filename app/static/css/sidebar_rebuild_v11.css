@@ -795,3 +795,20 @@ html body.heavy-v100 .sd-nav-v11 {
 .dev-build-badge-v11::after {
   content: " / v14-toggle-hard-fix-20260429";
 }
+
+
+/* === V15 SCRIPT LOAD TOGGLE FIX === */
+html body.heavy-v100 #sdSidebarToggleV15,
+html body.heavy-v100 .sd-menu-btn-v11 {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  z-index: 999999 !important;
+  position: relative !important;
+}
+html body.heavy-v100 #sdSidebarToggleV15 *,
+html body.heavy-v100 .sd-menu-btn-v11 * {
+  pointer-events: none !important;
+}
+.dev-build-badge-v11::after {
+  content: " / v15-toggle-script-load-20260429";
+}

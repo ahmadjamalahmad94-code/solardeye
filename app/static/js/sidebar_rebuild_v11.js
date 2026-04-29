@@ -1,19 +1,18 @@
 
 (function() {
-  var buildId = "v14-toggle-hard-fix-20260429";
+  var buildId = "v15-toggle-script-load-20260429";
   var buildKey = "solardeye_sidebar_build";
   var stateKey = "solardeye_sidebar_state";
 
-  function getShells() {
+  function shells() {
     return Array.prototype.slice.call(document.querySelectorAll(".app-shell.has-layout-sidebar"));
   }
 
   function applyState(state) {
-    getShells().forEach(function(shell) {
+    shells().forEach(function(shell) {
       shell.classList.remove("sidebar-collapsed", "sidebar-expanded");
       shell.classList.add(state === "expanded" ? "sidebar-expanded" : "sidebar-collapsed");
     });
-
     try {
       localStorage.setItem(stateKey, state);
       localStorage.setItem("sidebar-state", state);
@@ -24,15 +23,14 @@
   }
 
   function currentState() {
-    var shell = getShells()[0];
+    var shell = shells()[0];
     if (!shell) return "collapsed";
     return shell.classList.contains("sidebar-expanded") ? "expanded" : "collapsed";
   }
 
   function readState() {
     try {
-      var seenBuild = localStorage.getItem(buildKey);
-      if (seenBuild !== buildId) {
+      if (localStorage.getItem(buildKey) !== buildId) {
         localStorage.setItem(buildKey, buildId);
         localStorage.setItem(stateKey, "collapsed");
         return "collapsed";
@@ -43,7 +41,7 @@
     }
   }
 
-  window.sdToggleSidebarV14 = function(event) {
+  window.sdToggleSidebarV15 = function(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -54,34 +52,31 @@
     return false;
   };
 
+  // keep old inline/event names compatible
+  window.sdToggleSidebarV14 = window.sdToggleSidebarV15;
+  window.sdToggleSidebarV13 = window.sdToggleSidebarV15;
+
   function wire() {
-    var buttons = Array.prototype.slice.call(document.querySelectorAll("#sdSidebarToggleV14, .sd-menu-btn-v11"));
-    buttons.forEach(function(btn) {
-      if (btn.dataset.v14Wired === "1") return;
-      btn.dataset.v14Wired = "1";
-      btn.addEventListener("click", window.sdToggleSidebarV14, true);
-      btn.addEventListener("pointerup", function(e) {
-        // fallback for browsers/extensions that swallow click
-        if (e.pointerType === "mouse") return;
-        window.sdToggleSidebarV14(e);
-      }, true);
+    var btns = Array.prototype.slice.call(document.querySelectorAll("#sdSidebarToggleV15, #sdSidebarToggleV14, #sdSidebarToggleV13, .sd-menu-btn-v11"));
+    btns.forEach(function(btn) {
+      if (btn.dataset.v15Wired === "1") return;
+      btn.dataset.v15Wired = "1";
+      btn.addEventListener("click", window.sdToggleSidebarV15, true);
     });
   }
 
-  function initBuildNotice() {
+  function buildNotice() {
     var notice = document.getElementById("devBuildNoticeV11");
     var closeBtn = document.getElementById("devBuildNoticeCloseV11");
     if (!notice) return;
-
-    var seenKey = "solardeye_seen_build_" + buildId;
+    var key = "solardeye_seen_build_" + buildId;
     var seen = false;
-    try { seen = localStorage.getItem(seenKey) === "1"; } catch(e) {}
+    try { seen = localStorage.getItem(key) === "1"; } catch(e) {}
     if (!seen) notice.hidden = false;
-
-    if (closeBtn && closeBtn.dataset.v14Wired !== "1") {
-      closeBtn.dataset.v14Wired = "1";
+    if (closeBtn && closeBtn.dataset.v15Wired !== "1") {
+      closeBtn.dataset.v15Wired = "1";
       closeBtn.addEventListener("click", function() {
-        try { localStorage.setItem(seenKey, "1"); } catch(e) {}
+        try { localStorage.setItem(key, "1"); } catch(e) {}
         notice.hidden = true;
       });
     }
@@ -90,12 +85,12 @@
   function init() {
     applyState(readState());
     wire();
-    initBuildNotice();
+    buildNotice();
   }
 
   document.addEventListener("click", function(e) {
-    if (e.target.closest("#sdSidebarToggleV14, .sd-menu-btn-v11")) {
-      window.sdToggleSidebarV14(e);
+    if (e.target.closest("#sdSidebarToggleV15, #sdSidebarToggleV14, #sdSidebarToggleV13, .sd-menu-btn-v11")) {
+      window.sdToggleSidebarV15(e);
     }
   }, true);
 
@@ -105,7 +100,6 @@
     init();
   }
 
-  // Rewire/reapply after legacy app.js potentially runs
   setTimeout(init, 100);
   setTimeout(wire, 500);
   setTimeout(function() { applyState(readState()); wire(); }, 900);
