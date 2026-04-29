@@ -8115,6 +8115,14 @@ body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180:
   box-shadow:0 12px 28px rgba(15,23,42,.22);
   z-index:50;
 }
+<<<<<<< HEAD
+html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180::after,
+html[dir="rtl"] body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180::after{
+  inset-inline-start:auto;
+  inset-inline-end:calc(100% + 12px);
+}
+=======
+>>>>>>> eddc345 (Initial deploy)
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-nav-item-v180:hover::after,
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-collapsed .hs-logout-v180:hover::after{
   opacity:1;
@@ -8131,3 +8139,9 @@ body.heavy-v100 .app-shell.has-layout-sidebar .hs-logout-v180{
 body.heavy-v100 .app-shell.has-layout-sidebar.sidebar-expanded .hs-logout-v180{
   justify-content:center!important;
 }
+<<<<<<< HEAD
+body.heavy-v100 .app-shell.has-layout-sidebar .hs-mobile-close-v180{
+  display:none!important;
+}
+=======
+>>>>>>> eddc345 (Initial deploy)
