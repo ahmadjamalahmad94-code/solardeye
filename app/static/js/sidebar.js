@@ -1,3 +1,5 @@
 
-// simple future toggle hook
-console.log("Heavy v6 layout loaded");
+const sidebar=document.getElementById("sidebar");
+document.getElementById("toggleBtn").onclick=()=>{
+sidebar.classList.toggle("expanded");
+};
