@@ -138,7 +138,8 @@
               <ul class="sc-attachment-list">
                 {% for att in selected_attachments %}
                   <li>
-                    <a href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}">
+                    <a href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}"
+                       target="_blank" rel="noopener">
                       <span class="sc-attach-ext">{{ (att.original_filename or att.filename).rsplit('.', 1)[-1][:4]|upper }}</span>
                       <span class="sc-attach-name">{{ att.original_filename or att.filename }}</span>
                       <small>{{ ((att.file_size or 0) / 1024)|round(1) }} KB</small>

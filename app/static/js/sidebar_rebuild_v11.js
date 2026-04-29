@@ -1,6 +1,6 @@
 
 (function() {
-  var buildId = "v23-support-ui-polish-20260429";
+  var buildId = "v24-dashboard-main-polish-20260429";
   window.SOLARDEYE_SIDEBAR_BUILD = buildId;
 
   function shells() {

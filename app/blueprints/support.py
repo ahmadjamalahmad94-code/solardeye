@@ -172,18 +172,71 @@ def _support_owner_tenant_id(user):
     return getattr(tenant, 'id', None)
 
 
+def _attachment_error_page(title: str, message: str, status: int = 404):
+    """Render a friendly bilingual error page when an attachment can't be served.
+
+    Render's filesystem is ephemeral — files uploaded before a redeploy are
+    gone after restart. The default Flask "Not Found" text is unhelpful, so we
+    return a small inline HTML page with a useful message and a back link.
+    """
+    is_en = _lang() == 'en'
+    referrer = request.referrer or url_for('main.admin_support_command_center', lang=_lang())
+    html = f"""<!doctype html>
+<html lang="{_lang()}" dir="{'ltr' if is_en else 'rtl'}">
+<head>
+  <meta charset="utf-8">
+  <title>{title}</title>
+  <style>
+    body {{ font-family: 'Cairo', system-ui, sans-serif; background: #f4f7fb; color: #1f2a44; padding: 60px 20px; text-align: center; }}
+    .box {{ max-width: 480px; margin: 0 auto; background: #fff; border: 1px solid #e3e9f2; border-radius: 14px; padding: 32px 28px; box-shadow: 0 4px 16px rgba(15,23,42,.06); }}
+    h1 {{ margin: 0 0 12px; font-size: 1.4rem; }}
+    p  {{ margin: 0 0 20px; color: #5a6885; line-height: 1.7; }}
+    a  {{ display: inline-block; padding: 10px 18px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 10px; font-weight: 600; }}
+    a:hover {{ background: #1d4ed8; }}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>{title}</h1>
+    <p>{message}</p>
+    <a href="{referrer}">{('Back' if is_en else 'العودة')}</a>
+  </div>
+</body>
+</html>"""
+    return html, status, {'Content-Type': 'text/html; charset=utf-8'}
+
+
 @support_bp.route('/support/attachments/<int:attachment_id>')
 def support_attachment_download(attachment_id: int):
-    attachment = SupportAttachment.query.get_or_404(attachment_id)
+    is_en = _lang() == 'en'
+    attachment = SupportAttachment.query.get(attachment_id)
+    if not attachment:
+        return _attachment_error_page(
+            'Attachment not found' if is_en else 'المرفق غير موجود',
+            'This attachment does not exist or has been removed from the database.' if is_en else 'هذا المرفق غير موجود أو تم حذفه من قاعدة البيانات.',
+            status=404,
+        )
     source = _support_source_for(attachment.case_type, attachment.source_id)
     if not _support_can_access_source(attachment.case_type, source):
-        abort(403)
+        return _attachment_error_page(
+            'Access denied' if is_en else 'لا تملك صلاحية الوصول',
+            'You are not allowed to view this attachment.' if is_en else 'لا تملك الصلاحية لفتح هذا المرفق.',
+            status=403,
+        )
     path = Path(attachment.storage_path or '')
     if not path.exists() or not path.is_file():
-        abort(404)
+        # Common on Render — the ephemeral filesystem loses files on redeploy.
+        # Show a clearer message instead of a bare 404.
+        return _attachment_error_page(
+            'File missing on server' if is_en else 'الملف غير موجود على الخادم',
+            ('This file was uploaded before the latest deploy and is no longer available. Re-upload it through the conversation.'
+             if is_en else
+             'تم رفع هذا الملف قبل نشر إصدار جديد ولم يعد متاحًا على الخادم. يمكن إعادة رفعه من داخل المحادثة.'),
+            status=410,  # 410 Gone — semantically clearer than 404 for "existed but no longer here"
+        )
     return send_file(
         path,
-        as_attachment=True,
+        as_attachment=False,  # Open inline (so images preview in browser); browser still allows download.
         download_name=attachment.original_filename or attachment.filename,
         mimetype=attachment.content_type or None,
     )
