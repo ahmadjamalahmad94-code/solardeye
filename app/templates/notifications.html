@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_center.css', v='v26-notifications-center-polish-20260429') }}">
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area notifications-page">
+  <main class="app-main content-area notifications-page notifications-main-v26" data-notifications-center>
     <header class="topbar notifications-hero">
       <div class="topbar-main">
         <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
@@ -44,7 +45,7 @@
       </section>
     {% endif %}
 
-    <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2" id="notificationsSettingsForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="post" action="{{ url_for('main.notifications_settings') }}" class="notification-stack-v2 notification-stack-v26" id="notificationsSettingsForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <section class="panel-card notification-overview-card">
         <div class="notify-overview-grid">
           <div class="overview-metric-card metric-telegram"><span>Telegram</span><strong>{{ 'مفعل' if settings.telegram_bot_token and settings.telegram_chat_id else 'غير مكتمل' }}</strong><small>Bot + Chat + API</small></div>
@@ -416,4 +417,5 @@
     </form>
   </main>
 </div>
+<script src="{{ url_for('static', filename='js/notifications_center.js', v='v26-notifications-center-polish-20260429') }}" defer></script>
 {% endblock %}
