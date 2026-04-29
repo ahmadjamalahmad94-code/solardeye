@@ -1,14 +1,141 @@
 {% extends "base.html" %}
-{% block title %}لوحة الإدارة{% endblock %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area admin-shell-v2">
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">{{ 'SolarDeye Admin' if is_en else 'SolarDeye Admin' }}</span>
+        <h1>{{ 'Platform command center' if is_en else 'مركز قيادة المنصة' }}</h1>
+        <p>{{ 'A clean CRM / SaaS admin panel focused on subscribers, plans, health, and operations.' if is_en else 'لوحة CRM / SaaS نظيفة تركز على المشتركين والخطط وصحة النظام والعمليات.' }}</p>
+      </div>
+      <div class="admin-head-actions">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Subscribers' if is_en else 'المشتركون' }}</a>
+        <a class="btn btn-solar" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ 'New plan' if is_en else 'خطة جديدة' }}</a>
+      </div>
+    </header>
 
-{% block sidebar %}
-<li class="nav-item active" data-title="لوحة الإدارة">🏠 <span>لوحة الإدارة</span></li>
-<li class="nav-item" data-title="المشتركين">👥 <span>المشتركين</span></li>
-<li class="nav-item" data-title="الدعم">💬 <span>مركز الدعم</span></li>
-<li class="nav-item" data-title="الخطط">📦 <span>الخطط</span></li>
-<li class="nav-item" data-title="الأجهزة">🖥 <span>الأجهزة</span></li>
-{% endblock %}
+    <section class="admin-hero-v2 ui-reactive" data-hover-card>
+      <div class="hero-gradient hero-gradient-a"></div>
+      <div class="hero-gradient hero-gradient-b"></div>
+      <div class="hero-copy-v2-admin">
+        <span class="hero-pill">{{ 'Admin-only control plane' if is_en else 'لوحة إدارة منفصلة بالكامل' }}</span>
+        <h2>{{ 'No personal device data. No tenant leakage. Just platform operations.' if is_en else 'بدون بيانات تشغيل شخصية. بدون تسرب بيانات المشتركين. فقط عمليات المنصة.' }}</h2>
+        <p>{{ 'This panel is designed as a fresh admin experience: plans, subscribers, users, logs, and service health in one consistent design system.' if is_en else 'هذه اللوحة مبنية كتجربة إدارية جديدة من الصفر: الخطط والمشتركون والمستخدمون والسجلات وصحة الخدمات ضمن نظام تصميم موحد.' }}</p>
+      </div>
+      <div class="admin-highlight-grid">
+        <div class="highlight-card"><span>{{ 'Users' if is_en else 'المستخدمون' }}</span><strong>{{ total_users }}</strong></div>
+        <div class="highlight-card"><span>{{ 'Tenant accounts' if is_en else 'حسابات المشتركين' }}</span><strong>{{ total_tenants }}</strong></div>
+        <div class="highlight-card"><span>{{ 'Active subscriptions' if is_en else 'الاشتراكات النشطة' }}</span><strong>{{ active_subs }}</strong></div>
+        <div class="highlight-card"><span>{{ 'Registered devices' if is_en else 'الأجهزة المسجلة' }}</span><strong>{{ total_devices }}</strong></div>
+      </div>
+    </section>
 
-{% block content %}
-<h1>لوحة الإدارة</h1>
+    <section class="admin-quick-strip-v105 admin-card-v2 ui-reactive" data-hover-card>
+      <div class="section-heading-inline compact">
+        <div>
+          <small>{{ 'Quick actions' if is_en else 'روابط سريعة' }}</small>
+          <h3>{{ 'Operate the platform faster' if is_en else 'تحكم أسرع بالمنصة' }}</h3>
+        </div>
+      </div>
+      <div class="quick-links-inline-v105">
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">{{ 'Support Command Center' if is_en else 'مركز قيادة الدعم' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">{{ 'System users and roles' if is_en else 'مستخدمو النظام والصلاحيات' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Plans and packages' if is_en else 'الخطط والباقات' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Subscribers and activation' if is_en else 'المشتركون والتفعيل' }}</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ 'System logs' if is_en else 'سجل النظام' }}</a>
+      </div>
+    </section>
+
+    <section class="admin-kpi-grid-v2 admin-kpi-grid-v105">
+      <article class="admin-kpi-card ui-reactive" data-hover-card><small>{{ 'Plans' if is_en else 'الخطط' }}</small><strong>{{ total_plans }}</strong><span>{{ 'Configured packages' if is_en else 'باقات جاهزة للبيع والتفعيل' }}</span></article>
+      <article class="admin-kpi-card ui-reactive" data-hover-card><small>{{ 'Subscribers' if is_en else 'المشتركون' }}</small><strong>{{ total_users }}</strong><span>{{ 'Non-admin accounts' if is_en else 'حسابات العملاء غير الإدارية' }}</span></article>
+      <article class="admin-kpi-card ui-reactive" data-hover-card><small>{{ 'Health' if is_en else 'الصحة العامة' }}</small><strong>{{ heartbeat_rows|length }}</strong><span>{{ 'Tracked background services' if is_en else 'خدمات خلفية تحت المراقبة' }}</span></article>
+      <article class="admin-kpi-card ui-reactive" data-hover-card><small>{{ 'Ready for scale' if is_en else 'جاهزة للتوسع' }}</small><strong>API</strong><span>{{ 'Multi-user / device / provider direction' if is_en else 'اتجاه متعدد المستخدمين / الأجهزة / المزودين' }}</span></article>
+    </section>
+
+    <section class="admin-layout-v2 admin-layout-dashboard-v105">
+      <div class="admin-card-v2 ui-reactive" data-hover-card>
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Recent subscribers' if is_en else 'آخر المشتركين' }}</small>
+            <h3>{{ 'Latest subscriber accounts' if is_en else 'أحدث حسابات المشتركين' }}</h3>
+          </div>
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Manage all' if is_en else 'إدارة الكل' }}</a>
+        </div>
+        <div class="subscriber-mini-list-v107">
+          {% for user in recent_subscribers %}
+          <a class="subscriber-mini-row-v107" href="{{ url_for('main.admin_user_profile', user_id=user.id, lang=ui_lang) }}">
+            <span class="subscriber-avatar-v107">{{ (user.full_name or user.username or 'U')[:1] }}</span>
+            <span class="subscriber-main-v107">
+              <strong>{{ user.full_name or user.username }}</strong>
+              <small>@{{ user.username }}</small>
+            </span>
+            <span class="subscriber-email-v107">{{ mask_email(user.email) if user.email else '-' }}</span>
+            <span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span>
+          </a>
+          {% else %}
+          <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="admin-stack-v2">
+        <div class="admin-card-v2 ui-reactive" data-hover-card>
+          <div class="section-heading-inline">
+            <div>
+              <small>{{ 'Services' if is_en else 'الخدمات' }}</small>
+              <h3>{{ 'Heartbeat and runtime health' if is_en else 'نبضات وصحة الخدمات' }}</h3>
+            </div>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_system_logs', lang=ui_lang) }}">{{ 'Open logs' if is_en else 'فتح السجل' }}</a>
+          </div>
+          {% set service_names_ar = {
+            'scheduler': 'الجدولة الداخلية',
+            'deye_auto_sync': 'المزامنة التلقائية',
+            'app.blueprints.main.sync_now_internal': 'المزامنة التلقائية',
+            'advanced_notifications_check': 'الإشعارات المتقدمة',
+            'app.blueprints.notifications.run_advanced_notification_scheduler': 'الإشعارات المتقدمة',
+            'weather_change_check': 'فحص الطقس',
+            'app.blueprints.notifications.run_weather_checks': 'فحص الطقس',
+            'weather_daily_summary': 'ملخص الطقس اليومي',
+            'daily_morning_report': 'التقرير الصباحي',
+            'database_backup': 'النسخ الاحتياطي',
+            'database_backup_drive': 'رفع النسخ إلى Drive',
+            'database_backup_maintenance': 'صيانة النسخ الاحتياطي'
+          } %}
+          {% set service_names_en = {
+            'scheduler': 'Internal Scheduler',
+            'deye_auto_sync': 'Auto Sync',
+            'app.blueprints.main.sync_now_internal': 'Auto Sync',
+            'advanced_notifications_check': 'Advanced Notifications',
+            'app.blueprints.notifications.run_advanced_notification_scheduler': 'Advanced Notifications',
+            'weather_change_check': 'Weather Checks',
+            'app.blueprints.notifications.run_weather_checks': 'Weather Checks',
+            'weather_daily_summary': 'Daily Weather Summary',
+            'daily_morning_report': 'Morning Report',
+            'database_backup': 'Database Backup',
+            'database_backup_drive': 'Drive Upload',
+            'database_backup_maintenance': 'Backup Maintenance'
+          } %}
+          <div class="activity-list-v2 service-heartbeat-list-v107">
+            {% for row in heartbeat_rows %}
+            {% set service_label = (service_names_en if is_en else service_names_ar).get(row.service_key, (row.service_label or row.service_key)) %}
+            <div class="activity-item-v2 service-heartbeat-row-v107">
+              <div class="service-heartbeat-main-v107">
+                <strong>{{ service_label }}</strong>
+                <small>{{ row.updated_at.strftime('%Y-%m-%d %H:%M') if row.updated_at else '-' }}</small>
+              </div>
+              <span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+            </div>
+            {% else %}
+            <div class="empty-box-v2">{{ 'No service heartbeats yet.' if is_en else 'لا توجد نبضات خدمات بعد.' }}</div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+</div>
 {% endblock %}

@@ -1,0 +1,41 @@
+
+body {
+    margin: 0;
+    font-family: Arial;
+    background: #0b1220;
+    color: white;
+}
+
+.app-shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 100vh;
+}
+
+.app-sidebar {
+    background: #0f1b33;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-main {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.menu-item {
+    display: block;
+    padding: 10px;
+    color: #cbd5e1;
+    text-decoration: none;
+    border-radius: 10px;
+}
+
+.menu-item:hover {
+    background: rgba(59,130,246,0.2);
+}
+
+.menu-item.active {
+    background: rgba(59,130,246,0.4);
+}
