@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/platform_review.css', v='v40-notifications-center-redesign-20260430') }}">
+{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
@@ -9,7 +12,7 @@
       <div>
         <span class="eyebrow">Heavy v9</span>
         <h1>{{ 'Platform review center' if is_en else 'مركز مراجعة المنصة' }}</h1>
-        <p>{{ 'A page-by-page static health view for templates, forms, CSRF coverage, private-data exposure, and UI cleanup debt.' if is_en else 'فحص ثابت صفحة بصفحة للقوالب والنماذج وتغطية CSRF والبيانات الخاصة وديون تنظيف الواجهة.' }}</p>
+        <p>{{ 'A page-by-page static health view for templates, forms, CSRF coverage, private-data exposure, and UI cleanup debt.' if is_en else 'ملخص تقني يفحص الصفحات والنماذج وحماية CSRF والبيانات الخاصة ونقاط تحسين الواجهة.' }}</p>
       </div>
       <div class="platform-score-v80 {{ 'danger' if audit.summary.high_risk_templates else ('warning' if audit.summary.medium_risk_templates else 'ok') }}">
         <small>{{ 'Risk' if is_en else 'المخاطر' }}</small>
@@ -18,44 +21,62 @@
       </div>
     </header>
 
+    <section class="platform-status-strip-v35" aria-label="{{ 'Site status' if is_en else 'حالة الموقع' }}">
+      <article class="platform-status-main-v35 {{ 'ok' if platform_status.scheduler_running else 'warning' }}">
+        <div>
+          <small>{{ 'Site status' if is_en else 'حالة الموقع' }}</small>
+          <h2>{{ 'Online' if platform_status.scheduler_running and is_en else ('يعمل' if platform_status.scheduler_running else ('Needs attention' if is_en else 'بحاجة لمراجعة')) }}</h2>
+          <p>{{ 'Scheduler is visible or has a recent heartbeat.' if platform_status.scheduler_running and is_en else ('الجدولة ظاهرة أو لديها نبضة حديثة.' if platform_status.scheduler_running else ('Scheduler is not visible from this worker.' if is_en else 'الجدولة غير ظاهرة من هذا العامل حاليًا.')) }}</p>
+        </div>
+        <a class="platform-status-link-v35" href="{{ url_for('admin_ops.admin_services_health_v9', lang=ui_lang) }}">{{ 'Open services health' if is_en else 'فتح مركز صحة الخدمات' }}</a>
+      </article>
+      <div class="platform-status-mini-grid-v35">
+        <article><small>{{ 'Healthy services' if is_en else 'خدمات سليمة' }}</small><strong>{{ platform_status.ok_count }}</strong></article>
+        <article><small>{{ 'Warnings' if is_en else 'تحتاج متابعة' }}</small><strong>{{ platform_status.warning_count }}</strong></article>
+        <article><small>{{ 'Failed' if is_en else 'خدمات متعطلة' }}</small><strong>{{ platform_status.failed_count }}</strong></article>
+        <article><small>{{ 'Jobs' if is_en else 'مهام مجدولة' }}</small><strong>{{ platform_status.scheduler_jobs_count }}</strong></article>
+      </div>
+    </section>
+
     <section class="admin-kpi-grid-v2 platform-kpi-v80">
-      <article class="admin-kpi-card"><small>{{ 'Templates' if is_en else 'القوالب' }}</small><strong>{{ audit.summary.templates }}</strong><span>{{ 'HTML pages scanned' if is_en else 'صفحة HTML مفحوصة' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Routes across blueprints' if is_en else 'مسارات كل الـ blueprints' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'POST forms' if is_en else 'نماذج POST' }}</small><strong>{{ audit.summary.post_forms }}</strong><span>{{ audit.summary.csrf_inputs }} {{ 'visible CSRF inputs' if is_en else 'CSRF ظاهر' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'ملف main.py' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ audit.summary.architecture_split_score }} {{ 'architecture score' if is_en else 'نقاط الفصل المعماري' }}</span></article>
-      <article class="admin-kpi-card"><small>CSS / JS</small><strong>{{ audit.summary.css_kb }}KB</strong><span>JS {{ audit.summary.js_kb }}KB</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Templates' if is_en else 'القوالب' }}</small><strong>{{ audit.summary.templates }}</strong><span>{{ 'HTML pages scanned' if is_en else 'قالب مفحوص' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Routes across blueprints' if is_en else 'مسارات عبر وحدات النظام' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'POST forms' if is_en else 'نماذج الإرسال' }}</small><strong>{{ audit.summary.post_forms }}</strong><span>{{ audit.summary.csrf_inputs }} {{ 'visible CSRF inputs' if is_en else 'حقل حماية CSRF ظاهر' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'الملف الرئيسي' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ audit.summary.architecture_split_score }} {{ 'architecture score' if is_en else 'درجة تنظيم الكود' }}</span></article>
+      <article class="admin-kpi-card"><small>{{ 'CSS / JS' if is_en else 'ملفات الواجهة' }}</small><strong>{{ audit.summary.css_kb }}{{ 'KB' if is_en else ' ك.ب' }}</strong><span>{{ 'JS' if is_en else 'برمجة' }} {{ audit.summary.js_kb }}{{ 'KB' if is_en else ' ك.ب' }}</span></article>
     </section>
 
     <section class="admin-layout-v2 two platform-layout-v80">
       <article class="admin-card-v2">
         <div class="section-heading-inline">
           <div>
-            <small>{{ 'Recommended next work' if is_en else 'الأعمال التالية المقترحة' }}</small>
-            <h3>{{ 'v9 quality checklist' if is_en else 'قائمة جودة v9' }}</h3>
+            <small>{{ 'Recommended next work' if is_en else 'ملاحظات التحسين المقترحة' }}</small>
+            <h3>{{ 'v9 quality checklist' if is_en else 'قائمة فحص الجودة' }}</h3>
           </div>
         </div>
         <div class="activity-list-v2">
           {% for item in audit.recommendations %}
-          <div class="activity-item-v2"><div><strong>{{ item.area }}</strong><small>{{ item.en if is_en else item.ar }}</small></div><span class="ui-badge-v70 is-info">{{ 'Review' if is_en else 'مراجعة' }}</span></div>
+          {% set area_ar = {'Security':'الحماية','Architecture':'تنظيم الكود','UI':'الواجهة','Integrations':'التكاملات','Performance':'الأداء'} %}
+          <div class="activity-item-v2"><div><strong>{{ item.area if is_en else area_ar.get(item.area, item.area) }}</strong><small>{{ item.en if is_en else item.ar }}</small></div><span class="ui-badge-v70 is-info">{{ 'Review' if is_en else 'مراجعة' }}</span></div>
           {% endfor %}
         </div>
       </article>
 
       <article class="admin-card-v2">
-        <small>{{ 'Static summary' if is_en else 'ملخص ثابت' }}</small>
-        <h3>{{ 'Cleanup debt' if is_en else 'ديون التنظيف' }}</h3>
+        <small>{{ 'Static summary' if is_en else 'ملخص المراجعة' }}</small>
+        <h3>{{ 'Cleanup debt' if is_en else 'ملاحظات التحسين' }}</h3>
         <div class="cleanup-meter-v80">
-          <div><span>{{ 'Inline styles' if is_en else 'Inline styles' }}</span><strong>{{ audit.summary.inline_styles }}</strong></div>
-          <div><span>{{ 'Medium-risk pages' if is_en else 'صفحات متوسطة الخطورة' }}</span><strong>{{ audit.summary.medium_risk_templates }}</strong></div>
-          <div><span>{{ 'OK / low-risk pages' if is_en else 'صفحات سليمة أو منخفضة' }}</span><strong>{{ audit.summary.ok_templates }}</strong></div>
+          <div><span>{{ 'Inline styles' if is_en else 'تنسيقات داخلية' }}</span><strong>{{ audit.summary.inline_styles }}</strong></div>
+          <div><span>{{ 'Medium-risk pages' if is_en else 'صفحات تحتاج متابعة' }}</span><strong>{{ audit.summary.medium_risk_templates }}</strong></div>
+          <div><span>{{ 'OK / low-risk pages' if is_en else 'صفحات سليمة أو منخفضة الخطورة' }}</span><strong>{{ audit.summary.ok_templates }}</strong></div>
         </div>
       </article>
     </section>
 
 
     <section class="admin-card-v2">
-      <div class="section-heading-inline"><div><small>{{ 'Architecture' if is_en else 'البنية' }}</small><h3>{{ 'Python files and route distribution' if is_en else 'توزيع ملفات Python والمسارات' }}</h3></div></div>
-      <div class="table-shell-v2">
+      <div class="section-heading-inline"><div><small>{{ 'Architecture' if is_en else 'تنظيم الكود' }}</small><h3>{{ 'Python files and route distribution' if is_en else 'توزيع ملفات النظام والمسارات' }}</h3></div></div>
+      <div class="table-shell-v2 platform-scroll-table-v36 platform-scroll-table-architecture-v36">
         <table class="admin-table-v2 platform-table-v80">
           <thead><tr><th>{{ 'File' if is_en else 'الملف' }}</th><th>{{ 'Lines' if is_en else 'الأسطر' }}</th><th>{{ 'Routes' if is_en else 'المسارات' }}</th><th>{{ 'Note' if is_en else 'ملاحظة' }}</th></tr></thead>
           <tbody>{% for row in audit.python.files|sort(attribute='lines', reverse=true) %}<tr class="risk-{{ 'medium' if row.lines > 1200 else 'ok' }}"><td><strong>{{ row.name }}</strong></td><td>{{ row.lines }}</td><td>{{ row.routes }}</td><td>{% if row.lines > 1200 %}{{ 'Needs more splitting' if is_en else 'يحتاج فصل إضافي' }}{% else %}<span class="table-sub">{{ 'OK' if is_en else 'سليم' }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
@@ -63,19 +84,19 @@
       </div>
     </section>
     <section class="admin-card-v2">
-      <div class="section-heading-inline"><div><small>{{ 'Page-by-page' if is_en else 'صفحة صفحة' }}</small><h3>{{ 'Template audit table' if is_en else 'جدول فحص القوالب' }}</h3></div></div>
-      <div class="table-shell-v2">
+      <div class="section-heading-inline"><div><small>{{ 'Page-by-page' if is_en else 'تفصيل الصفحات' }}</small><h3>{{ 'Template audit table' if is_en else 'فحص القوالب' }}</h3></div></div>
+      <div class="table-shell-v2 platform-scroll-table-v36 platform-scroll-table-templates-v36">
         <table class="admin-table-v2 platform-table-v80">
-          <thead><tr><th>{{ 'Template' if is_en else 'القالب' }}</th><th>{{ 'Risk' if is_en else 'المستوى' }}</th><th>{{ 'Forms' if is_en else 'النماذج' }}</th><th>CSRF</th><th>{{ 'Inline style' if is_en else 'ستايل داخلي' }}</th><th>{{ 'Sensitive notes' if is_en else 'ملاحظات حساسة' }}</th></tr></thead>
+          <thead><tr><th>{{ 'Template' if is_en else 'القالب' }}</th><th>{{ 'Risk' if is_en else 'المستوى' }}</th><th>{{ 'Forms' if is_en else 'النماذج' }}</th><th>{{ 'CSRF' if is_en else 'حماية CSRF' }}</th><th>{{ 'Inline style' if is_en else 'تنسيق داخلي' }}</th><th>{{ 'Sensitive notes' if is_en else 'تنبيهات الخصوصية' }}</th></tr></thead>
           <tbody>
           {% for row in audit.templates %}
             <tr class="risk-{{ row.severity }}">
-              <td><strong>{{ row.name }}</strong><div class="table-sub">{{ row.relative_path }} · {{ row.size_kb }}KB</div></td>
-              <td><span class="ui-badge-v70 {{ 'is-danger' if row.severity == 'high' else ('is-warning' if row.severity == 'medium' else 'is-success') }}">{{ row.severity }}</span></td>
+              <td><strong>{{ row.name }}</strong><div class="table-sub">{{ row.relative_path }} · {{ row.size_kb }}{{ 'KB' if is_en else ' ك.ب' }}</div></td>
+              <td><span class="ui-badge-v70 {{ 'is-danger' if row.severity == 'high' else ('is-warning' if row.severity == 'medium' else 'is-success') }}">{{ row.severity if is_en else {'high':'عالٍ','medium':'متوسط','low':'منخفض','ok':'سليم'}.get(row.severity, row.severity) }}</span></td>
               <td>{{ row.post_forms }}</td>
               <td>{{ row.csrf_inputs }}</td>
               <td>{{ row.inline_styles }}</td>
-              <td>{% if row.sensitive_hits %}{{ row.sensitive_hits|join(' / ') }}{% else %}<span class="table-sub">{{ 'No direct hit' if is_en else 'لا يوجد رصد مباشر' }}</span>{% endif %}</td>
+              <td>{% if row.sensitive_hits %}{% set sensitive_ar = {'Deye setting may be visible':'إعداد Deye قد يكون ظاهرًا','Device identifier may be visible':'معرّف جهاز قد يكون ظاهرًا','Notification/SMS secret may be visible':'سر إشعارات أو رسائل قد يكون ظاهرًا'} %}{% for hit in row.sensitive_hits %}{{ hit if is_en else sensitive_ar.get(hit, hit) }}{% if not loop.last %} / {% endif %}{% endfor %}{% else %}<span class="table-sub">{{ 'No direct hit' if is_en else 'لا يوجد رصد مباشر' }}</span>{% endif %}</td>
             </tr>
           {% endfor %}
           </tbody>

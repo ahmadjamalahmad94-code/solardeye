@@ -130,10 +130,10 @@ def audit_project(base_dir: str | Path) -> dict[str, Any]:
         'templates': template_rows,
         'python': py_audit,
         'recommendations': [
-            {'area': 'Security', 'ar': 'راجع أي قالب عالي الخطورة يحتوي معرفات خاصة ظاهرة أو نماذج POST بلا CSRF ظاهر.', 'en': 'Review high-risk templates that expose private identifiers or POST forms without visible CSRF.'},
-            {'area': 'Architecture', 'ar': 'تم بدء فصل main.py عبر blueprints جديدة. استمر بنقل الدعم، الأجهزة، المالية، والتقارير تدريجيًا.', 'en': 'main.py split has started through new blueprints. Continue moving support, devices, billing, and reports gradually.'},
-            {'area': 'UI', 'ar': 'أي بطاقة أو جدول كبير يجب أن يستخدم scroll داخلي بدل تمديد الصفحة.', 'en': 'Large cards and tables should use internal scrolling instead of stretching the page.'},
-            {'area': 'Integrations', 'ar': 'لا تفعل أوامر التحكم عن بعد لأي مزود قبل اختبارات قراءة مستقرة وصلاحيات واضحة.', 'en': 'Do not enable remote control commands for any provider before stable read tests and clear permissions.'},
-            {'area': 'Performance', 'ar': 'أضف pagination لأي جدول يتجاوز 100 عنصر.', 'en': 'Add pagination to lists that can exceed 100 records.'},
+            {'area': 'Security', 'ar': 'راجع أي قالب عالي الخطورة قد يعرض معرفات خاصة أو يحتوي نماذج إرسال بلا حماية CSRF واضحة.', 'en': 'Review high-risk templates that expose private identifiers or POST forms without visible CSRF.'},
+            {'area': 'Architecture', 'ar': 'استمر بتنظيم الملف الرئيسي ونقل أجزاء الدعم والأجهزة والاشتراكات والتقارير إلى وحدات أصغر تدريجيًا.', 'en': 'main.py split has started through new blueprints. Continue moving support, devices, billing, and reports gradually.'},
+            {'area': 'UI', 'ar': 'أي بطاقة أو جدول طويل يجب أن يعرض جزءًا من البيانات مع تمرير داخلي بدل تمديد الصفحة.', 'en': 'Large cards and tables should use internal scrolling instead of stretching the page.'},
+            {'area': 'Integrations', 'ar': 'لا تفعّل أوامر التحكم عن بعد لأي مزود قبل التأكد من استقرار القراءة ووضوح الصلاحيات.', 'en': 'Do not enable remote control commands for any provider before stable read tests and clear permissions.'},
+            {'area': 'Performance', 'ar': 'أضف تقسيم صفحات أو تمريرًا داخليًا لأي جدول يتجاوز 100 عنصر.', 'en': 'Add pagination to lists that can exceed 100 records.'},
         ],
     }

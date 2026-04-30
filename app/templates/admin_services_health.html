@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Services Health' if is_en else 'صحة الخدمات' }}{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/services_health.css', v='v40-notifications-center-redesign-20260430') }}">
+{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">

@@ -1,185 +1,565 @@
 {% extends 'base.html' %}
-{% set is_en = (ui_lang or 'ar') == 'en' %}
-{% block title %}{{ 'Create account' if is_en else 'إنشاء حساب جديد' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login_v50.css', v='v50-login-luxury-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/register_v50.css', v='v50-register-luxury-20260430') }}">
+{% endblock %}
+{% block title %}{{ 'Create account' if (ui_lang or 'ar') == 'en' else 'إنشاء حساب جديد' }}{% endblock %}
 {% block body %}
-<div class="login-shell register-shell-v10523">
-  <div class="register-card-v10523">
-    <section class="register-hero-v10523">
-      <a class="home-link register-back-v10523" href="{{ url_for('main.index', lang=ui_lang) }}">{{ '← Back to home' if is_en else '← العودة للرئيسية' }}</a>
-      <div class="register-hero-top-v10523">
-        <div class="brand-mark register-mark-v10523">☀️</div>
-        <span class="register-eyebrow-v10523">{{ 'Smart registration' if is_en else 'التسجيل الذكي' }}</span>
-        <h1>{{ 'Start your energy account in minutes' if is_en else 'ابدأ حساب الطاقة خلال دقائق' }}</h1>
-        <p>{{ 'We prepare your account using location, timezone, phone prefix, and device type from the first step.' if is_en else 'نجهز حسابك من البداية حسب الدولة والمدينة والمنطقة الزمنية وبدالة الهاتف ونوع الجهاز.' }}</p>
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set next_lang = 'ar' if is_en else 'en' %}
+{% set site_name = (landing.site_name_en if is_en else landing.site_name_ar) if (landing is defined and landing) else ('Solar Energy Platform' if is_en else 'منصة الطاقة الشمسية') %}
+
+<div class="lg50-page is-register">
+  <div class="lg50-bg" aria-hidden="true"></div>
+  <div class="lg50-stars" aria-hidden="true"></div>
+  <div class="lg50-particles" aria-hidden="true">
+    <span class="lg50-particle"></span>
+    <span class="lg50-particle"></span>
+    <span class="lg50-particle"></span>
+    <span class="lg50-particle"></span>
+    <span class="lg50-particle"></span>
+    <span class="lg50-particle"></span>
+  </div>
+
+  <a class="lg50-lang-toggle" href="?lang={{ next_lang }}" title="{{ 'Switch language' if is_en else 'تغيير اللغة' }}">
+    🌐 <span>{{ 'العربية' if is_en else 'English' }}</span>
+  </a>
+
+  <div class="lg50-stage">
+    {# ============================================================
+       LEFT — SHOWCASE PANEL
+       ============================================================ #}
+    <aside class="lg50-showcase">
+      <div class="lg50-showcase-grid" aria-hidden="true"></div>
+
+      <div class="lg50-brand">
+        <span class="lg50-brand-mark">⚡</span>
+        <div class="lg50-brand-text">
+          <strong>{{ site_name }}</strong>
+          <small>{{ 'Smart energy command center' if is_en else 'مركز قيادة الطاقة الذكية' }}</small>
+        </div>
       </div>
-      <div class="register-steps-v10523">
-        <div><strong>1</strong><span>{{ 'Account' if is_en else 'الحساب' }}</span></div>
-        <div><strong>2</strong><span>{{ 'Location' if is_en else 'الموقع' }}</span></div>
-        <div><strong>3</strong><span>{{ 'Device' if is_en else 'الجهاز' }}</span></div>
+
+      <div class="lg50-showcase-body">
+        <span class="lg50-eyebrow">
+          <i>✦</i>{{ 'Join the platform' if is_en else 'انضم إلى المنصة' }}
+        </span>
+
+        <h1>{{ 'Set up your energy account in minutes.' if is_en else 'أنشئ حسابك للطاقة خلال دقائق.' }}</h1>
+
+        <p class="lg50-tagline">
+          {{ 'We tailor your dashboard from the very first step — country, timezone, language, and provider — so the data feels right the moment you sign in.' if is_en else 'نُجهز لوحتك من أول خطوة — الدولة، التوقيت، اللغة، ونوع الجهاز — حتى تكون البيانات صحيحة منذ أول دخول.' }}
+        </p>
+
+        <div class="lg50-feature-grid">
+          <div class="lg50-feature">
+            <span class="lg50-feature-icon">🌍</span>
+            <div class="lg50-feature-text">
+              <strong>{{ 'Smart country picker' if is_en else 'اختيار الدولة الذكي' }}</strong>
+              <small>{{ 'Cities, timezone & SMS prefix auto' if is_en else 'مدن وبدالة SMS تلقائيًا' }}</small>
+            </div>
+          </div>
+          <div class="lg50-feature f-amber">
+            <span class="lg50-feature-icon">🔌</span>
+            <div class="lg50-feature-text">
+              <strong>{{ 'Device-ready setup' if is_en else 'إعداد جاهز للجهاز' }}</strong>
+              <small>{{ '22+ providers supported' if is_en else 'أكثر من 22 مزوّد' }}</small>
+            </div>
+          </div>
+          <div class="lg50-feature f-emerald">
+            <span class="lg50-feature-icon">🛡️</span>
+            <div class="lg50-feature-text">
+              <strong>{{ 'Privacy first' if is_en else 'الخصوصية أولًا' }}</strong>
+              <small>{{ 'Encrypted credentials' if is_en else 'بيانات مشفّرة' }}</small>
+            </div>
+          </div>
+          <div class="lg50-feature f-cyan">
+            <span class="lg50-feature-icon">🚀</span>
+            <div class="lg50-feature-text">
+              <strong>{{ 'Onboard in seconds' if is_en else 'انطلق في ثوانٍ' }}</strong>
+              <small>{{ 'Or explore in preview mode' if is_en else 'أو استكشف بدون جهاز' }}</small>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="register-benefits-v10523">
-        <span>🌍 {{ 'Country and city picker' if is_en else 'اختيار الدولة والمدينة' }}</span>
-        <span>📞 {{ 'Phone prefix for SMS' if is_en else 'بدالة هاتف لخدمة SMS' }}</span>
-        <span>⏱️ {{ 'Automatic timezone' if is_en else 'منطقة زمنية تلقائية' }}</span>
-        <span>🔌 {{ 'Device-ready onboarding' if is_en else 'تجهيز حسب نوع الجهاز' }}</span>
-      </div>
-    </section>
 
-    <section class="register-form-panel-v10523">
-      <div class="register-form-head-v10523">
-        <div>
-          <small>{{ 'Create your profile' if is_en else 'أنشئ ملفك' }}</small>
-          <h2>{{ 'Registration essentials' if is_en else 'المعلومات الأساسية' }}</h2>
+      <div class="lg50-stats">
+        <div class="lg50-stat">
+          <strong>3</strong>
+          <small>{{ 'Quick steps' if is_en else 'خطوات سريعة' }}</small>
         </div>
-        <div class="register-lang-mini-v10523">
-          <a class="{{ 'active' if not is_en else '' }}" href="{{ lang_url('ar') }}">عربي</a>
-          <a class="{{ 'active' if is_en else '' }}" href="{{ lang_url('en') }}">English</a>
+        <div class="lg50-stat">
+          <strong>22+</strong>
+          <small>{{ 'Device brands' if is_en else 'علامات أجهزة' }}</small>
+        </div>
+        <div class="lg50-stat">
+          <strong>AR · EN</strong>
+          <small>{{ 'Bilingual' if is_en else 'لغتان' }}</small>
         </div>
       </div>
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="register-alerts-v10523">
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ t(message) }}</div>
-          {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-
-      <form method="post" action="{{ url_for('auth.register', lang=ui_lang) }}" class="register-form-v10523" id="professionalRegisterFormV10523">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="country_code" id="registerCountryCodeV10523" value="{{ form_values.get('country_code','') }}">
-
-        <div class="register-section-card-v10523">
-          <div class="register-section-title-v10523">
-            <span>👤</span>
-            <div><strong>{{ 'Account identity' if is_en else 'هوية الحساب' }}</strong><small>{{ 'Used for login, support, and secure communication.' if is_en else 'تُستخدم لتسجيل الدخول والتواصل والدعم.' }}</small></div>
-          </div>
-          <div class="register-grid-v10523 two">
-            <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg" name="username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user"></label>
-            <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ form_values.get('full_name','') }}" autocomplete="name" placeholder="{{ 'Your full name' if is_en else 'اسمك الكامل' }}"></label>
-            <label class="full"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input type="email" class="form-control form-control-lg ltr-field-v10523" name="email" value="{{ form_values.get('email','') }}" autocomplete="email" placeholder="name@example.com"></label>
-
-            <label class="phone-prefix-label-v10523"><span>{{ 'Phone prefix' if is_en else 'بدالة الدولة' }}</span>
-              <select class="form-control form-control-lg ltr-field-v10523" name="phone_country_code" id="registerPhonePrefixV10523">
-                {% for c in country_options %}
-                  {% set c_label = (c.name_en if is_en else c.name_ar) if c.name_en is defined else (c['name_en'] if is_en else c['name_ar']) %}
-                  {% set c_code = c.code if c.code is defined else c['code'] %}
-                  {% set c_dial = c.dial if c.dial is defined else c['dial'] %}
-                  <option value="{{ c_dial }}" data-code="{{ c_code }}" {% if form_values.get('phone_country_code') == c_dial %}selected{% endif %}>{{ c_dial }} — {{ c_label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label><span>{{ 'Personal phone' if is_en else 'رقم الجوال الشخصي' }}</span><input class="form-control form-control-lg ltr-field-v10523" name="phone_number" value="{{ form_values.get('phone_number','') }}" inputmode="tel" autocomplete="tel" placeholder="{{ '599000000' if not is_en else '555000000' }}"></label>
-
-            <label><span>{{ 'Password' if is_en else 'كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
-            <label><span>{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="confirm_password" required autocomplete="new-password" minlength="6" placeholder="••••••••"></label>
-          </div>
+      <div class="lg50-preview" aria-hidden="true">
+        <div class="lg50-preview-head">
+          <span></span><span></span><span></span>
         </div>
-
-        <div class="register-section-card-v10523">
-          <div class="register-section-title-v10523">
-            <span>🌍</span>
-            <div><strong>{{ 'Location and time' if is_en else 'الموقع والوقت' }}</strong><small>{{ 'Pick country first; city, timezone, and phone prefix update automatically.' if is_en else 'اختر الدولة أولًا؛ بعدها تظهر المدن وتتحدث المنطقة الزمنية والبدالة تلقائيًا.' }}</small></div>
-          </div>
-          <div class="register-grid-v10523 three">
-            <label><span>{{ 'Country' if is_en else 'الدولة' }}</span>
-              <select class="form-control form-control-lg" name="country" id="registerCountryV10523" required>
-                <option value="">{{ 'Choose country' if is_en else 'اختر الدولة' }}</option>
-                {% for c in country_options %}
-                  {% set c_label = (c.name_en if is_en else c.name_ar) if c.name_en is defined else (c['name_en'] if is_en else c['name_ar']) %}
-                  {% set c_code = c.code if c.code is defined else c['code'] %}
-                  {% set c_tz = c.timezone if c.timezone is defined else c['timezone'] %}
-                  {% set c_dial = c.dial if c.dial is defined else c['dial'] %}
-                  {% set cities = (c.cities_en if is_en else c.cities_ar) if c.cities_en is defined else (c['cities_en'] if is_en else c['cities_ar']) %}
-                  <option value="{{ c_label }}" data-code="{{ c_code }}" data-dial="{{ c_dial }}" data-timezone="{{ c_tz }}" data-cities="{{ cities|join('|') }}" {% if form_values.get('country') == c_label or form_values.get('country_code') == c_code %}selected{% endif %}>{{ c_label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label><span>{{ 'City' if is_en else 'المدينة' }}</span>
-              <select class="form-control form-control-lg" name="city" id="registerCityV10523" required data-selected="{{ form_values.get('city','') }}">
-                <option value="">{{ 'Choose city' if is_en else 'اختر المدينة' }}</option>
-              </select>
-            </label>
-            <label><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-              <select class="form-control form-control-lg ltr-field-v10523" name="timezone" id="registerTimezoneV10523" required>
-                {% set current_tz = form_values.get('timezone','Asia/Hebron') %}
-                {% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}
-              </select>
-            </label>
-            <label class="full"><span>{{ 'Preferred interface language' if is_en else 'لغة الواجهة المفضلة' }}</span>
-              <select class="form-control form-control-lg" name="preferred_language">
-                <option value="ar" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'ar' %}selected{% endif %}>عربي</option>
-                <option value="en" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'en' %}selected{% endif %}>English</option>
-              </select>
-            </label>
-          </div>
-          <div class="location-hint-v10523" id="locationHintV10523">
-            {{ 'Your country controls city choices, SMS prefix, and timezone suggestions.' if is_en else 'الدولة تحدد المدن وبدالة SMS واقتراح المنطقة الزمنية.' }}
-          </div>
+        <div class="lg50-preview-bars">
+          <b></b><b></b><b></b><b></b><b></b><b></b>
         </div>
-
-        <div class="register-section-card-v10523">
-          <div class="register-section-title-v10523">
-            <span>🔌</span>
-            <div><strong>{{ 'Energy system' if is_en else 'نظام الطاقة' }}</strong><small>{{ 'Choose your provider now, or explore the platform and add a device later.' if is_en else 'اختر نوع جهازك الآن، أو استكشف المنصة وأضف الجهاز لاحقًا.' }}</small></div>
-          </div>
-          <div class="energy-intent-v10523">
-            <label class="intent-card-v10523"><input type="radio" name="has_energy_system" value="yes" {% if form_values.get('has_energy_system','yes') != 'no' %}checked{% endif %}><span>⚡</span><strong>{{ 'I have an energy system' if is_en else 'لدي نظام طاقة' }}</strong><small>{{ 'Continue to setup wizard after registration.' if is_en else 'انتقل لمعالج الإعداد بعد التسجيل.' }}</small></label>
-            <label class="intent-card-v10523"><input type="radio" name="has_energy_system" value="no" {% if form_values.get('has_energy_system') == 'no' %}checked{% endif %}><span>👀</span><strong>{{ 'I want to explore first' if is_en else 'أريد الاستكشاف أولًا' }}</strong><small>{{ 'Browse services in preview, add devices later.' if is_en else 'تصفح الخدمات أولًا وأضف جهازك لاحقًا.' }}</small></label>
-          </div>
-          <div class="provider-choice-v10523" id="providerChoiceV10523">
-            <label><span>{{ 'Initial device provider' if is_en else 'نوع الجهاز الأولي' }}</span>
-              <select class="form-control form-control-lg" name="preferred_device_type" id="registerProviderV10523">
-                {% set selected_provider = form_values.get('preferred_device_type','deye') %}
-                {% for p in provider_options %}<option value="{{ p.code }}" data-category="{{ p.category }}" data-note="{{ p.notes_en if is_en else p.notes_ar }}" {% if selected_provider == p.code %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
-              </select>
-            </label>
-            <div class="provider-preview-v10523" id="providerPreviewV10523"></div>
-          </div>
-        </div>
-
-        <div class="register-submit-card-v10523">
-          <button class="btn btn-solar" name="next_step" value="setup">{{ 'Create account + setup device' if is_en else 'إنشاء الحساب والانتقال لإضافة جهاز' }}</button>
-          <button class="btn btn-outline-primary" name="next_step" value="explore">{{ 'Create account + explore services' if is_en else 'إنشاء الحساب واستكشاف الخدمات' }}</button>
-          <div class="register-social-v10523">
-            <a class="btn btn-outline-primary" href="{{ url_for('auth.google_start') }}">{{ 'Sign in with Google' if is_en else 'الدخول عبر Google' }}</a>
-            <a class="btn btn-outline-primary" href="{{ url_for('auth.facebook_start') }}">{{ 'Sign in with Facebook' if is_en else 'الدخول عبر Facebook' }}</a>
-          </div>
-        </div>
-      </form>
-
-      <div class="text-center mt-3 register-login-link-v10523">
-        <small>{{ 'Already have an account?' if is_en else 'عندك حساب بالفعل؟' }} <a href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Sign in' if is_en else 'سجّل الدخول' }}</a></small>
+        <div class="lg50-preview-line"></div>
       </div>
-    </section>
+    </aside>
+
+    {# ============================================================
+       RIGHT — REGISTER FORM CARD
+       ============================================================ #}
+    <main class="lg50-form-wrap">
+      <div class="lg50-card">
+        <div class="lg50-card-mobile-brand">
+          <span class="lg50-brand-mark">⚡</span>
+          <div>
+            <strong>{{ site_name }}</strong>
+            <small>{{ 'Smart energy command center' if is_en else 'مركز قيادة الطاقة الذكية' }}</small>
+          </div>
+        </div>
+
+        <a class="lg50-back-link" href="{{ url_for('main.index', lang=ui_lang) }}">
+          {{ '← Back to home' if is_en else '← العودة للرئيسية' }}
+        </a>
+
+        <header class="lg50-card-head">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+            <div>
+              <h2>{{ 'Create your account' if is_en else 'إنشاء حسابك' }}</h2>
+              <p>{{ 'Three quick sections — and your dashboard is ready.' if is_en else 'ثلاثة أقسام سريعة — ولوحتك جاهزة.' }}</p>
+            </div>
+            <div class="rg50-lang-mini">
+              <a class="{{ 'active' if not is_en else '' }}" href="?lang=ar">عربي</a>
+              <a class="{{ 'active' if is_en else '' }}" href="?lang=en">English</a>
+            </div>
+          </div>
+        </header>
+
+        <div class="rg50-steps" id="rg50Steps">
+          <div class="rg50-step active" data-step="account"><b>1</b><span>{{ 'Account' if is_en else 'الحساب' }}</span></div>
+          <div class="rg50-step" data-step="location"><b>2</b><span>{{ 'Location' if is_en else 'الموقع' }}</span></div>
+          <div class="rg50-step" data-step="device"><b>3</b><span>{{ 'Device' if is_en else 'الجهاز' }}</span></div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="lg50-flash {{ category }}">
+                <span aria-hidden="true">{% if category == 'success' %}✅{% elif category == 'danger' or category == 'error' %}⚠️{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('auth.register', lang=ui_lang) }}" class="rg50-form" id="rg50Form" autocomplete="on">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="country_code" id="rg50CountryCode" value="{{ form_values.get('country_code','') }}">
+
+          {# ===== Section 1: ACCOUNT IDENTITY ===== #}
+          <div class="rg50-step-panel is-active" data-step="account">
+        <div class="rg50-social-highlight">
+            <div class="rg50-social-highlight-head">
+              <span class="rg50-social-highlight-icon">⚡</span>
+              <div>
+                <strong>{{ 'One-click signup' if is_en else 'تسجيل بنقرة واحدة' }}</strong>
+                <small>{{ 'Skip the form — sign up instantly with your Google or Facebook account.' if is_en else 'تخطَّ النموذج — سجّل فورًا عبر Google أو Facebook.' }}</small>
+              </div>
+            </div>
+            <div class="rg50-social-highlight-grid">
+              <a class="rg50-social-quick" href="{{ url_for('auth.google_start') }}">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                  <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+                  <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                  <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+                  <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+                </svg>
+                <span>{{ 'Continue with Google' if is_en else 'متابعة عبر Google' }}</span>
+              </a>
+              <a class="rg50-social-quick" href="{{ url_for('auth.facebook_start') }}">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                  <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                <span>{{ 'Continue with Facebook' if is_en else 'متابعة عبر Facebook' }}</span>
+              </a>
+            </div>
+          </div>
+          <div class="rg50-or-divider">{{ 'or fill in the form below' if is_en else 'أو املأ النموذج أدناه' }}</div>
+<div class="rg50-section" data-section="account">
+            <div class="rg50-section-head">
+              <span class="rg50-section-icon">👤</span>
+              <div>
+                <h3>{{ 'Account identity' if is_en else 'هوية الحساب' }}</h3>
+                <p>{{ 'Used for login, support, and secure communication.' if is_en else 'تُستخدم لتسجيل الدخول والتواصل والدعم.' }}</p>
+              </div>
+            </div>
+
+            <div class="rg50-grid">
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Username' if is_en else 'اسم المستخدم' }}<span class="rg50-req">*</span></span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <input class="rg50-input" name="username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user" dir="ltr">
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M19 8v6"/></svg>
+                  </span>
+                  <input class="rg50-input" name="full_name" value="{{ form_values.get('full_name','') }}" autocomplete="name" placeholder="{{ 'Your full name' if is_en else 'اسمك الكامل' }}">
+                </span>
+              </label>
+
+              <label class="rg50-field full">
+                <span class="rg50-label">{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  </span>
+                  <input type="email" class="rg50-input" name="email" value="{{ form_values.get('email','') }}" autocomplete="email" placeholder="name@example.com" dir="ltr">
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Phone prefix' if is_en else 'بدالة الدولة' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">📞</span>
+                  <select class="rg50-select" name="phone_country_code" id="rg50PhonePrefix" dir="ltr">
+                    {% for c in country_options %}
+                      {% set c_label = (c.name_en if is_en else c.name_ar) if c.name_en is defined else (c['name_en'] if is_en else c['name_ar']) %}
+                      {% set c_code = c.code if c.code is defined else c['code'] %}
+                      {% set c_dial = c.dial if c.dial is defined else c['dial'] %}
+                      <option value="{{ c_dial }}" data-code="{{ c_code }}" {% if form_values.get('phone_country_code') == c_dial %}selected{% endif %}>{{ c_dial }} — {{ c_label }}</option>
+                    {% endfor %}
+                  </select>
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Personal phone' if is_en else 'رقم الجوال الشخصي' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </span>
+                  <input class="rg50-input" name="phone_number" value="{{ form_values.get('phone_number','') }}" inputmode="tel" autocomplete="tel" placeholder="{{ '599000000' if not is_en else '555000000' }}" dir="ltr">
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Password' if is_en else 'كلمة المرور' }}<span class="rg50-req">*</span></span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input type="password" class="rg50-input" name="password" id="rg50Password" required autocomplete="new-password" minlength="6" placeholder="••••••••" dir="ltr">
+                  <button type="button" class="lg50-toggle-pw" data-toggle="rg50Password" aria-label="{{ 'Show password' if is_en else 'إظهار كلمة المرور' }}" style="padding:4px;border:0;background:transparent;cursor:pointer;color:var(--lg-muted);">
+                    <svg class="ic-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="ic-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </span>
+                <div class="rg50-strength" id="rg50Strength" data-level="0">
+                  <div class="rg50-strength-bar"></div>
+                  <div class="rg50-strength-label">
+                    <span>{{ 'Password strength' if is_en else 'قوة كلمة المرور' }}</span>
+                    <span class="lvl">{{ '—' }}</span>
+                  </div>
+                </div>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}<span class="rg50-req">*</span></span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                  </span>
+                  <input type="password" class="rg50-input" name="confirm_password" id="rg50ConfirmPassword" required autocomplete="new-password" minlength="6" placeholder="••••••••" dir="ltr">
+                </span>
+                <div class="rg50-match" id="rg50Match"></div>
+              </label>
+            </div>
+          </div>
+
+          {# ===== Section 2: LOCATION ===== #}
+          <div class="rg50-nav">
+            <button type="button" class="rg50-btn-back invisible" data-back>← {{ 'Back' if is_en else 'السابق' }}</button>
+            <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>1</b> / 3</span>
+            <button type="button" class="rg50-btn-next" data-next="location">
+              <span>{{ 'Continue' if is_en else 'التالي' }}</span>
+              <span class="arrow" aria-hidden="true">{{ '→' if is_en else '←' }}</span>
+            </button>
+          </div>
+        </div>
+<div class="rg50-step-panel" data-step="location">
+<div class="rg50-section" data-section="location">
+            <div class="rg50-section-head">
+              <span class="rg50-section-icon cyan">🌍</span>
+              <div>
+                <h3>{{ 'Location & timezone' if is_en else 'الموقع والمنطقة الزمنية' }}</h3>
+                <p>{{ 'Pick country first; city, timezone and SMS prefix update automatically.' if is_en else 'اختر الدولة أولًا؛ المدن والمنطقة الزمنية وبدالة SMS تتحدّث تلقائيًا.' }}</p>
+              </div>
+            </div>
+
+            <div class="rg50-grid three">
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Country' if is_en else 'الدولة' }}<span class="rg50-req">*</span></span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">🌐</span>
+                  <select class="rg50-select" name="country" id="rg50Country" required>
+                    <option value="">{{ 'Choose country' if is_en else 'اختر الدولة' }}</option>
+                    {% for c in country_options %}
+                      {% set c_label = (c.name_en if is_en else c.name_ar) if c.name_en is defined else (c['name_en'] if is_en else c['name_ar']) %}
+                      {% set c_code = c.code if c.code is defined else c['code'] %}
+                      {% set c_tz = c.timezone if c.timezone is defined else c['timezone'] %}
+                      {% set c_dial = c.dial if c.dial is defined else c['dial'] %}
+                      {% set cities = (c.cities_en if is_en else c.cities_ar) if c.cities_en is defined else (c['cities_en'] if is_en else c['cities_ar']) %}
+                      <option value="{{ c_label }}" data-code="{{ c_code }}" data-dial="{{ c_dial }}" data-timezone="{{ c_tz }}" data-cities="{{ cities|join('|') }}" {% if form_values.get('country') == c_label or form_values.get('country_code') == c_code %}selected{% endif %}>{{ c_label }}</option>
+                    {% endfor %}
+                  </select>
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'City' if is_en else 'المدينة' }}<span class="rg50-req">*</span></span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">🏙️</span>
+                  <select class="rg50-select" name="city" id="rg50City" required data-selected="{{ form_values.get('city','') }}">
+                    <option value="">{{ 'Choose city' if is_en else 'اختر المدينة' }}</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="rg50-field">
+                <span class="rg50-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">⏱️</span>
+                  <select class="rg50-select" name="timezone" id="rg50Timezone" required dir="ltr">
+                    {% set current_tz = form_values.get('timezone','Asia/Hebron') %}
+                    {% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}
+                  </select>
+                </span>
+              </label>
+
+              <label class="rg50-field full">
+                <span class="rg50-label">{{ 'Preferred interface language' if is_en else 'لغة الواجهة المفضلة' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">🗣️</span>
+                  <select class="rg50-select" name="preferred_language">
+                    <option value="ar" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'ar' %}selected{% endif %}>العربية</option>
+                    <option value="en" {% if form_values.get('preferred_language', ui_lang or 'ar') == 'en' %}selected{% endif %}>English</option>
+                  </select>
+                </span>
+              </label>
+            </div>
+            <div class="rg50-hint" id="rg50Hint">
+              <span aria-hidden="true">💡</span>
+              <span>{{ 'Your country controls city choices, SMS prefix, and timezone suggestions.' if is_en else 'الدولة تحدّد المدن وبدالة SMS واقتراح المنطقة الزمنية.' }}</span>
+            </div>
+          </div>
+
+          {# ===== Section 3: ENERGY SYSTEM / DEVICE ===== #}
+          <div class="rg50-nav">
+            <button type="button" class="rg50-btn-back" data-back="account">← {{ 'Back' if is_en else 'السابق' }}</button>
+            <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>2</b> / 3</span>
+            <button type="button" class="rg50-btn-next" data-next="device">
+              <span>{{ 'Continue' if is_en else 'التالي' }}</span>
+              <span class="arrow" aria-hidden="true">{{ '→' if is_en else '←' }}</span>
+            </button>
+          </div>
+        </div>
+<div class="rg50-step-panel" data-step="device">
+<div class="rg50-section" data-section="device">
+            <div class="rg50-section-head">
+              <span class="rg50-section-icon amber">🔌</span>
+              <div>
+                <h3>{{ 'Energy system' if is_en else 'نظام الطاقة' }}</h3>
+                <p>{{ 'Choose your provider now, or explore the platform and add a device later.' if is_en else 'اختر نوع جهازك الآن، أو استكشف المنصة وأضف الجهاز لاحقًا.' }}</p>
+              </div>
+            </div>
+
+            <div class="rg50-intent">
+              <label class="rg50-intent-card">
+                <input type="radio" name="has_energy_system" value="yes" {% if form_values.get('has_energy_system','yes') != 'no' %}checked{% endif %}>
+                <span class="rg50-intent-icon">⚡</span>
+                <strong>{{ 'I have an energy system' if is_en else 'لدي نظام طاقة' }}</strong>
+                <small>{{ 'Continue to setup wizard after registration.' if is_en else 'انتقل لمعالج الإعداد بعد التسجيل.' }}</small>
+              </label>
+              <label class="rg50-intent-card">
+                <input type="radio" name="has_energy_system" value="no" {% if form_values.get('has_energy_system') == 'no' %}checked{% endif %}>
+                <span class="rg50-intent-icon">👀</span>
+                <strong>{{ 'Explore first' if is_en else 'أريد الاستكشاف أولًا' }}</strong>
+                <small>{{ 'Browse services in preview, add devices later.' if is_en else 'تصفح الخدمات أولًا وأضف الجهاز لاحقًا.' }}</small>
+              </label>
+            </div>
+
+            <div class="rg50-provider-wrap" id="rg50ProviderWrap">
+              <label class="rg50-field full">
+                <span class="rg50-label">{{ 'Initial device provider' if is_en else 'نوع الجهاز الأولي' }}</span>
+                <span class="rg50-field-input">
+                  <span class="rg50-field-icon" aria-hidden="true">🛰️</span>
+                  <select class="rg50-select" name="preferred_device_type" id="rg50Provider">
+                    {% set selected_provider = form_values.get('preferred_device_type','deye') %}
+                    {% for p in provider_options %}<option value="{{ p.code }}" data-category="{{ p.category }}" data-note="{{ p.notes_en if is_en else p.notes_ar }}" {% if selected_provider == p.code %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                  </select>
+                </span>
+              </label>
+              <div class="rg50-provider-preview" id="rg50ProviderPreview"></div>
+            </div>
+          </div>
+
+          {# ===== Submit ===== #}
+                    <div class="rg50-nav" style="margin-top:8px;">
+            <button type="button" class="rg50-btn-back" data-back="location">← {{ 'Back' if is_en else 'السابق' }}</button>
+            <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>3</b> / 3 · {{ 'Last step!' if is_en else 'الخطوة الأخيرة!' }}</span>
+            <span></span>
+          </div>
+<div class="rg50-submit-row">
+            <button class="rg50-submit-primary" type="submit" name="next_step" value="setup">
+              <span>⚡</span>
+              <span>{{ 'Create + setup device' if is_en else 'إنشاء وإضافة جهاز' }}</span>
+            </button>
+            <button class="rg50-submit-secondary" type="submit" name="next_step" value="explore">
+              <span>👀</span>
+              <span>{{ 'Create + explore services' if is_en else 'إنشاء واستكشاف الخدمات' }}</span>
+            </button>
+          </div>
+        </div>
+
+
+        </form>
+
+        <div class="lg50-divider">{{ 'or sign up with' if is_en else 'أو سجّل عبر' }}</div>
+        <div class="lg50-socials">
+          <a class="lg50-social google" href="{{ url_for('auth.google_start') }}">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+              <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+            </svg>
+            <span>Google</span>
+          </a>
+          <a class="lg50-social facebook" href="{{ url_for('auth.facebook_start') }}">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            <span>Facebook</span>
+          </a>
+        </div>
+
+        <p class="lg50-signup">
+          {{ 'Already have an account?' if is_en else 'عندك حساب بالفعل؟' }}
+          <a href="{{ url_for('auth.login', lang=ui_lang) }}">{{ 'Sign in' if is_en else 'سجّل الدخول' }}</a>
+        </p>
+
+        <div class="lg50-trust">
+          <span>🔒 {{ 'Encrypted' if is_en else 'مشفّر' }}</span>
+          <span>🛡️ {{ 'Privacy-first' if is_en else 'تحفظ الخصوصية' }}</span>
+          <span>⚡ {{ 'Instant setup' if is_en else 'إعداد فوري' }}</span>
+        </div>
+      </div>
+    </main>
   </div>
 </div>
+
 <script>
 (function(){
-  const country = document.getElementById('registerCountryV10523');
-  const countryCode = document.getElementById('registerCountryCodeV10523');
-  const city = document.getElementById('registerCityV10523');
-  const tz = document.getElementById('registerTimezoneV10523');
-  const phonePrefix = document.getElementById('registerPhonePrefixV10523');
-  const provider = document.getElementById('registerProviderV10523');
-  const preview = document.getElementById('providerPreviewV10523');
-  const providerWrap = document.getElementById('providerChoiceV10523');
-  const radios = document.querySelectorAll('input[name="has_energy_system"]');
+  // ===== Step nav (visual progress as user fills sections) =====
+  var steps = document.querySelectorAll('.rg50-step');
+  function setStep(target){
+    steps.forEach(function(s){
+      var key = s.dataset.step;
+      var stepIdx = ['account','location','device'].indexOf(key);
+      var targetIdx = ['account','location','device'].indexOf(target);
+      s.classList.toggle('active', stepIdx === targetIdx);
+      s.classList.toggle('done', stepIdx < targetIdx);
+    });
+  }
+  document.querySelectorAll('.rg50-section').forEach(function(sec){
+    sec.addEventListener('focusin', function(){ setStep(sec.dataset.section); });
+  });
+
+  // ===== Password visibility toggle =====
+  document.querySelectorAll('[data-toggle]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var input = document.getElementById(btn.dataset.toggle);
+      if (!input) return;
+      var on = (input.type === 'password');
+      input.type = on ? 'text' : 'password';
+      var eye = btn.querySelector('.ic-eye');
+      var eyeOff = btn.querySelector('.ic-eye-off');
+      if (eye && eyeOff) { eye.style.display = on ? 'none' : ''; eyeOff.style.display = on ? '' : 'none'; }
+    });
+  });
+
+  // ===== Password strength meter =====
+  var pw = document.getElementById('rg50Password');
+  var meter = document.getElementById('rg50Strength');
+  var meterLbl = meter && meter.querySelector('.lvl');
+  var labels = {{ ({'0': '—', '1': ('Weak' if is_en else 'ضعيفة'), '2': ('Fair' if is_en else 'متوسطة'), '3': ('Good' if is_en else 'جيدة'), '4': ('Strong' if is_en else 'قوية')}|tojson) }};
+  function scorePassword(s){
+    if (!s) return 0;
+    var score = 0;
+    if (s.length >= 6)  score++;
+    if (s.length >= 10) score++;
+    if (/[A-Z]/.test(s) && /[a-z]/.test(s)) score++;
+    if (/\d/.test(s) && /[^A-Za-z0-9]/.test(s)) score++;
+    return Math.min(score, 4);
+  }
+  if (pw && meter) {
+    pw.addEventListener('input', function(){
+      var lvl = scorePassword(pw.value);
+      meter.dataset.level = String(lvl);
+      if (meterLbl) meterLbl.textContent = labels[String(lvl)] || '—';
+    });
+  }
+
+  // ===== Confirm-password match =====
+  var confirmEl = document.getElementById('rg50ConfirmPassword');
+  var matchEl   = document.getElementById('rg50Match');
+  function checkMatch(){
+    if (!pw || !confirmEl || !matchEl) return;
+    if (!confirmEl.value) { matchEl.classList.remove('show','good','bad'); matchEl.textContent = ''; return; }
+    matchEl.classList.add('show');
+    if (pw.value === confirmEl.value) {
+      matchEl.classList.add('good'); matchEl.classList.remove('bad');
+      matchEl.textContent = {{ ("'✓ Passwords match'" if is_en else "'✓ كلمتا المرور متطابقتان'") }};
+    } else {
+      matchEl.classList.add('bad'); matchEl.classList.remove('good');
+      matchEl.textContent = {{ ("'✕ Passwords do not match'" if is_en else "'✕ كلمتا المرور غير متطابقتين'") }};
+    }
+  }
+  confirmEl && confirmEl.addEventListener('input', checkMatch);
+  pw && pw.addEventListener('input', checkMatch);
+
+  // ===== Country / city / timezone / phone-prefix sync =====
+  var country     = document.getElementById('rg50Country');
+  var countryCode = document.getElementById('rg50CountryCode');
+  var city        = document.getElementById('rg50City');
+  var tz          = document.getElementById('rg50Timezone');
+  var phonePrefix = document.getElementById('rg50PhonePrefix');
+  var provider    = document.getElementById('rg50Provider');
+  var preview     = document.getElementById('rg50ProviderPreview');
+  var providerWrap= document.getElementById('rg50ProviderWrap');
+  var radios      = document.querySelectorAll('input[name="has_energy_system"]');
 
   function setPhonePrefix(code, dial){
-    if(!phonePrefix) return;
-    const wanted = dial || '';
-    let found = false;
-    Array.from(phonePrefix.options).forEach((opt) => {
-      if((wanted && opt.value === wanted) || (code && opt.dataset.code === code)){
-        opt.selected = true;
-        found = true;
-      }
+    if (!phonePrefix) return;
+    var wanted = dial || '';
+    var found = false;
+    Array.from(phonePrefix.options).forEach(function(opt){
+      if ((wanted && opt.value === wanted) || (code && opt.dataset.code === code)) { opt.selected = true; found = true; }
     });
-    if(!found && wanted){
-      const opt = new Option(wanted, wanted);
+    if (!found && wanted) {
+      var opt = new Option(wanted, wanted);
       opt.dataset.code = code || '';
       phonePrefix.add(opt);
       phonePrefix.value = wanted;
@@ -187,55 +567,161 @@
   }
 
   function syncCountry(){
-    const opt = country && country.selectedOptions && country.selectedOptions[0];
-    if(!opt) return;
-    const code = opt.dataset.code || '';
-    const dial = opt.dataset.dial || '';
-    const suggested = opt.dataset.timezone || 'Asia/Hebron';
-    if(countryCode) countryCode.value = code;
+    var opt = country && country.selectedOptions && country.selectedOptions[0];
+    if (!opt) return;
+    var code = opt.dataset.code || '';
+    var dial = opt.dataset.dial || '';
+    var suggested = opt.dataset.timezone || 'Asia/Hebron';
+    if (countryCode) countryCode.value = code;
     setPhonePrefix(code, dial);
-    if(tz && !tz.dataset.userChanged) tz.value = suggested;
-    const selectedCity = (city && city.dataset.selected) || '';
-    const cities = (opt.dataset.cities || '').split('|').filter(Boolean);
-    if(city){
+    if (tz && !tz.dataset.userChanged) tz.value = suggested;
+    var selectedCity = (city && city.dataset.selected) || '';
+    var cities = (opt.dataset.cities || '').split('|').filter(Boolean);
+    if (city) {
       city.innerHTML = '';
-      city.appendChild(new Option('{{ "Choose city" if is_en else "اختر المدينة" }}', ''));
-      cities.forEach((name) => city.appendChild(new Option(name, name)));
-      city.appendChild(new Option('{{ "Other city" if is_en else "مدينة أخرى" }}', '__other__'));
-      if(selectedCity && Array.from(city.options).some(o => o.value === selectedCity)){
+      city.appendChild(new Option({{ ("'Choose city'" if is_en else "'اختر المدينة'") }}, ''));
+      cities.forEach(function(name){ city.appendChild(new Option(name, name)); });
+      city.appendChild(new Option({{ ("'Other city'" if is_en else "'مدينة أخرى'") }}, '__other__'));
+      if (selectedCity && Array.from(city.options).some(function(o){ return o.value === selectedCity; })) {
         city.value = selectedCity;
       }
     }
   }
 
   function syncProvider(){
-    const opt = provider && provider.selectedOptions && provider.selectedOptions[0];
-    if(!opt || !preview) return;
-    preview.innerHTML = `<strong>${opt.textContent}</strong><span>${opt.dataset.category || ''}</span><p>${opt.dataset.note || ''}</p>`;
+    var opt = provider && provider.selectedOptions && provider.selectedOptions[0];
+    if (!opt || !preview) return;
+    preview.innerHTML = '<strong>' + opt.textContent + '</strong>'
+      + '<span>' + (opt.dataset.category || '') + '</span>'
+      + '<p>' + (opt.dataset.note || '') + '</p>';
   }
 
   function syncIntent(){
-    const selected = document.querySelector('input[name="has_energy_system"]:checked');
-    if(providerWrap) providerWrap.classList.toggle('is-muted', selected && selected.value === 'no');
+    var selected = document.querySelector('input[name="has_energy_system"]:checked');
+    if (providerWrap) providerWrap.classList.toggle('is-muted', selected && selected.value === 'no');
   }
 
   city && city.addEventListener('change', function(){
-    if(this.value === '__other__'){
-      const custom = prompt('{{ "Type city name" if is_en else "اكتب اسم المدينة" }}');
-      if(custom && custom.trim()){
-        const opt = new Option(custom.trim(), custom.trim());
+    if (this.value === '__other__') {
+      var custom = prompt({{ ("'Type city name'" if is_en else "'اكتب اسم المدينة'") }});
+      if (custom && custom.trim()) {
+        var opt = new Option(custom.trim(), custom.trim());
         city.add(opt, city.options[city.options.length - 1]);
         city.value = custom.trim();
-      }else{
+      } else {
         city.value = '';
       }
     }
   });
-  tz && tz.addEventListener('change', () => { tz.dataset.userChanged = '1'; });
-  country && country.addEventListener('change', () => { if(city) city.dataset.selected = ''; syncCountry(); });
+  tz && tz.addEventListener('change', function(){ tz.dataset.userChanged = '1'; });
+  country && country.addEventListener('change', function(){ if (city) city.dataset.selected = ''; syncCountry(); });
   provider && provider.addEventListener('change', syncProvider);
-  radios.forEach(r => r.addEventListener('change', syncIntent));
-  syncCountry(); syncProvider(); syncIntent();
+  radios.forEach(function(r){ r.addEventListener('change', syncIntent); });
+
+
+  // ===== Wizard step navigation =====
+  var panels = Array.from(document.querySelectorAll('.rg50-step-panel'));
+  var stepKeys = ['account','location','device'];
+  var stepPills = Array.from(document.querySelectorAll('.rg50-step'));
+
+  function showStep(target){
+    var targetIdx = stepKeys.indexOf(target);
+    if (targetIdx === -1) return;
+    panels.forEach(function(p){
+      p.classList.toggle('is-active', p.dataset.step === target);
+    });
+    stepPills.forEach(function(s){
+      var idx = stepKeys.indexOf(s.dataset.step);
+      s.classList.toggle('active', idx === targetIdx);
+      s.classList.toggle('done', idx < targetIdx);
+      s.classList.toggle('clickable', idx < targetIdx);
+    });
+    // Smooth-scroll the card into view
+    var card = document.querySelector('.lg50-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function validateStep(stepKey){
+    var panel = document.querySelector('.rg50-step-panel[data-step="' + stepKey + '"]');
+    if (!panel) return true;
+    var ok = true;
+    var firstBad = null;
+    panel.querySelectorAll('input[required], select[required]').forEach(function(el){
+      var holder = el.closest('.rg50-field-input');
+      if (!el.value || (el.type === 'email' && el.value && !el.checkValidity())) {
+        ok = false;
+        if (holder) holder.classList.add('error');
+        if (!firstBad) firstBad = el;
+      } else {
+        if (holder) holder.classList.remove('error');
+      }
+    });
+    // Step 1 — confirm password match check
+    if (stepKey === 'account') {
+      var p1 = document.getElementById('rg50Password');
+      var p2 = document.getElementById('rg50ConfirmPassword');
+      if (p1 && p2 && p1.value && p2.value && p1.value !== p2.value) {
+        ok = false;
+        var holder = p2.closest('.rg50-field-input');
+        if (holder) holder.classList.add('error');
+        if (!firstBad) firstBad = p2;
+      }
+    }
+    if (!ok && firstBad) firstBad.focus();
+    return ok;
+  }
+
+  document.querySelectorAll('[data-next]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      // current step is the panel that contains this button
+      var curPanel = btn.closest('.rg50-step-panel');
+      var curKey = curPanel && curPanel.dataset.step;
+      if (!validateStep(curKey)) return;
+      showStep(btn.dataset.next);
+    });
+  });
+  document.querySelectorAll('[data-back]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t = btn.dataset.back;
+      if (t) showStep(t);
+    });
+  });
+  // Clickable step pills (only for completed steps)
+  stepPills.forEach(function(s){
+    s.addEventListener('click', function(){
+      if (s.classList.contains('clickable')) showStep(s.dataset.step);
+    });
+  });
+
+  // Make sure submit only fires from step 3
+  var formEl = document.getElementById('rg50Form');
+  if (formEl) {
+    formEl.addEventListener('submit', function(e){
+      // If user pressed Enter on step 1 or 2, advance instead of submitting
+      var active = document.querySelector('.rg50-step-panel.is-active');
+      var key = active && active.dataset.step;
+      if (key !== 'device') {
+        e.preventDefault();
+        var nextBtn = active && active.querySelector('[data-next]');
+        if (nextBtn) nextBtn.click();
+      }
+    });
+  }
+
+  syncCountry();
+  syncProvider();
+  syncIntent();
+
+  // Subtle parallax
+  var stage = document.querySelector('.lg50-stage');
+  var grid  = document.querySelector('.lg50-showcase-grid');
+  if (stage && grid && window.matchMedia('(min-width:1025px)').matches) {
+    stage.addEventListener('mousemove', function(e){
+      var x = (e.clientX / window.innerWidth - .5) * 12;
+      var y = (e.clientY / window.innerHeight - .5) * 12;
+      grid.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    });
+  }
 })();
 </script>
 {% endblock %}

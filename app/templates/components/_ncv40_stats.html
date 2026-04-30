@@ -1,0 +1,30 @@
+{# Notification Center v40 — Stat cards #}
+<section class="ncv40-stats" aria-label="{{ 'Statistics' if is_en else 'إحصائيات' }}">
+  <article class="ncv40-stat" data-ncv40-stat="unread" data-stat-key="unread">
+    <div class="ncv40-stat-icon">{{ ncv40_icon('inbox') }}</div>
+    <span class="ncv40-stat-label">{{ 'Unread' if is_en else 'غير المقروءة' }}</span>
+    <strong class="ncv40-stat-value" data-ncv40-stat-unread>{{ stats.unread_groups or 0 }}</strong>
+    <small class="ncv40-stat-trend">{{ 'Awaiting your attention' if is_en else 'بانتظار متابعتك' }}</small>
+  </article>
+
+  <article class="ncv40-stat" data-ncv40-stat="message" data-stat-key="conversations">
+    <div class="ncv40-stat-icon">{{ ncv40_icon('mail') }}</div>
+    <span class="ncv40-stat-label">{{ 'Active chats' if is_en else 'محادثات نشطة' }}</span>
+    <strong class="ncv40-stat-value">{{ stats.active_conversations or 0 }}</strong>
+    <small class="ncv40-stat-trend">{{ 'Recent message activity' if is_en else 'آخر نشاطات الرسائل' }}</small>
+  </article>
+
+  <article class="ncv40-stat" data-ncv40-stat="ticket" data-stat-key="tickets">
+    <div class="ncv40-stat-icon">{{ ncv40_icon('ticket') }}</div>
+    <span class="ncv40-stat-label">{{ 'Open tickets' if is_en else 'تذاكر مفتوحة' }}</span>
+    <strong class="ncv40-stat-value">{{ stats.open_tickets or 0 }}</strong>
+    <small class="ncv40-stat-trend">{{ 'Currently in progress' if is_en else 'قيد المعالجة الآن' }}</small>
+  </article>
+
+  <article class="ncv40-stat" data-ncv40-stat="system" data-stat-key="system">
+    <div class="ncv40-stat-icon">{{ ncv40_icon('sparkles') }}</div>
+    <span class="ncv40-stat-label">{{ 'System alerts' if is_en else 'تنبيهات النظام' }}</span>
+    <strong class="ncv40-stat-value">{{ stats.system_alerts or 0 }}</strong>
+    <small class="ncv40-stat-trend">{{ 'Operational updates' if is_en else 'تحديثات تشغيلية' }}</small>
+  </article>
+</section>

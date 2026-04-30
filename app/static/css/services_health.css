@@ -1,0 +1,118 @@
+.service-status-big-v71 {
+  border-radius: 16px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  min-width: 180px;
+  text-align: center;
+}
+
+.service-status-big-v71.ok {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.service-status-big-v71.warn {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.service-status-big-v71 small {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.service-status-big-v71 strong {
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.service-card-grid-v71 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.service-card-v71 {
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.service-card-v71.status-ok,
+.service-card-v71.status-success {
+  border-color: #bbf7d0;
+}
+
+.service-card-v71.status-warning {
+  border-color: #fed7aa;
+}
+
+.service-card-v71.status-failed,
+.service-card-v71.status-danger {
+  border-color: #fecaca;
+}
+
+.service-card-top-v71 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-card-top-v71 h3 {
+  margin: 2px 0 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.service-card-top-v71 small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.service-card-v71 p {
+  max-height: 96px;
+  overflow: auto;
+  margin: 12px 0;
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.service-card-v71 footer {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.services-health-v90 .table-shell-v2 {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.services-health-v90 .table-shell-v2 thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .service-card-grid-v71 {
+    grid-template-columns: 1fr;
+  }
+
+  .service-status-big-v71 {
+    width: 100%;
+  }
+}

@@ -1,0 +1,71 @@
+{# Notification Center v40 — Main list of grouped notifications #}
+<section class="ncv40-list-card">
+  <div class="ncv40-list-head">
+    <h2>
+      {{ 'Notifications' if is_en else 'الإشعارات' }}
+      <small><span data-ncv40-visible-count>{{ groups|length }}</span> {{ 'items' if is_en else 'عنصر' }}</small>
+    </h2>
+    <div class="ncv40-list-actions">
+      <button type="button" class="ncv40-soft-btn" data-ncv40-mark-all>
+        {{ ncv40_icon('check') }}
+        <span>{{ 'Mark all read' if is_en else 'تحديد الكل كمقروء' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="ncv40-list" data-ncv40-list>
+    {% for item in groups %}
+    <a class="ncv40-row{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
+       href="{{ item.url }}"
+       data-ncv40-item
+       data-ncv40-open
+       data-kind="{{ item.kind }}"
+       data-status="{{ item.status }}"
+       data-priority="{{ item.priority }}"
+       data-unread="{{ item.unread_count }}"
+       data-archived="{{ 1 if item.is_archived else 0 }}"
+       data-group-key="{{ item.group_key }}"
+       data-search="{{ (item.title ~ ' ' ~ item.details ~ ' ' ~ item.assignee)|lower }}">
+
+      <span class="ncv40-row-bar" aria-hidden="true"></span>
+
+      <div class="ncv40-row-avatar">
+        {% if item.kind == 'message' %}{{ ncv40_icon('mail') }}
+        {% elif item.kind == 'ticket' %}{{ ncv40_icon('ticket') }}
+        {% else %}{{ ncv40_icon('sparkles') }}{% endif %}
+      </div>
+
+      <div class="ncv40-row-body">
+        <div class="ncv40-row-top">
+          <h3 class="ncv40-row-title">{{ item.title }}</h3>
+          <span class="ncv40-chip kind">{{ item.kind_label }}</span>
+          <span class="ncv40-chip status-{{ item.status }}">{{ item.status_label }}</span>
+          {% if item.priority in ['high','urgent'] %}
+          <span class="ncv40-chip priority-{{ item.priority }}">⚑ {{ item.priority_label }}</span>
+          {% endif %}
+        </div>
+        <p class="ncv40-row-text">{{ item.details }}</p>
+        <div class="ncv40-row-meta">
+          <span>{{ ncv40_icon('user') }} {{ item.assignee }}</span>
+          <span>{{ ncv40_icon('clock') }} {{ item.last_activity_label }}</span>
+          <span>{{ ncv40_icon('message') }} {{ item.events_count }} {{ 'updates' if is_en else 'تحديث' }}</span>
+        </div>
+      </div>
+
+      <div class="ncv40-row-side">
+        <span class="ncv40-unread-badge{% if item.unread_count == 0 %} is-zero{% endif %}">{{ item.unread_count }}</span>
+        <span class="ncv40-open-link">
+          <span>{{ 'Open' if is_en else 'فتح' }}</span>
+          {% if is_en %}{{ ncv40_icon('arrow') }}{% else %}{{ ncv40_icon('arrow-rtl') }}{% endif %}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+
+    <div class="ncv40-empty" data-ncv40-empty {% if groups|length > 0 %}style="display:none"{% endif %}>
+      <div class="ncv40-empty-icon">{{ ncv40_icon('inbox') }}</div>
+      <h3>{{ 'You are all caught up' if is_en else 'كل شيء على ما يرام' }}</h3>
+      <p>{{ 'No notifications match your current filters.' if is_en else 'لا توجد إشعارات مطابقة للفلاتر الحالية.' }}</p>
+    </div>
+  </div>
+</section>

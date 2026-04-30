@@ -19,6 +19,7 @@ venv/
 
 # Logs/build artifacts
 *.log
+SolarDeye_*.zip
 .DS_Store
 node_modules/
 dist/

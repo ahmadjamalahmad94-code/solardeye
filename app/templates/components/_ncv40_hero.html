@@ -1,0 +1,24 @@
+{# Notification Center v40 — Hero section #}
+<header class="ncv40-hero">
+  <div class="ncv40-hero-content">
+    <span class="ncv40-hero-badge">{{ 'Live updates' if is_en else 'تحديث مباشر' }}</span>
+    <h1>{{ 'Notification Center' if is_en else 'مركز الإشعارات' }}</h1>
+    <p>
+      {% if is_en %}
+        Track messages, support tickets, and system alerts from one organized hub — sorted, grouped, and ready to act on.
+      {% else %}
+        تابع كل ما هو مهم — الرسائل، التذاكر، وتنبيهات النظام — في مركز واحد منظم، مع تجميع ذكي وأدوات سريعة لاتخاذ القرار.
+      {% endif %}
+    </p>
+  </div>
+  <div class="ncv40-hero-actions">
+    <button type="button" class="ncv40-hero-btn primary" data-ncv40-mark-all>
+      {{ ncv40_icon('check-all') }}
+      <span>{{ 'Mark all read' if is_en else 'تحديد الكل كمقروء' }}</span>
+    </button>
+    <a class="ncv40-hero-btn" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">
+      {{ ncv40_icon('settings') }}
+      <span>{{ 'Settings' if is_en else 'الإعدادات' }}</span>
+    </a>
+  </div>
+</header>

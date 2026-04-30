@@ -1,0 +1,49 @@
+{# Notification Center v40 — Toolbar (tabs + search) #}
+{% set count_message = (groups | selectattr('kind', 'equalto', 'message') | list) | length %}
+{% set count_ticket  = (groups | selectattr('kind', 'equalto', 'ticket')  | list) | length %}
+{% set count_system  = (groups | selectattr('kind', 'equalto', 'system')  | list) | length %}
+{% set count_unread  = (groups | selectattr('unread_count', 'gt', 0) | list) | length %}
+{% set count_archive = (groups | selectattr('is_archived') | list) | length %}
+
+<div class="ncv40-toolbar">
+  <nav class="ncv40-tabs" aria-label="{{ 'Tabs' if is_en else 'تبويبات' }}">
+    <button class="ncv40-tab is-active" type="button" data-ncv40-tab="all">
+      {{ ncv40_icon('list') }}
+      <span>{{ 'All' if is_en else 'الكل' }}</span>
+      <span class="ncv40-tab-count">{{ groups|length }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="unread">
+      {{ ncv40_icon('bell') }}
+      <span>{{ 'Unread' if is_en else 'غير المقروء' }}</span>
+      <span class="ncv40-tab-count">{{ count_unread }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="message">
+      {{ ncv40_icon('mail') }}
+      <span>{{ 'Messages' if is_en else 'الرسائل' }}</span>
+      <span class="ncv40-tab-count">{{ count_message }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="ticket">
+      {{ ncv40_icon('ticket') }}
+      <span>{{ 'Tickets' if is_en else 'التذاكر' }}</span>
+      <span class="ncv40-tab-count">{{ count_ticket }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="system">
+      {{ ncv40_icon('sparkles') }}
+      <span>{{ 'System' if is_en else 'النظام' }}</span>
+      <span class="ncv40-tab-count">{{ count_system }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="archive">
+      {{ ncv40_icon('archive') }}
+      <span>{{ 'Archive' if is_en else 'الأرشيف' }}</span>
+      <span class="ncv40-tab-count">{{ count_archive }}</span>
+    </button>
+  </nav>
+
+  <div class="ncv40-search">
+    <input type="search"
+           data-ncv40-search
+           placeholder="{{ 'Search notifications…' if is_en else 'ابحث في الإشعارات…' }}"
+           aria-label="{{ 'Search' if is_en else 'بحث' }}">
+    {{ ncv40_icon('search') }}
+  </div>
+</div>

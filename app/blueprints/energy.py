@@ -85,9 +85,21 @@ def dashboard():
     day_end_utc = (day_local + timedelta(days=1)).astimezone(UTC).replace(tzinfo=None)
 
     # كل قراءات اليوم المختار
-    day_readings = (scoped_query(Reading)
-                    .filter(Reading.created_at >= day_start_utc, Reading.created_at < day_end_utc)
-                    .order_by(Reading.created_at.asc()).all())
+    selected_day_label = day_local.strftime('%Y-%m-%d')
+    today_label = now_local.strftime('%Y-%m-%d')
+    if selected_day_label == today_label:
+        day_readings = (
+            scoped_query(Reading)
+            .filter(Reading.created_at < day_end_utc)
+            .order_by(Reading.created_at.desc())
+            .limit(240)
+            .all()
+        )[::-1]
+        day_readings = [row for row in day_readings if row.created_at >= day_start_utc]
+    else:
+        day_readings = (scoped_query(Reading)
+                        .filter(Reading.created_at >= day_start_utc, Reading.created_at < day_end_utc)
+                        .order_by(Reading.created_at.asc()).all())
 
     # تصفية كل ساعة — نأخذ أقرب قراءة لكل ساعة
     def _hourly_sample(rows):
@@ -114,8 +126,6 @@ def dashboard():
     # battery power للرسم البياني
     battery_power_values = [r.battery_power for r in readings_hourly]
 
-    selected_day_label = day_local.strftime('%Y-%m-%d')
-
     flow = build_flow(latest)
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
     battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
@@ -132,6 +142,14 @@ def dashboard():
     actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     recent_events = get_recent_event_logs(8)
 
+    # Heavy v40 — smart day-phase classifier (drives the new dashboard hero)
+    from ..services.utils import classify_day_phase
+    day_phase = classify_day_phase(
+        now_local,
+        sunrise_text=(weather.sunrise_time if weather and getattr(weather, 'sunrise_time', None) else None),
+        sunset_text=(weather.sunset_time if weather and getattr(weather, 'sunset_time', None) else None),
+    )
+
     return render_template(
         'dashboard.html',
         latest=latest, settings=settings, labels=labels,
@@ -144,6 +162,7 @@ def dashboard():
         battery_reserve_percent=battery_reserve_percent, system_state=system_state, system_status=system_status,
         weather=weather, weather_insight=weather_insight, solar_prediction=solar_prediction, smart_overview=smart_overview,
         production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events,
+        day_phase=day_phase,
         human_duration_hours=human_duration_hours, format_energy=format_energy,
         format_power=format_power, _to_12h_label=_to_12h_label,
         format_local=lambda dt: format_local_datetime(dt, tz_name),
@@ -157,9 +176,21 @@ def api_live():
     device = _active_device()
     ready, _ = _device_sync_ready(device)
     latest = _latest_reading() if ready else None
+    tz_name = current_app.config['LOCAL_TIMEZONE']
+    # Heavy v40 — day phase is always returned, even if there's no reading,
+    # so the dashboard hero can keep its sky animation alive.
+    from datetime import UTC, datetime as _dt
+    from ..services.utils import utc_to_local, classify_day_phase
+    now_local = utc_to_local(_dt.now(UTC), tz_name) or _dt.now(UTC)
+    weather_for_phase = get_weather_for_latest(latest) if latest else None
+    day_phase_payload = classify_day_phase(
+        now_local,
+        sunrise_text=(weather_for_phase.sunrise_time if weather_for_phase and getattr(weather_for_phase, 'sunrise_time', None) else None),
+        sunset_text=(weather_for_phase.sunset_time if weather_for_phase and getattr(weather_for_phase, 'sunset_time', None) else None),
+    )
     if not latest:
-        return {'ok': False, 'empty': True}
-    weather = get_weather_for_latest(latest)
+        return {'ok': False, 'empty': True, 'day_phase': day_phase_payload}
+    weather = weather_for_phase
     settings = load_settings()
     battery_capacity_kwh, battery_reserve_percent = get_runtime_battery_settings(settings)
     battery_insights = build_battery_insights(latest, battery_capacity_kwh, battery_reserve_percent)
@@ -167,9 +198,9 @@ def api_live():
     system_state = system_status['title']
     solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
     actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
-    tz_name = current_app.config['LOCAL_TIMEZONE']
     return {
         'ok': True,
+        'day_phase': day_phase_payload,
         'latest': {
             'solar_power': latest.solar_power, 'home_load': latest.home_load,
             'battery_soc': latest.battery_soc, 'grid_power': latest.grid_power,
@@ -915,5 +946,3 @@ def api_raw_debug():
         'raw': raw,
     }
     return sanitize_response_payload(payload)
-
-

@@ -1185,33 +1185,34 @@ def get_production_summary(tz_name: str) -> dict:
     month_utc = _to_naive_utc(month_start)
     year_utc = _to_naive_utc(year_start)
 
-    def _integrate_kwh(rows):
-        total = 0.0
-        for i in range(1, len(rows)):
-            prev, curr = rows[i - 1], rows[i]
-            dt_h = (curr.created_at - prev.created_at).total_seconds() / 3600.0
-            if 0 < dt_h <= 1.5:  # ignore gaps > 1.5h
-                total += max(float(prev.solar_power or 0), 0.0) * dt_h / 1000.0
-        return round(total, 2)
-
-    def _calc_kwh(start_utc):
-        rows = (
-            Reading.query
-            .filter(Reading.created_at >= start_utc)
-            .order_by(Reading.created_at.asc())
-            .all()
-        )
-        return _integrate_kwh(rows), len(rows)
-
-    latest = Reading.query.order_by(Reading.created_at.desc()).first()
+    latest = scoped_query(Reading).order_by(Reading.created_at.desc()).first()
     api_daily = float(latest.daily_production or 0) if latest else 0.0
     api_monthly = float(latest.monthly_production or 0) if latest else 0.0
     api_total = float(latest.total_production or 0) if latest else 0.0
 
-    today_kwh, today_count = _calc_kwh(today_utc)
-    week_kwh, week_count = _calc_kwh(week_utc)
-    month_kwh, month_count = _calc_kwh(month_utc)
-    year_kwh, year_count = _calc_kwh(year_utc)
+    def _first_since(start_utc):
+        return (
+            scoped_query(Reading)
+            .filter(Reading.created_at >= start_utc)
+            .order_by(Reading.created_at.asc())
+            .first()
+        )
+
+    def _delta_total_kwh(start_utc):
+        if not latest or api_total <= 0:
+            return 0.0, 0
+        first = _first_since(start_utc)
+        if not first:
+            return 0.0, 0
+        start_total = float(first.total_production or 0)
+        if start_total <= 0 or api_total < start_total:
+            return 0.0, 1
+        return round(api_total - start_total, 2), 1
+
+    today_kwh, today_count = (api_daily, 1) if api_daily > 0 else _delta_total_kwh(today_utc)
+    week_kwh, week_count = _delta_total_kwh(week_utc)
+    month_kwh, month_count = (api_monthly, 1) if api_monthly > 0 else _delta_total_kwh(month_utc)
+    year_kwh, year_count = _delta_total_kwh(year_utc)
 
     final_today = api_daily if api_daily > 0 else today_kwh
     final_month = api_monthly if api_monthly > 0 else month_kwh

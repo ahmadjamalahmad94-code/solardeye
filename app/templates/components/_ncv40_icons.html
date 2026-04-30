@@ -1,0 +1,24 @@
+{# Notification Center v40 — shared icon macro #}
+{% macro ncv40_icon(name) -%}
+  {% set paths = {
+    'inbox':     '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+    'mail':      '<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
+    'ticket':    '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/>',
+    'bell':      '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    'sparkles':  '<path d="m12 3 1.9 4.9L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-2Z"/><path d="M19 14v4M17 16h4"/>',
+    'check':     '<path d="M20 6 9 17l-5-5"/>',
+    'check-all': '<path d="m18 6-8 8-4-4"/><path d="m22 10-4 4"/>',
+    'search':    '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    'filter':    '<path d="M3 6h18M6 12h12M10 18h4"/>',
+    'arrow':     '<path d="M5 12h14M13 5l7 7-7 7"/>',
+    'arrow-rtl': '<path d="M19 12H5M11 5l-7 7 7 7"/>',
+    'clock':     '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    'user':      '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+    'message':   '<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/>',
+    'archive':   '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>',
+    'list':      '<path d="M3 6h18M3 12h18M3 18h18"/>',
+    'send':      '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    'settings':  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'
+  } %}
+  <svg viewBox="0 0 24 24" aria-hidden="true">{{ paths.get(name, paths['bell'])|safe }}</svg>
+{%- endmacro %}

@@ -1,478 +1,606 @@
 {% extends 'base.html' %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v48-dashboard-timeout-fix-20260430') }}">
+{% endblock %}
 {% block body %}
-<script>document.body.classList.add('dashboard-page-v27');</script>
+<script>document.body.classList.add('dashboard-page-v27','dashboard-page-v40');</script>
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dashboard-main-v24 dashboard-main-v25 dashboard-main-v27 dashboard-main-v28 dashboard-main-v29 dashboard-main-v30 dashboard-main-v31 dashboard-main-v32 dashboard-main-v33">
-    
-<header class="topbar dashboard-topbar clean-header dashboard-header-v27">
-  <div class="dashboard-header-card-v27">
-    <div class="dashboard-brand-v27">
-      <div class="dashboard-brand-icon-v27" aria-hidden="true">
-        <span class="solar-panel-v27">▦</span>
-        <span class="sun-v27">☀</span>
-      </div>
-      <div class="dashboard-brand-copy-v27">
-        <h1>{{ latest.plant_name if latest else (active_device.plant_name if active_device else settings.deye_plant_name) or 'منصة الطاقة الشمسية' }}</h1>
-        <p class="mb-0">{% if not active_device %}أضف جهازًا أولًا لبدء المراقبة.{% elif not device_ready %}{{ device_ready_message }}{% else %}{{ system_status.description if latest else 'نفّذ مزامنة أولًا لعرض البيانات.' }}{% endif %}</p>
-      </div>
-    </div>
+  <main class="app-main content-area dashboard-v40" data-live-url="{{ url_for('energy.api_live', lang=ui_lang) }}">
 
-    <div class="dashboard-header-actions-v27">
-      <a href="{{ url_for('main.deye_settings', lang=ui_lang) }}" class="dash-head-btn-v27 settings">
-        <span>الإعدادات</span>
-        <i>⚙</i>
+    {# ============================================================
+       SKY-PHASE HERO
+       ============================================================ #}
+    {% set dp = day_phase or {} %}
+    <header class="d40-hero" data-phase="{{ dp.key or 'morning' }}" id="d40Hero">
+      <span class="d40-hero-grid" aria-hidden="true"></span>
+      <span class="d40-hero-stars" aria-hidden="true"></span>
+      <span class="d40-hero-moon" aria-hidden="true"></span>
+      <span class="d40-hero-sun" aria-hidden="true"></span>
+
+      <div class="d40-hero-inner">
+        <div class="d40-hero-text">
+          <span class="d40-phase-chip">
+            <i data-bind="phase.icon">{{ dp.icon or '☀️' }}</i>
+            <span>{{ 'Now' if ui_lang == 'en' else 'الآن' }}:</span>
+            <strong data-bind="phase.label">{{ (dp.label_en if ui_lang == 'en' else dp.label_ar) or '—' }}</strong>
+          </span>
+          <h1 data-bind="hero.title">{{ latest.plant_name if latest else (active_device.plant_name if active_device else settings.deye_plant_name) or ('Solar Energy Platform' if ui_lang == 'en' else 'منصة الطاقة الشمسية') }}</h1>
+          <p class="d40-hero-desc" data-bind="phase.description">
+            {% if not active_device %}{{ 'Add a device first to start monitoring.' if ui_lang == 'en' else 'أضف جهازًا أولًا لبدء المراقبة.' }}
+            {% elif not device_ready %}{{ device_ready_message }}
+            {% else %}{{ (dp.description_en if ui_lang == 'en' else dp.description_ar) or system_status.description }}{% endif %}
+          </p>
+          <div class="d40-hero-meta">
+            <span><span class="d40-live-dot"></span>{{ 'Live' if ui_lang == 'en' else 'مباشر' }}</span>
+            <span>🕐 <b id="d40LiveClock">--:--:--</b></span>
+            <span>🌅 {{ 'Sunrise' if ui_lang == 'en' else 'الشروق' }} <b data-bind="phase.sunrise">{{ dp.sunrise_text or '—' }}</b></span>
+            <span>🌇 {{ 'Sunset' if ui_lang == 'en' else 'الغروب' }} <b data-bind="phase.sunset">{{ dp.sunset_text or '—' }}</b></span>
+          </div>
+        </div>
+
+        <div class="d40-hero-kpis" id="d40HeroKpis">
+          <div class="d40-hero-kpi" title="{{ 'Today' if ui_lang == 'en' else 'اليوم' }}">
+            <small>{{ 'Today' if ui_lang == 'en' else 'إنتاج اليوم' }}</small>
+            <strong data-bind="prod.today">{{ (production_summary.today_kwh if production_summary else 0)|round(2) }}</strong>
+            <em>kWh</em>
+            <span class="d40-spark"></span>
+          </div>
+          <div class="d40-hero-kpi" title="{{ 'This week' if ui_lang == 'en' else 'هذا الأسبوع' }}">
+            <small>{{ 'This week' if ui_lang == 'en' else 'إنتاج الأسبوع' }}</small>
+            <strong>{{ (production_summary.week_kwh if production_summary else 0)|round(2) }}</strong>
+            <em>kWh · {{ 'Sat → Today' if ui_lang == 'en' else 'السبت ← اليوم' }}</em>
+          </div>
+          <div class="d40-hero-kpi" title="{{ 'This month' if ui_lang == 'en' else 'هذا الشهر' }}">
+            <small>{{ 'This month' if ui_lang == 'en' else 'إنتاج الشهر' }}</small>
+            <strong>{{ (production_summary.month_kwh if production_summary else 0)|round(2) }}</strong>
+            <em>kWh</em>
+          </div>
+          <div class="d40-hero-kpi" title="{{ 'Lifetime' if ui_lang == 'en' else 'الإجمالي العام' }}">
+            <small>{{ 'Lifetime' if ui_lang == 'en' else 'الإنتاج العام' }}</small>
+            <strong>{{ format_energy(production_summary.total_kwh) if production_summary else '0.00 kWh' }}</strong>
+            <em>{{ 'Since startup' if ui_lang == 'en' else 'منذ بداية التشغيل' }}</em>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {# ============================================================
+       STICKY ACTION BAR — settings, sync, last update, status
+       ============================================================ #}
+    <div class="d40-actionbar">
+      <a href="{{ url_for('main.deye_settings', lang=ui_lang) }}" class="d40-action">
+        <span class="d40-meta-icon">⚙</span>
+        <span>{{ 'Settings' if ui_lang == 'en' else 'الإعدادات' }}</span>
       </a>
-
-      <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}" class="dash-head-form-v27">
+      <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="dash-head-btn-v27 sync" type="submit" {% if not device_ready %}disabled title="{{ device_ready_message }}"{% endif %}>
-          <span>مزامنة الآن</span>
-          <i>⟳</i>
+        <button class="d40-action primary" type="submit" {% if not device_ready %}disabled title="{{ device_ready_message }}"{% endif %}>
+          <span class="d40-meta-icon">⟳</span>
+          <span>{{ 'Sync now' if ui_lang == 'en' else 'مزامنة الآن' }}</span>
         </button>
       </form>
 
-      <div class="dash-head-meta-v27">
-        <span class="meta-icon-v27">◷</span>
-        <div>
-          <span>الساعة الآن</span>
-          <strong id="liveClock">--:--:--</strong>
-        </div>
+      <div class="d40-status-chip {{ system_status.tone or 'muted' }}" id="d40StatusChip">
+        <span data-bind="status.icon">●</span>
+        <strong data-bind="status.title">{{ system_status.title or '—' }}</strong>
       </div>
 
-      <div class="dash-head-meta-v27">
-        <span class="meta-icon-v27">↻</span>
+      <div class="d40-action-meta">
+        <span class="d40-meta-icon">↻</span>
         <div>
-          <span>آخر تحديث</span>
-          <strong>{{ format_local(latest.created_at) if latest else '—' }}</strong>
-        </div>
-      </div>
-
-      <div class="dash-head-notif-v29"
-           data-feed-url="{{ url_for('main.notifications_feed', lang=ui_lang) }}"
-           data-mark-read-url="{{ url_for('main.notifications_mark_read', lang=ui_lang) }}"
-           data-center-url="{{ url_for('main.notification_center', lang=ui_lang) }}">
-        <button class="dash-head-bell-v27 dash-head-bell-v29" type="button" id="dashHeaderNotifBtnV29" aria-label="الإشعارات">
-          <span class="bell-core-v27">🔔</span>
-          <em id="dashHeaderNotifCountV29">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</em>
-        </button>
-        <div class="dash-notif-menu-v29" id="dashHeaderNotifMenuV29" aria-live="polite">
-          <div class="dash-notif-head-v29">
-            <div>
-              <strong>آخر الإشعارات</strong>
-              <small>آخر 5 رسائل وتذاكر دعم</small>
-            </div>
-            <span id="dashHeaderNotifMiniCountV29">{{ (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) }}</span>
-          </div>
-          <div class="dash-notif-list-v29" id="dashHeaderNotifListV29">
-            <div class="dash-notif-empty-v29">اضغط لعرض آخر الإشعارات.</div>
-          </div>
-          <div class="dash-notif-actions-v29">
-            <a href="{{ url_for('main.notification_center', lang=ui_lang) }}">مركز الإشعارات</a>
-          </div>
+          <small>{{ 'Last update' if ui_lang == 'en' else 'آخر تحديث' }}</small>
+          <strong data-bind="latest.created_at">{{ format_local(latest.created_at) if latest else '—' }}</strong>
         </div>
       </div>
     </div>
-  </div>
-</header>
-
-
-
-<style>
-.smart-archive-panel{padding:22px;border-radius:28px;background:#f9fbff;border:1px solid #dde5f4}
-.smart-archive-title{font-size:2.2rem;font-weight:800;line-height:1.1;color:#17233f;margin:0 0 18px}
-.smart-archive-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
-.smart-archive-card{min-width:0;border-radius:26px;padding:18px 20px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;min-height:165px;overflow:hidden}
-.smart-archive-card h4{font-size:1rem;margin:0 0 8px;opacity:.95;line-height:1.3;word-break:break-word}
-.smart-archive-card .big{font-size:3rem;font-weight:800;line-height:1;margin:0 0 8px;word-break:break-word}
-.smart-archive-card p{margin:0;color:rgba(255,255,255,.9);font-size:1rem;line-height:1.45;word-break:break-word}
-.smart-card-status{background:linear-gradient(135deg,#091735,#17356b)}
-.smart-card-solar{background:linear-gradient(135deg,#44cfd1,#63b8ff)}
-.smart-card-surplus{background:linear-gradient(135deg,#f8b500,#ffd84f);color:#1f2740}.smart-card-surplus p{color:#5b5b5b}
-.smart-card-matches{background:linear-gradient(135deg,#5aa0ff,#77b8ff)}
-.smart-archive-note,.smart-archive-scenario,.smart-archive-decision{border-radius:20px;padding:18px 20px;margin-top:14px;line-height:1.7}
-.smart-archive-note{background:#dff7ff;border:1px solid #b7eaf7;color:#175d70}
-.smart-archive-scenario{background:#f7faff;border:1px solid #d9e3f5;color:#22314f}
-.smart-archive-decision{background:#f7f8fc;border:1px solid #dce3f1;color:#1b2740;font-weight:700}
-.smart-archive-badges{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
-.smart-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#f7f8fc;border:1px solid #dce3f1;color:#22314f;font-weight:700}
-.smart-badge.low{background:#fff7e8;border-color:#f6d37f;color:#8c5b00}
-.smart-badge.medium{background:#fff8dc;border-color:#f1dc8a;color:#7b6200}
-.smart-badge.high{background:#ebfff0;border-color:#aee0be;color:#13753b}
-@media (max-width: 992px){.smart-archive-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media (max-width: 640px){.smart-archive-title{font-size:1.8rem}.smart-archive-grid{grid-template-columns:1fr}.smart-archive-card{min-height:140px}.smart-archive-card .big{font-size:2.4rem}}
-</style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_main.css', v='v33-notification-read-keep-list-20260429') }}">
-{% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} mt-2">{{ message }}</div>{% endfor %}{% endif %}
-    {% endwith %}
 
     {% if not active_device %}
-      <div class="panel-card mt-3">
-        <div class="empty-state-card">
-          <h3>لا يوجد جهاز مربوط بعد</h3>
-          <p>أنشئ جهازك أولًا من صفحة إدارة الأجهزة، ثم أكمل إعدادات الربط قبل بدء المزامنة.</p>
-          <a class="btn-ui btn-ui-primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">إدارة الأجهزة</a>
+      <div class="d40-card span-full">
+        <div class="d40-empty-card">
+          <h3>{{ 'No device connected yet' if ui_lang == 'en' else 'لا يوجد جهاز مربوط بعد' }}</h3>
+          <p>{{ 'Add your device first from the device manager, then complete the connection settings before syncing.' if ui_lang == 'en' else 'أنشئ جهازك أولًا من صفحة إدارة الأجهزة، ثم أكمل إعدادات الربط قبل بدء المزامنة.' }}</p>
+          <a class="d40-action primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+            <span>{{ 'Manage devices' if ui_lang == 'en' else 'إدارة الأجهزة' }}</span>
+          </a>
         </div>
       </div>
     {% elif not device_ready %}
-      <div class="panel-card mt-3">
-        <div class="empty-state-card">
-          <h3>الجهاز الحالي غير جاهز للمزامنة</h3>
+      <div class="d40-card span-full">
+        <div class="d40-empty-card">
+          <h3>{{ 'Current device is not ready to sync' if ui_lang == 'en' else 'الجهاز الحالي غير جاهز للمزامنة' }}</h3>
           <p>{{ device_ready_message }}</p>
-          <a class="btn-ui btn-ui-primary" href="{{ url_for('main.deye_settings', lang=ui_lang) }}">إكمال إعدادات الربط</a>
+          <a class="d40-action primary" href="{{ url_for('main.deye_settings', lang=ui_lang) }}">
+            <span>{{ 'Complete connection settings' if ui_lang == 'en' else 'إكمال إعدادات الربط' }}</span>
+          </a>
         </div>
       </div>
     {% endif %}
 
-    <section class="top-scroll-cards top-kpis-row">
-      <div class="hero-card hero-kpi navy state-{{ system_status.tone }}">
-        <span>الحالة العامة</span>
-        <strong id="system-status-title">{{ system_status.title }}</strong>
-        <small id="system-status-desc">{{ system_status.description }}</small>
-      </div>
-      <div class="hero-card hero-kpi blue">
-        <span>إنتاج اليوم</span>
-        <strong>{{ (production_summary.today_kwh if production_summary else 0)|round(2) }}</strong>
-        <small>kWh</small>
-      </div>
-      <div class="hero-card hero-kpi week">
-        <span>إنتاج هذا الأسبوع</span>
-        <strong>{{ (production_summary.week_kwh if production_summary else 0)|round(2) }}</strong>
-        <small>السبت ← اليوم</small>
-      </div>
-      <div class="hero-card hero-kpi solar">
-        <span>إنتاج هذا الشهر</span>
-        <strong>{{ (production_summary.month_kwh if production_summary else 0)|round(2) }}</strong>
-        <small>kWh</small>
-      </div>
-      <div class="hero-card hero-kpi yellow">
-        <span>الإنتاج العام</span>
-        <strong>{{ format_energy(production_summary.total_kwh) if production_summary else '0.00 kWh' }}</strong>
-        <small>منذ بداية التشغيل</small>
-      </div>
-    </section>
+    {# ============================================================
+       MAIN BENTO GRID
+       ============================================================ #}
+    <div class="d40-grid">
 
-    <section class="panel-card mt-4 overview-shell">
-      <div class="overview-side two-column-side">
-        <div class="side-stat-card">
-          <span>حالة البطارية</span>
-          <strong>{{ battery_insights.mode_label }}</strong>
-          <small>{% if battery_insights.charge_power_w > 0 %}شحن {{ format_power(battery_insights.charge_power_w) }} واط{% elif battery_insights.discharge_power_w > 0 %}تفريغ {{ format_power(battery_insights.discharge_power_w) }} واط{% else %}لا يوجد سحب أو شحن واضح{% endif %}</small>
+      {# 1. ENERGY FLOW + VITALS (full width) #}
+      <section class="d40-card d40-flow-card span-full">
+        <div class="d40-card-head">
+          <div>
+            <h3>⚡ {{ 'Live energy flow' if ui_lang == 'en' else 'تدفق الطاقة المباشر' }}</h3>
+            <small>{{ 'Where the watts are moving right now' if ui_lang == 'en' else 'حركة الطاقة الفعلية لحظة بلحظة' }}</small>
+          </div>
+          <span class="d40-tag">⚡ {{ system_status.title or '—' }}</span>
         </div>
-        <div class="side-stat-card">
-          <span>الناتج من الشمس</span>
-          <strong>{{ format_power(latest.solar_power) if latest else '0.0' }} واط</strong>
-          <small>الإنتاج اللحظي الآن</small>
-        </div>
-        <div class="side-stat-card">
-          <span>الذاهب للبيت</span>
-          <strong>{{ format_power(latest.home_load) if latest else '0.0' }} واط</strong>
-          <small>الاستهلاك الحالي للمنزل</small>
-        </div>
-        <div class="side-stat-card">
-          <span>الذاهب للبطارية وحالتها</span>
-          <strong>{% if battery_insights.charge_power_w > 0 %}{{ format_power(battery_insights.charge_power_w) }} واط{% elif battery_insights.discharge_power_w > 0 %}{{ format_power(battery_insights.discharge_power_w) }} واط{% else %}0.0 واط{% endif %}</strong>
-          <small>الحالة: {{ battery_insights.mode_label }} • الشحن {{ (latest.battery_soc or 0)|int }}%</small>
-        </div>
-        <div class="side-stat-card">
-          <span>الشبكة</span>
-          <strong>{{ format_power(latest.grid_power) if latest else '0.0' }} واط</strong>
-          <small>{% if latest and (latest.grid_power or 0) == 0 %}مفصولة حاليًا{% else %}قياس الشبكة الحالي{% endif %}</small>
-        </div>
-        <div class="side-stat-card">
-          <span>إجمالي الإنتاج اليومي</span>
-          <strong>{{ format_energy(production_summary.today_kwh) if production_summary else '0.00 kWh' }}</strong>
-          <small>ملخص اليوم</small>
-        </div>
-      </div>
 
-      <div class="deye-flow-stage official-flow-stage">
-        <svg class="flow-svg official-flow-svg" viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <path id="solarTrack" d="M178 150 H 300 C 338 150 355 170 355 208 V 252 H 412" class="track-base"/>
-          <path d="M178 150 H 300 C 338 150 355 170 355 208 V 252 H 412" class="track-animated energy-use {{ 'active' if (latest and latest.solar_power > 0) else '' }}"/>
+        <div class="d40-flow-shell">
+          <div class="d40-flow-side">
+            <div class="d40-side-stat"><small>{{ 'Battery state' if ui_lang == 'en' else 'حالة البطارية' }}</small><strong data-bind="battery.mode_label">{{ battery_insights.mode_label }}</strong><em>{% if battery_insights.charge_power_w > 0 %}{{ 'Charging' if ui_lang == 'en' else 'شحن' }} {{ format_power(battery_insights.charge_power_w) }} W{% elif battery_insights.discharge_power_w > 0 %}{{ 'Discharging' if ui_lang == 'en' else 'تفريغ' }} {{ format_power(battery_insights.discharge_power_w) }} W{% else %}{{ 'No clear flow' if ui_lang == 'en' else 'لا سحب أو شحن' }}{% endif %}</em></div>
+            <div class="d40-side-stat"><small>{{ 'Solar output' if ui_lang == 'en' else 'الناتج من الشمس' }}</small><strong data-bind="latest.solar_power">{{ format_power(latest.solar_power) if latest else '0.0' }} W</strong><em>{{ 'Instant production' if ui_lang == 'en' else 'الإنتاج اللحظي' }}</em></div>
+            <div class="d40-side-stat"><small>{{ 'Going to home' if ui_lang == 'en' else 'الذاهب للبيت' }}</small><strong data-bind="latest.home_load">{{ format_power(latest.home_load) if latest else '0.0' }} W</strong><em>{{ 'Current home use' if ui_lang == 'en' else 'الاستهلاك الحالي للمنزل' }}</em></div>
+            <div class="d40-side-stat"><small>{{ 'Battery flow' if ui_lang == 'en' else 'الذاهب للبطارية' }}</small><strong>{% if battery_insights.charge_power_w > 0 %}{{ format_power(battery_insights.charge_power_w) }}{% elif battery_insights.discharge_power_w > 0 %}{{ format_power(battery_insights.discharge_power_w) }}{% else %}0.0{% endif %} W</strong><em data-bind="battery.soc_label">{{ 'Charge' if ui_lang == 'en' else 'الشحن' }} {{ (latest.battery_soc or 0)|int }}%</em></div>
+            <div class="d40-side-stat"><small>{{ 'Grid' if ui_lang == 'en' else 'الشبكة' }}</small><strong data-bind="latest.grid_power">{{ format_power(latest.grid_power) if latest else '0.0' }} W</strong><em>{% if latest and (latest.grid_power or 0) == 0 %}{{ 'Off-grid right now' if ui_lang == 'en' else 'مفصولة حاليًا' }}{% else %}{{ 'Live grid measurement' if ui_lang == 'en' else 'قياس الشبكة الحالي' }}{% endif %}</em></div>
+            <div class="d40-side-stat"><small>{{ 'Total production today' if ui_lang == 'en' else 'إجمالي الإنتاج اليومي' }}</small><strong>{{ format_energy(production_summary.today_kwh) if production_summary else '0.00 kWh' }}</strong><em>{{ 'Today summary' if ui_lang == 'en' else 'ملخص اليوم' }}</em></div>
+          </div>
 
-          <path id="gridTrack" d="M722 150 H 600 C 562 150 545 170 545 208 V 252 H 488" class="track-base"/>
-          <path d="M722 150 H 600 C 562 150 545 170 545 208 V 252 H 488" class="track-animated energy-idle {{ 'active' if (latest and latest.grid_power and latest.grid_power|abs > 0) else '' }} {{ 'reverse' if latest and latest.grid_power and latest.grid_power > 0 else '' }}"/>
-
-          <path id="batteryTrack" d="M178 410 H 300 C 338 410 355 390 355 352 V 308 H 412" class="track-base"/>
-          <path d="M178 410 H 300 C 338 410 355 390 355 352 V 308 H 412" class="track-animated {{ 'energy-charge active reverse' if battery_insights.charge_power_w > 0 else ('energy-use active' if battery_insights.discharge_power_w > 0 else 'energy-idle') }}"/>
-
-          <path id="homeTrack" d="M722 410 H 600 C 562 410 545 390 545 352 V 308 H 488" class="track-base"/>
-          <path d="M722 410 H 600 C 562 410 545 390 545 352 V 308 H 488" class="track-animated energy-use {{ 'active reverse' if (latest and latest.home_load > 0) else '' }}"/>
-
-          {% if latest and latest.solar_power > 0 %}
-          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#solarTrack"/></animateMotion></circle>
-          {% endif %}
-          {% if latest and latest.home_load > 0 %}
-          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#homeTrack"/></animateMotion></circle>
-          {% endif %}
-          {% if battery_insights.charge_power_w > 0 %}
-          <circle r="8" class="flow-dot dot-charge"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#batteryTrack"/></animateMotion></circle>
-          {% elif battery_insights.discharge_power_w > 0 %}
-          <circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#batteryTrack"/></animateMotion></circle>
-          {% endif %}
-          {% if latest and latest.grid_power and latest.grid_power|abs > 0 %}
-          <circle r="8" class="flow-dot dot-idle"><animateMotion dur="2.5s" repeatCount="indefinite" rotate="auto" {% if latest.grid_power > 0 %}keyPoints="1;0" keyTimes="0;1" calcMode="linear"{% endif %}><mpath href="#gridTrack"/></animateMotion></circle>
-          {% endif %}
-        </svg>
-        <div class="flow-box solar highlight">
-          <div class="icon-wrap">☀️</div>
-          <div class="flow-value">{{ format_power(latest.solar_power) if latest else '0.0' }}</div>
-          <div class="flow-title">الألواح</div>
-        </div>
-        <div class="flow-box grid">
-          <div class="icon-wrap">⚡</div>
-          <div class="flow-value">{{ format_power(latest.grid_power) if latest else '0.0' }}</div>
-          <div class="flow-title">الشبكة</div>
-          <div class="flow-state {% if latest and (latest.grid_power or 0) == 0 %}muted{% endif %}">{% if latest and (latest.grid_power or 0) == 0 %}Off-grid{% else %}قياس مباشر{% endif %}</div>
-        </div>
-        <div class="flow-box inverter highlight centered-gap">
-          <div class="icon-wrap">▣</div>
-          <div class="flow-value">{{ system_status.title }}</div>
-          <div class="flow-title">الانفرتر</div>
-        </div>
-        <div class="flow-box battery">
-          <div class="soc-tag">{{ (latest.battery_soc or 0)|int }}%</div>
-          <div class="icon-wrap">🔋</div>
-          <div class="flow-value">{{ format_power((battery_insights.charge_power_w or battery_insights.discharge_power_w) if latest else 0) }}</div>
-          <div class="flow-title">البطارية</div>
-        </div>
-        <div class="flow-box home">
-          <div class="icon-wrap">🏠</div>
-          <div class="flow-value">{{ format_power(latest.home_load) if latest else '0.0' }}</div>
-          <div class="flow-title">البيت</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel-card mt-4 weather-smart-panel compact-weather-layout weather-always-v25">
-      <div class="weather-overview-card">
-        <div class="weather-overview-icon">{{ weather.icon if weather else '🌤️' }}</div>
-        <div class="weather-overview-main">
-          <div class="weather-overview-temp">{{ weather.temperature if weather else '--' }}°</div>
-          <div class="weather-overview-text">{{ weather.condition_ar if weather else 'غير متاح' }}</div>
-        </div>
-      </div>
-
-      <div class="weather-title-block">
-        <div class="weather-status-chip {{ solar_prediction.level if solar_prediction else 'muted' }}">{{ solar_prediction.verdict if solar_prediction else 'تحليل الطقس' }}</div>
-        <div class="weather-big-title">الطقس وتحليل الشمس</div>
-        {% if not solar_prediction and not weather %}
-        <div class="weather-empty-v25">
-          لا توجد بيانات طقس متاحة حاليًا. تأكد من إعدادات الموقع أو نفّذ مزامنة جديدة.
-        </div>
-        {% endif %}
-      </div>
-
-      <div class="weather-summary-grid">
-        <div class="info-box"><span>الغروب الرسمي</span><strong>{{ _to_12h_label(solar_prediction.sunset_time) if solar_prediction else '--' }}</strong></div>
-        <div class="info-box"><span>الغروب الفعلي</span><strong>{{ _to_12h_label(solar_prediction.effective_sunset_time) if solar_prediction else '--' }}</strong></div>
-        <div class="info-box"><span>المتبقي للغروب</span><strong>{{ solar_prediction.remaining_label if solar_prediction else '--' }}</strong></div>
-        <div class="info-box"><span>وقت امتلاء البطارية</span><strong>{{ human_duration_hours(solar_prediction.time_to_full_hours) if solar_prediction else '--' }}</strong></div>
-      </div>
-
-      <div class="weather-timeline compact">
-        {% for slot in (weather.timeline if weather and weather.timeline else []) %}
-        <div class="weather-slot compact-slot">
-          <span>{{ slot.time_label }}</span>
-          <div class="wx-icon">{{ slot.icon }}</div>
-          <strong>{{ slot.temperature }}°</strong>
-          <div class="slot-status">{{ slot.condition_ar }}</div>
-          <small>☁️ {{ slot.cloud_cover }}%</small>
-          <em>{{ slot.solar_rating }}</em>
-        </div>
-        {% endfor %}
-      </div>
-
-      <div class="weather-advice-grid">
-        <div class="advice-box blue">
-          <span>التحليل الذكي</span>
-          <strong>{{ solar_prediction.verdict if solar_prediction else 'لا يوجد تحليل' }}</strong>
-          <p>{{ solar_prediction.advice if solar_prediction else '—' }}</p>
-        </div>
-        <div class="advice-box amber">
-          <span>نصيحة الطقس</span>
-          <strong>{{ weather.condition_ar if weather else '—' }}</strong>
-          <p>{{ weather_insight.headline if weather_insight else 'لا تتوفر بيانات كافية.' }}</p>
-        </div>
-      </div>
-    </section>
-
-<section class="panel-card mt-4 smart-archive-panel">
-  {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
-  <div class="section-head">
-    <div>
-      <h3 class="smart-archive-title">🔮 التوقع الذكي المبني على الأرشيف</h3>
-    </div>
-  </div>
-  <div class="smart-archive-grid">
-    <div class="smart-archive-card smart-card-status">
-      <div>
-        <h4>الحالة الذكية</h4>
-        <div class="big">{{ so.status_label or '—' }}</div>
-      </div>
-      <p>{{ so.confidence_label or 'ثقة ضعيفة' }} • {{ so.confidence_message or 'لا يعتمد' }}</p>
-    </div>
-    <div class="smart-archive-card smart-card-solar">
-      <div>
-        <h4>توقع الشمس للساعة القادمة</h4>
-        <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_solar)) if so.predicted_next_hour_solar is not none else '—' }}</div>
-      </div>
-      <p>واط متوقع</p>
-    </div>
-    <div class="smart-archive-card smart-card-surplus">
-      <div>
-        <h4>توقع الفائض القادم</h4>
-        <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_surplus)) if so.predicted_next_hour_surplus is not none else '—' }}</div>
-      </div>
-      <p>قبل تشغيل أحمال إضافية</p>
-    </div>
-    <div class="smart-archive-card smart-card-matches">
-      <div>
-        <h4>الحالات المشابهة</h4>
-        <div class="big">{{ so.matched_count or 0 }}</div>
-      </div>
-      <p>من الأرشيف التاريخي</p>
-    </div>
-  </div>
-  <div class="smart-archive-note">{{ so.historical_hint or 'لا توجد بيانات كافية بعد.' }}</div>
-  <div class="smart-archive-scenario">
-    <strong>{{ so.scenario_title or 'السيناريو القادم' }}</strong>
-    <div>{{ so.scenario_summary or '' }}</div>
-    {% if so.scenario_detail %}<div>{{ so.scenario_detail }}</div>{% endif %}
-    {% if so.show_sunrise_label and so.sunrise_remaining_label and so.sunrise_remaining_label != 'غير متاح' %}<div>⏳ المتبقي للشروق: {{ so.sunrise_remaining_label }}</div>{% endif %}
-  </div>
-  <div class="smart-archive-decision">قرار الآن: {{ so.decision_now or 'لا توجد توصية حالياً.' }}</div>
-  <div class="smart-archive-badges">
-    <span class="smart-badge {{ so.confidence_band or 'low' }}">الثقة: {{ so.confidence_label or 'ثقة ضعيفة' }}</span>
-    <span class="smart-badge">المخاطرة: {{ so.predicted_risk_level or 'غير معروف' }}</span>
-    <span class="smart-badge">جاهزية الأرشيف: {{ 'جاهز' if so.historical_is_actionable else 'قيد التعلّم' }}</span>
-  </div>
-</section>
-
-
-    <section class="panel-card mt-4 smart-loads-panel">
-      <div class="section-head">
-        <div>
-          <h3 data-ar="التوصيات الذكية للأحمال" data-en="Smart load suggestions">التوصيات الذكية للأحمال</h3>
-          <p class="section-subtitle" data-ar="اعتمادًا على الفائض الشمسي وحالة البطارية الحالية" data-en="Based on solar surplus and current battery state">اعتمادًا على الفائض الشمسي وحالة البطارية الحالية</p>
-        </div>
-        <a href="{{ url_for('main.loads_page', lang=ui_lang) }}" class="btn btn-outline-primary" data-ar="إدارة أحمالك" data-en="Manage your loads">إدارة أحمالك</a>
-      </div>
-      <div class="smart-loads-grid">
-        <div class="smart-summary-card">
-          <span data-ar="الفائض الشمسي الفعلي" data-en="Actual solar surplus">الفائض الشمسي الفعلي</span>
-          <strong>{{ format_power(smart_loads.safe_available_w) }} واط</strong>
-          <small>{{ smart_loads.surplus_note_en if ui_lang == 'en' else smart_loads.surplus_note_ar }}</small>
-        </div>
-        <div class="smart-summary-card alt">
-          <span data-ar="حالة القرار" data-en="Decision mode">حالة القرار</span>
-          <strong>{{ smart_loads.mode_en if ui_lang == 'en' else smart_loads.mode_ar }}</strong>
-          <small data-ar="البطارية الآن" data-en="Battery now">البطارية الآن</small>
-          <em>{{ smart_loads.battery_soc|round(0) }}%</em>
-        </div>
-      </div>
-      <div class="smart-loads-columns">
-        <div class="smart-list-card">
-          <h4 data-ar="يمكن تشغيلها الآن" data-en="Can run now">يمكن تشغيلها الآن</h4>
-          <div class="smart-chip-list">
-            {% for item in smart_loads.can_run %}
-              <div class="smart-chip success"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
-            {% else %}
-              <div class="empty-state" data-ar="لا يوجد حمل مناسب الآن" data-en="No suitable load right now">لا يوجد حمل مناسب الآن</div>
-            {% endfor %}
+          <div class="deye-flow-stage official-flow-stage">
+            <svg class="flow-svg official-flow-svg" viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <path id="solarTrack" d="M150 116 H 320 C 368 116 386 150 386 194 V 252 H 418" class="track-base"/>
+              <path d="M150 116 H 320 C 368 116 386 150 386 194 V 252 H 418" class="track-animated energy-use {{ 'active' if (latest and latest.solar_power > 0) else '' }}"/>
+              <path id="gridTrack" d="M750 116 H 580 C 532 116 514 150 514 194 V 252 H 482" class="track-base"/>
+              <path d="M750 116 H 580 C 532 116 514 150 514 194 V 252 H 482" class="track-animated energy-idle {{ 'active' if (latest and latest.grid_power and latest.grid_power|abs > 0) else '' }} {{ 'reverse' if latest and latest.grid_power and latest.grid_power > 0 else '' }}"/>
+              <path id="batteryTrack" d="M150 444 H 320 C 368 444 386 410 386 366 V 308 H 418" class="track-base"/>
+              <path d="M150 444 H 320 C 368 444 386 410 386 366 V 308 H 418" class="track-animated {{ 'energy-charge active reverse' if battery_insights.charge_power_w > 0 else ('energy-use active' if battery_insights.discharge_power_w > 0 else 'energy-idle') }}"/>
+              <path id="homeTrack" d="M750 444 H 580 C 532 444 514 410 514 366 V 308 H 482" class="track-base"/>
+              <path d="M750 444 H 580 C 532 444 514 410 514 366 V 308 H 482" class="track-animated energy-use {{ 'active reverse' if (latest and latest.home_load > 0) else '' }}"/>
+              {% if latest and latest.solar_power > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#solarTrack"/></animateMotion></circle>{% endif %}
+              {% if latest and latest.home_load > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#homeTrack"/></animateMotion></circle>{% endif %}
+              {% if battery_insights.charge_power_w > 0 %}<circle r="8" class="flow-dot dot-charge"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#batteryTrack"/></animateMotion></circle>{% elif battery_insights.discharge_power_w > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#batteryTrack"/></animateMotion></circle>{% endif %}
+              {% if latest and latest.grid_power and latest.grid_power|abs > 0 %}<circle r="8" class="flow-dot dot-idle"><animateMotion dur="2.5s" repeatCount="indefinite" rotate="auto" {% if latest.grid_power > 0 %}keyPoints="1;0" keyTimes="0;1" calcMode="linear"{% endif %}><mpath href="#gridTrack"/></animateMotion></circle>{% endif %}
+            </svg>
+            <div class="flow-box solar highlight"><div class="icon-wrap">☀️</div><div class="flow-value" data-bind="latest.solar_power_short">{{ format_power(latest.solar_power) if latest else '0.0' }}</div><div class="flow-title">{{ 'Panels' if ui_lang == 'en' else 'الألواح' }}</div></div>
+            <div class="flow-box grid"><div class="icon-wrap">⚡</div><div class="flow-value" data-bind="latest.grid_power_short">{{ format_power(latest.grid_power) if latest else '0.0' }}</div><div class="flow-title">{{ 'Grid' if ui_lang == 'en' else 'الشبكة' }}</div><div class="flow-state {% if latest and (latest.grid_power or 0) == 0 %}muted{% endif %}">{% if latest and (latest.grid_power or 0) == 0 %}Off-grid{% else %}{{ 'Live measure' if ui_lang == 'en' else 'قياس مباشر' }}{% endif %}</div></div>
+            <div class="flow-box inverter highlight centered-gap"><div class="icon-wrap">▣</div><div class="flow-value" data-bind="status.title_short">{{ system_status.title }}</div><div class="flow-title">{{ 'Inverter' if ui_lang == 'en' else 'الانفرتر' }}</div></div>
+            <div class="flow-box battery"><div class="soc-tag" data-bind="battery.soc_pct">{{ (latest.battery_soc or 0)|int }}%</div><div class="icon-wrap">🔋</div><div class="flow-value" data-bind="battery.flow_w">{{ format_power((battery_insights.charge_power_w or battery_insights.discharge_power_w) if latest else 0) }}</div><div class="flow-title">{{ 'Battery' if ui_lang == 'en' else 'البطارية' }}</div></div>
+            <div class="flow-box home"><div class="icon-wrap">🏠</div><div class="flow-value" data-bind="latest.home_load_short">{{ format_power(latest.home_load) if latest else '0.0' }}</div><div class="flow-title">{{ 'Home' if ui_lang == 'en' else 'البيت' }}</div></div>
+          </div>
           </div>
         </div>
-        <div class="smart-list-card muted">
-          <h4 data-ar="يفضل تأجيلها" data-en="Better to postpone">يفضل تأجيلها</h4>
-          <div class="smart-chip-list">
-            {% for item in smart_loads.hold[:6] %}
-              <div class="smart-chip"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
-            {% else %}
-              <div class="empty-state" data-ar="كل الأحمال المضافة ضمن الحدود المتاحة" data-en="All added loads fit within the available margin">كل الأحمال المضافة ضمن الحدود المتاحة</div>
-            {% endfor %}
+      </section>
+
+      {# 2. WEATHER & SOLAR ANALYSIS (span 7) #}
+      <section class="d40-card span-7">
+        <div class="d40-card-head">
+          <div>
+            <h3>🌤️ {{ 'Weather & solar analysis' if ui_lang == 'en' else 'الطقس وتحليل الشمس' }}</h3>
+            <small>{{ 'Conditions, sunrise/sunset, and smart guidance' if ui_lang == 'en' else 'الحالة، الشروق والغروب، وتوصيات ذكية' }}</small>
           </div>
+          <span class="d40-status-chip {{ solar_prediction.level if solar_prediction else 'muted' }}">{{ solar_prediction.verdict if solar_prediction else ('Weather analysis' if ui_lang == 'en' else 'تحليل الطقس') }}</span>
         </div>
-      </div>
-    </section>
-
-
-    <section class="panel-card mt-4">
-      <div class="section-head">
-        <div>
-          <h3 data-ar="حساب الفائض الشمسي الفعلي" data-en="Actual solar surplus calculation">حساب الفائض الشمسي الفعلي</h3>
-          <p class="section-subtitle" data-ar="الفائض الخام مطروحًا منه احتياج شحن البطارية قبل الغروب" data-en="Raw surplus minus battery charging need before sunset">الفائض الخام مطروحًا منه احتياج شحن البطارية قبل الغروب</p>
-        </div>
-      </div>
-      <div class="smart-loads-grid">
-        <div class="smart-summary-card">
-          <span data-ar="الفائض الخام" data-en="Raw surplus">الفائض الخام</span>
-          <strong>{{ format_power(actual_surplus.raw_surplus_w) }} واط</strong>
-          <small data-ar="دخل شمسي - سحب المنزل" data-en="Solar input - home load">دخل شمسي - سحب المنزل</small>
-        </div>
-        <div class="smart-summary-card alt">
-          <span data-ar="احتياج شحن البطارية" data-en="Battery charging need">احتياج شحن البطارية</span>
-          <strong>{{ format_power(actual_surplus.battery_charge_need_w) }} واط</strong>
-          <small>{{ actual_surplus.remaining_label }}</small>
-        </div>
-        <div class="smart-summary-card">
-          <span data-ar="الفائض الفعلي المتاح" data-en="Actual available surplus">الفائض الفعلي المتاح</span>
-          <strong>{{ format_power(actual_surplus.actual_surplus_w) }} واط</strong>
-          <small>{{ actual_surplus.details_en if ui_lang == 'en' else actual_surplus.details_ar }}</small>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel-card mt-4">
-      <div class="section-head"><h3 data-ar="سجل الأحداث الذكي" data-en="Smart event log">سجل الأحداث الذكي</h3></div>
-      <div class="log-list">
-        {% for event in recent_events %}
-          <div class="log-item {{ event.severity }}">
-            <div>
-              <strong>{{ event.title }}</strong>
-              <div>{{ event.details }}</div>
-              <div class="small text-muted">{{ format_local(event.created_at) }}</div>
+        <div class="d40-weather-shell">
+          <div class="d40-weather-now">
+            <div class="icon" data-bind="weather.icon">{{ weather.icon if weather else '🌤️' }}</div>
+            <div class="temp" data-bind="weather.temp">{{ weather.temperature if weather else '--' }}°</div>
+            <div class="cond" data-bind="weather.cond">{{ weather.condition_ar if weather else ('Not available' if ui_lang == 'en' else 'غير متاح') }}</div>
+          </div>
+          <div class="d40-weather-side">
+            <div class="d40-weather-meta">
+              <div class="d40-info-box"><small>{{ 'Official sunset' if ui_lang == 'en' else 'الغروب الرسمي' }}</small><strong data-bind="prediction.sunset_time">{{ _to_12h_label(solar_prediction.sunset_time) if solar_prediction else '--' }}</strong></div>
+              <div class="d40-info-box"><small>{{ 'Effective sunset' if ui_lang == 'en' else 'الغروب الفعلي' }}</small><strong data-bind="prediction.eff_sunset">{{ _to_12h_label(solar_prediction.effective_sunset_time) if solar_prediction else '--' }}</strong></div>
+              <div class="d40-info-box"><small>{{ 'Time to sunset' if ui_lang == 'en' else 'المتبقي للغروب' }}</small><strong data-bind="prediction.remaining">{{ solar_prediction.remaining_label if solar_prediction else '--' }}</strong></div>
+              <div class="d40-info-box"><small>{{ 'Time to full battery' if ui_lang == 'en' else 'وقت امتلاء البطارية' }}</small><strong data-bind="prediction.time_to_full">{{ human_duration_hours(solar_prediction.time_to_full_hours) if solar_prediction else '--' }}</strong></div>
+            </div>
+            {% if weather and weather.timeline %}
+            <div class="d40-timeline">
+              {% for slot in weather.timeline %}
+              <div class="d40-slot">
+                <small>{{ slot.time_label }}</small>
+                <div class="wx-icon">{{ slot.icon }}</div>
+                <strong>{{ slot.temperature }}°</strong>
+                <small>{{ slot.condition_ar }}</small>
+                <small>☁️ {{ slot.cloud_cover }}%</small>
+                <em>{{ slot.solar_rating }}</em>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <div class="d40-advice-grid">
+              <div class="d40-advice">
+                <small>{{ 'Smart analysis' if ui_lang == 'en' else 'التحليل الذكي' }}</small>
+                <strong data-bind="prediction.verdict">{{ solar_prediction.verdict if solar_prediction else ('No analysis' if ui_lang == 'en' else 'لا يوجد تحليل') }}</strong>
+                <p data-bind="prediction.advice">{{ solar_prediction.advice if solar_prediction else '—' }}</p>
+              </div>
+              <div class="d40-advice amber">
+                <small>{{ 'Weather advice' if ui_lang == 'en' else 'نصيحة الطقس' }}</small>
+                <strong>{{ weather.condition_ar if weather else '—' }}</strong>
+                <p>{{ weather_insight.headline if weather_insight else ('Not enough data.' if ui_lang == 'en' else 'لا تتوفر بيانات كافية.') }}</p>
+              </div>
             </div>
           </div>
-        {% else %}
-          <div class="empty-state" data-ar="لا توجد أحداث مهمة مسجلة بعد." data-en="No important events have been logged yet.">لا توجد أحداث مهمة مسجلة بعد.</div>
-        {% endfor %}
-      </div>
-    </section>
-    <section class="panel-card mt-4">
-      <div class="section-head">
-        <h3>الرسوم البيانية</h3>
-        <form method="get" action="{{ url_for('main.dashboard') }}" class="chart-filter-form">
-          <button type="submit" class="btn btn-outline-primary">عرض</button>
-          <input type="date" name="day" value="{{ selected_day_label }}" class="form-control stats-date-input">
-        </form>
-      </div>
-      <div class="charts-grid balanced-charts">
-        <div class="chart-card">
-          <div class="chart-title">ملف القدرة عبر الوقت <small>تجميع كل ساعة — {{ selected_day_label }}</small></div>
-          <div class="chart-wrapper"><canvas id="powerChart" data-labels='{{ labels|tojson }}' data-solar='{{ solar_values|tojson }}' data-load='{{ load_values|tojson }}' data-grid='{{ grid_values|tojson }}' data-battery='{{ battery_power_values|tojson }}'></canvas></div>
         </div>
-        <div class="chart-card mini">
-          <div class="chart-title">نسبة شحن البطارية SOC</div>
-          <div class="chart-wrapper chart-wrapper-small"><canvas id="batteryChart" data-labels='{{ labels|tojson }}' data-battery='{{ battery_soc_values|tojson }}'></canvas></div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="panel-card mt-4">
-      <div class="section-head"><h3>آخر عمليات المزامنة</h3></div>
-      <div class="log-list">
-        {% for log in logs %}<div class="log-item {{ log.level }}"><div><strong>{{ log.message }}</strong><div class="small text-muted">{{ format_local(log.created_at) }}</div></div></div>{% else %}<div class="empty-state">لا توجد سجلات بعد.</div>{% endfor %}
+      {# 3. SMART ARCHIVE PREDICTION (span 5) #}
+      {% set so = smart_overview if smart_overview is defined and smart_overview else {} %}
+      <section class="d40-card span-5">
+        <div class="d40-card-head">
+          <div>
+            <h3>🔮 {{ 'Archive-based smart forecast' if ui_lang == 'en' else 'التوقع الذكي المبني على الأرشيف' }}</h3>
+            <small>{{ 'Based on similar historical scenarios' if ui_lang == 'en' else 'مبني على حالات تاريخية مشابهة' }}</small>
+          </div>
+        </div>
+        <div class="d40-archive-grid">
+          <div class="d40-archive-card cs-status">
+            <h4>{{ 'Smart status' if ui_lang == 'en' else 'الحالة الذكية' }}</h4>
+            <div class="big">{{ so.status_label or '—' }}</div>
+            <p>{{ so.confidence_label or ('Low confidence' if ui_lang == 'en' else 'ثقة ضعيفة') }} • {{ so.confidence_message or ('No commitment' if ui_lang == 'en' else 'لا يعتمد') }}</p>
+          </div>
+          <div class="d40-archive-card cs-solar">
+            <h4>{{ 'Next-hour solar' if ui_lang == 'en' else 'توقع الشمس للساعة القادمة' }}</h4>
+            <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_solar)) if so.predicted_next_hour_solar is not none else '—' }}</div>
+            <p>{{ 'Watts expected' if ui_lang == 'en' else 'واط متوقع' }}</p>
+          </div>
+          <div class="d40-archive-card cs-surplus">
+            <h4>{{ 'Next-hour surplus' if ui_lang == 'en' else 'توقع الفائض القادم' }}</h4>
+            <div class="big">{{ ('%.1f'|format(so.predicted_next_hour_surplus)) if so.predicted_next_hour_surplus is not none else '—' }}</div>
+            <p>{{ 'Before extra loads' if ui_lang == 'en' else 'قبل تشغيل أحمال إضافية' }}</p>
+          </div>
+          <div class="d40-archive-card cs-matches">
+            <h4>{{ 'Matched cases' if ui_lang == 'en' else 'الحالات المشابهة' }}</h4>
+            <div class="big">{{ so.matched_count or 0 }}</div>
+            <p>{{ 'From history' if ui_lang == 'en' else 'من الأرشيف التاريخي' }}</p>
+          </div>
+        </div>
+        <div class="d40-archive-note">{{ so.historical_hint or ('Not enough data yet.' if ui_lang == 'en' else 'لا توجد بيانات كافية بعد.') }}</div>
+        <div class="d40-archive-scenario">
+          <strong>{{ so.scenario_title or ('Upcoming scenario' if ui_lang == 'en' else 'السيناريو القادم') }}</strong>
+          <div>{{ so.scenario_summary or '' }}</div>
+          {% if so.scenario_detail %}<div>{{ so.scenario_detail }}</div>{% endif %}
+          {% if so.show_sunrise_label and so.sunrise_remaining_label and so.sunrise_remaining_label != ('Not available' if ui_lang == 'en' else 'غير متاح') %}<div>⏳ {{ 'Time to sunrise' if ui_lang == 'en' else 'المتبقي للشروق' }}: {{ so.sunrise_remaining_label }}</div>{% endif %}
+        </div>
+        <div class="d40-archive-decision">{{ 'Decision now' if ui_lang == 'en' else 'قرار الآن' }}: {{ so.decision_now or ('No recommendation right now.' if ui_lang == 'en' else 'لا توجد توصية حالياً.') }}</div>
+        <div class="d40-archive-badges">
+          <span class="{{ so.confidence_band or 'low' }}">{{ 'Confidence' if ui_lang == 'en' else 'الثقة' }}: {{ so.confidence_label or ('Low' if ui_lang == 'en' else 'ثقة ضعيفة') }}</span>
+          <span>{{ 'Risk' if ui_lang == 'en' else 'المخاطرة' }}: {{ so.predicted_risk_level or ('Unknown' if ui_lang == 'en' else 'غير معروف') }}</span>
+          <span>{{ 'Archive readiness' if ui_lang == 'en' else 'جاهزية الأرشيف' }}: {{ ('Ready' if ui_lang == 'en' else 'جاهز') if so.historical_is_actionable else ('Learning' if ui_lang == 'en' else 'قيد التعلّم') }}</span>
+        </div>
+      </section>
+
+      {# 4. SMART LOADS (span 6) #}
+      <section class="d40-card span-6">
+        <div class="d40-card-head">
+          <div>
+            <h3>💡 {{ 'Smart load suggestions' if ui_lang == 'en' else 'التوصيات الذكية للأحمال' }}</h3>
+            <small>{{ 'Based on solar surplus and current battery state' if ui_lang == 'en' else 'اعتمادًا على الفائض الشمسي وحالة البطارية' }}</small>
+          </div>
+          <a href="{{ url_for('main.loads_page', lang=ui_lang) }}" class="d40-action sm">⚙️ {{ 'Manage loads' if ui_lang == 'en' else 'إدارة أحمالك' }}</a>
+        </div>
+        <div class="d40-summary-grid">
+          <div class="d40-sum-card">
+            <small>{{ 'Actual solar surplus' if ui_lang == 'en' else 'الفائض الشمسي الفعلي' }}</small>
+            <strong data-bind="surplus.safe_w">{{ format_power(smart_loads.safe_available_w) }} W</strong>
+            <em>{{ smart_loads.surplus_note_en if ui_lang == 'en' else smart_loads.surplus_note_ar }}</em>
+          </div>
+          <div class="d40-sum-card alt">
+            <small>{{ 'Decision mode' if ui_lang == 'en' else 'حالة القرار' }}</small>
+            <strong>{{ smart_loads.mode_en if ui_lang == 'en' else smart_loads.mode_ar }}</strong>
+            <em data-bind="battery.soc_pct_full">{{ 'Battery now' if ui_lang == 'en' else 'البطارية الآن' }} • {{ smart_loads.battery_soc|round(0) }}%</em>
+          </div>
+        </div>
+        <div class="d40-loads-cols">
+          <div class="d40-load-list">
+            <h4>✅ {{ 'Can run now' if ui_lang == 'en' else 'يمكن تشغيلها الآن' }}</h4>
+            <div class="d40-chip-list">
+              {% for item in smart_loads.can_run %}
+                <span class="d40-chip success">{{ item.name }} · {{ item.power_w|round(0)|int }}W</span>
+              {% else %}
+                <div class="d40-empty">{{ 'No suitable load right now' if ui_lang == 'en' else 'لا يوجد حمل مناسب الآن' }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="d40-load-list muted">
+            <h4>⏳ {{ 'Better to postpone' if ui_lang == 'en' else 'يفضل تأجيلها' }}</h4>
+            <div class="d40-chip-list">
+              {% for item in smart_loads.hold[:6] %}
+                <span class="d40-chip">{{ item.name }} · {{ item.power_w|round(0)|int }}W</span>
+              {% else %}
+                <div class="d40-empty">{{ 'All added loads fit within the available margin' if ui_lang == 'en' else 'كل الأحمال المضافة ضمن الحدود المتاحة' }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {# 5. ACTUAL SURPLUS CALCULATION (span 6) #}
+      <section class="d40-card span-6">
+        <div class="d40-card-head">
+          <div>
+            <h3>📊 {{ 'Actual solar surplus' if ui_lang == 'en' else 'حساب الفائض الشمسي الفعلي' }}</h3>
+            <small>{{ 'Raw surplus minus battery charging need before sunset' if ui_lang == 'en' else 'الفائض الخام مطروحًا منه احتياج شحن البطارية قبل الغروب' }}</small>
+          </div>
+        </div>
+        <div class="d40-summary-grid">
+          <div class="d40-sum-card">
+            <small>{{ 'Raw surplus' if ui_lang == 'en' else 'الفائض الخام' }}</small>
+            <strong data-bind="surplus.raw_w">{{ format_power(actual_surplus.raw_surplus_w) }} W</strong>
+            <em>{{ 'Solar input - home load' if ui_lang == 'en' else 'دخل شمسي - سحب المنزل' }}</em>
+          </div>
+          <div class="d40-sum-card alt">
+            <small>{{ 'Battery charging need' if ui_lang == 'en' else 'احتياج شحن البطارية' }}</small>
+            <strong data-bind="surplus.batt_need_w">{{ format_power(actual_surplus.battery_charge_need_w) }} W</strong>
+            <em>{{ actual_surplus.remaining_label }}</em>
+          </div>
+          <div class="d40-sum-card">
+            <small>{{ 'Actual available surplus' if ui_lang == 'en' else 'الفائض الفعلي المتاح' }}</small>
+            <strong data-bind="surplus.actual_w">{{ format_power(actual_surplus.actual_surplus_w) }} W</strong>
+            <em>{{ actual_surplus.details_en if ui_lang == 'en' else actual_surplus.details_ar }}</em>
+          </div>
+        </div>
+      </section>
+
+      <div class="d40-charts-row span-full">
+      {# 6. POWER CHART #}
+      <section class="d40-card d40-chart-panel power">
+        <div class="d40-card-head">
+          <div>
+            <h3>📈 {{ 'Power profile over time' if ui_lang == 'en' else 'ملف القدرة عبر الوقت' }}</h3>
+            <small>{{ 'Hourly aggregation' if ui_lang == 'en' else 'تجميع كل ساعة' }} — {{ selected_day_label }}</small>
+          </div>
+          <form method="get" action="{{ url_for('main.dashboard') }}" style="display:flex;gap:8px;align-items:center;">
+            <input type="date" name="day" value="{{ selected_day_label }}" class="form-control" style="border-radius:12px;border:1px solid var(--d-line);padding:8px 12px;font-weight:700;">
+            <button type="submit" class="d40-action sm">{{ 'View' if ui_lang == 'en' else 'عرض' }}</button>
+          </form>
+        </div>
+        <div class="d40-chart-card">
+          <div class="d40-chart-wrap">
+            <canvas id="powerChart" data-labels='{{ labels|tojson }}' data-solar='{{ solar_values|tojson }}' data-load='{{ load_values|tojson }}' data-grid='{{ grid_values|tojson }}' data-battery='{{ battery_power_values|tojson }}'></canvas>
+          </div>
+        </div>
+      </section>
+
+      {# 7. BATTERY SOC CHART #}
+      <section class="d40-card d40-chart-panel soc">
+        <div class="d40-card-head">
+          <div>
+            <h3>🔋 {{ 'Battery SOC' if ui_lang == 'en' else 'نسبة شحن البطارية SOC' }}</h3>
+            <small>{{ 'State of charge over time' if ui_lang == 'en' else 'حالة الشحن عبر الوقت' }}</small>
+          </div>
+        </div>
+        <div class="d40-chart-card mini">
+          <div class="d40-chart-wrap">
+            <canvas id="batteryChart" data-labels='{{ labels|tojson }}' data-battery='{{ battery_soc_values|tojson }}'></canvas>
+          </div>
+        </div>
+      </section>
       </div>
-    </section>
+
+      {# 8. SMART EVENT LOG (span 6) #}
+      <section class="d40-card span-6">
+        <div class="d40-card-head">
+          <div>
+            <h3>🧠 {{ 'Smart event log' if ui_lang == 'en' else 'سجل الأحداث الذكي' }}</h3>
+            <small>{{ 'Latest noteworthy moments' if ui_lang == 'en' else 'أبرز اللحظات المهمة' }}</small>
+          </div>
+        </div>
+        <div class="d40-log-list">
+          {% for event in recent_events %}
+            <div class="d40-log-item {{ event.severity }}">
+              <strong>{{ event.title }}</strong>
+              <div>{{ event.details }}</div>
+              <div class="meta">{{ format_local(event.created_at) }}</div>
+            </div>
+          {% else %}
+            <div class="d40-empty">{{ 'No important events have been logged yet.' if ui_lang == 'en' else 'لا توجد أحداث مهمة مسجلة بعد.' }}</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# 9. SYNC HISTORY (span 6) #}
+      <section class="d40-card span-6">
+        <div class="d40-card-head">
+          <div>
+            <h3>🔁 {{ 'Last sync operations' if ui_lang == 'en' else 'آخر عمليات المزامنة' }}</h3>
+            <small>{{ 'Connection health and sync attempts' if ui_lang == 'en' else 'حالة الاتصال ومحاولات المزامنة' }}</small>
+          </div>
+        </div>
+        <div class="d40-log-list">
+          {% for log in logs %}
+            <div class="d40-log-item {{ log.level }}">
+              <strong>{{ log.message }}</strong>
+              <div class="meta">{{ format_local(log.created_at) }}</div>
+            </div>
+          {% else %}
+            <div class="d40-empty">{{ 'No sync logs yet.' if ui_lang == 'en' else 'لا توجد سجلات بعد.' }}</div>
+          {% endfor %}
+        </div>
+      </section>
+
+    </div>{# /d40-grid #}
   </main>
 </div>
-<script src="{{ url_for('static', filename='js/dashboard_header_notifications.js', v='v33-notification-read-keep-list-20260429') }}" defer></script>
+
+<script>
+(function(){
+  // --- Live clock ---------------------------------------------------------
+  function tickClock(){
+    var el = document.getElementById('d40LiveClock');
+    if (!el) return;
+    var d = new Date();
+    var h = String(d.getHours()).padStart(2,'0');
+    var m = String(d.getMinutes()).padStart(2,'0');
+    var s = String(d.getSeconds()).padStart(2,'0');
+    el.textContent = h+':'+m+':'+s;
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  // --- Power & battery charts ---------------------------------------------
+  function buildCharts(){
+    var Chart = window.Chart;
+    if (!Chart) return;
+    var p = document.getElementById('powerChart');
+    if (p && !p._built) {
+      p._built = true;
+      try {
+        var labels = JSON.parse(p.dataset.labels || '[]');
+        var solar  = JSON.parse(p.dataset.solar || '[]');
+        var load   = JSON.parse(p.dataset.load || '[]');
+        var grid   = JSON.parse(p.dataset.grid || '[]');
+        var batt   = JSON.parse(p.dataset.battery || '[]');
+        new Chart(p.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              { label: 'الطاقة الشمسية', data: solar, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.15)', tension: .35, fill: true },
+              { label: 'استهلاك البيت', data: load, borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,.10)', tension: .35, fill: true },
+              { label: 'الشبكة (شحن/تفريغ)', data: grid, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.10)', tension: .35, fill: false },
+              { label: 'البطارية', data: batt, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.10)', tension: .35, fill: false },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { weight: '700' } } } },
+            scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v + ' W'; } } } },
+          }
+        });
+      } catch (err) { console && console.error && console.error(err); }
+    }
+    var b = document.getElementById('batteryChart');
+    if (b && !b._built) {
+      b._built = true;
+      try {
+        var labels2 = JSON.parse(b.dataset.labels || '[]');
+        var battSoc = JSON.parse(b.dataset.battery || '[]');
+        new Chart(b.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: labels2,
+            datasets: [{
+              label: 'SOC %', data: battSoc, borderColor: '#10b981',
+              backgroundColor: 'rgba(16,185,129,.18)', tension: .35, fill: true,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { min: 0, max: 100, ticks: { callback: function(v){ return v + '%'; } } } },
+          }
+        });
+      } catch (err) { console && console.error && console.error(err); }
+    }
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(buildCharts, 50);
+  } else {
+    document.addEventListener('DOMContentLoaded', buildCharts);
+  }
+
+  // --- Live poller --------------------------------------------------------
+  var main = document.querySelector('.dashboard-v40');
+  var liveUrl = main && main.dataset.liveUrl;
+  if (!liveUrl) return;
+
+  function setBind(key, value){
+    var nodes = document.querySelectorAll('[data-bind="'+ key +'"]');
+    nodes.forEach(function(node){
+      if (value === null || value === undefined) return;
+      var current = node.textContent.trim();
+      var fresh = String(value);
+      if (current !== fresh) {
+        node.textContent = fresh;
+        node.classList.add('d40-flash');
+        setTimeout(function(){ node.classList.remove('d40-flash'); }, 700);
+      }
+    });
+  }
+
+  function fmtPower(w){
+    var v = Number(w || 0);
+    if (Math.abs(v) >= 1000) return (v / 1000).toFixed(2) + ' kW';
+    return v.toFixed(1) + ' W';
+  }
+
+  function applyPayload(p){
+    if (!p) return;
+    var dp = p.day_phase;
+    if (dp) {
+      var hero = document.getElementById('d40Hero');
+      if (hero && dp.key && hero.dataset.phase !== dp.key) {
+        hero.dataset.phase = dp.key;
+      }
+      setBind('phase.icon', dp.icon || '');
+      var lang = (document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
+      setBind('phase.label', lang === 'en' ? (dp.label_en || '') : (dp.label_ar || ''));
+      setBind('phase.description', lang === 'en' ? (dp.description_en || '') : (dp.description_ar || ''));
+      setBind('phase.sunrise', dp.sunrise_text || '—');
+      setBind('phase.sunset', dp.sunset_text || '—');
+    }
+    if (!p.ok) return;
+    var l = p.latest || {};
+    setBind('latest.solar_power',       fmtPower(l.solar_power));
+    setBind('latest.solar_power_short', fmtPower(l.solar_power));
+    setBind('latest.home_load',         fmtPower(l.home_load));
+    setBind('latest.home_load_short',   fmtPower(l.home_load));
+    setBind('latest.grid_power',        fmtPower(l.grid_power));
+    setBind('latest.grid_power_short',  fmtPower(l.grid_power));
+    setBind('latest.created_at',        l.created_at || '');
+    var batt = p.battery || {};
+    setBind('battery.mode_label', batt.mode_label || '');
+    setBind('battery.soc_pct',    String(Math.round(l.battery_soc || 0)) + '%');
+    setBind('battery.soc_label',  'الشحن ' + Math.round(l.battery_soc || 0) + '%');
+    setBind('battery.soc_pct_full', 'البطارية الآن • ' + Math.round(l.battery_soc || 0) + '%');
+    setBind('battery.flow_w', fmtPower(batt.charge_power_w || batt.discharge_power_w || 0));
+    var st = p.system_status || {};
+    setBind('status.title',       st.title || '');
+    setBind('status.title_short', st.title || '');
+    setBind('status.icon', '●');
+    var chip = document.getElementById('d40StatusChip');
+    if (chip) {
+      chip.classList.remove('muted','green','amber','red');
+      var tone = (st.tone || 'muted').toLowerCase();
+      if (['ok','green','success'].indexOf(tone) >= 0) chip.classList.add('green');
+      else if (['warning','amber'].indexOf(tone) >= 0) chip.classList.add('amber');
+      else if (['danger','red','error'].indexOf(tone) >= 0) chip.classList.add('red');
+      else chip.classList.add('muted');
+    }
+    var w = p.weather;
+    if (w) {
+      setBind('weather.icon', w.icon || '');
+      setBind('weather.temp', (w.temperature !== null && w.temperature !== undefined ? w.temperature : '--') + '°');
+      setBind('weather.cond', w.condition_ar || '');
+    }
+    var sp = p.solar_prediction;
+    if (sp) {
+      setBind('prediction.sunset_time',  sp.sunset_time || '--');
+      setBind('prediction.eff_sunset',   sp.effective_sunset_time || '--');
+      setBind('prediction.remaining',    sp.remaining_hours_text || '--');
+      setBind('prediction.time_to_full', sp.time_to_full_text || '--');
+      setBind('prediction.verdict',      sp.verdict || '—');
+      setBind('prediction.advice',       sp.advice || '—');
+    }
+    var sa = p.actual_surplus;
+    if (sa) {
+      setBind('surplus.raw_w',    fmtPower(sa.raw_surplus_w));
+      setBind('surplus.batt_need_w', fmtPower(sa.battery_charge_need_w));
+      setBind('surplus.actual_w', fmtPower(sa.actual_surplus_w));
+      setBind('surplus.safe_w',   fmtPower(sa.actual_surplus_w));
+    }
+  }
+
+  function poll(){
+    fetch(liveUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function(r){ return r.json(); })
+      .then(applyPayload)
+      .catch(function(){ /* silent */ });
+  }
+  // First poll after 8s, then every 30s
+  setTimeout(poll, 8000);
+  setInterval(poll, 30000);
+})();
+</script>
 {% endblock %}

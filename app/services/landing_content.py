@@ -13,8 +13,30 @@ LANDING_SETTING_KEYS = [
     'hero_primary_ar', 'hero_primary_en', 'hero_secondary_ar', 'hero_secondary_en',
     'mission_ar', 'mission_en', 'vision_ar', 'vision_en', 'promise_ar', 'promise_en',
     'footer_about_ar', 'footer_about_en',
+    'copyright_ar', 'copyright_en', 'site_logo',
     'social_facebook', 'social_instagram', 'social_x', 'social_linkedin', 'social_telegram', 'social_whatsapp',
 ]
+
+LANDING_SECTION_KEYS = {
+    'hero': [
+        'site_name_ar', 'site_name_en',
+        'hero_badge_ar', 'hero_badge_en',
+        'hero_title_ar', 'hero_title_en',
+        'hero_subtitle_ar', 'hero_subtitle_en',
+        'hero_primary_ar', 'hero_primary_en',
+        'hero_secondary_ar', 'hero_secondary_en',
+        'mission_ar', 'mission_en',
+        'vision_ar', 'vision_en',
+        'promise_ar', 'promise_en',
+        'site_logo',
+    ],
+    'footer': [
+        'footer_about_ar', 'footer_about_en',
+        'copyright_ar', 'copyright_en',
+        'social_facebook', 'social_instagram', 'social_x',
+        'social_linkedin', 'social_telegram', 'social_whatsapp',
+    ],
+}
 
 DEFAULT_LANDING_SETTINGS = {
     'site_name_ar': 'منصة الطاقة',
@@ -37,6 +59,9 @@ DEFAULT_LANDING_SETTINGS = {
     'promise_en': 'A professional Arabic-first interface, flexible permissions, customizable quotas, and reliable alerts.',
     'footer_about_ar': 'منصة متكاملة لإدارة الطاقة والأجهزة والتنبيهات باحترافية، مصممة لتبسيط التشغيل اليومي وتحسين قراراتك.',
     'footer_about_en': 'A professional platform for managing energy, devices, and alerts with clarity and confidence.',
+    'copyright_ar': '© 2026 منصة الطاقة. جميع الحقوق محفوظة.',
+    'copyright_en': '© 2026 Energy Platform. All rights reserved.',
+    'site_logo': '',
     'social_facebook': '',
     'social_instagram': '',
     'social_x': '',
@@ -70,26 +95,37 @@ def set_setting_value(key: str, value: str) -> None:
     row.value = value or ''
 
 
-def get_landing_settings() -> dict[str, str]:
+def get_landing_settings():
     return {key: get_setting_value(key, DEFAULT_LANDING_SETTINGS.get(key, '')) for key in LANDING_SETTING_KEYS}
 
 
-def save_landing_settings(form) -> None:
+def save_landing_settings(form):
     for key in LANDING_SETTING_KEYS:
         set_setting_value(key, (form.get(key) or '').strip())
 
 
-def _list_from_lines(raw: str | None) -> list[str]:
+def save_landing_section(section, form):
+    keys = LANDING_SECTION_KEYS.get(section, [])
+    written = []
+    for key in keys:
+        if key not in form:
+            continue
+        set_setting_value(key, (form.get(key) or '').strip())
+        written.append(key)
+    return written
+
+
+def _list_from_lines(raw):
     return [line.strip() for line in str(raw or '').splitlines() if line.strip()]
 
 
-def _features_dict(plan: SubscriptionPlan | None) -> dict[str, Any]:
+def _features_dict(plan):
     if not plan:
         return {}
     return plan_features(plan) or {}
 
 
-def plan_landing_meta(plan: SubscriptionPlan, lang: str = 'ar') -> dict[str, Any]:
+def plan_landing_meta(plan, lang='ar'):
     features = _features_dict(plan)
     is_en = str(lang or 'ar').lower().startswith('en')
     subtitle = features.get('landing_subtitle_en' if is_en else 'landing_subtitle_ar') or (
@@ -125,7 +161,7 @@ def plan_landing_meta(plan: SubscriptionPlan, lang: str = 'ar') -> dict[str, Any
     return {'subtitle': subtitle, 'bullets': bullets[:6], 'featured': featured, 'badge': badge}
 
 
-def build_landing_plan_cards(lang: str = 'ar') -> list[dict[str, Any]]:
+def build_landing_plan_cards(lang='ar'):
     plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
     cards = []
     for plan in plans[:3]:
@@ -144,7 +180,6 @@ def build_landing_plan_cards(lang: str = 'ar') -> list[dict[str, Any]]:
         })
     if cards:
         return cards
-    # Safe fallback when DB has no plans yet.
     if str(lang).startswith('en'):
         return [
             {'id': 0, 'code': 'basic', 'name': 'Basic', 'name_ar': 'الأساسية', 'name_en': 'Basic', 'price': 9, 'currency': 'USD', 'duration_days': 30, 'max_devices': 10, 'subtitle': 'Ideal for small projects', 'bullets': ['Up to 10 devices', '50 alerts monthly', 'Ticket support'], 'featured': False, 'badge': ''},
@@ -158,7 +193,7 @@ def build_landing_plan_cards(lang: str = 'ar') -> list[dict[str, Any]]:
     ]
 
 
-def update_plan_landing_meta(plan: SubscriptionPlan, form, prefix: str) -> None:
+def update_plan_landing_meta(plan, form, prefix):
     features = _features_dict(plan)
     features['landing_subtitle_ar'] = (form.get(f'{prefix}_subtitle_ar') or '').strip()
     features['landing_subtitle_en'] = (form.get(f'{prefix}_subtitle_en') or '').strip()

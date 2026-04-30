@@ -1,0 +1,65 @@
+{# Notification Center v40 — Side panel (filters + timeline) #}
+<aside class="ncv40-side">
+
+  <section class="ncv40-side-card">
+    <h3>{{ ncv40_icon('filter') }} {{ 'Quick filters' if is_en else 'فلاتر سريعة' }}</h3>
+
+    <div class="ncv40-filter-group">
+      <span class="ncv40-filter-label">{{ 'Status' if is_en else 'الحالة' }}</span>
+      <div class="ncv40-radio-group">
+        <label class="ncv40-radio">
+          <input type="radio" name="ncv40_status" value="all" data-ncv40-status checked>
+          <span>{{ 'All' if is_en else 'الكل' }}</span>
+        </label>
+        <label class="ncv40-radio">
+          <input type="radio" name="ncv40_status" value="open" data-ncv40-status>
+          <span>{{ 'Open only' if is_en else 'المفتوح فقط' }}</span>
+        </label>
+        <label class="ncv40-radio">
+          <input type="radio" name="ncv40_status" value="closed" data-ncv40-status>
+          <span>{{ 'Closed/Resolved' if is_en else 'المغلق/المحلول' }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="ncv40-filter-group">
+      <span class="ncv40-filter-label">{{ 'Priority' if is_en else 'الأولوية' }}</span>
+      <div class="ncv40-radio-group">
+        <label class="ncv40-radio">
+          <input type="radio" name="ncv40_priority" value="all" data-ncv40-priority checked>
+          <span>{{ 'Any priority' if is_en else 'كل الأولويات' }}</span>
+        </label>
+        <label class="ncv40-radio">
+          <input type="radio" name="ncv40_priority" value="high" data-ncv40-priority>
+          <span>{{ 'High / Urgent only' if is_en else 'العالي / العاجل فقط' }}</span>
+        </label>
+      </div>
+    </div>
+
+    <button type="button" class="ncv40-reset-btn" data-ncv40-reset>
+      {{ 'Reset filters' if is_en else 'إعادة تعيين الفلاتر' }}
+    </button>
+  </section>
+
+  <section class="ncv40-side-card">
+    <h3>{{ ncv40_icon('sparkles') }} {{ 'Recent system alerts' if is_en else 'آخر تنبيهات النظام' }}</h3>
+    <div class="ncv40-timeline">
+      {% for ev in timeline %}
+      <article class="ncv40-timeline-item">
+        <strong>{{ ev.title }}</strong>
+        <small>{{ ev.last_activity_label or '—' }}</small>
+        <p>{{ ev.details }}</p>
+      </article>
+      {% else %}
+      <article class="ncv40-timeline-item">
+        <strong>{{ 'No recent alerts' if is_en else 'لا توجد تنبيهات حديثة' }}</strong>
+        <small>—</small>
+        <p>{{ 'System alerts will show up here once they happen.' if is_en else 'ستظهر تنبيهات النظام هنا فور حدوثها.' }}</p>
+      </article>
+      {% endfor %}
+    </div>
+    <a class="ncv40-side-card-link" href="{{ url_for('main.alerts', lang=ui_lang) }}">
+      {{ 'View full history' if is_en else 'عرض السجل الكامل' }}
+    </a>
+  </section>
+</aside>
