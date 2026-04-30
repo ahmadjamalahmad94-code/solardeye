@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from difflib import SequenceMatcher
 import secrets
 from urllib.parse import urlencode
 
@@ -100,6 +101,88 @@ def _random_username_from_email(email: str) -> str:
     return candidate
 
 
+def _normalize_username_candidate(value: str) -> str:
+    raw = (value or '').strip().lower()
+    return ''.join(ch for ch in raw if ch.isalnum() or ch in ('_', '.'))
+
+
+def _username_availability_snapshot(username: str) -> dict:
+    normalized = _normalize_username_candidate(username)
+    if not normalized:
+        return {
+            'ok': False,
+            'available': False,
+            'reason': 'empty',
+            'message_ar': 'أدخل اسم مستخدم أولًا.',
+            'message_en': 'Enter a username first.',
+        }
+    if len(normalized) < 3:
+        return {
+            'ok': False,
+            'available': False,
+            'reason': 'short',
+            'message_ar': 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.',
+            'message_en': 'Username must be at least 3 characters.',
+        }
+
+    users = AppUser.query.with_entities(AppUser.username).all()
+    exact_match = None
+    similar_match = None
+    best_ratio = 0.0
+
+    for row in users:
+        existing = (row[0] or '').strip()
+        existing_normalized = _normalize_username_candidate(existing)
+        if not existing_normalized:
+            continue
+        if existing_normalized == normalized:
+            exact_match = existing
+            break
+        ratio = SequenceMatcher(None, normalized, existing_normalized).ratio()
+        if normalized in existing_normalized or existing_normalized in normalized:
+            ratio = max(ratio, 0.9)
+        if ratio > best_ratio:
+            best_ratio = ratio
+            similar_match = existing
+
+    if exact_match:
+        return {
+            'ok': True,
+            'available': False,
+            'reason': 'taken',
+            'matched_username': exact_match,
+            'message_ar': 'اسم المستخدم مستخدم بالفعل. اختر اسم مستخدم ثاني.',
+            'message_en': 'This username is already taken. Choose another username.',
+        }
+
+    if similar_match and best_ratio >= 0.84:
+        return {
+            'ok': True,
+            'available': False,
+            'reason': 'similar',
+            'matched_username': similar_match,
+            'similarity': round(best_ratio, 2),
+            'message_ar': f'يوجد اسم مشابه جدًا ({similar_match}). اختر اسم مستخدم ثاني.',
+            'message_en': f'A very similar username already exists ({similar_match}). Choose another username.',
+        }
+
+    return {
+        'ok': True,
+        'available': True,
+        'reason': 'available',
+        'message_ar': 'اسم المستخدم متاح.',
+        'message_en': 'Username is available.',
+    }
+
+
+@auth_bp.route('/register/username-check')
+def register_username_check():
+    snapshot = _username_availability_snapshot(request.args.get('username', ''))
+    lang = (request.args.get('lang') or session.get('ui_lang') or 'ar').strip().lower()
+    snapshot['message'] = snapshot.get('message_en') if lang == 'en' else snapshot.get('message_ar')
+    return jsonify(snapshot)
+
+
 def _login_after_social(user: AppUser):
     _login_user(user)
     flash('تم تسجيل الدخول عبر Google بنجاح', 'success')
@@ -190,6 +273,7 @@ def register():
             timezone = 'Asia/Hebron'
         if preferred_language not in {'ar', 'en'}:
             preferred_language = 'ar'
+        username_check = _username_availability_snapshot(username)
 
         if not username or not password:
             flash('اسم المستخدم وكلمة المرور مطلوبان.', 'warning')
@@ -201,6 +285,8 @@ def register():
             flash('الدولة والمدينة مطلوبتان لضبط الطقس والتوقيت بدقة.', 'warning')
         elif phone_number and len(''.join(ch for ch in phone_number if ch.isdigit())) < 6:
             flash('رقم الهاتف قصير جدًا. أدخل رقمًا صحيحًا أو اتركه فارغًا.', 'warning')
+        elif not username_check.get('available'):
+            flash(username_check.get('message_en') if preferred_language == 'en' else username_check.get('message_ar'), 'danger')
         elif AppUser.query.filter_by(username=username).first():
             flash('اسم المستخدم مستخدم من قبل.', 'danger')
         elif email and AppUser.query.filter_by(email=email).first():
@@ -381,6 +467,7 @@ def protect_routes():
     public_endpoints = {
         'auth.login',
         'auth.register',
+        'auth.register_username_check',
         'auth.google_start',
         'auth.google_callback',
         'auth.facebook_start',

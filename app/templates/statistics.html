@@ -1,125 +1,372 @@
 {% extends 'base.html' %}
 {% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<style>
+/* ═══════════════════════════════════════════════
+   STATISTICS  —  st-  prefix
+═══════════════════════════════════════════════ */
+.st-page { padding: 2rem 2rem 3.5rem; max-width: 1280px; margin: 0 auto; }
+@media (max-width: 700px) { .st-page { padding: 1rem 1rem 2.5rem; } }
+
+/* ── page header ── */
+.st-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+}
+.st-header-left .st-eyebrow {
+  font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.35);
+  text-transform: uppercase; letter-spacing: .9px;
+}
+.st-header-left h1 {
+  font-size: 1.75rem; font-weight: 800; color: #fff; margin: .2rem 0 .35rem; line-height: 1.2;
+}
+.st-header-left p { font-size: .88rem; color: rgba(255,255,255,.45); margin: 0; }
+.st-export-row { display: flex; gap: .6rem; align-items: center; flex-shrink: 0; }
+.st-export-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: 10px; font-size: .8rem; font-weight: 600;
+  text-decoration: none; border: none; cursor: pointer; transition: all .2s;
+}
+.st-export-btn.csv {
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.7);
+  border: 1px solid rgba(255,255,255,.12);
+}
+.st-export-btn.csv:hover { background: rgba(255,255,255,.13); color: #fff; }
+.st-export-btn.pdf {
+  background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+}
+.st-export-btn.pdf:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(245,158,11,.3); }
+
+/* ── period nav bar ── */
+.st-nav-bar {
+  background: rgba(30,35,50,.75); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 16px;
+  padding: 1rem 1.25rem; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  margin-bottom: 2rem;
+}
+.st-seg { display: flex; background: rgba(255,255,255,.06); border-radius: 10px; padding: 3px; gap: 2px; }
+.st-seg-btn {
+  padding: .45rem 1.1rem; border-radius: 8px; border: none; background: none;
+  color: rgba(255,255,255,.5); font-size: .82rem; font-weight: 600; cursor: pointer;
+  transition: all .2s;
+}
+.st-seg-btn:hover { color: rgba(255,255,255,.8); }
+.st-seg-btn.active { background: rgba(245,158,11,.2); color: #f59e0b; }
+.st-date-nav { display: flex; align-items: center; gap: .5rem; }
+.st-date-arrow {
+  width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.7); display: flex;
+  align-items: center; justify-content: center; font-size: 1.1rem; text-decoration: none;
+  transition: all .2s; font-weight: 600; line-height: 1;
+}
+.st-date-arrow:hover { background: rgba(255,255,255,.14); color: #fff; }
+.st-date-arrow.dim { opacity: .3; pointer-events: none; }
+.st-date-input {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px; color: #fff; padding: .45rem .75rem; font-size: .83rem;
+  outline: none; min-width: 130px; transition: border-color .2s;
+}
+.st-date-input:focus { border-color: #f59e0b; }
+.st-apply-btn {
+  padding: .45rem 1rem; border-radius: 10px; background: rgba(245,158,11,.15);
+  border: 1px solid rgba(245,158,11,.25); color: #f59e0b; font-size: .82rem;
+  font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.st-apply-btn:hover { background: rgba(245,158,11,.25); }
+.st-title-hint { font-size: .8rem; color: rgba(255,255,255,.4); }
+
+/* ── metric hero row ── */
+.st-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+@media (max-width: 900px) { .st-metrics { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .st-metrics { grid-template-columns: 1fr; } }
+.st-metric {
+  background: rgba(30,35,50,.8); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 18px;
+  padding: 1.5rem 1.4rem 1.25rem; position: relative; overflow: hidden;
+  transition: border-color .25s;
+}
+.st-metric:hover { border-color: rgba(255,255,255,.18); }
+.st-metric::before {
+  content: ''; position: absolute; inset: 0;
+  opacity: .08; pointer-events: none;
+}
+.st-metric.solar::before  { background: radial-gradient(ellipse at 80% 20%, #f59e0b, transparent 65%); opacity: .15; }
+.st-metric.home::before   { background: radial-gradient(ellipse at 80% 20%, #6366f1, transparent 65%); opacity: .15; }
+.st-metric.batt::before   { background: radial-gradient(ellipse at 80% 20%, #10b981, transparent 65%); opacity: .15; }
+.st-metric.soc::before    { background: radial-gradient(ellipse at 80% 20%, #f97316, transparent 65%); opacity: .12; }
+.st-metric-icon { font-size: 1.6rem; margin-bottom: .7rem; display: block; }
+.st-metric-label { font-size: .72rem; color: rgba(255,255,255,.45); font-weight: 600; letter-spacing: .3px; margin-bottom: .3rem; }
+.st-metric-value { font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: .25rem; }
+.st-metric-sub { font-size: .73rem; color: rgba(255,255,255,.35); line-height: 1.5; }
+.st-metric-accent { display: inline-block; width: 3px; height: 20px; border-radius: 2px; margin-inline-end: .4rem; vertical-align: middle; }
+.solar .st-metric-accent { background: #f59e0b; }
+.home  .st-metric-accent { background: #6366f1; }
+.batt  .st-metric-accent { background: #10b981; }
+.soc   .st-metric-accent { background: #f97316; }
+
+/* ── chart section ── */
+.st-charts { display: grid; grid-template-columns: 1fr 340px; gap: 1.25rem; margin-bottom: 2rem; }
+@media (max-width: 1000px) { .st-charts { grid-template-columns: 1fr; } }
+.st-card {
+  background: rgba(30,35,50,.8); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 18px; overflow: hidden;
+}
+.st-card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 1.4rem 1.5rem 0; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .75rem;
+}
+.st-card-head h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0 0 .2rem; }
+.st-card-head small { font-size: .75rem; color: rgba(255,255,255,.38); }
+.st-legend { display: flex; gap: .9rem; flex-wrap: wrap; }
+.st-legend-item { display: flex; align-items: center; gap: .35rem; font-size: .72rem; color: rgba(255,255,255,.55); }
+.st-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.st-chart-wrap { padding: 0 1.5rem 1.5rem; }
+.st-chart-wrap canvas { width: 100% !important; }
+
+/* ── data table ── */
+.st-table-card { margin-bottom: 2rem; }
+.st-table-card .st-card-head { padding: 1.4rem 1.5rem 0; margin-bottom: 1.25rem; }
+.st-table-scroll { overflow-x: auto; }
+.st-table {
+  width: 100%; border-collapse: collapse; font-size: .83rem;
+}
+.st-table thead th {
+  padding: .75rem 1rem; text-align: start; font-size: .68rem; font-weight: 700;
+  color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap;
+}
+.st-table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); transition: background .15s; }
+.st-table tbody tr:last-child { border-bottom: none; }
+.st-table tbody tr:hover { background: rgba(255,255,255,.03); }
+.st-table tbody td { padding: .8rem 1rem; color: rgba(255,255,255,.8); white-space: nowrap; }
+.st-table tbody td:first-child { color: rgba(255,255,255,.5); }
+.st-period-pill {
+  display: inline-block; padding: .2rem .7rem; border-radius: 20px;
+  background: rgba(255,255,255,.07); font-size: .75rem; color: rgba(255,255,255,.6);
+  font-weight: 600;
+}
+.st-val-solar  { color: #fcd34d !important; }
+.st-val-home   { color: #a5b4fc !important; }
+.st-val-batt   { color: #6ee7b7 !important; }
+.st-val-grid   { color: #fca5a5 !important; }
+.st-table-empty {
+  padding: 2.5rem 1.5rem; text-align: center; color: rgba(255,255,255,.3);
+  font-size: .88rem;
+}
+</style>
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>مركز الإحصائيات</h1>
-          <p class="mb-0">جميع القراءات محفوظة محليًا بشكل دائم ويمكن استعراض أي يوم أو أسبوع أو شهر مع تصدير عربي كامل.</p>
-        </div>
-      </div>
-      <div class="topbar-actions d-flex gap-2">
-        <a class="btn btn-outline-primary" href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">تصدير CSV</a>
-        <a class="btn btn-solar" href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">تصدير PDF</a>
-      </div>
-    </header>
+    <div class="st-page" dir="{{ dir }}">
 
-    <section class="stats-toolbar-v10 panel-card">
-      <form method="get" action="{{ url_for('main.statistics') }}" class="stats-toolbar-grid">
-        <div class="segmented-control">
-          <button class="seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">يومي</button>
-          <button class="seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">أسبوعي</button>
-          <button class="seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">شهري</button>
+      <!-- ── PAGE HEADER ── -->
+      <div class="st-header">
+        <div class="st-header-left">
+          <div class="st-eyebrow">{{ 'Energy Analytics' if is_en else 'تحليل الطاقة' }}</div>
+          <h1>{{ 'Statistics Center' if is_en else 'مركز الإحصائيات' }}</h1>
+          <p>{{ 'All readings are stored permanently — browse any day, week, or month with full export support.' if is_en else 'جميع القراءات محفوظة بشكل دائم — استعرض أي يوم أو أسبوع أو شهر مع تصدير كامل.' }}</p>
         </div>
-        <div class="period-picker">
-          <a class="nav-date-btn" href="{{ url_for('main.statistics', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
-          <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" class="form-control stats-date-input">
-          <button class="btn btn-outline-primary" type="submit">تطبيق</button>
-          {% if can_go_next %}<a class="nav-date-btn" href="{{ url_for('main.statistics', view=selected_view, date=next_date.strftime('%Y-%m-%d')) }}">›</a>{% endif %}
+        <div class="st-export-row">
+          <a class="st-export-btn csv"
+             href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
+            📋 {{ 'Export CSV' if is_en else 'تصدير CSV' }}
+          </a>
+          <a class="st-export-btn pdf"
+             href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
+            📄 {{ 'Export PDF' if is_en else 'تصدير PDF' }}
+          </a>
+        </div>
+      </div>
+
+      <!-- ── PERIOD NAV ── -->
+      <form method="get" action="{{ url_for('main.statistics') }}">
+        <div class="st-nav-bar">
+          <div class="st-seg">
+            <button class="st-seg-btn {% if selected_view == 'day' %}active{% endif %}"
+                    name="view" value="day" type="submit">
+              {{ 'Daily' if is_en else 'يومي' }}
+            </button>
+            <button class="st-seg-btn {% if selected_view == 'week' %}active{% endif %}"
+                    name="view" value="week" type="submit">
+              {{ 'Weekly' if is_en else 'أسبوعي' }}
+            </button>
+            <button class="st-seg-btn {% if selected_view == 'month' %}active{% endif %}"
+                    name="view" value="month" type="submit">
+              {{ 'Monthly' if is_en else 'شهري' }}
+            </button>
+          </div>
+          <div class="st-date-nav">
+            <a class="st-date-arrow"
+               href="{{ url_for('main.statistics', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
+            <input class="st-date-input" type="date" name="date"
+                   value="{{ selected_date.strftime('%Y-%m-%d') }}">
+            <a class="st-date-arrow {{ '' if can_go_next else 'dim' }}"
+               href="{{ url_for('main.statistics', view=selected_view, date=next_date.strftime('%Y-%m-%d')) if can_go_next else '#' }}">›</a>
+            <button class="st-apply-btn" type="submit">{{ 'Apply' if is_en else 'تطبيق' }}</button>
+          </div>
+          <span class="st-title-hint">📅 {{ title_hint }}</span>
         </div>
       </form>
-    </section>
 
-    <section class="stats-header-cards">
-      <div class="stats-summary-card aqua"><span>إنتاج الشمس</span><strong>{{ stats.solar_generated_kwh }} kWh</strong></div>
-      <div class="stats-summary-card blue"><span>استهلاك المنزل</span><strong>{{ stats.home_consumed_kwh }} kWh</strong></div>
-      <div class="stats-summary-card navy"><span>من البطارية إلى البيت</span><strong>{{ stats.battery_to_home_kwh }} kWh</strong></div>
-      <div class="stats-summary-card amber"><span>المتوسط العام للبطارية</span><strong>{{ stats.avg_battery_soc }}%</strong></div>
-    </section>
+      <!-- ── HERO METRICS ── -->
+      <div class="st-metrics">
+        <div class="st-metric solar">
+          <span class="st-metric-icon">☀️</span>
+          <div class="st-metric-label">{{ 'Solar Generated' if is_en else 'إنتاج الشمس' }}</div>
+          <div class="st-metric-value">{{ stats.solar_generated_kwh }} <span style="font-size:.9rem;opacity:.6">kWh</span></div>
+          <div class="st-metric-sub">{{ 'Total solar energy captured during this period' if is_en else 'إجمالي الطاقة الشمسية المنتجة خلال الفترة' }}</div>
+        </div>
+        <div class="st-metric home">
+          <span class="st-metric-icon">🏠</span>
+          <div class="st-metric-label">{{ 'Home Consumption' if is_en else 'استهلاك المنزل' }}</div>
+          <div class="st-metric-value">{{ stats.home_consumed_kwh }} <span style="font-size:.9rem;opacity:.6">kWh</span></div>
+          <div class="st-metric-sub">{{ 'Total energy consumed by the household' if is_en else 'إجمالي الطاقة المستهلكة في المنزل خلال الفترة' }}</div>
+        </div>
+        <div class="st-metric batt">
+          <span class="st-metric-icon">🔋</span>
+          <div class="st-metric-label">{{ 'Battery → Home' if is_en else 'بطارية → منزل' }}</div>
+          <div class="st-metric-value">{{ stats.battery_to_home_kwh }} <span style="font-size:.9rem;opacity:.6">kWh</span></div>
+          <div class="st-metric-sub">{{ 'Energy discharged from battery to power the home' if is_en else 'الطاقة التي فرّغتها البطارية لتشغيل المنزل' }}</div>
+        </div>
+        <div class="st-metric soc">
+          <span class="st-metric-icon">📊</span>
+          <div class="st-metric-label">{{ 'Average Battery SOC' if is_en else 'متوسط شحن البطارية' }}</div>
+          <div class="st-metric-value">{{ stats.avg_battery_soc }}<span style="font-size:.9rem;opacity:.6">%</span></div>
+          <div class="st-metric-sub">{{ 'Average state of charge across all readings in this period' if is_en else 'متوسط نسبة الشحن عبر كل قراءات الفترة' }}</div>
+        </div>
+      </div>
 
-    <section class="stats-layout-v10 mt-4">
-      <div class="panel-card stats-main-panel">
-        <div class="stats-panel-head">
+      <!-- ── CHARTS ROW ── -->
+      <div class="st-charts">
+
+        <!-- Main time profile chart -->
+        <div class="st-card">
+          <div class="st-card-head">
+            <div>
+              <h3>{{ 'Energy Time Profile' if is_en else 'الملف الزمني للطاقة' }}</h3>
+              <small>{{ title_hint }}</small>
+            </div>
+            <div class="st-legend">
+              <span class="st-legend-item">
+                <i class="st-legend-dot" style="background:#f59e0b;"></i>
+                {{ 'Solar' if is_en else 'شمس' }}
+              </span>
+              <span class="st-legend-item">
+                <i class="st-legend-dot" style="background:#6366f1;"></i>
+                {{ 'Home' if is_en else 'منزل' }}
+              </span>
+              <span class="st-legend-item">
+                <i class="st-legend-dot" style="background:#10b981;"></i>
+                {{ 'Battery' if is_en else 'بطارية' }}
+              </span>
+              <span class="st-legend-item">
+                <i class="st-legend-dot" style="background:#f97316;"></i>
+                SOC
+              </span>
+            </div>
+          </div>
+          <div class="st-chart-wrap">
+            <canvas id="statsProfileChart" height="240"
+              data-kind="{{ selected_view }}"
+              data-labels='{{ chart.labels|tojson }}'
+              data-solar='{{ chart.solar|tojson }}'
+              data-home='{{ chart.home|tojson }}'
+              data-battery='{{ chart.battery|tojson }}'
+              data-grid='{{ chart.grid|tojson }}'
+              data-soc='{{ chart.soc|tojson }}'></canvas>
+          </div>
+        </div>
+
+        <!-- Usage distribution chart -->
+        <div class="st-card">
+          <div class="st-card-head">
+            <div>
+              <h3>{{ 'Usage Breakdown' if is_en else 'توزيع الاستخدام' }}</h3>
+              <small>{{ 'Visual summary for this period' if is_en else 'تلخيص بصري للفترة' }}</small>
+            </div>
+          </div>
+          <div class="st-chart-wrap">
+            <canvas id="statsUsageChart" height="240"
+              data-labels='{{ summary_chart.labels|tojson }}'
+              data-solar='{{ summary_chart.solar|tojson }}'
+              data-home='{{ summary_chart.home|tojson }}'
+              data-battery='{{ summary_chart.battery|tojson }}'
+              data-grid='{{ summary_chart.grid|tojson }}'></canvas>
+          </div>
+
+          <!-- Extra stats below donut -->
+          <div style="padding: 0 1.5rem 1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:.7rem;">
+            <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
+              <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Solar → Home' if is_en else 'شمس → منزل' }}</div>
+              <div style="font-size:1rem;font-weight:700;color:#fcd34d;">{{ stats.solar_to_home_kwh }} kWh</div>
+            </div>
+            <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
+              <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Solar → Battery' if is_en else 'شمس → بطارية' }}</div>
+              <div style="font-size:1rem;font-weight:700;color:#6ee7b7;">{{ stats.solar_to_battery_kwh }} kWh</div>
+            </div>
+            <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
+              <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Grid → Home' if is_en else 'شبكة → منزل' }}</div>
+              <div style="font-size:1rem;font-weight:700;color:#fca5a5;">{{ stats.grid_to_home_kwh }} kWh</div>
+            </div>
+            <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
+              <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Peak Solar' if is_en else 'ذروة الإنتاج' }}</div>
+              <div style="font-size:1rem;font-weight:700;color:#f59e0b;">{{ stats.max_solar_w }} W</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ANALYTICAL TABLE ── -->
+      <div class="st-card st-table-card">
+        <div class="st-card-head">
           <div>
-            <h3>الملف الزمني للطاقة</h3>
-            <small>{{ title_hint }}</small>
-          </div>
-          <div class="stats-legend-inline">
-            <span><i class="dot green"></i> شمس</span>
-            <span><i class="dot orange"></i> استهلاك</span>
-            <span><i class="dot blue"></i> بطارية</span>
-            <span><i class="dot navy"></i> SOC</span>
+            <h3>{{ 'Analytical Table' if is_en else 'الجدول التحليلي' }}</h3>
+            <small>{{ 'Detailed breakdown of all sub-periods within this range' if is_en else 'تفصيل دقيق لكل فترة فرعية ضمن النطاق المحدد' }}</small>
           </div>
         </div>
-        <canvas id="statsProfileChart" height="220"
-          data-kind="{{ selected_view }}"
-          data-labels='{{ chart.labels|tojson }}'
-          data-solar='{{ chart.solar|tojson }}'
-          data-home='{{ chart.home|tojson }}'
-          data-battery='{{ chart.battery|tojson }}'
-          data-grid='{{ chart.grid|tojson }}'
-          data-soc='{{ chart.soc|tojson }}'></canvas>
+        <div class="st-table-scroll">
+          <table class="st-table">
+            <thead>
+              <tr>
+                <th>{{ 'Period' if is_en else 'الفترة' }}</th>
+                <th>{{ 'Solar Gen.' if is_en else 'إنتاج الشمس' }}</th>
+                <th>{{ 'Home Cons.' if is_en else 'استهلاك المنزل' }}</th>
+                <th>{{ 'Sun → Home' if is_en else 'شمس ← بيت' }}</th>
+                <th>{{ 'Sun → Battery' if is_en else 'شمس ← بطارية' }}</th>
+                <th>{{ 'Battery → Home' if is_en else 'بطارية ← بيت' }}</th>
+                <th>{{ 'Grid → Home' if is_en else 'شبكة ← بيت' }}</th>
+                <th>{{ 'Avg SOC' if is_en else 'متوسط SOC' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table_rows %}
+              <tr>
+                <td><span class="st-period-pill">{{ row.label }}</span></td>
+                <td class="st-val-solar">{{ row.solar_generated_kwh }} kWh</td>
+                <td class="st-val-home">{{ row.home_consumed_kwh }} kWh</td>
+                <td>{{ row.solar_to_home_kwh }} kWh</td>
+                <td>{{ row.solar_to_battery_kwh }} kWh</td>
+                <td class="st-val-batt">{{ row.battery_to_home_kwh }} kWh</td>
+                <td class="st-val-grid">{{ row.grid_to_home_kwh }} kWh</td>
+                <td>{{ row.avg_battery_soc }}%</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8">
+                  <div class="st-table-empty">
+                    {{ 'No data available for this period yet.' if is_en else 'لا توجد بيانات كافية لهذه الفترة بعد.' }}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="panel-card stats-side-panel">
-        <div class="stats-panel-head compact">
-          <div>
-            <h3>توزيع الاستخدام</h3>
-            <small>تلخيص بصري للفترة</small>
-          </div>
-        </div>
-        <canvas id="statsUsageChart" height="220"
-          data-labels='{{ summary_chart.labels|tojson }}'
-          data-solar='{{ summary_chart.solar|tojson }}'
-          data-home='{{ summary_chart.home|tojson }}'
-          data-battery='{{ summary_chart.battery|tojson }}'
-          data-grid='{{ summary_chart.grid|tojson }}'></canvas>
-      </div>
-    </section>
-
-    <section class="panel-card mt-4">
-      <div class="stats-panel-head">
-        <div>
-          <h3>الجدول التحليلي</h3>
-          <small>جدول نظيف وواضح لكل فترة فرعية داخل النطاق</small>
-        </div>
-      </div>
-      <div class="table-responsive">
-        <table class="table align-middle solar-table mb-0 stats-modern-table">
-          <thead>
-            <tr>
-              <th>الفترة</th>
-              <th>إنتاج الشمس</th>
-              <th>استهلاك المنزل</th>
-              <th>شمس ← بيت</th>
-              <th>شمس ← بطارية</th>
-              <th>بطارية ← بيت</th>
-              <th>شبكة ← بيت</th>
-              <th>متوسط SOC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in table_rows %}
-            <tr>
-              <td><span class="stats-pill">{{ row.label }}</span></td>
-              <td>{{ row.solar_generated_kwh }} kWh</td>
-              <td>{{ row.home_consumed_kwh }} kWh</td>
-              <td>{{ row.solar_to_home_kwh }} kWh</td>
-              <td>{{ row.solar_to_battery_kwh }} kWh</td>
-              <td>{{ row.battery_to_home_kwh }} kWh</td>
-              <td>{{ row.grid_to_home_kwh }} kWh</td>
-              <td>{{ row.avg_battery_soc }}%</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="8" class="text-center py-4">لا توجد بيانات كافية لهذه الفترة بعد.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </div><!-- .st-page -->
   </main>
 </div>
 {% endblock %}

@@ -1,0 +1,63 @@
+C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\config.py:13: UserWarning: ADMIN_PASSWORD is not set. A random bootstrap password will be generated for first-run admin creation.
+  class Config:
+C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.7) doesn't match a supported version!
+  warnings.warn(
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.199:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/Apr/2026 23:28:51] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:28:55] "GET /register?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:28:56] "GET /register/username-check?lang=ar&username=ahmad HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:28:57] "GET /register/username-check?lang=ar&username=ahmad1 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:28:57] "GET /register/username-check?lang=ar&username=solar_user_new_2026 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:28:58] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:15] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:16] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:18] "GET /statistics?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:19] "GET /static/css/sidebar_rebuild_v11.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:29:19] "GET /static/js/sidebar_rebuild_v11.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:29:19] "GET /static/css/style.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:29:22] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:22] "GET /static/js/app.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:29:28] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:34] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /register?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/css/style.css?v=v57-register-username-check-20260430 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/css/sidebar_rebuild_v11.css?v=v57-register-username-check-20260430 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/css/login_v50.css?v=v50-login-luxury-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/css/register_v50.css?v=v57-register-username-check-20260430 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/js/sidebar_rebuild_v11.js?v=v57-register-username-check-20260430 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:35] "GET /static/js/app.js?v=v57-register-username-check-20260430 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:36] "GET /favicon.ico HTTP/1.1" 302 -
+127.0.0.1 - - [30/Apr/2026 23:29:36] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:41] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:47] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:29:56] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:04] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:11] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:13] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:20] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:22] "GET /statistics?view=day&date=2026-04-30 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:23] "GET /static/css/style.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:30:23] "GET /static/js/app.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:30:24] "GET /static/css/sidebar_rebuild_v11.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:30:26] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:27] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:27] "GET /static/js/sidebar_rebuild_v11.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:30:30] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:31] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:33] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:41] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:47] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:49] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:51] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:30:57] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:00] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:08] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:08] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:08] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:14] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:17] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:31:25] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -

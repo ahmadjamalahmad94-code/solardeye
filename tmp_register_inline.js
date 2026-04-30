@@ -1,0 +1,1 @@
+window.SOLARDEYE_I18N = {};

@@ -191,6 +191,18 @@ html[dir="rtl"] .rg50-select { background-position: right 10px center; padding-i
 .rg50-match.show { display: block; }
 .rg50-match.good { color: var(--lg-emerald); }
 .rg50-match.bad { color: var(--lg-rose); }
+.rg50-username-status {
+  min-height: 18px;
+  margin-top: 4px;
+  font-size: .76rem;
+  font-weight: 800;
+  color: var(--lg-muted);
+}
+.rg50-username-status[data-state="checking"] { color: var(--lg-violet); }
+.rg50-username-status[data-state="available"] { color: var(--lg-emerald); }
+.rg50-username-status[data-state="taken"],
+.rg50-username-status[data-state="similar"],
+.rg50-username-status[data-state="error"] { color: var(--lg-rose); }
 
 /* Intent radio cards */
 .rg50-intent {

@@ -196,7 +196,67 @@ def account_subscription():
     tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
     plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
     ensure_plan_quotas_for_tenant(tenant, plan, commit=True)
-    return render_template('account_subscription_phase1a.html', user=user, tenant=tenant, subscription=sub, plan=plan, quota_rows=quota_summary_rows(getattr(tenant, 'id', None), _lang()), ui_lang=_lang())
+    all_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    # pre-parse features for each plan so the template doesn't need a from_json filter
+    from ..services.subscriptions import plan_features as _plan_features
+    plan_features_map = {p.id: _plan_features(p) for p in all_plans}
+    # compute remaining days for hero ring
+    now_dt = datetime.utcnow()
+    days_left_num = 0
+    if sub and sub.ends_at:
+        delta = (sub.ends_at.date() - now_dt.date()).days
+        days_left_num = max(delta, 0)
+    total_days = (plan.duration_days_default or 30) if plan else 30
+    pct_left = min(max(round(days_left_num / total_days * 100), 0), 100) if total_days else 0
+    # pending plan-change requests
+    pending_request = SupportCase.query.filter_by(
+        user_id=user.id, case_type='plan_change_request', status='open'
+    ).order_by(SupportCase.created_at.desc()).first()
+    return render_template(
+        'account_subscription_phase1a.html',
+        user=user, tenant=tenant, subscription=sub, plan=plan,
+        quota_rows=quota_summary_rows(getattr(tenant, 'id', None), _lang()),
+        all_plans=all_plans,
+        plan_features_map=plan_features_map,
+        days_left_num=days_left_num,
+        pct_left=pct_left,
+        pending_request=pending_request,
+        ui_lang=_lang(),
+    )
+
+
+@billing_bp.route('/account/subscription/request-change', methods=['POST'])
+def account_subscription_request_change():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan_id = int(request.form.get('plan_id') or 0)
+    message = (request.form.get('message') or '').strip()
+    target_plan = SubscriptionPlan.query.get(plan_id) if plan_id else None
+    if not target_plan:
+        flash('الخطة المطلوبة غير موجودة', 'warning')
+        return redirect(url_for('billing.account_subscription', lang=_lang()))
+    # cancel older open requests for the same user
+    SupportCase.query.filter_by(
+        user_id=user.id, case_type='plan_change_request', status='open'
+    ).update({'status': 'cancelled'})
+    plan_name = target_plan.name_ar or target_plan.name_en or target_plan.code
+    case = SupportCase(
+        case_type='plan_change_request',
+        source_id=user.id,
+        tenant_id=getattr(tenant, 'id', None),
+        user_id=user.id,
+        subject=f'طلب تغيير الخطة إلى {plan_name}',
+        priority='normal',
+        status='open',
+    )
+    # store target plan info and user note in case subject extended form
+    case.subject = f'طلب تغيير الخطة إلى {plan_name}' + (f' — {message}' if message else '')
+    db.session.add(case)
+    db.session.commit()
+    flash(f'تم إرسال طلب تغيير الخطة إلى "{plan_name}" بنجاح. سيتواصل معك الفريق قريبًا.', 'success')
+    return redirect(url_for('billing.account_subscription', lang=_lang()))
 
 
 @billing_bp.route('/admin/subscriptions')

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login_v50.css', v='v50-login-luxury-20260430') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/register_v50.css', v='v54-register-validation-alert-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/register_v50.css', v='v57-register-username-check-20260430') }}">
 {% endblock %}
 {% block title %}{{ 'Create account' if (ui_lang or 'ar') == 'en' else 'إنشاء حساب جديد' }}{% endblock %}
 {% block body %}
@@ -205,8 +205,9 @@
                   <span class="rg50-field-icon" aria-hidden="true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   </span>
-                  <input class="rg50-input" name="username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user" dir="ltr">
+                  <input class="rg50-input" name="username" id="rg50Username" value="{{ form_values.get('username','') }}" required autocomplete="username" placeholder="solar_user" dir="ltr">
                 </span>
+                <div class="rg50-username-status" id="rg50UsernameStatus" data-state="idle"></div>
               </label>
 
               <label class="rg50-field">
@@ -532,12 +533,14 @@
     if (!pw || !confirmEl || !matchEl) return;
     if (!confirmEl.value) { matchEl.classList.remove('show','good','bad'); matchEl.textContent = ''; return; }
     matchEl.classList.add('show');
+    var matchText = {{ ('✓ Passwords match' if is_en else '✓ كلمتا المرور متطابقتان') | tojson }};
+    var mismatchText = {{ ('✕ Passwords do not match' if is_en else '✕ كلمتا المرور غير متطابقتين') | tojson }};
     if (pw.value === confirmEl.value) {
       matchEl.classList.add('good'); matchEl.classList.remove('bad');
-      matchEl.textContent = {{ ("'✓ Passwords match'" if is_en else "'✓ كلمتا المرور متطابقتان'") }};
+      matchEl.textContent = matchText;
     } else {
       matchEl.classList.add('bad'); matchEl.classList.remove('good');
-      matchEl.textContent = {{ ("'✕ Passwords do not match'" if is_en else "'✕ كلمتا المرور غير متطابقتين'") }};
+      matchEl.textContent = mismatchText;
     }
   }
   confirmEl && confirmEl.addEventListener('input', checkMatch);
@@ -585,11 +588,13 @@
     }
     var selectedCity = (city && city.dataset.selected) || '';
     var cities = (opt.dataset.cities || '').split('|').filter(Boolean);
+    var chooseCityLabel = {{ ('Choose city' if is_en else '???? ???????') | tojson }};
+    var otherCityLabel = {{ ('Other city' if is_en else '????? ????') | tojson }};
     if (city) {
       city.innerHTML = '';
-      city.appendChild(new Option({{ ("'Choose city'" if is_en else "'اختر المدينة'") }}, ''));
+      city.appendChild(new Option(chooseCityLabel, ''));
       cities.forEach(function(name){ city.appendChild(new Option(name, name)); });
-      city.appendChild(new Option({{ ("'Other city'" if is_en else "'مدينة أخرى'") }}, '__other__'));
+      city.appendChild(new Option(otherCityLabel, '__other__'));
       if (selectedCity && Array.from(city.options).some(function(o){ return o.value === selectedCity; })) {
         city.value = selectedCity;
       }
@@ -611,7 +616,8 @@
 
   city && city.addEventListener('change', function(){
     if (this.value === '__other__') {
-      var custom = prompt({{ ("'Type city name'" if is_en else "'اكتب اسم المدينة'") }});
+      var customCityPrompt = {{ ('Type city name' if is_en else '???? ??? ???????') | tojson }};
+      var custom = prompt(customCityPrompt);
       if (custom && custom.trim()) {
         var opt = new Option(custom.trim(), custom.trim());
         city.add(opt, city.options[city.options.length - 1]);
@@ -817,6 +823,169 @@
       var x = (e.clientX / window.innerWidth - .5) * 12;
       var y = (e.clientY / window.innerHeight - .5) * 12;
       grid.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    });
+  }
+})();
+</script>
+<script>
+(function(){
+  if (window.__rg50WizardFallbackBound) return;
+  window.__rg50WizardFallbackBound = true;
+
+  var stepKeys = ['account', 'location', 'device'];
+  var usernameInput = document.getElementById('rg50Username');
+  var usernameStatus = document.getElementById('rg50UsernameStatus');
+  var usernameCheckUrl = {{ url_for('auth.register_username_check', lang=ui_lang) | tojson }};
+  var usernameCheckToken = 0;
+  var fallbackMessages = {
+    account: {{ ('Please fill in all required fields (username and password).' if is_en else 'يرجى ملء جميع الحقول المطلوبة (اسم المستخدم وكلمة المرور).') | tojson }},
+    location: {{ ('Please select your country and city before continuing.' if is_en else 'يرجى اختيار الدولة والمدينة للمتابعة.') | tojson }},
+    device: {{ ('Please complete the required fields.' if is_en else 'يرجى إكمال الحقول المطلوبة.') | tojson }},
+    mismatch: {{ ('Password confirmation does not match.' if is_en else 'تأكيد كلمة المرور غير متطابق.') | tojson }},
+    generic: {{ ('Please fill in all required fields.' if is_en else 'يرجى ملء الحقول المطلوبة.') | tojson }},
+    usernameTaken: {{ ('This username is already taken. Choose another username.' if is_en else 'اسم المستخدم مستخدم بالفعل. اختر اسم مستخدم ثاني.') | tojson }},
+    usernameChecking: {{ ('Checking username...' if is_en else 'جاري فحص اسم المستخدم...') | tojson }}
+  };
+
+  function setUsernameStatus(state, message){
+    if (!usernameStatus) return;
+    usernameStatus.dataset.state = state || 'idle';
+    usernameStatus.textContent = message || '';
+  }
+
+  async function checkUsernameAvailability(forceMessage){
+    if (!usernameInput) return { available: true, skipped: true };
+    var username = (usernameInput.value || '').trim();
+    if (!username) {
+      setUsernameStatus('idle', '');
+      return { available: false, reason: 'empty', message: fallbackMessages.account };
+    }
+    var currentToken = ++usernameCheckToken;
+    if (forceMessage) setUsernameStatus('checking', fallbackMessages.usernameChecking);
+    try {
+      var url = new URL(usernameCheckUrl, window.location.origin);
+      url.searchParams.set('username', username);
+      var response = await fetch(url.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      var payload = await response.json();
+      if (currentToken !== usernameCheckToken) return payload;
+      if (payload.available) {
+        setUsernameStatus('available', payload.message || '');
+      } else {
+        setUsernameStatus(payload.reason || 'taken', payload.message || fallbackMessages.usernameTaken);
+      }
+      return payload;
+    } catch (error) {
+      if (currentToken === usernameCheckToken) {
+        setUsernameStatus('error', '');
+      }
+      return { available: true, error: true };
+    }
+  }
+
+  function clearErrors(){
+    document.querySelectorAll('[data-step-error]').forEach(function(box){
+      box.hidden = true;
+      box.textContent = '';
+    });
+    document.querySelectorAll('.rg50-field-input.error').forEach(function(holder){
+      holder.classList.remove('error');
+    });
+  }
+
+  function setError(stepKey, message){
+    var box = document.querySelector('[data-step-error="' + stepKey + '"]');
+    if (!box) return;
+    box.hidden = false;
+    box.textContent = message;
+  }
+
+  function moveTo(stepKey){
+    if (stepKeys.indexOf(stepKey) === -1) return;
+    document.querySelectorAll('.rg50-step-panel').forEach(function(panel){
+      panel.classList.toggle('is-active', panel.dataset.step === stepKey);
+    });
+    document.querySelectorAll('.rg50-step').forEach(function(step){
+      var idx = stepKeys.indexOf(step.dataset.step);
+      var targetIdx = stepKeys.indexOf(stepKey);
+      step.classList.toggle('active', idx === targetIdx);
+      step.classList.toggle('done', idx < targetIdx);
+      step.classList.toggle('clickable', idx < targetIdx);
+    });
+    var card = document.querySelector('.lg50-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function validate(panel){
+    if (!panel) return true;
+    clearErrors();
+    var stepKey = panel.dataset.step;
+    var message = fallbackMessages[stepKey] || fallbackMessages.generic;
+    var firstBad = null;
+
+    panel.querySelectorAll('input[required], select[required]').forEach(function(el){
+      var holder = el.closest('.rg50-field-input');
+      var invalid = !el.value || !el.checkValidity();
+      if (!invalid) return;
+      if (holder) holder.classList.add('error');
+      if (!firstBad) firstBad = el;
+    });
+
+    if (stepKey === 'account') {
+      var password = document.getElementById('rg50Password');
+      var confirm = document.getElementById('rg50ConfirmPassword');
+      if (password && confirm && password.value && confirm.value && password.value !== confirm.value) {
+        message = fallbackMessages.mismatch;
+        var confirmHolder = confirm.closest('.rg50-field-input');
+        if (confirmHolder) confirmHolder.classList.add('error');
+        firstBad = firstBad || confirm;
+      }
+      var usernameResult = await checkUsernameAvailability(true);
+      if (!usernameResult.available) {
+        message = usernameResult.message || fallbackMessages.usernameTaken;
+        var usernameHolder = usernameInput && usernameInput.closest('.rg50-field-input');
+        if (usernameHolder) usernameHolder.classList.add('error');
+        firstBad = firstBad || usernameInput;
+      }
+    }
+
+    if (!firstBad) return true;
+    setError(stepKey, message);
+    firstBad.focus();
+    return false;
+  }
+
+  document.querySelectorAll('[data-next]').forEach(function(btn){
+    if (btn.dataset.fallbackBound === '1') return;
+    btn.dataset.fallbackBound = '1';
+    btn.addEventListener('click', async function(){
+      var panel = btn.closest('.rg50-step-panel') || document.querySelector('.rg50-step-panel.is-active');
+      if (!(await validate(panel))) return;
+      moveTo(btn.dataset.next);
+    });
+  });
+
+  document.querySelectorAll('[data-back]').forEach(function(btn){
+    if (btn.dataset.fallbackBackBound === '1') return;
+    btn.dataset.fallbackBackBound = '1';
+    btn.addEventListener('click', function(){
+      if (btn.dataset.back) moveTo(btn.dataset.back);
+    });
+  });
+
+  if (usernameInput) {
+    var debounceTimer = null;
+    usernameInput.addEventListener('input', function(){
+      setUsernameStatus('idle', '');
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(function(){
+        if ((usernameInput.value || '').trim().length >= 3) checkUsernameAvailability(true);
+      }, 320);
+    });
+    usernameInput.addEventListener('blur', function(){
+      if ((usernameInput.value || '').trim()) checkUsernameAvailability(true);
     });
   }
 })();

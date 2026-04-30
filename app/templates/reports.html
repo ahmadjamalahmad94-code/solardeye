@@ -1,169 +1,428 @@
 {% extends 'base.html' %}
 {% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<style>
+/* ═══════════════════════════════════════════════
+   REPORTS  —  rp-  prefix
+═══════════════════════════════════════════════ */
+.rp-page { padding: 2rem 2rem 3.5rem; max-width: 1280px; margin: 0 auto; }
+@media (max-width: 700px) { .rp-page { padding: 1rem 1rem 2.5rem; } }
+
+/* ── header ── */
+.rp-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+}
+.rp-header-left .rp-eyebrow {
+  font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.35);
+  text-transform: uppercase; letter-spacing: .9px;
+}
+.rp-header-left h1 {
+  font-size: 1.75rem; font-weight: 800; color: #fff; margin: .2rem 0 .35rem; line-height: 1.2;
+}
+.rp-header-left p { font-size: .88rem; color: rgba(255,255,255,.45); margin: 0; }
+.rp-export-row { display: flex; gap: .6rem; align-items: center; }
+.rp-export-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: 10px; font-size: .8rem; font-weight: 600;
+  text-decoration: none; border: none; cursor: pointer; transition: all .2s;
+}
+.rp-export-btn.csv { background: rgba(255,255,255,.07); color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.12); }
+.rp-export-btn.csv:hover { background: rgba(255,255,255,.13); color: #fff; }
+.rp-export-btn.pdf { background: linear-gradient(135deg,#f59e0b,#d97706); color: #fff; }
+.rp-export-btn.pdf:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(245,158,11,.3); }
+
+/* ── nav bar ── */
+.rp-nav-bar {
+  background: rgba(30,35,50,.75); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 16px;
+  padding: 1rem 1.25rem; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  margin-bottom: 2rem;
+}
+.rp-seg { display: flex; background: rgba(255,255,255,.06); border-radius: 10px; padding: 3px; gap: 2px; }
+.rp-seg-btn {
+  padding: .45rem 1.1rem; border-radius: 8px; border: none; background: none;
+  color: rgba(255,255,255,.5); font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.rp-seg-btn:hover { color: rgba(255,255,255,.8); }
+.rp-seg-btn.active { background: rgba(245,158,11,.2); color: #f59e0b; }
+.rp-date-nav { display: flex; align-items: center; gap: .5rem; }
+.rp-date-arrow {
+  width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.7); display: flex;
+  align-items: center; justify-content: center; font-size: 1.1rem;
+  text-decoration: none; transition: all .2s; font-weight: 600;
+}
+.rp-date-arrow:hover { background: rgba(255,255,255,.14); color: #fff; }
+.rp-date-arrow.dim { opacity: .3; pointer-events: none; }
+.rp-date-input {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px; color: #fff; padding: .45rem .75rem; font-size: .83rem;
+  outline: none; min-width: 130px; transition: border-color .2s;
+}
+.rp-date-input:focus { border-color: #f59e0b; }
+.rp-apply-btn {
+  padding: .45rem 1rem; border-radius: 10px; background: rgba(245,158,11,.15);
+  border: 1px solid rgba(245,158,11,.25); color: #f59e0b; font-size: .82rem;
+  font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.rp-apply-btn:hover { background: rgba(245,158,11,.25); }
+.rp-title-hint { font-size: .8rem; color: rgba(255,255,255,.4); }
+
+/* ── base card ── */
+.rp-card {
+  background: rgba(30,35,50,.8); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 18px; overflow: hidden;
+}
+.rp-card-head { padding: 1.4rem 1.5rem 0; margin-bottom: 1.2rem; }
+.rp-card-head h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0 0 .2rem; }
+.rp-card-head small { font-size: .75rem; color: rgba(255,255,255,.38); }
+
+/* ── hero insight cards ── */
+.rp-insights { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.25rem; }
+@media (max-width: 900px) { .rp-insights { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 480px) { .rp-insights { grid-template-columns: 1fr; } }
+.rp-insight {
+  background: rgba(30,35,50,.8); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 18px;
+  padding: 1.6rem 1.4rem 1.35rem; position: relative; overflow: hidden;
+  transition: border-color .25s;
+}
+.rp-insight:hover { border-color: rgba(255,255,255,.18); }
+.rp-insight::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+}
+.rp-insight.self::before   { background: radial-gradient(ellipse at 80% 20%,#10b981,transparent 65%); opacity: .1; }
+.rp-insight.solar::before  { background: radial-gradient(ellipse at 80% 20%,#f59e0b,transparent 65%); opacity: .12; }
+.rp-insight.batt::before   { background: radial-gradient(ellipse at 80% 20%,#6366f1,transparent 65%); opacity: .12; }
+.rp-insight.surplus::before{ background: radial-gradient(ellipse at 80% 20%,#f97316,transparent 65%); opacity: .1; }
+.rp-insight-icon { font-size: 1.8rem; margin-bottom: .65rem; display: block; }
+.rp-insight-label { font-size: .72rem; color: rgba(255,255,255,.42); font-weight: 600; letter-spacing: .3px; margin-bottom: .25rem; }
+.rp-insight-value { font-size: 2.2rem; font-weight: 900; line-height: 1.05; margin-bottom: .3rem; }
+.rp-insight.self   .rp-insight-value { color: #34d399; }
+.rp-insight.solar  .rp-insight-value { color: #fcd34d; }
+.rp-insight.batt   .rp-insight-value { color: #a5b4fc; }
+.rp-insight.surplus .rp-insight-value { color: #fb923c; }
+.rp-insight-desc { font-size: .73rem; color: rgba(255,255,255,.35); line-height: 1.55; }
+
+/* ── KPI strip ── */
+.rp-kpis { display: grid; grid-template-columns: repeat(6,1fr); gap: .75rem; margin-bottom: 1.25rem; }
+@media (max-width: 1100px) { .rp-kpis { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 600px)  { .rp-kpis { grid-template-columns: repeat(2,1fr); } }
+.rp-kpi {
+  background: rgba(30,35,50,.75); border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px; padding: 1rem .95rem;
+}
+.rp-kpi-label { font-size: .67rem; color: rgba(255,255,255,.38); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: .4rem; }
+.rp-kpi-val { font-size: 1.15rem; font-weight: 800; color: #fff; line-height: 1.2; }
+.rp-kpi-unit { font-size: .73rem; color: rgba(255,255,255,.38); font-weight: 400; }
+
+/* ── main chart section ── */
+.rp-body { display: grid; grid-template-columns: 1fr 320px; gap: 1.25rem; margin-bottom: 1.25rem; }
+@media (max-width: 1060px) { .rp-body { grid-template-columns: 1fr; } }
+.rp-chart-wrap { padding: 0 1.5rem 1.5rem; }
+.rp-chart-wrap canvas { width: 100% !important; }
+.rp-side-stack { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* weather card */
+.rp-weather-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.rp-weather-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 50px; padding: .3rem .8rem; font-size: .78rem; color: rgba(255,255,255,.7);
+}
+.rp-weather-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .65rem;
+  padding: 0 1.5rem 1.5rem;
+}
+.rp-weather-cell {
+  background: rgba(255,255,255,.04); border-radius: 12px; padding: .75rem .9rem;
+}
+.rp-weather-cell span { display: block; font-size: .67rem; color: rgba(255,255,255,.38); font-weight: 600; text-transform: uppercase; letter-spacing: .35px; margin-bottom: .25rem; }
+.rp-weather-cell strong { font-size: 1rem; font-weight: 700; color: #fff; }
+.rp-empty { padding: 1.5rem; font-size: .82rem; color: rgba(255,255,255,.35); text-align: center; }
+
+/* mix donut card */
+.rp-mix-chart-wrap { padding: 0 1.5rem 1.5rem; }
+
+/* smart loads card */
+.rp-loads-list { padding: 0 1.5rem 1.5rem; display: flex; flex-direction: column; gap: .6rem; }
+.rp-load-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px; padding: .65rem .9rem;
+}
+.rp-load-row .rp-load-name { font-size: .83rem; font-weight: 600; color: rgba(255,255,255,.8); }
+.rp-load-row .rp-load-watt { font-size: .78rem; font-weight: 700; color: #34d399; }
+.rp-loads-note { padding: 0 1.5rem 1.4rem; font-size: .78rem; color: rgba(255,255,255,.38); line-height: 1.6; }
+
+/* ── table ── */
+.rp-table-card { margin-bottom: 0; }
+.rp-table-scroll { overflow-x: auto; }
+.rp-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.rp-table thead th {
+  padding: .75rem 1.1rem; text-align: start; font-size: .68rem; font-weight: 700;
+  color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap;
+}
+.rp-table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); transition: background .15s; }
+.rp-table tbody tr:last-child { border-bottom: none; }
+.rp-table tbody tr:hover { background: rgba(255,255,255,.03); }
+.rp-table tbody td { padding: .8rem 1.1rem; color: rgba(255,255,255,.75); white-space: nowrap; }
+.rp-period-pill {
+  display: inline-block; padding: .2rem .7rem; border-radius: 20px;
+  background: rgba(255,255,255,.07); font-size: .75rem; color: rgba(255,255,255,.6); font-weight: 600;
+}
+.rp-table-empty { padding: 2.5rem; text-align: center; color: rgba(255,255,255,.3); font-size: .88rem; }
+.rp-val-solar { color: #fcd34d !important; }
+.rp-val-home  { color: #a5b4fc !important; }
+.rp-val-batt  { color: #6ee7b7 !important; }
+.rp-val-grid  { color: #fca5a5 !important; }
+</style>
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>لوحة التقارير الاحترافية</h1>
-          <p class="mb-0">ملخص مرئي وتحليلي للفترة المختارة، مع مؤشرات أداء واضحة وقابلة للتصدير.</p>
-        </div>
-      </div>
-      <div class="topbar-actions d-flex gap-2">
-        <a class="btn btn-outline-primary" href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">CSV</a>
-        <a class="btn btn-solar" href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">PDF</a>
-      </div>
-    </header>
+    <div class="rp-page" dir="{{ dir }}">
 
-    <section class="stats-toolbar-v10 panel-card">
-      <form method="get" action="{{ url_for('main.reports') }}" class="stats-toolbar-grid">
-        <div class="segmented-control">
-          <button class="seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">يومي</button>
-          <button class="seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">أسبوعي</button>
-          <button class="seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">شهري</button>
+      <!-- ── PAGE HEADER ── -->
+      <div class="rp-header">
+        <div class="rp-header-left">
+          <div class="rp-eyebrow">{{ 'Performance Analytics' if is_en else 'تحليل الأداء' }}</div>
+          <h1>{{ 'Reports Dashboard' if is_en else 'لوحة التقارير' }}</h1>
+          <p>{{ 'A visual executive summary of energy performance, efficiency indicators, and smart recommendations.' if is_en else 'ملخص تنفيذي مرئي لأداء الطاقة ومؤشرات الكفاءة والتوصيات الذكية.' }}</p>
         </div>
-        <div class="period-picker">
-          <a class="nav-date-btn" href="{{ url_for('main.reports', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
-          <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" class="form-control stats-date-input">
-          <button class="btn btn-outline-primary" type="submit">تطبيق</button>
-          {% if can_go_next %}<a class="nav-date-btn" href="{{ url_for('main.reports', view=selected_view, date=next_date.strftime('%Y-%m-%d')) }}">›</a>{% endif %}
+        <div class="rp-export-row">
+          <a class="rp-export-btn csv"
+             href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
+            📋 CSV
+          </a>
+          <a class="rp-export-btn pdf"
+             href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
+            📄 PDF
+          </a>
+        </div>
+      </div>
+
+      <!-- ── PERIOD NAV ── -->
+      <form method="get" action="{{ url_for('main.reports') }}">
+        <div class="rp-nav-bar">
+          <div class="rp-seg">
+            <button class="rp-seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">{{ 'Daily' if is_en else 'يومي' }}</button>
+            <button class="rp-seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">{{ 'Weekly' if is_en else 'أسبوعي' }}</button>
+            <button class="rp-seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">{{ 'Monthly' if is_en else 'شهري' }}</button>
+          </div>
+          <div class="rp-date-nav">
+            <a class="rp-date-arrow" href="{{ url_for('main.reports', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
+            <input class="rp-date-input" type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+            <a class="rp-date-arrow {{ '' if can_go_next else 'dim' }}"
+               href="{{ url_for('main.reports', view=selected_view, date=next_date.strftime('%Y-%m-%d')) if can_go_next else '#' }}">›</a>
+            <button class="rp-apply-btn" type="submit">{{ 'Apply' if is_en else 'تطبيق' }}</button>
+          </div>
+          <span class="rp-title-hint">📅 {{ title_hint }}</span>
         </div>
       </form>
-    </section>
 
-    <section class="report-hero-grid mt-4">
-      <div class="report-hero-card accent-aqua">
-        <span>استقلال الطاقة</span>
-        <strong>{{ self_sufficiency }}%</strong>
-        <small>كلما ارتفعت النسبة قل اعتمادك على الشبكة</small>
+      <!-- ── INSIGHT HERO CARDS ── -->
+      <div class="rp-insights">
+        <div class="rp-insight self">
+          <span class="rp-insight-icon">🛡️</span>
+          <div class="rp-insight-label">{{ 'Energy Self-Sufficiency' if is_en else 'الاستقلالية الطاقوية' }}</div>
+          <div class="rp-insight-value">{{ self_sufficiency }}%</div>
+          <div class="rp-insight-desc">{{ 'Higher means less reliance on the public grid — the goal is to reach 100% on sunny days.' if is_en else 'كلما ارتفعت هذه النسبة قلّ اعتمادك على الشبكة العامة — الهدف الوصول إلى 100% في الأيام المشمسة.' }}</div>
+        </div>
+        <div class="rp-insight solar">
+          <span class="rp-insight-icon">☀️</span>
+          <div class="rp-insight-label">{{ 'Solar Share of Consumption' if is_en else 'تغطية الشمس للاستهلاك' }}</div>
+          <div class="rp-insight-value">{{ solar_share }}%</div>
+          <div class="rp-insight-desc">{{ 'Portion of home energy demand met directly by solar power.' if is_en else 'حصة الطاقة الشمسية من إجمالي الاستهلاك المنزلي خلال هذه الفترة.' }}</div>
+        </div>
+        <div class="rp-insight batt">
+          <span class="rp-insight-icon">🔋</span>
+          <div class="rp-insight-label">{{ 'Battery Charging from Solar' if is_en else 'شحن البطارية من الشمس' }}</div>
+          <div class="rp-insight-value">{{ battery_share }}%</div>
+          <div class="rp-insight-desc">{{ 'Share of solar energy that was stored in the battery for later use.' if is_en else 'نسبة الطاقة الشمسية التي خُزّنت في البطارية للاستخدام لاحقًا.' }}</div>
+        </div>
+        <div class="rp-insight surplus">
+          <span class="rp-insight-icon">⚡</span>
+          <div class="rp-insight-label">{{ 'Solar Surplus Energy' if is_en else 'فائض الطاقة الشمسية' }}</div>
+          <div class="rp-insight-value">{{ solar_surplus }} <span style="font-size:1.1rem;">kWh</span></div>
+          <div class="rp-insight-desc">{{ 'Solar production that exceeded immediate home consumption — available for export or storage.' if is_en else 'الإنتاج الشمسي الذي تجاوز الاستهلاك الفوري — متاح للتخزين أو التصدير.' }}</div>
+        </div>
       </div>
-      <div class="report-hero-card accent-blue">
-        <span>تغطية الشمس للحمل</span>
-        <strong>{{ solar_share }}%</strong>
-        <small>من الاستهلاك الكلي للفترة</small>
-      </div>
-      <div class="report-hero-card accent-indigo">
-        <span>شحن البطارية من الشمس</span>
-        <strong>{{ battery_share }}%</strong>
-        <small>نسبة الطاقة الشمسية التي ذهبت لشحن البطارية</small>
-      </div>
-      <div class="report-hero-card accent-amber">
-        <span>الطاقة الشمسية الفائضة</span>
-        <strong>{{ solar_surplus }} kWh</strong>
-        <small>إنتاج لم يذهب مباشرة للحمل</small>
-      </div>
-    </section>
 
-    <section class="report-kpi-grid mt-4">
-      <div class="panel-card kpi-large"><span>إنتاج الشمس</span><strong>{{ stats.solar_generated_kwh }} kWh</strong></div>
-      <div class="panel-card kpi-large"><span>استهلاك المنزل</span><strong>{{ stats.home_consumed_kwh }} kWh</strong></div>
-      <div class="panel-card kpi-large"><span>من الشمس إلى البطارية</span><strong>{{ stats.solar_to_battery_kwh }} kWh</strong></div>
-      <div class="panel-card kpi-large"><span>متوسط البطارية</span><strong>{{ stats.avg_battery_soc }}%</strong></div>
-      <div class="panel-card kpi-large"><span>أعلى إنتاج لحظي</span><strong>{{ stats.max_solar_w }} W</strong></div>
-      <div class="panel-card kpi-large"><span>متوسط الحمل التقريبي</span><strong>{{ avg_load }} W</strong></div>
-    </section>
+      <!-- ── KPI STRIP ── -->
+      <div class="rp-kpis">
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Solar Generated' if is_en else 'إنتاج الشمس' }}</div>
+          <div class="rp-kpi-val">{{ stats.solar_generated_kwh }} <span class="rp-kpi-unit">kWh</span></div>
+        </div>
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Home Consumed' if is_en else 'استهلاك المنزل' }}</div>
+          <div class="rp-kpi-val">{{ stats.home_consumed_kwh }} <span class="rp-kpi-unit">kWh</span></div>
+        </div>
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Stored in Battery' if is_en else 'مخزّن في البطارية' }}</div>
+          <div class="rp-kpi-val">{{ stats.solar_to_battery_kwh }} <span class="rp-kpi-unit">kWh</span></div>
+        </div>
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Avg Battery SOC' if is_en else 'متوسط شحن البطارية' }}</div>
+          <div class="rp-kpi-val">{{ stats.avg_battery_soc }}<span class="rp-kpi-unit">%</span></div>
+        </div>
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Peak Solar Power' if is_en else 'ذروة الإنتاج' }}</div>
+          <div class="rp-kpi-val">{{ stats.max_solar_w }} <span class="rp-kpi-unit">W</span></div>
+        </div>
+        <div class="rp-kpi">
+          <div class="rp-kpi-label">{{ 'Avg Load' if is_en else 'متوسط الحمل' }}</div>
+          <div class="rp-kpi-val">{{ avg_load }} <span class="rp-kpi-unit">W</span></div>
+        </div>
+      </div>
 
-    <section class="stats-layout-v10 report-layout mt-4">
-      <div class="panel-card stats-main-panel">
-        <div class="stats-panel-head">
-          <div>
-            <h3>الملف الزمني للطاقة</h3>
+      <!-- ── MAIN CHART + SIDE STACK ── -->
+      <div class="rp-body">
+
+        <!-- Main chart -->
+        <div class="rp-card">
+          <div class="rp-card-head">
+            <h3>{{ 'Energy Time Profile' if is_en else 'الملف الزمني للطاقة' }}</h3>
             <small>{{ title_hint }}</small>
           </div>
-        </div>
-        <div class="report-chart-wrap report-main-chart-wrap">
-          <canvas id="reportsMainChart"
-            data-kind="{{ selected_view }}"
-            data-labels='{{ chart.labels|tojson }}'
-            data-solar='{{ chart.solar|tojson }}'
-            data-home='{{ chart.home|tojson }}'
-            data-battery='{{ chart.battery|tojson }}'
-            data-grid='{{ chart.grid|tojson }}'
-            data-soc='{{ chart.soc|tojson }}'></canvas>
-        </div>
-      </div>
-      <div class="report-side-stack">
-        <div class="panel-card report-weather-card">
-          <div class="report-weather-top">
-            <div>
-              <h3>ملخص الطقس الحالي</h3>
-              <small>لربط الأداء الجوي مع الإنتاج</small>
-            </div>
-            {% if weather %}<div class="weather-chip">{{ weather.icon }} {{ weather.condition_ar }}</div>{% endif %}
-          </div>
-          {% if weather %}
-          <div class="weather-grid-mini">
-            <div><span>الآن</span><strong>{{ weather.temperature }}°</strong></div>
-            <div><span>الغيوم</span><strong>{{ weather.cloud_cover }}%</strong></div>
-            <div><span>بعد ساعة</span><strong>{{ weather.next_hour.condition_ar if weather.next_hour else '—' }}</strong></div>
-            <div><span>التوقع القادم</span><strong>{{ weather.next_hour.temperature if weather.next_hour else '—' }}°</strong></div>
-          </div>
-          {% else %}
-          <div class="empty-state">لا تتوفر بيانات طقس للموقع الحالي.</div>
-          {% endif %}
-        </div>
-        <div class="panel-card report-ratio-card">
-          <div class="stats-panel-head compact"><div><h3>توزيع الطاقة</h3><small>شمس / بطارية / شبكة</small></div></div>
-          <div class="report-chart-wrap report-mix-chart-wrap">
-            <canvas id="reportsMixChart" data-values='{{ [stats.solar_to_home_kwh, stats.battery_to_home_kwh, stats.grid_to_home_kwh]|tojson }}'></canvas>
+          <div class="rp-chart-wrap">
+            <canvas id="reportsMainChart" height="260"
+              data-kind="{{ selected_view }}"
+              data-labels='{{ chart.labels|tojson }}'
+              data-solar='{{ chart.solar|tojson }}'
+              data-home='{{ chart.home|tojson }}'
+              data-battery='{{ chart.battery|tojson }}'
+              data-grid='{{ chart.grid|tojson }}'
+              data-soc='{{ chart.soc|tojson }}'></canvas>
           </div>
         </div>
-        <div class="panel-card report-load-card">
-          <div class="stats-panel-head compact"><div><h3>اقتراح الأحمال الآن</h3><small>مبني على الفائض وحالة البطارية</small></div></div>
-          <div class="smart-chip-list">
-            {% for item in smart_loads.can_run[:4] %}
-              <div class="smart-chip success"><span>{{ item.name }}</span><strong>{{ item.power_w|round(0)|int }}W</strong></div>
-            {% else %}
-              <div class="empty-state">لا يوجد حمل مناسب حاليًا.</div>
-            {% endfor %}
-          </div>
-          <p class="mt-3 mb-0">{{ smart_loads.headline_ar }}</p>
-        </div>
-      </div>
-    </section>
 
-    <section class="panel-card mt-4">
-      <div class="stats-panel-head">
-        <div>
-          <h3>الجدول التنفيذي</h3>
-          <small>تفصيل الفترات الفرعية داخل {{ title_hint }}</small>
+        <!-- Side stack -->
+        <div class="rp-side-stack">
+
+          <!-- Weather -->
+          <div class="rp-card">
+            <div class="rp-card-head">
+              <div class="rp-weather-head">
+                <div>
+                  <h3>{{ 'Current Weather' if is_en else 'حالة الطقس الحالية' }}</h3>
+                  <small>{{ 'Links atmospheric conditions to solar output' if is_en else 'يربط الحالة الجوية بالإنتاج الشمسي' }}</small>
+                </div>
+                {% if weather %}
+                <div class="rp-weather-chip">{{ weather.icon }} {{ weather.condition_ar }}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% if weather %}
+            <div class="rp-weather-grid">
+              <div class="rp-weather-cell">
+                <span>{{ 'Now' if is_en else 'الآن' }}</span>
+                <strong>{{ weather.temperature }}°</strong>
+              </div>
+              <div class="rp-weather-cell">
+                <span>{{ 'Cloud Cover' if is_en else 'الغيوم' }}</span>
+                <strong>{{ weather.cloud_cover }}%</strong>
+              </div>
+              <div class="rp-weather-cell">
+                <span>{{ 'In 1 Hour' if is_en else 'بعد ساعة' }}</span>
+                <strong>{{ weather.next_hour.condition_ar if weather.next_hour else '—' }}</strong>
+              </div>
+              <div class="rp-weather-cell">
+                <span>{{ 'Forecast Temp.' if is_en else 'الحرارة المتوقعة' }}</span>
+                <strong>{{ weather.next_hour.temperature if weather.next_hour else '—' }}°</strong>
+              </div>
+            </div>
+            {% else %}
+            <div class="rp-empty">{{ 'No weather data available for this location.' if is_en else 'لا تتوفر بيانات طقس للموقع الحالي.' }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Energy mix donut -->
+          <div class="rp-card">
+            <div class="rp-card-head">
+              <h3>{{ 'Energy Source Mix' if is_en else 'توزيع مصادر الطاقة' }}</h3>
+              <small>{{ 'Solar / Battery / Grid contribution' if is_en else 'شمس / بطارية / شبكة' }}</small>
+            </div>
+            <div class="rp-mix-chart-wrap">
+              <canvas id="reportsMixChart" height="180"
+                data-values='{{ [stats.solar_to_home_kwh, stats.battery_to_home_kwh, stats.grid_to_home_kwh]|tojson }}'></canvas>
+            </div>
+            <div style="display:flex;gap:.6rem;padding:.2rem 1.5rem 1.25rem;flex-wrap:wrap;">
+              <span style="font-size:.72rem;color:#fcd34d;">☀️ {{ solar_share }}% {{ 'Solar' if is_en else 'شمس' }}</span>
+              <span style="font-size:.72rem;color:#6ee7b7;">🔋 {{ battery_share }}% {{ 'Battery' if is_en else 'بطارية' }}</span>
+              <span style="font-size:.72rem;color:#fca5a5;">⚡ {{ grid_share }}% {{ 'Grid' if is_en else 'شبكة' }}</span>
+            </div>
+          </div>
+
+          <!-- Smart loads -->
+          <div class="rp-card">
+            <div class="rp-card-head">
+              <h3>{{ 'Load Suggestions Now' if is_en else 'اقتراح الأحمال الآن' }}</h3>
+              <small>{{ 'Based on current surplus and battery state' if is_en else 'مبني على الفائض الحالي وحالة البطارية' }}</small>
+            </div>
+            {% if smart_loads.can_run %}
+            <div class="rp-loads-list">
+              {% for item in smart_loads.can_run[:4] %}
+              <div class="rp-load-row">
+                <span class="rp-load-name">{{ item.name }}</span>
+                <span class="rp-load-watt">{{ item.power_w|round(0)|int }} W</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="rp-empty">{{ 'No suitable loads to run right now.' if is_en else 'لا يوجد حمل مناسب للتشغيل حاليًا.' }}</div>
+            {% endif %}
+            <div class="rp-loads-note">{{ smart_loads.headline_en if is_en else smart_loads.headline_ar }}</div>
+          </div>
+
+        </div><!-- .rp-side-stack -->
+      </div><!-- .rp-body -->
+
+      <!-- ── EXECUTIVE TABLE ── -->
+      <div class="rp-card rp-table-card">
+        <div class="rp-card-head">
+          <h3>{{ 'Executive Report Table' if is_en else 'الجدول التنفيذي' }}</h3>
+          <small>{{ 'Detailed sub-period breakdown for ' if is_en else 'تفصيل الفترات الفرعية لـ ' }}{{ title_hint }}</small>
+        </div>
+        <div class="rp-table-scroll">
+          <table class="rp-table">
+            <thead>
+              <tr>
+                <th>{{ 'Period' if is_en else 'الفترة' }}</th>
+                <th>{{ 'Solar' if is_en else 'شمس' }}</th>
+                <th>{{ 'Home' if is_en else 'منزل' }}</th>
+                <th>{{ 'Sun → Home' if is_en else 'شمس ← بيت' }}</th>
+                <th>{{ 'Sun → Battery' if is_en else 'شمس ← بطارية' }}</th>
+                <th>{{ 'Battery → Home' if is_en else 'بطارية ← بيت' }}</th>
+                <th>{{ 'Grid → Home' if is_en else 'شبكة ← بيت' }}</th>
+                <th>{{ 'Battery %' if is_en else 'بطارية %' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table_rows %}
+              <tr>
+                <td><span class="rp-period-pill">{{ row.label }}</span></td>
+                <td class="rp-val-solar">{{ row.solar_generated_kwh }}</td>
+                <td class="rp-val-home">{{ row.home_consumed_kwh }}</td>
+                <td>{{ row.solar_to_home_kwh }}</td>
+                <td>{{ row.solar_to_battery_kwh }}</td>
+                <td class="rp-val-batt">{{ row.battery_to_home_kwh }}</td>
+                <td class="rp-val-grid">{{ row.grid_to_home_kwh }}</td>
+                <td>{{ row.avg_battery_soc }}%</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="8"><div class="rp-table-empty">{{ 'No data for this period yet.' if is_en else 'لا توجد بيانات لهذه الفترة بعد.' }}</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div class="table-responsive">
-        <table class="table align-middle solar-table mb-0 stats-modern-table">
-          <thead>
-            <tr>
-              <th>الفترة</th>
-              <th>شمس</th>
-              <th>منزل</th>
-              <th>شمس ← بيت</th>
-              <th>شمس ← بطارية</th>
-              <th>بطارية ← بيت</th>
-              <th>شبكة ← بيت</th>
-              <th>بطارية %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in table_rows %}
-            <tr>
-              <td><span class="stats-pill">{{ row.label }}</span></td>
-              <td>{{ row.solar_generated_kwh }}</td>
-              <td>{{ row.home_consumed_kwh }}</td>
-              <td>{{ row.solar_to_home_kwh }}</td>
-              <td>{{ row.solar_to_battery_kwh }}</td>
-              <td>{{ row.battery_to_home_kwh }}</td>
-              <td>{{ row.grid_to_home_kwh }}</td>
-              <td>{{ row.avg_battery_soc }}%</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="8" class="text-center py-4">لا توجد بيانات كافية لهذه الفترة.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+
+    </div><!-- .rp-page -->
   </main>
 </div>
 {% endblock %}
