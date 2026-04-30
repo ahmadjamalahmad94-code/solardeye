@@ -8,7 +8,6 @@
 {% set site_name = (landing.site_name_en if is_en else landing.site_name_ar) if (landing is defined and landing) else ('Solar Energy Platform' if is_en else 'منصة الطاقة الشمسية') %}
 
 <div class="lg50-page">
-  {# Animated layers #}
   <div class="lg50-bg" aria-hidden="true"></div>
   <div class="lg50-stars" aria-hidden="true"></div>
   <div class="lg50-particles" aria-hidden="true">
@@ -20,15 +19,11 @@
     <span class="lg50-particle"></span>
   </div>
 
-  {# Floating language switcher #}
   <a class="lg50-lang-toggle" href="?lang={{ next_lang }}" title="{{ 'Switch language' if is_en else 'تغيير اللغة' }}">
     🌐 <span>{{ 'العربية' if is_en else 'English' }}</span>
   </a>
 
   <div class="lg50-stage">
-    {# ============================================================
-       LEFT — SHOWCASE / MARKETING PANEL
-       ============================================================ #}
     <aside class="lg50-showcase">
       <div class="lg50-showcase-grid" aria-hidden="true"></div>
 
@@ -45,10 +40,10 @@
           <i>✦</i>{{ 'Welcome back' if is_en else 'مرحبًا بعودتك' }}
         </span>
 
-        <h1>{{ 'Power your future with intelligence.' if is_en else 'قيادة طاقتك بذكاء يصنع الفرق.' }}</h1>
+        <h1>{{ 'Power your future with intelligence.' if is_en else 'قد طاقتك بذكاء يصنع الفرق.' }}</h1>
 
         <p class="lg50-tagline">
-          {{ 'Real-time monitoring, smart alerts, and AI-powered forecasts — all in one professional command center for solar systems and connected devices.' if is_en else 'مراقبة لحظية، تنبيهات ذكية، وتوقعات مدعومة بالذكاء الاصطناعي — في مركز قيادة احترافي واحد لأنظمة الطاقة الشمسية والأجهزة المتصلة.' }}
+          {{ 'Real-time monitoring, smart alerts, and AI-powered forecasts — all in one professional command center for solar systems and connected devices.' if is_en else 'مراقبة لحظية، تنبيهات ذكية، وتوقعات مدعومة بالذكاء الاصطناعي في مركز قيادة احترافي واحد لأنظمة الطاقة الشمسية والأجهزة المتصلة.' }}
         </p>
 
         <div class="lg50-feature-grid">
@@ -70,7 +65,7 @@
             <span class="lg50-feature-icon">🔔</span>
             <div class="lg50-feature-text">
               <strong>{{ 'Reliable alerts' if is_en else 'تنبيهات موثوقة' }}</strong>
-              <small>{{ 'SMS, Telegram, in-app' if is_en else 'SMS, تيليجرام، داخل التطبيق' }}</small>
+              <small>{{ 'SMS, Telegram, in-app' if is_en else 'SMS، تيليجرام، داخل التطبيق' }}</small>
             </div>
           </div>
           <div class="lg50-feature f-cyan">
@@ -98,7 +93,6 @@
         </div>
       </div>
 
-      {# Decorative floating preview card #}
       <div class="lg50-preview" aria-hidden="true">
         <div class="lg50-preview-head">
           <span></span><span></span><span></span>
@@ -110,13 +104,8 @@
       </div>
     </aside>
 
-    {# ============================================================
-       RIGHT — LOGIN FORM CARD
-       ============================================================ #}
     <main class="lg50-form-wrap">
       <div class="lg50-card">
-
-        {# Mobile-only brand strip #}
         <div class="lg50-card-mobile-brand">
           <span class="lg50-brand-mark">⚡</span>
           <div>
@@ -148,7 +137,6 @@
         <form method="post" action="{{ url_for('auth.login') }}" class="lg50-form" autocomplete="on">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-          {# Username #}
           <div class="lg50-field">
             <label for="lg50-user">{{ 'Username' if is_en else 'اسم المستخدم' }}</label>
             <div class="lg50-field-input">
@@ -163,7 +151,6 @@
             </div>
           </div>
 
-          {# Password #}
           <div class="lg50-field">
             <label for="lg50-pw">{{ 'Password' if is_en else 'كلمة المرور' }}</label>
             <div class="lg50-field-input">
@@ -188,7 +175,6 @@
             </div>
           </div>
 
-          {# Row: remember me / forgot #}
           <div class="lg50-row">
             <label class="lg50-check">
               <input type="checkbox" name="remember" value="1">
@@ -236,13 +222,11 @@
         </div>
       </div>
     </main>
-
   </div>
 </div>
 
 <script>
 (function(){
-  // Toggle password visibility
   document.querySelectorAll('[data-toggle]').forEach(function(btn){
     btn.addEventListener('click', function(){
       var input = document.getElementById(btn.dataset.toggle);
@@ -252,24 +236,22 @@
       var eye = btn.querySelector('.ic-eye');
       var eyeOff = btn.querySelector('.ic-eye-off');
       if (eye && eyeOff) {
-        eye.style.display    = on ? 'none' : '';
+        eye.style.display = on ? 'none' : '';
         eyeOff.style.display = on ? '' : 'none';
       }
     });
   });
 
-  // Subtle parallax on showcase grid (mouse-follow)
   var stage = document.querySelector('.lg50-stage');
-  var grid  = document.querySelector('.lg50-showcase-grid');
+  var grid = document.querySelector('.lg50-showcase-grid');
   if (stage && grid && window.matchMedia('(min-width:1025px)').matches) {
     stage.addEventListener('mousemove', function(e){
-      var x = (e.clientX / window.innerWidth - .5) * 12;
-      var y = (e.clientY / window.innerHeight - .5) * 12;
+      var x = (e.clientX / window.innerWidth - 0.5) * 12;
+      var y = (e.clientY / window.innerHeight - 0.5) * 12;
       grid.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     });
   }
 
-  // Mark fields with values to allow custom invalid styling later
   document.querySelectorAll('.lg50-input').forEach(function(inp){
     inp.addEventListener('blur', function(){
       var holder = inp.closest('.lg50-field-input');

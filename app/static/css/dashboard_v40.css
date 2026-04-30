@@ -272,7 +272,7 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
    BENTO GRID
    ===================================================== */
 .d40-grid {
-  display: grid; gap: 18px;
+  display: grid; gap: 16px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 .d40-card {
@@ -301,7 +301,7 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
 
 .d40-card-head {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; margin-bottom: 16px;
+  gap: 12px; margin-bottom: 14px;
 }
 .d40-card-head h3 {
   margin: 0; font-weight: 950; color: var(--d-ink);
@@ -561,7 +561,38 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
 /* =====================================================
    LOG LISTS (events + sync)
    ===================================================== */
-.d40-log-list { display: grid; gap: 10px; }
+.d40-log-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 430px;
+}
+.d40-log-card .d40-card-head {
+  margin-bottom: 12px;
+  flex: 0 0 auto;
+}
+.d40-mini-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  font-size: .8rem;
+  font-weight: 900;
+}
+.d40-log-list {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-inline-end: 4px;
+}
 .d40-log-item {
   background: linear-gradient(180deg, #fff, #f7faff);
   border: 1px solid var(--d-line);
@@ -574,7 +605,22 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
 .d40-log-item.error   { border-inline-start-color: var(--d-rose); }
 .d40-log-item.success { border-inline-start-color: var(--d-emerald); }
 .d40-log-item strong { color: var(--d-ink); font-weight: 900; }
+.d40-log-item > div:not(.meta) {
+  color: var(--d-ink-soft);
+  font-size: .9rem;
+  line-height: 1.7;
+}
 .d40-log-item .meta { color: var(--d-muted); font-weight: 700; font-size: .78rem; }
+.d40-log-list::-webkit-scrollbar {
+  width: 8px;
+}
+.d40-log-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+.d40-log-list::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* =====================================================
    CHARTS

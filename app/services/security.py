@@ -202,7 +202,7 @@ def preserve_secret_form_value(form, key: str, existing: Any = '') -> str:
     masked placeholder without erasing stored values on save.
     """
     value = (form.get(key, '') or '').strip()
-    if value in SECRET_PLACEHOLDERS:
+    if value in SECRET_PLACEHOLDERS or value == '':
         return '' if form.get(f'clear_{key}') == '1' else (existing or '')
     return value
 

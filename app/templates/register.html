@@ -571,10 +571,15 @@
     if (!opt) return;
     var code = opt.dataset.code || '';
     var dial = opt.dataset.dial || '';
-    var suggested = opt.dataset.timezone || 'Asia/Hebron';
+    var suggested = opt.dataset.timezone || '';
     if (countryCode) countryCode.value = code;
     setPhonePrefix(code, dial);
-    if (tz && !tz.dataset.userChanged) tz.value = suggested;
+    // Only update timezone if a real suggestion exists AND the user hasn't manually changed it
+    if (tz && suggested && !tz.dataset.userChanged) {
+      // Verify the suggested value actually exists as an option before setting
+      var tzExists = Array.from(tz.options).some(function(o){ return o.value === suggested; });
+      if (tzExists) tz.value = suggested;
+    }
     var selectedCity = (city && city.dataset.selected) || '';
     var cities = (opt.dataset.cities || '').split('|').filter(Boolean);
     if (city) {
@@ -667,9 +672,76 @@
         if (!firstBad) firstBad = p2;
       }
     }
-    if (!ok && firstBad) firstBad.focus();
+    if (!ok && firstBad) {
+      firstBad.focus();
+      showValidationToast(stepKey);
+    }
     return ok;
   }
+
+  // ── Validation toast ──────────────────────────────
+  var _toastTimer = null;
+  function showValidationToast(stepKey) {
+    var existing = document.getElementById('rg50ValToast');
+    if (existing) existing.remove();
+    if (_toastTimer) clearTimeout(_toastTimer);
+
+    var isEnPage = (document.documentElement.lang || document.body.dataset.lang || 'ar') === 'en';
+    var msgs = {
+      account: isEnPage
+        ? 'Please fill in all required fields (username and password).'
+        : 'يرجى ملء جميع الحقول المطلوبة (اسم المستخدم وكلمة المرور).',
+      location: isEnPage
+        ? 'Please select your country and city before continuing.'
+        : 'يرجى اختيار الدولة والمدينة للمتابعة.',
+      device: isEnPage
+        ? 'Please complete the required fields.'
+        : 'يرجى إكمال الحقول المطلوبة.'
+    };
+    var msg = msgs[stepKey] || (isEnPage ? 'Please fill in all required fields.' : 'يرجى ملء الحقول المطلوبة.');
+
+    var toast = document.createElement('div');
+    toast.id = 'rg50ValToast';
+    toast.setAttribute('role', 'alert');
+    toast.style.cssText = [
+      'position:fixed','bottom:24px',isEnPage ? 'right:24px' : 'left:24px',
+      'background:#ef4444','color:#fff',
+      'padding:12px 18px','border-radius:12px',
+      'font-size:.88rem','font-weight:600','z-index:9999',
+      'box-shadow:0 6px 24px rgba(0,0,0,.25)',
+      'display:flex','align-items:center','gap:8px',
+      'animation:rg50ToastIn .25s ease',
+      'max-width:min(360px,90vw)'
+    ].join(';');
+    toast.innerHTML = '<span aria-hidden="true">⚠️</span><span>' + msg + '</span>';
+
+    // Shake animation on the Next button
+    var navRow = document.querySelector('.rg50-step-panel.is-active .rg50-nav');
+    if (navRow) {
+      navRow.style.animation = 'none';
+      navRow.offsetHeight; // reflow
+      navRow.style.animation = 'rg50Shake .4s ease';
+      setTimeout(function(){ navRow.style.animation = ''; }, 500);
+    }
+
+    document.body.appendChild(toast);
+    _toastTimer = setTimeout(function(){
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity .3s';
+      setTimeout(function(){ toast.remove(); }, 350);
+    }, 3500);
+  }
+
+  // Inject toast + shake keyframes if not already present
+  (function(){
+    if (document.getElementById('rg50ToastStyle')) return;
+    var s = document.createElement('style');
+    s.id = 'rg50ToastStyle';
+    s.textContent = '@keyframes rg50ToastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}'
+      + '@keyframes rg50Shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}';
+    document.head.appendChild(s);
+  })();
+  // ─────────────────────────────────────────────────
 
   document.querySelectorAll('[data-next]').forEach(function(btn){
     btn.addEventListener('click', function(){

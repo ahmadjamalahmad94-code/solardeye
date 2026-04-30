@@ -515,6 +515,15 @@ def _ensure_default_app_user(app):
 
 
 def _ensure_default_app_device(app, user):
+    def _safe_json_loads(raw_value):
+        if not raw_value:
+            return {}
+        try:
+            value = json.loads(raw_value)
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
+
     settings = _settings_map()
     station_id = (settings.get('deye_plant_id') or app.config.get('DEYE_PLANT_ID') or '').strip()
     device_uid = (settings.get('deye_device_sn') or app.config.get('DEYE_DEVICE_SN') or '').strip()
@@ -529,8 +538,12 @@ def _ensure_default_app_device(app, user):
         device = AppDevice.query.order_by(AppDevice.id.asc()).first()
 
     credentials = {
-        'deye_email': app.config.get('DEYE_EMAIL', ''),
+        'deye_email': settings.get('deye_email') or app.config.get('DEYE_EMAIL', ''),
         'deye_region': settings.get('deye_region') or app.config.get('DEYE_REGION', ''),
+        'deye_app_id': settings.get('deye_app_id') or app.config.get('DEYE_APP_ID', ''),
+        'deye_app_secret': settings.get('deye_app_secret') or app.config.get('DEYE_APP_SECRET', ''),
+        'deye_password': settings.get('deye_password') or app.config.get('DEYE_PASSWORD', ''),
+        'deye_password_hash': settings.get('deye_password_hash') or app.config.get('DEYE_PASSWORD_HASH', ''),
     }
     settings_json = {
         'plant_id': station_id,
@@ -582,8 +595,12 @@ def _ensure_default_app_device(app, user):
         device.device_uid = device_uid
         changed = True
 
-    device.credentials_json = json.dumps(credentials, ensure_ascii=False)
-    device.settings_json = json.dumps(settings_json, ensure_ascii=False)
+    existing_credentials = _safe_json_loads(getattr(device, 'credentials_json', None))
+    existing_settings = _safe_json_loads(getattr(device, 'settings_json', None))
+    existing_credentials.update({key: value for key, value in credentials.items() if value and not existing_credentials.get(key)})
+    existing_settings.update({key: value for key, value in settings_json.items() if value and not existing_settings.get(key)})
+    device.credentials_json = json.dumps(existing_credentials, ensure_ascii=False)
+    device.settings_json = json.dumps(existing_settings, ensure_ascii=False)
     if changed:
         device.updated_at = datetime.utcnow()
     db.session.commit()

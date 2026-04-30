@@ -932,7 +932,8 @@ def _device_sync_ready(device: AppDevice | None = None, user=None):
 
 
 def _save_deye_settings_to_device(device: AppDevice, form_data=None):
-    form_data = form_data or request.form
+    if form_data is None:
+        form_data = request.form
     creds = _safe_json_loads(getattr(device, 'credentials_json', None))
     device_settings = _safe_json_loads(getattr(device, 'settings_json', None))
 
@@ -982,7 +983,8 @@ def _device_payload(device: AppDevice | None):
 
 
 def _save_device_credentials(device: AppDevice, form_data=None):
-    form_data = form_data or request.form
+    if form_data is None:
+        form_data = request.form
     existing_creds = _safe_json_loads(getattr(device, 'credentials_json', None))
     existing_settings = _safe_json_loads(getattr(device, 'settings_json', None))
 

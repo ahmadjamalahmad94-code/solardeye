@@ -1,28 +1,28 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set is_logged = landing_logged_in|default(false) %}
 {% set primary_cta_url = landing_dashboard_url if is_logged else landing_register_url|default(url_for('auth.register', lang=ui_lang)) %}
-{% set primary_cta_text = ('Open dashboard' if is_en else 'Ø§ÙØªØ­ Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…') if is_logged else (landing.hero_primary_en if is_en else landing.hero_primary_ar) %}
+{% set primary_cta_text = ('Open dashboard' if is_en else 'افتح لوحة التحكم') if is_logged else (landing.hero_primary_en if is_en else landing.hero_primary_ar) %}
 {% set login_cta_url = landing_dashboard_url if is_logged else landing_login_url|default(url_for('auth.login', lang=ui_lang)) %}
-{% set login_cta_text = ('Dashboard' if is_en else 'Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…') if is_logged else ('Login' if is_en else 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„') %}
+{% set login_cta_text = ('Dashboard' if is_en else 'لوحة التحكم') if is_logged else ('Login' if is_en else 'تسجيل الدخول') %}
 {% set next_lang = 'ar' if is_en else 'en' %}
-{% set lang_toggle_text = 'Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©' if is_en else 'English' %}
+{% set lang_toggle_text = 'العربية' if is_en else 'English' %}
 {% block title %}{{ landing.site_name_en if is_en else landing.site_name_ar }}{% endblock %}
 {% block body %}
 <main class="landing-v10529" dir="{{ 'ltr' if is_en else 'rtl' }}">
   <header class="landing-nav-v10529">
-    <a class="landing-brand-v10529" href="{{ url_for('main.index', lang=ui_lang) }}">{% if landing.site_logo %}<img src="{{ landing.site_logo }}" alt="{{ landing.site_name_en if is_en else landing.site_name_ar }}" style="height:34px;width:auto;object-fit:contain;border-radius:8px;">{% else %}<span>âš¡</span>{% endif %}<strong>{{ landing.site_name_en if is_en else landing.site_name_ar }}</strong></a>
+    <a class="landing-brand-v10529" href="{{ url_for('main.index', lang=ui_lang) }}">{% if landing.site_logo %}<img src="{{ landing.site_logo }}" alt="{{ landing.site_name_en if is_en else landing.site_name_ar }}" style="height:34px;width:auto;object-fit:contain;border-radius:8px;">{% else %}<span>⚡</span>{% endif %}<strong>{{ landing.site_name_en if is_en else landing.site_name_ar }}</strong></a>
     <nav>
-      <a href="#features">{{ 'Features' if is_en else 'Ø§Ù„Ù…Ø²Ø§ÙŠØ§' }}</a>
-      <a href="#workflow">{{ 'How it works' if is_en else 'ÙƒÙŠÙ ØªØ¹Ù…Ù„' }}</a>
-      <a href="#devices">{{ 'Devices' if is_en else 'Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©' }}</a>
-      <a href="#pricing">{{ 'Plans' if is_en else 'Ø§Ù„Ø¨Ø§Ù‚Ø§Øª' }}</a>
-      <a href="#faq">{{ 'FAQ' if is_en else 'Ø§Ù„Ø£Ø³Ø¦Ù„Ø© Ø§Ù„Ø´Ø§Ø¦Ø¹Ø©' }}</a>
+      <a href="#features">{{ 'Features' if is_en else 'المزايا' }}</a>
+      <a href="#workflow">{{ 'How it works' if is_en else 'كيف تعمل' }}</a>
+      <a href="#devices">{{ 'Devices' if is_en else 'الأجهزة' }}</a>
+      <a href="#pricing">{{ 'Plans' if is_en else 'الباقات' }}</a>
+      <a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a>
     </nav>
     <div class="landing-nav-actions-v10529">
-      <a class="landing-lang-toggle-v10532" href="{{ url_for('energy.index', lang=next_lang) }}" aria-label="{{ 'Switch to Arabic' if is_en else 'Switch to English' }}">ðŸŒ {{ lang_toggle_text }}</a>
-      <a class="landing-btn ghost" href="{{ login_cta_url }}">ðŸ‘¤ {{ login_cta_text }}</a>
-      <a class="landing-btn gold" href="{{ primary_cta_url }}">ðŸš€ {{ primary_cta_text }}</a>
+      <a class="landing-lang-toggle-v10532" href="{{ url_for('energy.index', lang=next_lang) }}" aria-label="{{ 'Switch to Arabic' if is_en else 'Switch to English' }}">🌐 {{ lang_toggle_text }}</a>
+      <a class="landing-btn ghost" href="{{ login_cta_url }}">👤 {{ login_cta_text }}</a>
+      <a class="landing-btn gold" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a>
     </div>
   </header>
 
@@ -32,40 +32,40 @@
       <h1>{{ landing.hero_title_en if is_en else landing.hero_title_ar }}</h1>
       <p>{{ landing.hero_subtitle_en if is_en else landing.hero_subtitle_ar }}</p>
       <div class="landing-hero-actions-v10529">
-        <a class="landing-btn gold big" href="{{ primary_cta_url }}">ðŸš€ {{ primary_cta_text }}</a>
+        <a class="landing-btn gold big" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a>
         <a class="landing-btn outline big" href="#pricing">{{ landing.hero_secondary_en if is_en else landing.hero_secondary_ar }}</a>
       </div>
       <div class="landing-pills-v10529">
-        <span>ðŸ”” {{ 'Smart alerts' if is_en else 'ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø°ÙƒÙŠØ©' }}</span>
-        <span>ðŸ”Œ {{ 'Multi-device' if is_en else 'ØªØ¹Ø¯Ø¯ Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©' }}</span>
-        <span>ðŸ“Š {{ 'Clear reports' if is_en else 'ØªÙ‚Ø§Ø±ÙŠØ± ÙˆØ§Ø¶Ø­Ø©' }}</span>
-        <span>ðŸ’¬ {{ 'Support' if is_en else 'Ø¯Ø¹Ù… ÙˆÙ…Ø±Ø§Ø³Ù„Ø§Øª' }}</span>
+        <span>🔔 {{ 'Smart alerts' if is_en else 'تنبيهات ذكية' }}</span>
+        <span>🔌 {{ 'Multi-device' if is_en else 'تعدد الأجهزة' }}</span>
+        <span>📊 {{ 'Clear reports' if is_en else 'تقارير واضحة' }}</span>
+        <span>💬 {{ 'Support' if is_en else 'دعم ومراسلات' }}</span>
       </div>
     </div>
 
     <div class="landing-art-v10529" aria-hidden="true">
       <div class="landing-art-glow-v10529"></div>
       <div class="landing-dashboard-v10529">
-        <div class="dash-head-v10529"><span></span><span></span><span></span><strong>{{ 'Energy Board' if is_en else 'Ù„ÙˆØ­Ø© Ø§Ù„Ø·Ø§Ù‚Ø©' }}</strong></div>
-        <div class="dash-kpis-v10529"><div><small>{{ 'Today' if is_en else 'Ø¥Ù†ØªØ§Ø¬ Ø§Ù„ÙŠÙˆÙ…' }}</small><b>12.4</b><em>kWh</em></div><div><small>{{ 'Usage' if is_en else 'Ø§Ù„Ø§Ø³ØªÙ‡Ù„Ø§Ùƒ' }}</small><b>7.6</b><em>kWh</em></div><div><small>{{ 'Efficiency' if is_en else 'Ø§Ù„ÙƒÙØ§Ø¡Ø©' }}</small><b>92%</b><em>{{ 'great' if is_en else 'Ù…Ù…ØªØ§Ø²' }}</em></div></div>
+        <div class="dash-head-v10529"><span></span><span></span><span></span><strong>{{ 'Energy Board' if is_en else 'لوحة الطاقة' }}</strong></div>
+        <div class="dash-kpis-v10529"><div><small>{{ 'Today' if is_en else 'إنتاج اليوم' }}</small><b>12.4</b><em>kWh</em></div><div><small>{{ 'Usage' if is_en else 'الاستهلاك' }}</small><b>7.6</b><em>kWh</em></div><div><small>{{ 'Efficiency' if is_en else 'الكفاءة' }}</small><b>92%</b><em>{{ 'great' if is_en else 'ممتاز' }}</em></div></div>
         <div class="dash-chart-v10529"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
-        <div class="dash-status-v10529"><span>{{ 'System status' if is_en else 'Ø­Ø§Ù„Ø© Ø§Ù„Ù†Ø¸Ø§Ù…' }}</span><strong>{{ 'Good' if is_en else 'Ø¬ÙŠØ¯' }}</strong></div>
+        <div class="dash-status-v10529"><span>{{ 'System status' if is_en else 'حالة النظام' }}</span><strong>{{ 'Good' if is_en else 'جيد' }}</strong></div>
       </div>
-      <div class="landing-alert-v10529"><span>âš ï¸</span><strong>{{ 'High alert' if is_en else 'ØªÙ†Ø¨ÙŠÙ‡ Ø¹Ø§Ù„ÙŠ' }}</strong><small>{{ 'Temperature rising' if is_en else 'Ø§Ø±ØªÙØ§Ø¹ Ø¯Ø±Ø¬Ø© Ø§Ù„Ø­Ø±Ø§Ø±Ø©' }}</small></div>
-      <div class="landing-weather-v10529"><small>{{ 'Weather now' if is_en else 'Ø§Ù„Ø·Ù‚Ø³ Ø§Ù„Ø¢Ù†' }}</small><strong>24Â°</strong><span>â˜€ï¸ {{ 'Clear' if is_en else 'ØµØ§ÙÙŠ' }}</span></div>
-      <div class="landing-phone-v10529"><strong>{{ 'Alerts' if is_en else 'Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª' }}</strong><span>ðŸŸ  {{ 'High voltage' if is_en else 'Ø¬Ù‡Ø¯ Ø¹Ø§Ù„ÙŠ' }}</span><span>ðŸ”´ {{ 'Connection lost' if is_en else 'Ø§Ù†Ù‚Ø·Ø§Ø¹ Ø§ØªØµØ§Ù„' }}</span><span>ðŸŸ¢ {{ 'Synced' if is_en else 'ØªÙ…Øª Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø©' }}</span></div>
-      <div class="landing-device-strip-v10529"><em>â–£</em><em>ðŸ”‹</em><em>â–¤</em><em>â˜€ï¸</em><em>ðŸ“¡</em><em>â˜ï¸</em></div>
+      <div class="landing-alert-v10529"><span>⚠️</span><strong>{{ 'High alert' if is_en else 'تنبيه عالي' }}</strong><small>{{ 'Temperature rising' if is_en else 'ارتفاع درجة الحرارة' }}</small></div>
+      <div class="landing-weather-v10529"><small>{{ 'Weather now' if is_en else 'الطقس الآن' }}</small><strong>24°</strong><span>☀️ {{ 'Clear' if is_en else 'صافي' }}</span></div>
+      <div class="landing-phone-v10529"><strong>{{ 'Alerts' if is_en else 'التنبيهات' }}</strong><span>🟠 {{ 'High voltage' if is_en else 'جهد عالٍ' }}</span><span>🔴 {{ 'Connection lost' if is_en else 'انقطاع اتصال' }}</span><span>🟢 {{ 'Synced' if is_en else 'تمت المزامنة' }}</span></div>
+      <div class="landing-device-strip-v10529"><em>▣</em><em>🔋</em><em>▤</em><em>☀️</em><em>📡</em><em>☁️</em></div>
     </div>
   </section>
 
   <section id="features" class="landing-section-v10529 landing-features-polished-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'Everything you need to manage energy in one place' if is_en else 'ÙƒÙ„ Ù…Ø§ ØªØ­ØªØ§Ø¬Ù‡ Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø·Ø§Ù‚Ø© ÙÙŠ Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯' }}</h2><span></span></div>
+    <div class="landing-section-title-v10529"><h2>{{ 'Everything you need to manage energy in one place' if is_en else 'كل ما تحتاجه لإدارة الطاقة في مكان واحد' }}</h2><span></span></div>
     <div class="feature-grid-v10529">
       {% set features = [
-        ('ðŸ””','Smart alerts','ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø°ÙƒÙŠØ©','Instant notifications for changes or issues via app, SMS, and Telegram.','ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ÙÙˆØ±ÙŠØ© Ø¹Ù†Ø¯ Ø£ÙŠ ØªØºÙŠØ± Ø£Ùˆ Ù…Ø´ÙƒÙ„Ø© Ø¹Ø¨Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚ Ùˆ SMS Ùˆ Telegram.'),
-        ('ðŸ”Œ','Device management','Ø¥Ø¯Ø§Ø±Ø© ÙˆØªØ¹Ø¯Ø¯ Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©','Add and monitor multiple devices from one clear account.','Ø§Ø±Ø¨Ø· Ø¬Ù…ÙŠØ¹ Ø£Ø¬Ù‡Ø²ØªÙƒ ÙˆØªØ§Ø¨Ø¹ Ø§Ù„Ø­Ø§Ù„Ø© ÙˆØ§Ù„Ø£Ø¯Ø§Ø¡ Ù…Ù† Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯.'),
-        ('ðŸ“Š','Clear reports','ØªÙ‚Ø§Ø±ÙŠØ± ÙˆØ¥Ø­ØµØ§Ø¦ÙŠØ§Øª','Readable reports that help you understand usage and performance.','ØªÙ‚Ø§Ø±ÙŠØ± ÙˆØ§Ø¶Ø­Ø© ØªØ³Ø§Ø¹Ø¯Ùƒ ØªÙÙ‡Ù… Ø§Ù„Ø§Ø³ØªÙ‡Ù„Ø§Ùƒ ÙˆØ§Ù„Ø£Ø¯Ø§Ø¡ ÙˆØªØªØ®Ø° Ù‚Ø±Ø§Ø±Ø§Øª Ø£ÙØ¶Ù„.'),
-        ('ðŸ’¬','Support and messaging','Ø¯Ø¹Ù… ÙˆÙ…Ø±Ø§Ø³Ù„Ø§Øª','Fast direct communication with support inside the platform.','ØªÙˆØ§ØµÙ„ Ù…Ø¨Ø§Ø´Ø± ÙˆØ³Ø±ÙŠØ¹ Ù…Ø¹ ÙØ±ÙŠÙ‚ Ø§Ù„Ø¯Ø¹Ù… Ø¯Ø§Ø®Ù„ Ø§Ù„Ù…Ù†ØµØ©.')
+        ('🔔','Smart alerts','تنبيهات ذكية','Instant notifications for changes or issues via app, SMS, and Telegram.','تنبيهات فورية عند أي تغيير أو مشكلة عبر التطبيق و SMS و Telegram.'),
+        ('🔌','Device management','إدارة وتعدد الأجهزة','Add and monitor multiple devices from one clear account.','اربط جميع أجهزتك وتابع الحالة والأداء من مكان واحد.'),
+        ('📊','Clear reports','تقارير وإحصائيات','Readable reports that help you understand usage and performance.','تقارير واضحة تساعدك تفهم الاستهلاك والأداء وتتخذ قرارات أفضل.'),
+        ('💬','Support and messaging','دعم ومراسلات','Fast direct communication with support inside the platform.','تواصل مباشر وسريع مع فريق الدعم داخل المنصة.')
       ] %}
       {% for icon,en_title,ar_title,en_text,ar_text in features %}
       <article class="feature-card-v10529"><i>{{ icon }}</i><h3>{{ en_title if is_en else ar_title }}</h3><p>{{ en_text if is_en else ar_text }}</p></article>
@@ -74,34 +74,34 @@
   </section>
 
   <section id="devices" class="landing-section-v10529 landing-split-v10529 landing-devices-polished-v10529">
-    <div class="devices-copy-v10529"><div class="landing-section-title-v10529 start"><h2>{{ 'One system that supports all your energy devices' if is_en else 'Ù†Ø¸Ø§Ù… ÙˆØ§Ø­Ø¯ ÙŠØ¯Ø¹Ù… ÙƒÙ„ Ø£Ø¬Ù‡Ø²ØªÙƒ' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely, with forms that adapt to each device type instead of forcing one template on everyone.' if is_en else 'Ø§Ø±Ø¨Ø· Ø£Ø¬Ù‡Ø²Ø© ÙˆØ£Ù†Ø¸Ù…Ø© Ø§Ù„Ø·Ø§Ù‚Ø© Ø¨Ø³Ù‡ÙˆÙ„Ø© ÙˆØ£Ù…Ø§Ù†ØŒ Ù…Ø¹ Ø­Ù‚ÙˆÙ„ ØªØªØºÙŠØ± Ø­Ø³Ø¨ Ù†ÙˆØ¹ Ø§Ù„Ø¬Ù‡Ø§Ø² Ø¨Ø¯Ù„ Ø¥Ø¬Ø¨Ø§Ø± ÙƒÙ„ Ø¬Ù‡Ø§Ø² Ø¹Ù„Ù‰ Ù†ÙØ³ Ø§Ù„Ù†Ù…ÙˆØ°Ø¬.' }}</p><div class="device-tags-v10529"><span>{{ 'Inverter' if is_en else 'Ù…Ø­ÙˆÙ„ Ø·Ø§Ù‚Ø©' }}</span><span>{{ 'Battery' if is_en else 'Ø¨Ø·Ø§Ø±ÙŠØ©' }}</span><span>{{ 'Electric meter' if is_en else 'Ø¹Ø¯Ø§Ø¯ ÙƒÙ‡Ø±Ø¨Ø§Ø¡' }}</span><span>{{ 'Solar panel' if is_en else 'Ù„ÙˆØ­ Ø´Ù…Ø³ÙŠ' }}</span><span>{{ 'Gateway' if is_en else 'Ø¨ÙˆØ§Ø¨Ø© Ø§ØªØµØ§Ù„' }}</span><span>{{ 'Cloud device' if is_en else 'Ø¬Ù‡Ø§Ø² Ø³Ø­Ø§Ø¨ÙŠ' }}</span></div></div>
-    <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'Ø­Ù‚ÙˆÙ„ Ø°ÙƒÙŠØ© Ø­Ø³Ø¨ Ù†ÙˆØ¹ Ø§Ù„Ø¬Ù‡Ø§Ø²' }}</h3><label>{{ 'Device type' if is_en else 'Ù†ÙˆØ¹ Ø§Ù„Ø¬Ù‡Ø§Ø²' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'Ù…Ø­ÙˆÙ„ Ø·Ø§Ù‚Ø©' }}</div><div><span>{{ 'Power' if is_en else 'Ø§Ù„Ù‚Ø¯Ø±Ø©' }} Â· 10.0 kW</span><span>{{ 'Model' if is_en else 'Ø§Ù„Ù…ÙˆØ¯ÙŠÙ„' }} Â· 550 V</span><span>{{ 'Serial' if is_en else 'Ø§Ù„Ø±Ù‚Ù…' }} Â· INV-2024-001</span></div></div>
+    <div class="devices-copy-v10529"><div class="landing-section-title-v10529 start"><h2>{{ 'One system that supports all your energy devices' if is_en else 'نظام واحد يدعم كل أجهزتك' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely, with forms that adapt to each device type instead of forcing one template on everyone.' if is_en else 'اربط أجهزة وأنظمة الطاقة بسهولة وأمان، مع حقول تتغير حسب نوع الجهاز بدل إجبار كل جهاز على نفس النموذج.' }}</p><div class="device-tags-v10529"><span>{{ 'Inverter' if is_en else 'محول طاقة' }}</span><span>{{ 'Battery' if is_en else 'بطارية' }}</span><span>{{ 'Electric meter' if is_en else 'عداد كهرباء' }}</span><span>{{ 'Solar panel' if is_en else 'لوح شمسي' }}</span><span>{{ 'Gateway' if is_en else 'بوابة اتصال' }}</span><span>{{ 'Cloud device' if is_en else 'جهاز سحابي' }}</span></div></div>
+    <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ذكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'محول طاقة' }}</div><div><span>{{ 'Power' if is_en else 'القدرة' }} · 10.0 kW</span><span>{{ 'Model' if is_en else 'الموديل' }} · 550 V</span><span>{{ 'Serial' if is_en else 'الرقم' }} · INV-2024-001</span></div></div>
   </section>
 
   <section id="workflow" class="landing-section-v10529 landing-workflow-v10529 landing-workflow-final-v10530">
-    <div class="landing-section-title-v10529"><h2>{{ 'Start in minutes' if is_en else 'ÙƒÙŠÙ ØªØ¨Ø¯Ø£ Ø®Ù„Ø§Ù„ Ø¯Ù‚Ø§Ø¦Ù‚ØŸ' }}</h2><span></span><p>{{ 'Three simple steps to connect your device and open a professional monitoring board.' if is_en else 'Ø«Ù„Ø§Ø« Ø®Ø·ÙˆØ§Øª Ø¨Ø³ÙŠØ·Ø© ØªØ±Ø¨Ø· Ø¬Ù‡Ø§Ø²Ùƒ ÙˆØªÙØªØ­ Ù„ÙˆØ­Ø© Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ø­ØªØ±Ø§ÙÙŠØ©.' }}</p></div>
+    <div class="landing-section-title-v10529"><h2>{{ 'Start in minutes' if is_en else 'كيف تبدأ خلال دقائق؟' }}</h2><span></span><p>{{ 'Three simple steps to connect your device and open a professional monitoring board.' if is_en else 'ثلاث خطوات بسيطة تربط جهازك وتفتح لوحة متابعة احترافية.' }}</p></div>
     <div class="workflow-track-v10530" aria-hidden="true"><span></span></div>
     <div class="workflow-grid-v10529 workflow-grid-final-v10530">
-      <article><b>1</b><i>ðŸ‘¤</i><h3>{{ 'Create your account' if is_en else 'Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨Ùƒ' }}</h3><p>{{ 'Register and set your timezone and city.' if is_en else 'Ø³Ø¬Ù‘Ù„ Ø¨ÙŠØ§Ù†Ø§ØªÙƒ ÙˆØ§Ø®ØªØ± Ø§Ù„Ù…Ù†Ø·Ù‚Ø© Ø§Ù„Ø²Ù…Ù†ÙŠØ© ÙˆØ§Ù„Ù…Ø¯ÙŠÙ†Ø©.' }}</p></article>
-      <article><b>2</b><i>ðŸ”Œ</i><h3>{{ 'Add your device' if is_en else 'Ø£Ø¶Ù Ø¬Ù‡Ø§Ø²Ùƒ' }}</h3><p>{{ 'Choose the type and fill only the needed fields.' if is_en else 'Ø§Ø®ØªØ± Ù†ÙˆØ¹ Ø§Ù„Ø¬Ù‡Ø§Ø² ÙˆØ£Ø¯Ø®Ù„ Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø© ÙÙ‚Ø·.' }}</p></article>
-      <article><b>3</b><i>ðŸ””</i><h3>{{ 'Monitor and get alerts' if is_en else 'Ø±Ø§Ù‚Ø¨ ÙˆØªÙ†Ø¨Ù‡' }}</h3><p>{{ 'Follow performance, reports, and alerts from one board.' if is_en else 'ØªØ§Ø¨Ø¹ Ø§Ù„Ø£Ø¯Ø§Ø¡ ÙˆØ§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ÙˆØ§Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ù…Ù† Ù„ÙˆØ­Ø© ÙˆØ§Ø­Ø¯Ø©.' }}</p></article>
+      <article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and set your timezone and city.' if is_en else 'سجّل بياناتك واختر المنطقة الزمنية والمدينة.' }}</p></article>
+      <article><b>2</b><i>🔌</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك' }}</h3><p>{{ 'Choose the type and fill only the needed fields.' if is_en else 'اختر نوع الجهاز وأدخل الحقول المطلوبة فقط.' }}</p></article>
+      <article><b>3</b><i>🔔</i><h3>{{ 'Monitor and get alerts' if is_en else 'راقب وتنبّه' }}</h3><p>{{ 'Follow performance, reports, and alerts from one board.' if is_en else 'تابع الأداء والتنبيهات والتقارير من لوحة واحدة.' }}</p></article>
     </div>
   </section>
 
   <section class="landing-section-v10529 product-v10529">
     <div class="mockup-v10529"><div class="mock-sidebar-v10529"></div><div class="mock-body-v10529"><span></span><span></span><span></span><b></b></div><i></i></div>
-    <div><h2>{{ 'One interface to manage everything' if is_en else 'ÙˆØ§Ø¬Ù‡Ø© ÙˆØ§Ø­Ø¯Ø© Ù„Ø¥Ø¯Ø§Ø±Ø© ÙƒÙ„ Ø´ÙŠØ¡' }}</h2><p>{{ landing.mission_en if is_en else landing.mission_ar }}</p><div class="product-points-v10529"><span>ðŸ§­ {{ 'Status view' if is_en else 'Ø¹Ø±Ø¶ Ø§Ù„Ø­Ø§Ù„Ø©' }}</span><span>ðŸ‘¥ {{ 'Subscribers' if is_en else 'Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø´ØªØ±ÙƒÙŠÙ†' }}</span><span>ðŸŽ¯ {{ 'Quotas and plans' if is_en else 'Ø§Ù„ÙƒÙˆØªØ§ ÙˆØ§Ù„Ø®Ø·Ø·' }}</span><span>â¤ï¸ {{ 'Sync and health' if is_en else 'Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø© ÙˆØ§Ù„Ø®Ø¯Ù…Ø§Øª' }}</span></div></div>
+    <div><h2>{{ 'One interface to manage everything' if is_en else 'واجهة واحدة لإدارة كل شيء' }}</h2><p>{{ landing.mission_en if is_en else landing.mission_ar }}</p><div class="product-points-v10529"><span>🧭 {{ 'Status view' if is_en else 'عرض الحالة' }}</span><span>👥 {{ 'Subscribers' if is_en else 'إدارة المشتركين' }}</span><span>🎯 {{ 'Quotas and plans' if is_en else 'الكوتا والخطط' }}</span><span>❤️ {{ 'Sync and health' if is_en else 'المزامنة والخدمات' }}</span></div></div>
   </section>
 
   <section id="pricing" class="landing-section-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'Choose the right plan' if is_en else 'Ø§Ø®ØªØ± Ø§Ù„Ø¨Ø§Ù‚Ø© Ø§Ù„Ù…Ù†Ø§Ø³Ø¨Ø© Ù„Ø§Ø­ØªÙŠØ§Ø¬Ø§ØªÙƒ' }}</h2><span></span></div>
+    <div class="landing-section-title-v10529"><h2>{{ 'Choose the right plan' if is_en else 'اختر الباقة المناسبة لاحتياجاتك' }}</h2><span></span></div>
     <div class="plans-grid-v10529">
       {% for plan in landing_plans %}
       <article class="plan-card-v10529 {{ 'featured' if plan.featured else '' }}">
         {% if plan.featured %}<b>{{ plan.badge }}</b>{% endif %}
         <h3>{{ plan.name }}</h3>
         <p>{{ plan.subtitle }}</p>
-        <strong>{{ plan.currency }} {{ '%.0f'|format(plan.price) if plan.price == plan.price|int else plan.price }}<small>{{ '/mo' if is_en else '/Ø´Ù‡Ø±ÙŠÙ‹Ø§' }}</small></strong>
+        <strong>{{ plan.currency }} {{ '%.0f'|format(plan.price) if plan.price == plan.price|int else plan.price }}<small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong>
         <ul>{% for bullet in plan.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
         <a href="{{ primary_cta_url }}">{{ primary_cta_text }}</a>
       </article>
@@ -110,15 +110,15 @@
   </section>
 
   <section class="trust-row-v10529 trust-row-final-v10532">
-    <span>ðŸŽ¨ {{ 'Professional bilingual interface' if is_en else 'ÙˆØ§Ø¬Ù‡Ø© Ø¹Ø±Ø¨ÙŠØ© ÙˆØ¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© Ø§Ø­ØªØ±Ø§ÙÙŠØ©' }}</span>
-    <span>ðŸ›¡ï¸ {{ 'Flexible roles and permissions' if is_en else 'ØµÙ„Ø§Ø­ÙŠØ§Øª ÙˆØªØ­ÙƒÙ… Ù…Ø±Ù†' }}</span>
-    <span>ðŸ‘ï¸ {{ 'Safe view-only mode' if is_en else 'ÙˆØ¶Ø¹ Ù…Ø´Ø§Ù‡Ø¯Ø© Ø¢Ù…Ù†' }}</span>
-    <span>ðŸ“ˆ {{ 'Built to scale' if is_en else 'Ù‚Ø§Ø¨Ù„ÙŠØ© ØªÙˆØ³Ø¹ Ø¹Ø§Ù„ÙŠØ©' }}</span>
-    <span>ðŸ”” {{ 'Reliable alerts that stay visible' if is_en else 'ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ù…Ø³ØªÙ‚Ø±Ø© Ù„Ø§ ØªØ¶ÙŠØ¹' }}</span>
+    <span>🎨 {{ 'Professional bilingual interface' if is_en else 'واجهة عربية وإنجليزية احترافية' }}</span>
+    <span>🛡️ {{ 'Flexible roles and permissions' if is_en else 'صلاحيات وتحكم مرن' }}</span>
+    <span>👁️ {{ 'Safe view-only mode' if is_en else 'وضع مشاهدة آمن' }}</span>
+    <span>📈 {{ 'Built to scale' if is_en else 'قابلية توسع عالية' }}</span>
+    <span>🔔 {{ 'Reliable alerts that stay visible' if is_en else 'تنبيهات مستقرة لا تضيع' }}</span>
   </section>
 
   <section id="faq" class="landing-section-v10529 faq-section-v10529 faq-final-v10532">
-    <div class="landing-section-title-v10529"><h2>{{ 'Frequently asked questions' if is_en else 'Ø§Ù„Ø£Ø³Ø¦Ù„Ø© Ø§Ù„Ø´Ø§Ø¦Ø¹Ø©' }}</h2><span></span></div>
+    <div class="landing-section-title-v10529"><h2>{{ 'Frequently asked questions' if is_en else 'الأسئلة الشائعة' }}</h2><span></span></div>
     <div class="faq-grid-v10529">
       <details><summary>{{ 'Can I add more than one device?' if is_en else 'هل أستطيع إضافة أكثر من جهاز؟' }}</summary><p>{{ 'Yes. Depending on the plan and quota, you can add multiple devices and connect them to the platform.' if is_en else 'نعم، حسب الخطة والكوتا المحددة يمكن إضافة أكثر من جهاز وربطه بالمنصة.' }}</p></details>
       <details><summary>{{ 'Can alerts reach my phone and Telegram?' if is_en else 'هل يمكن ربط التنبيهات بالهاتف و Telegram؟' }}</summary><p>{{ 'Yes. The platform supports SMS and Telegram with clear quota controls.' if is_en else 'نعم، المنصة تدعم SMS و Telegram مع كوتا وتحكم واضح.' }}</p></details>
