@@ -377,6 +377,24 @@ html[dir="rtl"] @keyframes rg50SlideIn {
   gap: 12px; align-items: center;
   margin-top: 14px;
 }
+.rg50-inline-error {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+  font-size: .86rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+.rg50-inline-error::before {
+  content: "⚠️";
+  flex-shrink: 0;
+}
 .rg50-nav-counter {
   text-align: center;
   font-weight: 800; font-size: .85rem;

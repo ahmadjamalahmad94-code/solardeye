@@ -1,113 +1,473 @@
 {% extends 'base.html' %}
 {% block body %}
-<div class="wizard-shell">
-  <div class="wizard-card">
-    <div class="wizard-head">
-      <div>
-        <h1>إعداد أول استخدام</h1>
-        <p class="mb-0">خطوات خفيفة وسريعة، ويمكنك التخطي والرجوع لاحقًا.</p>
+<style>
+/* ═══════════════════════════════════════════
+   ONBOARDING WIZARD  –  ob- prefix
+═══════════════════════════════════════════ */
+.ob-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem;position:relative;overflow:hidden;}
+.ob-orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.18;pointer-events:none;z-index:0;}
+.ob-orb-1{width:520px;height:520px;background:radial-gradient(circle,#f59e0b,transparent 70%);top:-140px;right:-140px;}
+.ob-orb-2{width:420px;height:420px;background:radial-gradient(circle,#6366f1,transparent 70%);bottom:-100px;left:-100px;}
+.ob-orb-3{width:320px;height:320px;background:radial-gradient(circle,#10b981,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);}
+
+.ob-shell{position:relative;z-index:1;width:100%;max-width:780px;}
+
+/* card */
+.ob-card{background:rgba(30,35,50,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.09);border-radius:24px;padding:2.5rem 2.5rem 2rem;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+@media(max-width:600px){.ob-card{padding:1.5rem 1.2rem 1.2rem;border-radius:18px;}}
+
+/* top bar */
+.ob-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;gap:1rem;}
+.ob-brand{font-size:1.1rem;font-weight:700;color:#f59e0b;letter-spacing:.5px;}
+.ob-skip-btn{font-size:.8rem;color:rgba(255,255,255,.45);background:none;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:.35rem .85rem;cursor:pointer;transition:all .2s;}
+.ob-skip-btn:hover{color:#fff;border-color:rgba(255,255,255,.35);}
+
+/* step pills */
+.ob-steps{display:flex;align-items:center;gap:0;margin-bottom:2.5rem;background:rgba(255,255,255,.04);border-radius:14px;padding:.5rem;}
+.ob-step-pill{flex:1;display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.5rem .4rem;border-radius:10px;transition:all .3s;cursor:default;}
+.ob-step-pill .ob-sp-icon{font-size:1.3rem;filter:grayscale(1);opacity:.4;transition:all .3s;}
+.ob-step-pill .ob-sp-label{font-size:.65rem;color:rgba(255,255,255,.35);font-weight:500;text-align:center;transition:all .3s;}
+.ob-step-pill.active{background:rgba(245,158,11,.12);}
+.ob-step-pill.active .ob-sp-icon{filter:grayscale(0);opacity:1;}
+.ob-step-pill.active .ob-sp-label{color:#f59e0b;}
+.ob-step-pill.done .ob-sp-icon{filter:grayscale(0);opacity:.7;}
+.ob-step-pill.done .ob-sp-label{color:rgba(255,255,255,.55);}
+.ob-step-sep{width:2px;height:28px;background:rgba(255,255,255,.07);flex-shrink:0;}
+
+/* pane */
+.ob-pane{animation:obFadeUp .35s ease both;}
+@keyframes obFadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* welcome */
+.ob-welcome-hero{text-align:center;padding:1.5rem 0 1rem;}
+.ob-sun{font-size:4rem;display:inline-block;animation:obSpin 8s linear infinite;}
+@keyframes obSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.ob-welcome-hero h2{font-size:1.7rem;font-weight:700;color:#fff;margin:.75rem 0 .4rem;}
+.ob-welcome-hero p{color:rgba(255,255,255,.55);font-size:.95rem;margin:0;}
+.ob-feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-top:1.75rem;}
+@media(max-width:560px){.ob-feat-grid{grid-template-columns:1fr;}}
+.ob-feat-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:1.1rem .9rem;text-align:center;}
+.ob-feat-card .ob-fc-icon{font-size:1.6rem;margin-bottom:.5rem;}
+.ob-feat-card .ob-fc-title{font-size:.8rem;font-weight:600;color:rgba(255,255,255,.8);}
+.ob-feat-card .ob-fc-desc{font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.25rem;line-height:1.5;}
+
+/* provider grid */
+.ob-section-title{font-size:.78rem;font-weight:600;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.9rem;}
+.ob-search-wrap{position:relative;margin-bottom:1.1rem;}
+.ob-search-wrap input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.55rem 1rem .55rem 2.4rem;color:#fff;font-size:.88rem;outline:none;transition:border-color .2s;}
+.ob-search-wrap input:focus{border-color:#f59e0b;}
+.ob-search-wrap input::placeholder{color:rgba(255,255,255,.3);}
+.ob-search-icon{position:absolute;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.3);font-size:.85rem;pointer-events:none;}
+[dir="rtl"] .ob-search-icon{right:.85rem;}
+[dir="ltr"] .ob-search-icon{left:.85rem;}
+[dir="rtl"] .ob-search-wrap input{padding-right:2.4rem;padding-left:1rem;}
+
+.ob-prov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.65rem;max-height:240px;overflow-y:auto;padding-right:4px;margin-bottom:1.25rem;}
+.ob-prov-grid::-webkit-scrollbar{width:4px;}
+.ob-prov-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+.ob-prov-card{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.09);border-radius:12px;padding:.75rem .6rem;display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;transition:all .2s;user-select:none;}
+.ob-prov-card:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2);}
+.ob-prov-card.active{background:rgba(245,158,11,.15);border-color:#f59e0b;}
+.ob-prov-card .ob-pc-icon{font-size:1.5rem;filter:grayscale(.3);}
+.ob-prov-card.active .ob-pc-icon{filter:none;}
+.ob-prov-card .ob-pc-name{font-size:.68rem;font-weight:600;color:rgba(255,255,255,.7);text-align:center;line-height:1.3;}
+.ob-prov-card.active .ob-pc-name{color:#f59e0b;}
+
+/* selected provider banner */
+.ob-prov-banner{display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:.75rem 1rem;margin-bottom:1.1rem;align-items:center;gap:.75rem;}
+.ob-prov-banner.visible{display:flex;}
+.ob-prov-banner .ob-pb-icon{font-size:1.5rem;}
+.ob-prov-banner .ob-pb-info{flex:1;}
+.ob-prov-banner .ob-pb-name{font-size:.85rem;font-weight:600;color:#f59e0b;}
+.ob-prov-banner .ob-pb-note{font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.1rem;}
+
+/* device form */
+.ob-dev-form{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;}
+@media(max-width:540px){.ob-dev-form{grid-template-columns:1fr;}}
+.ob-dev-form .ob-full{grid-column:1/-1;}
+.ob-field label{display:block;font-size:.75rem;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:.35rem;letter-spacing:.3px;}
+.ob-field input,.ob-field textarea,.ob-field select{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.6rem .9rem;color:#fff;font-size:.88rem;outline:none;transition:border-color .2s;font-family:inherit;}
+.ob-field input:focus,.ob-field textarea:focus,.ob-field select:focus{border-color:#f59e0b;}
+.ob-field input::placeholder{color:rgba(255,255,255,.25);}
+.ob-field select option{background:#1e2332;color:#fff;}
+.ob-dyn-fields{grid-column:1/-1;}
+.ob-prov-note{font-size:.73rem;color:rgba(255,255,255,.4);background:rgba(255,255,255,.04);border-radius:10px;padding:.6rem .9rem;margin-top:.1rem;display:none;}
+.ob-prov-note.visible{display:block;}
+
+/* notifications */
+.ob-notif-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.2rem;}
+@media(max-width:480px){.ob-notif-grid{grid-template-columns:1fr;}}
+.ob-notif-card{border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:1.4rem 1.2rem;cursor:pointer;transition:all .25s;text-align:center;background:rgba(255,255,255,.04);}
+.ob-notif-card:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);}
+.ob-notif-card.selected{border-color:#f59e0b;background:rgba(245,158,11,.1);}
+.ob-notif-card .ob-nc-icon{font-size:2.2rem;margin-bottom:.65rem;}
+.ob-notif-card .ob-nc-title{font-size:.95rem;font-weight:700;color:#fff;margin-bottom:.3rem;}
+.ob-notif-card .ob-nc-desc{font-size:.75rem;color:rgba(255,255,255,.45);line-height:1.5;}
+.ob-notif-card input[type=radio]{display:none;}
+
+/* finish */
+.ob-finish-hero{text-align:center;padding:1.5rem 0 .5rem;}
+.ob-finish-hero .ob-confetti{font-size:3.5rem;display:inline-block;animation:obPop .5s ease both;}
+@keyframes obPop{0%{transform:scale(0) rotate(-15deg);opacity:0}70%{transform:scale(1.2) rotate(5deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.ob-finish-hero h2{font-size:1.6rem;font-weight:700;color:#fff;margin:.7rem 0 .3rem;}
+.ob-finish-hero p{color:rgba(255,255,255,.5);font-size:.9rem;}
+.ob-recap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:1.5rem;}
+@media(max-width:540px){.ob-recap-grid{grid-template-columns:1fr;}}
+.ob-recap-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:1rem .85rem;text-align:center;}
+.ob-recap-card .ob-rc-icon{font-size:1.5rem;margin-bottom:.4rem;}
+.ob-recap-card .ob-rc-text{font-size:.75rem;color:rgba(255,255,255,.55);line-height:1.5;}
+
+/* nav row */
+.ob-nav{display:flex;align-items:center;gap:.75rem;margin-top:2rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,.07);}
+.ob-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem 1.25rem;border-radius:10px;font-size:.88rem;font-weight:600;border:none;cursor:pointer;transition:all .22s;}
+.ob-btn-back{background:rgba(255,255,255,.07);color:rgba(255,255,255,.65);}
+.ob-btn-back:hover{background:rgba(255,255,255,.12);color:#fff;}
+.ob-btn-skip{background:none;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.12);}
+.ob-btn-skip:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25);}
+.ob-btn-next{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;margin-inline-start:auto;padding:.65rem 1.7rem;}
+.ob-btn-next:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(245,158,11,.35);}
+
+/* alerts */
+.ob-alert{border-radius:12px;padding:.75rem 1rem;font-size:.85rem;margin-bottom:1.2rem;}
+.ob-alert-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#fca5a5;}
+.ob-alert-success{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#6ee7b7;}
+</style>
+
+<div class="ob-page" dir="{{ dir }}">
+  <!-- ambient orbs -->
+  <div class="ob-orb ob-orb-1"></div>
+  <div class="ob-orb ob-orb-2"></div>
+  <div class="ob-orb ob-orb-3"></div>
+
+  <div class="ob-shell">
+    <div class="ob-card">
+
+      <!-- top bar -->
+      <div class="ob-topbar">
+        <span class="ob-brand">☀️ SolarDeyA</span>
+        <form method="post" action="{{ url_for('main.onboarding_skip', lang=ui_lang) }}" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="ob-skip-btn">
+            {{ 'Skip wizard' if ui_lang == 'en' else 'تخطي المعالج' }}
+          </button>
+        </form>
       </div>
-      <form method="post" action="{{ url_for('main.onboarding_skip', lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-outline-secondary">تخطي الآن</button>
-      </form>
-    </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}<div class="alert alert-{{ category }} mt-3">{{ message }}</div>{% endfor %}
-      {% endif %}
-    {% endwith %}
+      <!-- flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="ob-alert ob-alert-{{ 'danger' if category in ['danger','error'] else 'success' }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
 
-    {% set steps = [('welcome','1','ترحيب'),('device','2','الجهاز'),('notifications','3','الإشعارات'),('finish','4','الإنهاء')] %}
-    <div class="wizard-steps mt-4">
-      {% for key, num, label in steps %}
-      <div class="wizard-step {% if step == key %}active{% elif step in ['device','notifications','finish'] and key == 'welcome' or step in ['notifications','finish'] and key == 'device' or step == 'finish' and key == 'notifications' %}done{% endif %}">
-        <span>{{ num }}</span><strong>{{ label }}</strong>
+      <!-- step pills -->
+      {% set step_defs = [
+          ('welcome',  '👋', 'ترحيب'    if ui_lang != 'en' else 'Welcome'),
+          ('device',   '🔌', 'الجهاز'   if ui_lang != 'en' else 'Device'),
+          ('notifications','🔔','الإشعارات' if ui_lang != 'en' else 'Alerts'),
+          ('finish',   '🚀', 'الإنهاء'  if ui_lang != 'en' else 'Finish'),
+      ] %}
+      {% set step_order = ['welcome','device','notifications','finish'] %}
+      {% set cur_idx = step_order.index(step) %}
+      <div class="ob-steps">
+        {% for key, icon, label in step_defs %}
+          {% set idx = loop.index0 %}
+          {% if not loop.first %}<div class="ob-step-sep"></div>{% endif %}
+          <div class="ob-step-pill {% if key == step %}active{% elif idx < cur_idx %}done{% endif %}">
+            <span class="ob-sp-icon">{{ '✅' if idx < cur_idx else icon }}</span>
+            <span class="ob-sp-label">{{ label }}</span>
+          </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
 
-    <form method="post" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="step" value="{{ step }}">
-      {% if step == 'welcome' %}
-        <div class="wizard-pane">
-          <h3>أهلًا {{ user_obj.full_name or user_obj.username }} 👋</h3>
-          <p>سنجهز حسابك بخطوات بسيطة. هذا المعالج غير إجباري، ويمكنك تخطي أي جزء غير أساسي.</p>
-          <div class="wizard-note-grid">
-            <div>✅ جهاز افتراضي أُنشئ لك تلقائيًا</div>
-            <div>✅ يمكنك إضافة أو تعديل جهازك لاحقًا</div>
-            <div>✅ الإشعارات قابلة للتفعيل أو التخطي الآن</div>
+      <!-- main form -->
+      <form method="post" id="ob-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="step" value="{{ step }}">
+        <!-- hidden selects consumed by app.js dynamic field renderer -->
+        <input type="hidden" id="ob-hidden-type" name="device_type"
+               value="{{ (wizard_device.device_type if wizard_device else (devices_list[0].device_type if devices_list else 'deye')) }}">
+        <select id="ob-dyn-select" name="_provider_select_ui" style="display:none;"
+                data-provider-select
+                data-device-provider-form="ob-device-form-inner">
+        </select>
+        <input type="hidden" id="ob-base-url" name="api_base_url"
+               value="{{ (wizard_device.api_base_url if wizard_device else '') }}"
+               data-provider-base-url>
+
+        <!-- ── WELCOME ─────────────────────────────── -->
+        {% if step == 'welcome' %}
+        <div class="ob-pane">
+          <div class="ob-welcome-hero">
+            <div class="ob-sun">☀️</div>
+            <h2>
+              {% if ui_lang == 'en' %}
+                Welcome, {{ user_obj.full_name or user_obj.username }}!
+              {% else %}
+                أهلًا {{ user_obj.full_name or user_obj.username }}! 👋
+              {% endif %}
+            </h2>
+            <p>
+              {% if ui_lang == 'en' %}
+                A quick setup to personalise your experience — you can skip any step.
+              {% else %}
+                إعداد خفيف وسريع لتجهيز حسابك — يمكنك تخطي أي خطوة.
+              {% endif %}
+            </p>
+          </div>
+          <div class="ob-feat-grid">
+            <div class="ob-feat-card">
+              <div class="ob-fc-icon">🔌</div>
+              <div class="ob-fc-title">{{ 'Device' if ui_lang == 'en' else 'الأجهزة' }}</div>
+              <div class="ob-fc-desc">{{ 'Connect your solar inverter or monitor.' if ui_lang == 'en' else 'ربط محول الطاقة الشمسية أو جهاز المراقبة الخاص بك.' }}</div>
+            </div>
+            <div class="ob-feat-card">
+              <div class="ob-fc-icon">📊</div>
+              <div class="ob-fc-title">{{ 'Live Data' if ui_lang == 'en' else 'بيانات حية' }}</div>
+              <div class="ob-fc-desc">{{ 'Monitor production, consumption & savings.' if ui_lang == 'en' else 'تتبع الإنتاج والاستهلاك والوفورات في الوقت الفعلي.' }}</div>
+            </div>
+            <div class="ob-feat-card">
+              <div class="ob-fc-icon">🔔</div>
+              <div class="ob-fc-title">{{ 'Alerts' if ui_lang == 'en' else 'التنبيهات' }}</div>
+              <div class="ob-fc-desc">{{ 'Get notified when something needs attention.' if ui_lang == 'en' else 'احصل على تنبيه فوري عند الحاجة.' }}</div>
+            </div>
           </div>
         </div>
-      {% elif step == 'device' %}
+
+        <!-- ── DEVICE ──────────────────────────────── -->
+        {% elif step == 'device' %}
         {% set dev = wizard_device if wizard_device else (devices_list[0] if devices_list else None) %}
-        <div class="wizard-pane admin-form-grid">
-          <div class="full"><h3>الجهاز الأول</h3><p>عدّل البيانات الأساسية الآن أو اتركها كما هي وكمّل لاحقًا.</p></div>
-          <div>
-            <label class="form-label">اسم الجهاز</label>
-            <input class="form-control form-control-lg" name="name" value="{{ dev.name if dev else 'My Solar Device' }}">
-          </div>
-          <div>
-            <label class="form-label">نوع الجهاز</label>
-            <select class="form-select form-select-lg" name="device_type">
-              <option value="deye" {% if not dev or dev.device_type == 'deye' %}selected{% endif %}>Deye</option>
-              <option value="custom" {% if dev and dev.device_type == 'custom' %}selected{% endif %}>Custom / مستقبلًا</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">اسم المحطة</label>
-            <input class="form-control form-control-lg" name="plant_name" value="{{ dev.plant_name if dev else '' }}">
-          </div>
-          <div>
-            <label class="form-label">Station ID</label>
-            <input class="form-control form-control-lg" name="station_id" value="" placeholder="{{ mask_identifier(dev.station_id) if dev and dev.station_id else '' }}">
-          </div>
-          <div>
-            <label class="form-label">Device UID</label>
-            <input class="form-control form-control-lg" name="device_uid" value="" placeholder="{{ mask_identifier(dev.device_uid) if dev and dev.device_uid else '' }}">
-          </div>
-          <div>
-            <label class="form-label">API Provider</label>
-            <input class="form-control form-control-lg" name="api_provider" value="{{ dev.api_provider if dev else 'deye' }}">
-          </div>
-          <div class="full">
-            <label class="form-label">ملاحظات</label>
-            <textarea class="form-control" rows="3" name="notes">{{ dev.notes if dev else '' }}</textarea>
-          </div>
-          <div><label class="form-label">Deye Email</label><input class="form-control form-control-lg" name="deye_email" value="" placeholder="{{ mask_email(wizard_creds.get('deye_email')) if wizard_creds.get('deye_email') else '' }}"></div>
-          <div><label class="form-label">Deye Password</label><input type="password" class="form-control form-control-lg" name="deye_password" value="" placeholder="{{ mask_secret(wizard_creds.get('deye_password')) if wizard_creds.get('deye_password') else '' }}"></div>
-          <div><label class="form-label">Deye App ID</label><input class="form-control form-control-lg" name="deye_app_id" value="" placeholder="{{ mask_identifier(wizard_creds.get('deye_app_id')) if wizard_creds.get('deye_app_id') else '' }}"></div>
-          <div><label class="form-label">Deye App Secret</label><input type="password" class="form-control form-control-lg" name="deye_app_secret" value="" placeholder="{{ mask_secret(wizard_creds.get('deye_app_secret')) if wizard_creds.get('deye_app_secret') else '' }}"></div>
-          <div><label class="form-label">منطقة Deye</label><input class="form-control form-control-lg" name="deye_region" value="{{ wizard_device_settings.get('deye_region','EMEA') }}"></div>
-          <div><label class="form-label">API Base URL</label><input class="form-control form-control-lg" name="api_base_url" value="{{ dev.api_base_url if dev else '' }}"></div>
-        </div>
-      {% elif step == 'notifications' %}
-        <div class="wizard-pane">
-          <h3>الإشعارات</h3>
-          <p>اختر ما إذا كنت تريد تفعيل الإشعارات العامة الآن. يمكن تعديل ذلك لاحقًا من مركز الإشعارات.</p>
-          <div class="wizard-note-grid">
-            <label class="device-chip"><input type="checkbox" name="enable_notifications" {% if (settings.get('notifications_enabled','true')|lower) == 'true' %}checked{% endif %}> تفعيل الإشعارات العامة</label>
-            <label class="device-chip"><input type="checkbox" name="disable_notifications"> تعطيلها الآن</label>
-          </div>
-        </div>
-      {% else %}
-        <div class="wizard-pane">
-          <h3>كل شيء جاهز ✅</h3>
-          <p>تم إعداد حسابك الأساسي. يمكنك الآن الدخول إلى لوحة التحكم أو متابعة إدارة أجهزتك من الواجهة.</p>
-          <div class="wizard-note-grid">
-            <div>🔌 أجهزتك قابلة للإدارة من صفحة الأجهزة</div>
-            <div>👤 ملفك أصبح جاهزًا كمستخدم فعلي داخل النظام</div>
-            <div>🚀 يمكنك متابعة الإعدادات التفصيلية لاحقًا بدون أي ضغط</div>
-          </div>
-        </div>
-      {% endif %}
+        <div class="ob-pane" id="ob-device-form-inner">
 
-      <div class="wizard-actions mt-4">
-        {% if step != 'welcome' %}<button class="btn btn-outline-secondary" name="action" value="back">السابق</button>{% endif %}
-        {% if step != 'finish' %}<button class="btn btn-outline-primary" name="action" value="skip">تخطي</button>{% endif %}
-        <button class="btn btn-solar ms-auto" name="action" value="{{ 'complete' if step == 'finish' else 'next' }}">{{ 'ابدأ الآن' if step == 'finish' else 'التالي' }}</button>
-      </div>
-    </form>
-  </div>
-</div>
+          <!-- device name + plant name always shown -->
+          <div class="ob-dev-form" style="margin-bottom:1.25rem;">
+            <div class="ob-field">
+              <label>{{ 'Device Name' if ui_lang == 'en' else 'اسم الجهاز' }}</label>
+              <input name="name" value="{{ dev.name if dev else ('My Solar Device' if ui_lang == 'en' else 'جهازي الشمسي') }}" placeholder="{{ 'Device Name' if ui_lang == 'en' else 'اسم الجهاز' }}">
+            </div>
+            <div class="ob-field">
+              <label>{{ 'Plant / Station Name' if ui_lang == 'en' else 'اسم المحطة' }}</label>
+              <input name="plant_name" value="{{ dev.plant_name if dev else '' }}" placeholder="{{ 'My Plant' if ui_lang == 'en' else 'محطتي' }}">
+            </div>
+          </div>
+
+          <!-- provider search -->
+          <div class="ob-section-title">
+            {{ 'Choose your device provider' if ui_lang == 'en' else 'اختر مزوّد الجهاز' }}
+          </div>
+          <div class="ob-search-wrap">
+            <span class="ob-search-icon">🔍</span>
+            <input type="text" id="ob-prov-search" placeholder="{{ 'Search providers…' if ui_lang == 'en' else 'بحث…' }}" autocomplete="off">
+          </div>
+
+          <!-- provider grid -->
+          <div class="ob-prov-grid" id="ob-prov-grid">
+            <!-- populated by JS -->
+          </div>
+
+          <!-- selected provider banner -->
+          <div class="ob-prov-banner" id="ob-prov-banner">
+            <span class="ob-pb-icon" id="ob-pb-icon">⚡</span>
+            <div class="ob-pb-info">
+              <div class="ob-pb-name" id="ob-pb-name">—</div>
+              <div class="ob-pb-note" id="ob-pb-note" data-provider-note></div>
+            </div>
+          </div>
+
+          <!-- dynamic fields injected by app.js -->
+          <div class="ob-dev-form">
+            <div class="ob-dyn-fields ob-full" data-provider-fields></div>
+          </div>
+
+        </div>
+
+        <!-- ── NOTIFICATIONS ───────────────────────── -->
+        {% elif step == 'notifications' %}
+        <div class="ob-pane">
+          <div class="ob-section-title">{{ 'Notifications' if ui_lang == 'en' else 'الإشعارات' }}</div>
+          <p style="color:rgba(255,255,255,.55);font-size:.88rem;margin-bottom:.5rem;">
+            {% if ui_lang == 'en' %}
+              Choose whether to enable notifications now — you can change this anytime from notification settings.
+            {% else %}
+              اختر ما إذا كنت تريد تفعيل الإشعارات الآن — يمكنك تغيير ذلك لاحقًا.
+            {% endif %}
+          </p>
+          <div class="ob-notif-grid">
+            <label class="ob-notif-card selected" id="ob-notif-yes" onclick="selectNotif('yes')">
+              <input type="radio" name="enable_notifications" value="yes"
+                     {% if (settings.get('notifications_enabled','true')|lower) == 'true' %}checked{% endif %}>
+              <div class="ob-nc-icon">🔔</div>
+              <div class="ob-nc-title">{{ 'Enable Alerts' if ui_lang == 'en' else 'تفعيل التنبيهات' }}</div>
+              <div class="ob-nc-desc">{{ 'Stay informed about your system status.' if ui_lang == 'en' else 'ابقَ على اطلاع بحالة منظومتك الشمسية.' }}</div>
+            </label>
+            <label class="ob-notif-card" id="ob-notif-no" onclick="selectNotif('no')">
+              <input type="radio" name="enable_notifications" value="no"
+                     {% if (settings.get('notifications_enabled','true')|lower) != 'true' %}checked{% endif %}>
+              <div class="ob-nc-icon">🔕</div>
+              <div class="ob-nc-title">{{ 'Not Now' if ui_lang == 'en' else 'ليس الآن' }}</div>
+              <div class="ob-nc-desc">{{ "I'll set up notifications later." if ui_lang == 'en' else 'سأضبط الإشعارات لاحقًا.' }}</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- ── FINISH ──────────────────────────────── -->
+        {% else %}
+        <div class="ob-pane">
+          <div class="ob-finish-hero">
+            <div class="ob-confetti">🎉</div>
+            <h2>{{ "You're all set!" if ui_lang == 'en' else 'كل شيء جاهز!' }}</h2>
+            <p>{{ 'Your account is configured. Head to the dashboard to see your solar data.' if ui_lang == 'en' else 'تم إعداد حسابك. توجّه إلى لوحة التحكم لمشاهدة بيانات الطاقة الشمسية.' }}</p>
+          </div>
+          <div class="ob-recap-grid">
+            <div class="ob-recap-card">
+              <div class="ob-rc-icon">🔌</div>
+              <div class="ob-rc-text">{{ 'Your device is connected and ready.' if ui_lang == 'en' else 'جهازك متصل وجاهز للعمل.' }}</div>
+            </div>
+            <div class="ob-recap-card">
+              <div class="ob-rc-icon">👤</div>
+              <div class="ob-rc-text">{{ 'Your profile is set up inside the system.' if ui_lang == 'en' else 'ملفك الشخصي جاهز داخل النظام.' }}</div>
+            </div>
+            <div class="ob-recap-card">
+              <div class="ob-rc-icon">⚙️</div>
+              <div class="ob-rc-text">{{ 'You can adjust all settings anytime.' if ui_lang == 'en' else 'يمكنك ضبط كل الإعدادات في أي وقت.' }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- nav row -->
+        <div class="ob-nav">
+          {% if step != 'welcome' %}
+            <button type="submit" class="ob-btn ob-btn-back" name="action" value="back">
+              {% if dir == 'rtl' %}← {% endif %}{{ 'Back' if ui_lang == 'en' else 'السابق' }}{% if dir == 'ltr' %} →{% endif %}
+            </button>
+          {% endif %}
+          {% if step != 'finish' %}
+            <button type="submit" class="ob-btn ob-btn-skip" name="action" value="skip">
+              {{ 'Skip' if ui_lang == 'en' else 'تخطي' }}
+            </button>
+          {% endif %}
+          <button type="submit" class="ob-btn ob-btn-next" name="action"
+                  value="{{ 'complete' if step == 'finish' else 'next' }}">
+            {{ ('Start Now' if step == 'finish' else 'Next') if ui_lang == 'en' else ('ابدأ الآن' if step == 'finish' else 'التالي') }}
+            {% if step != 'finish' %}{% if dir == 'rtl' %} →{% else %} →{% endif %}{% endif %}
+          </button>
+        </div>
+      </form>
+
+    </div><!-- .ob-card -->
+  </div><!-- .ob-shell -->
+</div><!-- .ob-page -->
+
+<script>
+(function(){
+  /* ── provider specs injected from backend ── */
+  var SPECS = {{ provider_specs | tojson }};
+  window.SOLARDEYE_PROVIDER_SPECS = SPECS;
+
+  {% if wizard_device %}
+  window.SOLARDEYE_DEVICE_VALUES = {
+    station_id : {{ (wizard_device.station_id  or '') | tojson }},
+    device_uid : {{ (wizard_device.device_uid  or '') | tojson }},
+    api_provider: {{ (wizard_device.api_provider or '') | tojson }},
+    api_base_url: {{ (wizard_device.api_base_url or '') | tojson }},
+    {% if wizard_creds %}
+    deye_email  : {{ (wizard_creds.get('deye_email',''))   | tojson }},
+    deye_app_id : {{ (wizard_creds.get('deye_app_id',''))  | tojson }},
+    deye_region : {{ (wizard_device_settings.get('deye_region','EMEA')) | tojson }}
+    {% endif %}
+  };
+  {% endif %}
+
+  /* device step only */
+  if (document.getElementById('ob-prov-grid')) {
+    var grid     = document.getElementById('ob-prov-grid');
+    var search   = document.getElementById('ob-prov-search');
+    var banner   = document.getElementById('ob-prov-banner');
+    var pbIcon   = document.getElementById('ob-pb-icon');
+    var pbName   = document.getElementById('ob-pb-name');
+    var pbNote   = document.getElementById('ob-pb-note');
+    var hidType  = document.getElementById('ob-hidden-type');
+    var dynSel   = document.getElementById('ob-dyn-select');
+
+    var ICONS = {
+      deye:'🌞', goodwe:'⚡', solis:'🔋', huawei:'🏭', sofar:'🔆',
+      saj:'💡', growatt:'🌱', sma:'🔵', fronius:'🟡', enphase:'🌀',
+      solaredge:'🔴', delta:'⬛', ginlong:'🌿', kstar:'⭐',
+      custom:'🔧', mqtt:'📡', modbus:'🔌', victron:'⚓',
+      solax:'🌊', foxess:'🦊', sungrow:'🌅'
+    };
+
+    var curCode = hidType ? (hidType.value || '') : '';
+
+    function provIcon(code){ return ICONS[code] || '⚡'; }
+
+    function buildGrid(filter){
+      grid.innerHTML = '';
+      var fl = (filter||'').toLowerCase();
+      SPECS.forEach(function(s){
+        if(fl && s.name.toLowerCase().indexOf(fl)<0 && s.code.toLowerCase().indexOf(fl)<0) return;
+        var card = document.createElement('div');
+        card.className = 'ob-prov-card' + (s.code === curCode ? ' active' : '');
+        card.dataset.code = s.code;
+        card.innerHTML = '<span class="ob-pc-icon">'+provIcon(s.code)+'</span>'
+                       + '<span class="ob-pc-name">'+s.name+'</span>';
+        card.addEventListener('click', function(){ selectProv(s.code, s.name, s); });
+        grid.appendChild(card);
+      });
+    }
+
+    function selectProv(code, name, spec){
+      curCode = code;
+      grid.querySelectorAll('.ob-prov-card').forEach(function(c){
+        c.classList.toggle('active', c.dataset.code === code);
+      });
+      if(hidType) hidType.value = code;
+      if(dynSel){ dynSel.value = code; dynSel.dispatchEvent(new Event('change')); }
+      if(pbIcon) pbIcon.textContent = provIcon(code);
+      if(pbName) pbName.textContent = name;
+      var note = (spec && (spec.notes_ar || spec.notes_en)) ? (spec.notes_ar || spec.notes_en) : '';
+      if(pbNote){ pbNote.textContent = note; pbNote.classList.toggle('visible', !!note); }
+      if(banner) banner.classList.add('visible');
+    }
+
+    if(search){
+      search.addEventListener('input', function(){ buildGrid(this.value); });
+    }
+
+    buildGrid('');
+
+    /* auto-select current provider */
+    if(curCode){
+      var sp = SPECS.find(function(s){ return s.code === curCode; });
+      if(sp) selectProv(sp.code, sp.name, sp);
+    }
+  }
+
+  /* notifications radio cards */
+  function selectNotif(val){
+    var yes = document.getElementById('ob-notif-yes');
+    var no  = document.getElementById('ob-notif-no');
+    if(!yes || !no) return;
+    yes.classList.toggle('selected', val==='yes');
+    no.classList.toggle('selected', val==='no');
+    var r = (val==='yes') ? yes.querySelector('input') : no.querySelector('input');
+    if(r) r.checked = true;
+  }
+  window.selectNotif = selectNotif;
+
+  /* init radio state on load */
+  (function(){
+    var yes = document.getElementById('ob-notif-yes');
+    var no  = document.getElementById('ob-notif-no');
+    if(!yes || !no) return;
+    var yr = yes.querySelector('input');
+    var nr = no.querySelector('input');
+    if(nr && nr.checked){ yes.classList.remove('selected'); no.classList.add('selected'); }
+  })();
+
+})();
+</script>
 {% endblock %}

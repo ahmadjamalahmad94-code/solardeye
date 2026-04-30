@@ -320,7 +320,7 @@ def onboarding_wizard():
     wizard_device = devices_list[0] if devices_list else None
     wizard_creds, wizard_device_settings = _device_payload(wizard_device)
     settings = load_settings()
-    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, wizard_device=wizard_device, wizard_creds=wizard_creds, wizard_device_settings=wizard_device_settings, settings=settings, ui_lang=_lang())
+    return render_template('onboarding_wizard.html', step=step, user_obj=user, devices_list=devices_list, wizard_device=wizard_device, wizard_creds=wizard_creds, wizard_device_settings=wizard_device_settings, settings=settings, provider_specs=_provider_specs_for_ui(_lang()), ui_lang=_lang())
 
 
 @devices_bp.route('/onboarding/skip', methods=['POST'])

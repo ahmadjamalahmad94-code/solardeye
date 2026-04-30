@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login_v50.css', v='v50-login-luxury-20260430') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/register_v50.css', v='v50-register-luxury-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/register_v50.css', v='v54-register-validation-alert-20260430') }}">
 {% endblock %}
 {% block title %}{{ 'Create account' if (ui_lang or 'ar') == 'en' else 'إنشاء حساب جديد' }}{% endblock %}
 {% block body %}
@@ -290,6 +290,7 @@
 
           {# ===== Section 2: LOCATION ===== #}
           <div class="rg50-nav">
+            <div class="rg50-inline-error" data-step-error="account" role="alert" aria-live="polite" hidden></div>
             <button type="button" class="rg50-btn-back invisible" data-back>← {{ 'Back' if is_en else 'السابق' }}</button>
             <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>1</b> / 3</span>
             <button type="button" class="rg50-btn-next" data-next="location">
@@ -367,6 +368,7 @@
 
           {# ===== Section 3: ENERGY SYSTEM / DEVICE ===== #}
           <div class="rg50-nav">
+            <div class="rg50-inline-error" data-step-error="location" role="alert" aria-live="polite" hidden></div>
             <button type="button" class="rg50-btn-back" data-back="account">← {{ 'Back' if is_en else 'السابق' }}</button>
             <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>2</b> / 3</span>
             <button type="button" class="rg50-btn-next" data-next="device">
@@ -417,6 +419,7 @@
 
           {# ===== Submit ===== #}
                     <div class="rg50-nav" style="margin-top:8px;">
+            <div class="rg50-inline-error" data-step-error="device" role="alert" aria-live="polite" hidden></div>
             <button type="button" class="rg50-btn-back" data-back="location">← {{ 'Back' if is_en else 'السابق' }}</button>
             <span class="rg50-nav-counter">{{ 'Step' if is_en else 'الخطوة' }} <b>3</b> / 3 · {{ 'Last step!' if is_en else 'الخطوة الأخيرة!' }}</span>
             <span></span>
@@ -632,6 +635,7 @@
   function showStep(target){
     var targetIdx = stepKeys.indexOf(target);
     if (targetIdx === -1) return;
+    clearStepErrors();
     panels.forEach(function(p){
       p.classList.toggle('is-active', p.dataset.step === target);
     });
@@ -646,11 +650,28 @@
     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function clearStepErrors(){
+    document.querySelectorAll('[data-step-error]').forEach(function(box){
+      box.hidden = true;
+      box.textContent = '';
+    });
+  }
+
+  function setStepError(stepKey, message){
+    var box = document.querySelector('[data-step-error="' + stepKey + '"]');
+    if (!box) return;
+    box.textContent = message;
+    box.hidden = false;
+  }
+
   function validateStep(stepKey){
     var panel = document.querySelector('.rg50-step-panel[data-step="' + stepKey + '"]');
     if (!panel) return true;
+    var isEnPage = (document.documentElement.lang || document.body.dataset.lang || 'ar') === 'en';
+    clearStepErrors();
     var ok = true;
     var firstBad = null;
+    var customMessage = '';
     panel.querySelectorAll('input[required], select[required]').forEach(function(el){
       var holder = el.closest('.rg50-field-input');
       if (!el.value || (el.type === 'email' && el.value && !el.checkValidity())) {
@@ -667,6 +688,9 @@
       var p2 = document.getElementById('rg50ConfirmPassword');
       if (p1 && p2 && p1.value && p2.value && p1.value !== p2.value) {
         ok = false;
+        customMessage = isEnPage
+          ? 'Password confirmation does not match.'
+          : 'تأكيد كلمة المرور غير مطابق.';
         var holder = p2.closest('.rg50-field-input');
         if (holder) holder.classList.add('error');
         if (!firstBad) firstBad = p2;
@@ -674,14 +698,14 @@
     }
     if (!ok && firstBad) {
       firstBad.focus();
-      showValidationToast(stepKey);
+      showValidationToast(stepKey, customMessage);
     }
     return ok;
   }
 
   // ── Validation toast ──────────────────────────────
   var _toastTimer = null;
-  function showValidationToast(stepKey) {
+  function showValidationToast(stepKey, customMessage) {
     var existing = document.getElementById('rg50ValToast');
     if (existing) existing.remove();
     if (_toastTimer) clearTimeout(_toastTimer);
@@ -698,7 +722,8 @@
         ? 'Please complete the required fields.'
         : 'يرجى إكمال الحقول المطلوبة.'
     };
-    var msg = msgs[stepKey] || (isEnPage ? 'Please fill in all required fields.' : 'يرجى ملء الحقول المطلوبة.');
+    var msg = customMessage || msgs[stepKey] || (isEnPage ? 'Please fill in all required fields.' : 'يرجى ملء الحقول المطلوبة.');
+    setStepError(stepKey, msg);
 
     var toast = document.createElement('div');
     toast.id = 'rg50ValToast';

@@ -34,6 +34,9 @@
   padding: 18px clamp(14px, 2.4vw, 32px) 80px;
   font-family: 'Cairo', 'Inter', system-ui, sans-serif;
 }
+.dashboard-v40 > * + * {
+  margin-top: 22px;
+}
 .dashboard-v40 *, .dashboard-v40 *::before, .dashboard-v40 *::after { box-sizing: border-box; }
 
 /* =====================================================
@@ -47,7 +50,7 @@
   color: #fff;
   box-shadow: var(--d-shadow-lg);
   isolation: isolate;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   transition: background 1.6s cubic-bezier(.4,.0,.2,1);
 }
 .d40-hero::before {
@@ -230,7 +233,7 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
   border: 1px solid var(--d-line);
   border-radius: var(--d-radius);
   box-shadow: var(--d-shadow);
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 .d40-action {
   display: inline-flex; align-items: center; gap: 8px;
@@ -272,7 +275,7 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
    BENTO GRID
    ===================================================== */
 .d40-grid {
-  display: grid; gap: 16px;
+  display: grid; gap: 22px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 .d40-card {
@@ -297,6 +300,10 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
 @media (max-width: 1100px) {
   .d40-card.span-8, .d40-card.span-7, .d40-card.span-6, .d40-card.span-5,
   .d40-card.span-4, .d40-card.span-3 { grid-column: span 12; }
+  .d40-card.d40-log-half { grid-column: span 6; }
+}
+@media (max-width: 760px) {
+  .d40-card.d40-log-half { grid-column: span 12; }
 }
 
 .d40-card-head {

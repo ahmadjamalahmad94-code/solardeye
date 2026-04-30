@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v51-dashboard-log-panels-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v55-dashboard-log-side-by-side-20260430') }}">
 {% endblock %}
 {% block body %}
 <script>document.body.classList.add('dashboard-page-v27','dashboard-page-v40');</script>
@@ -380,7 +380,7 @@
       </div>
 
       {# 8. SMART EVENT LOG (span 6) #}
-      <section class="d40-card span-6 d40-log-card">
+      <section class="d40-card span-6 d40-log-card d40-log-half">
         <div class="d40-card-head">
           <div>
             <h3>🧠 {{ 'Smart event log' if ui_lang == 'en' else 'سجل الأحداث الذكي' }}</h3>
@@ -402,7 +402,7 @@
       </section>
 
       {# 9. SYNC HISTORY (span 6) #}
-      <section class="d40-card span-6 d40-log-card">
+      <section class="d40-card span-6 d40-log-card d40-log-half">
         <div class="d40-card-head">
           <div>
             <h3>🔁 {{ 'Last sync operations' if ui_lang == 'en' else 'آخر عمليات المزامنة' }}</h3>
