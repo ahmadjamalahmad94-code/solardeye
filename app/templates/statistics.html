@@ -92,18 +92,18 @@
   opacity: .08; pointer-events: none;
 }
 .st-metric.solar::before  { background: radial-gradient(ellipse at 80% 20%, #f59e0b, transparent 65%); opacity: .15; }
-.st-metric.home::before   { background: radial-gradient(ellipse at 80% 20%, #6366f1, transparent 65%); opacity: .15; }
+.st-metric.home::before   { background: radial-gradient(ellipse at 80% 20%, #ec4899, transparent 65%); opacity: .15; }
 .st-metric.batt::before   { background: radial-gradient(ellipse at 80% 20%, #10b981, transparent 65%); opacity: .15; }
-.st-metric.soc::before    { background: radial-gradient(ellipse at 80% 20%, #f97316, transparent 65%); opacity: .12; }
+.st-metric.soc::before    { background: radial-gradient(ellipse at 80% 20%, #3b82f6, transparent 65%); opacity: .12; }
 .st-metric-icon { font-size: 1.6rem; margin-bottom: .7rem; display: block; }
 .st-metric-label { font-size: .72rem; color: rgba(255,255,255,.45); font-weight: 600; letter-spacing: .3px; margin-bottom: .3rem; }
 .st-metric-value { font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: .25rem; }
 .st-metric-sub { font-size: .73rem; color: rgba(255,255,255,.35); line-height: 1.5; }
 .st-metric-accent { display: inline-block; width: 3px; height: 20px; border-radius: 2px; margin-inline-end: .4rem; vertical-align: middle; }
 .solar .st-metric-accent { background: #f59e0b; }
-.home  .st-metric-accent { background: #6366f1; }
+.home  .st-metric-accent { background: #ec4899; }
 .batt  .st-metric-accent { background: #10b981; }
-.soc   .st-metric-accent { background: #f97316; }
+.soc   .st-metric-accent { background: #3b82f6; }
 
 /* ── chart section ── */
 .st-charts { display: grid; grid-template-columns: 1fr 340px; gap: 1.25rem; margin-bottom: 2rem; }
@@ -147,19 +147,23 @@
   font-weight: 600;
 }
 .st-val-solar  { color: #fcd34d !important; }
-.st-val-home   { color: #a5b4fc !important; }
+.st-val-home   { color: #f9a8d4 !important; }
 .st-val-batt   { color: #6ee7b7 !important; }
-.st-val-grid   { color: #fca5a5 !important; }
+.st-val-grid   { color: #cbd5e1 !important; }
 .st-table-empty {
   padding: 2.5rem 1.5rem; text-align: center; color: rgba(255,255,255,.3);
   font-size: .88rem;
 }
+
+/* ── ajax transition ── */
+#st-content { transition: opacity .18s ease; }
 </style>
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
     <div class="st-page" dir="{{ dir }}">
+      <div id="st-content">
 
       <!-- ── PAGE HEADER ── -->
       <div class="st-header">
@@ -181,7 +185,7 @@
       </div>
 
       <!-- ── PERIOD NAV ── -->
-      <form method="get" action="{{ url_for('main.statistics') }}">
+      <form id="st-nav-form" method="get" action="{{ url_for('main.statistics') }}">
         <div class="st-nav-bar">
           <div class="st-seg">
             <button class="st-seg-btn {% if selected_view == 'day' %}active{% endif %}"
@@ -254,7 +258,7 @@
                 {{ 'Solar' if is_en else 'شمس' }}
               </span>
               <span class="st-legend-item">
-                <i class="st-legend-dot" style="background:#6366f1;"></i>
+                <i class="st-legend-dot" style="background:#ec4899;"></i>
                 {{ 'Home' if is_en else 'منزل' }}
               </span>
               <span class="st-legend-item">
@@ -262,7 +266,7 @@
                 {{ 'Battery' if is_en else 'بطارية' }}
               </span>
               <span class="st-legend-item">
-                <i class="st-legend-dot" style="background:#f97316;"></i>
+                <i class="st-legend-dot" style="background:#3b82f6;"></i>
                 SOC
               </span>
             </div>
@@ -296,7 +300,7 @@
               data-grid='{{ summary_chart.grid|tojson }}'></canvas>
           </div>
 
-          <!-- Extra stats below donut -->
+          <!-- Extra stats below chart -->
           <div style="padding: 0 1.5rem 1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:.7rem;">
             <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
               <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Solar → Home' if is_en else 'شمس → منزل' }}</div>
@@ -308,7 +312,7 @@
             </div>
             <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
               <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Grid → Home' if is_en else 'شبكة → منزل' }}</div>
-              <div style="font-size:1rem;font-weight:700;color:#fca5a5;">{{ stats.grid_to_home_kwh }} kWh</div>
+              <div style="font-size:1rem;font-weight:700;color:#cbd5e1;">{{ stats.grid_to_home_kwh }} kWh</div>
             </div>
             <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:.8rem .9rem;">
               <div style="font-size:.67rem;color:rgba(255,255,255,.38);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;">{{ 'Peak Solar' if is_en else 'ذروة الإنتاج' }}</div>
@@ -366,7 +370,153 @@
         </div>
       </div>
 
+      </div><!-- #st-content -->
     </div><!-- .st-page -->
   </main>
 </div>
+
+<script>
+/* ── Statistics AJAX navigation ── */
+(function () {
+  var _stBusy = false;
+
+  function stParse(v, fb) { try { return JSON.parse(v || '[]'); } catch (e) { return fb || []; } }
+  function stLabel(ar, en) { return document.body.dataset.lang === 'en' ? en : ar; }
+
+  var stBase = {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { font: { family: 'Cairo' } } } },
+    scales: {
+      x: { ticks: { font: { family: 'Cairo' }, maxRotation: 0, minRotation: 0 } },
+      y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
+    }
+  };
+
+  function stDestroyCharts() {
+    ['statsProfileChart', 'statsUsageChart'].forEach(function (id) {
+      var c = document.getElementById(id);
+      if (c && typeof Chart !== 'undefined' && Chart.getChart) {
+        var ci = Chart.getChart(c);
+        if (ci) ci.destroy();
+      }
+    });
+  }
+
+  function stInitCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    var spc = document.getElementById('statsProfileChart');
+    if (spc) {
+      var kind = spc.dataset.kind || 'day';
+      new Chart(spc.getContext('2d'), {
+        type: kind === 'day' ? 'line' : 'bar',
+        data: {
+          labels: stParse(spc.dataset.labels),
+          datasets: kind === 'day' ? [
+            { label: stLabel('الطاقة الشمسية', 'Solar power'), data: stParse(spc.dataset.solar), borderColor: '#f59e0b', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+            { label: stLabel('استهلاك البيت', 'Home load'), data: stParse(spc.dataset.home), borderColor: '#ec4899', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+            { label: stLabel('البطارية', 'Battery'), data: stParse(spc.dataset.battery), borderColor: '#10b981', tension: 0.35, pointRadius: 4, borderWidth: 3 },
+            { label: '% SOC', data: stParse(spc.dataset.soc), borderColor: '#3b82f6', yAxisID: 'y1', tension: 0.35, pointRadius: 4, borderWidth: 3 }
+          ] : [
+            { label: stLabel('الطاقة الشمسية', 'Solar power'), data: stParse(spc.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
+            { label: stLabel('استهلاك البيت', 'Home load'), data: stParse(spc.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
+            { label: stLabel('البطارية', 'Battery'), data: stParse(spc.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
+            { label: stLabel('الشبكة', 'Grid'), data: stParse(spc.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' }
+          ]
+        },
+        options: Object.assign({}, stBase, {
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo' } } } },
+          scales: {
+            x: stBase.scales.x, y: stBase.scales.y,
+            y1: { beginAtZero: true, suggestedMax: 100, position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { family: 'Cairo' } } }
+          }
+        })
+      });
+    }
+
+    var suc = document.getElementById('statsUsageChart');
+    if (suc) {
+      new Chart(suc.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: stParse(suc.dataset.labels),
+          datasets: [
+            { label: stLabel('الطاقة الشمسية', 'Solar power'), data: stParse(suc.dataset.solar), backgroundColor: 'rgba(245,158,11,.85)' },
+            { label: stLabel('استهلاك البيت', 'Home load'), data: stParse(suc.dataset.home), backgroundColor: 'rgba(236,72,153,.85)' },
+            { label: stLabel('البطارية', 'Battery'), data: stParse(suc.dataset.battery), backgroundColor: 'rgba(16,185,129,.85)' },
+            { label: stLabel('الشبكة', 'Grid'), data: stParse(suc.dataset.grid), backgroundColor: 'rgba(148,163,184,.85)' }
+          ]
+        },
+        options: Object.assign({}, stBase, {
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo' } } } }
+        })
+      });
+    }
+  }
+
+  function stSetupNav() {
+    var form = document.getElementById('st-nav-form');
+    if (!form) return;
+
+    /* date input + apply button */
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var url = new URL(form.action, window.location.href);
+      new FormData(form).forEach(function (v, k) { url.searchParams.set(k, v); });
+      stNavigate(url.toString());
+    });
+
+    /* segment buttons */
+    form.querySelectorAll('.st-seg-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var url = new URL(form.action, window.location.href);
+        new FormData(form).forEach(function (v, k) { url.searchParams.set(k, v); });
+        url.searchParams.set('view', btn.value);
+        stNavigate(url.toString());
+      });
+    });
+
+    /* date arrow links */
+    document.querySelectorAll('#st-content .st-date-arrow:not(.dim)').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var href = a.getAttribute('href');
+        if (href && href !== '#') { e.preventDefault(); stNavigate(href); }
+      });
+    });
+  }
+
+  function stNavigate(url) {
+    if (_stBusy) return;
+    _stBusy = true;
+    var oldEl = document.getElementById('st-content');
+    if (oldEl) { oldEl.style.opacity = '0.35'; }
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var newEl = doc.getElementById('st-content');
+        var curEl = document.getElementById('st-content');
+        if (newEl && curEl) {
+          stDestroyCharts();
+          curEl.replaceWith(newEl);
+          history.pushState({ stUrl: url }, '', url);
+          newEl.style.opacity = '0';
+          stInitCharts();
+          stSetupNav();
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () { newEl.style.opacity = '1'; });
+          });
+        }
+      })
+      .catch(function () { window.location.href = url; })
+      .finally(function () { _stBusy = false; });
+  }
+
+  window.addEventListener('popstate', function () { window.location.reload(); });
+  document.addEventListener('DOMContentLoaded', function () { stSetupNav(); });
+})();
+</script>
 {% endblock %}

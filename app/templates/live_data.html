@@ -58,7 +58,7 @@
 .lv-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; }
 .lv-hero.status::before  { background: radial-gradient(ellipse at 80% 20%,#6366f1,transparent 65%); opacity: .12; }
 .lv-hero.solar::before   { background: radial-gradient(ellipse at 80% 20%,#f59e0b,transparent 65%); opacity: .14; }
-.lv-hero.home-h::before  { background: radial-gradient(ellipse at 80% 20%,#818cf8,transparent 65%); opacity: .1; }
+.lv-hero.home-h::before  { background: radial-gradient(ellipse at 80% 20%,#ec4899,transparent 65%); opacity: .1; }
 .lv-hero.battery::before { background: radial-gradient(ellipse at 80% 20%,#10b981,transparent 65%); opacity: .12; }
 .lv-hero.today::before   { background: radial-gradient(ellipse at 80% 20%,#f97316,transparent 65%); opacity: .1; }
 .lv-hero-icon { font-size: 1.5rem; margin-bottom: .6rem; display: block; }
@@ -81,7 +81,7 @@
 }
 .lv-sec-badge.solar   { background: rgba(245,158,11,.15); color: #fcd34d; border: 1px solid rgba(245,158,11,.2); }
 .lv-sec-badge.battery { background: rgba(16,185,129,.12); color: #34d399; border: 1px solid rgba(16,185,129,.2); }
-.lv-sec-badge.home    { background: rgba(99,102,241,.12); color: #a5b4fc; border: 1px solid rgba(99,102,241,.2); }
+.lv-sec-badge.home    { background: rgba(236,72,153,.12); color: #f9a8d4; border: 1px solid rgba(236,72,153,.2); }
 .lv-sec-badge.pv      { background: rgba(249,115,22,.12); color: #fb923c; border: 1px solid rgba(249,115,22,.2); }
 
 /* ── metric grid ── */
@@ -105,12 +105,12 @@
 .lv-kpi:hover { border-color: rgba(255,255,255,.15); }
 .lv-kpi.accent-solar  { border-color: rgba(245,158,11,.2); }
 .lv-kpi.accent-batt   { border-color: rgba(16,185,129,.2); }
-.lv-kpi.accent-home   { border-color: rgba(99,102,241,.2); }
+.lv-kpi.accent-home   { border-color: rgba(236,72,153,.2); }
 .lv-kpi-label { font-size: .67rem; color: rgba(255,255,255,.38); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: .4rem; }
 .lv-kpi-val { font-size: 1.15rem; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: .2rem; }
 .lv-kpi.accent-solar .lv-kpi-val { color: #fcd34d; }
 .lv-kpi.accent-batt  .lv-kpi-val { color: #34d399; }
-.lv-kpi.accent-home  .lv-kpi-val { color: #a5b4fc; }
+.lv-kpi.accent-home  .lv-kpi-val { color: #f9a8d4; }
 .lv-kpi-sub { font-size: .7rem; color: rgba(255,255,255,.35); line-height: 1.4; }
 
 /* ── empty state ── */
@@ -138,7 +138,7 @@
 .lv-hist-table tbody td { padding: .8rem 1.1rem; color: rgba(255,255,255,.7); white-space: nowrap; }
 .lv-hist-table tbody td:first-child { color: rgba(255,255,255,.45); font-size: .8rem; }
 .lv-hist-val-prod  { color: #fcd34d !important; font-weight: 600; }
-.lv-hist-val-cons  { color: #a5b4fc !important; font-weight: 600; }
+.lv-hist-val-cons  { color: #f9a8d4 !important; font-weight: 600; }
 .lv-hist-val-chg   { color: #34d399 !important; }
 .lv-hist-val-dis   { color: #fb923c !important; }
 .lv-hist-empty { padding: 2rem; text-align: center; color: rgba(255,255,255,.3); font-size: .85rem; }
@@ -197,7 +197,7 @@
         <div class="lv-hero home-h">
           <span class="lv-hero-icon">🏠</span>
           <div class="lv-hero-label">{{ 'Home Load Now' if is_en else 'استهلاك المنزل الآن' }}</div>
-          <div class="lv-hero-val" style="color:#a5b4fc;">{{ format_power(d.inverterOutputPowerL1l2 or latest.home_load or 0) }} W</div>
+          <div class="lv-hero-val" style="color:#f9a8d4;">{{ format_power(d.inverterOutputPowerL1l2 or latest.home_load or 0) }} W</div>
           <div class="lv-hero-sub">{{ 'Instantaneous household consumption' if is_en else 'الاستهلاك المنزلي الفوري' }}</div>
         </div>
 

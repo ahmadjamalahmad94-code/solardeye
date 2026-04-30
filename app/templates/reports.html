@@ -95,14 +95,14 @@
 }
 .rp-insight.self::before   { background: radial-gradient(ellipse at 80% 20%,#10b981,transparent 65%); opacity: .1; }
 .rp-insight.solar::before  { background: radial-gradient(ellipse at 80% 20%,#f59e0b,transparent 65%); opacity: .12; }
-.rp-insight.batt::before   { background: radial-gradient(ellipse at 80% 20%,#6366f1,transparent 65%); opacity: .12; }
+.rp-insight.batt::before   { background: radial-gradient(ellipse at 80% 20%,#3b82f6,transparent 65%); opacity: .12; }
 .rp-insight.surplus::before{ background: radial-gradient(ellipse at 80% 20%,#f97316,transparent 65%); opacity: .1; }
 .rp-insight-icon { font-size: 1.8rem; margin-bottom: .65rem; display: block; }
 .rp-insight-label { font-size: .72rem; color: rgba(255,255,255,.42); font-weight: 600; letter-spacing: .3px; margin-bottom: .25rem; }
 .rp-insight-value { font-size: 2.2rem; font-weight: 900; line-height: 1.05; margin-bottom: .3rem; }
 .rp-insight.self   .rp-insight-value { color: #34d399; }
 .rp-insight.solar  .rp-insight-value { color: #fcd34d; }
-.rp-insight.batt   .rp-insight-value { color: #a5b4fc; }
+.rp-insight.batt   .rp-insight-value { color: #93c5fd; }
 .rp-insight.surplus .rp-insight-value { color: #fb923c; }
 .rp-insight-desc { font-size: .73rem; color: rgba(255,255,255,.35); line-height: 1.55; }
 
@@ -176,15 +176,19 @@
 }
 .rp-table-empty { padding: 2.5rem; text-align: center; color: rgba(255,255,255,.3); font-size: .88rem; }
 .rp-val-solar { color: #fcd34d !important; }
-.rp-val-home  { color: #a5b4fc !important; }
+.rp-val-home  { color: #f9a8d4 !important; }
 .rp-val-batt  { color: #6ee7b7 !important; }
-.rp-val-grid  { color: #fca5a5 !important; }
+.rp-val-grid  { color: #cbd5e1 !important; }
+
+/* ── ajax transition ── */
+#rp-content { transition: opacity .18s ease; }
 </style>
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
     <div class="rp-page" dir="{{ dir }}">
+      <div id="rp-content">
 
       <!-- ── PAGE HEADER ── -->
       <div class="rp-header">
@@ -206,7 +210,7 @@
       </div>
 
       <!-- ── PERIOD NAV ── -->
-      <form method="get" action="{{ url_for('main.reports') }}">
+      <form id="rp-nav-form" method="get" action="{{ url_for('main.reports') }}">
         <div class="rp-nav-bar">
           <div class="rp-seg">
             <button class="rp-seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">{{ 'Daily' if is_en else 'يومي' }}</button>
@@ -354,7 +358,7 @@
             <div style="display:flex;gap:.6rem;padding:.2rem 1.5rem 1.25rem;flex-wrap:wrap;">
               <span style="font-size:.72rem;color:#fcd34d;">☀️ {{ solar_share }}% {{ 'Solar' if is_en else 'شمس' }}</span>
               <span style="font-size:.72rem;color:#6ee7b7;">🔋 {{ battery_share }}% {{ 'Battery' if is_en else 'بطارية' }}</span>
-              <span style="font-size:.72rem;color:#fca5a5;">⚡ {{ grid_share }}% {{ 'Grid' if is_en else 'شبكة' }}</span>
+              <span style="font-size:.72rem;color:#cbd5e1;">⚡ {{ grid_share }}% {{ 'Grid' if is_en else 'شبكة' }}</span>
             </div>
           </div>
 
@@ -422,7 +426,155 @@
         </div>
       </div>
 
+      </div><!-- #rp-content -->
     </div><!-- .rp-page -->
   </main>
 </div>
+
+<script>
+/* ── Reports AJAX navigation ── */
+(function () {
+  var _rpBusy = false;
+
+  function rpParse(v, fb) { try { return JSON.parse(v || '[]'); } catch (e) { return fb || []; } }
+  function rpLabel(ar, en) { return document.body.dataset.lang === 'en' ? en : ar; }
+
+  var rpBase = {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { font: { family: 'Cairo' } } } },
+    scales: {
+      x: { ticks: { font: { family: 'Cairo' }, maxRotation: 0, minRotation: 0 } },
+      y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
+    }
+  };
+
+  function rpDestroyCharts() {
+    ['reportsMainChart', 'reportsMixChart'].forEach(function (id) {
+      var c = document.getElementById(id);
+      if (c && typeof Chart !== 'undefined' && Chart.getChart) {
+        var ci = Chart.getChart(c);
+        if (ci) ci.destroy();
+      }
+    });
+  }
+
+  function rpInitCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    var rmc = document.getElementById('reportsMainChart');
+    if (rmc) {
+      var kind = rmc.dataset.kind || 'day';
+      var lineDS = [
+        { label: rpLabel('الطاقة الشمسية', 'Solar power'), data: rpParse(rmc.dataset.solar), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.08)', fill: true, tension: 0.38, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+        { label: rpLabel('استهلاك البيت', 'Home load'), data: rpParse(rmc.dataset.home), borderColor: '#ec4899', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+        { label: rpLabel('البطارية', 'Battery'), data: rpParse(rmc.dataset.battery), borderColor: '#10b981', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 },
+        { label: '% SOC', data: rpParse(rmc.dataset.soc), borderColor: '#3b82f6', yAxisID: 'y1', tension: 0.34, pointRadius: 3, pointHoverRadius: 5, borderWidth: 3 }
+      ];
+      var barDS = [
+        { label: rpLabel('الطاقة الشمسية', 'Solar power'), data: rpParse(rmc.dataset.solar), backgroundColor: 'rgba(245,158,11,.82)', borderRadius: 10, maxBarThickness: 34 },
+        { label: rpLabel('استهلاك البيت', 'Home load'), data: rpParse(rmc.dataset.home), backgroundColor: 'rgba(236,72,153,.82)', borderRadius: 10, maxBarThickness: 34 },
+        { label: rpLabel('البطارية', 'Battery'), data: rpParse(rmc.dataset.battery), backgroundColor: 'rgba(16,185,129,.82)', borderRadius: 10, maxBarThickness: 34 },
+        { label: rpLabel('الشبكة', 'Grid'), data: rpParse(rmc.dataset.grid), backgroundColor: 'rgba(148,163,184,.82)', borderRadius: 10, maxBarThickness: 34 }
+      ];
+      new Chart(rmc.getContext('2d'), {
+        type: kind === 'day' ? 'line' : 'bar',
+        data: { labels: rpParse(rmc.dataset.labels), datasets: kind === 'day' ? lineDS : barDS },
+        options: Object.assign({}, rpBase, {
+          layout: { padding: { top: 6, right: 10, bottom: 0, left: 6 } },
+          plugins: {
+            legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 10, padding: 16, font: { family: 'Cairo' } } },
+            tooltip: { rtl: true, titleFont: { family: 'Cairo' }, bodyFont: { family: 'Cairo' } }
+          },
+          scales: {
+            x: Object.assign({}, rpBase.scales.x, { grid: { display: false }, ticks: Object.assign({}, rpBase.scales.x.ticks, { padding: 8 }) }),
+            y: Object.assign({}, rpBase.scales.y, { ticks: Object.assign({}, rpBase.scales.y.ticks, { padding: 8 }) }),
+            y1: { beginAtZero: true, suggestedMax: 100, position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { family: 'Cairo' }, padding: 8 } }
+          }
+        })
+      });
+    }
+
+    var rxc = document.getElementById('reportsMixChart');
+    if (rxc) {
+      var mixVals = rpParse(rxc.dataset.values).map(function (v) { return Number(v || 0); });
+      var total = mixVals.reduce(function (a, b) { return a + b; }, 0);
+      new Chart(rxc.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['شمس → المنزل', 'بطارية → المنزل', 'شبكة → المنزل'],
+          datasets: [{ data: total > 0 ? mixVals : [1, 0, 0], backgroundColor: ['rgba(245,158,11,.92)', 'rgba(16,185,129,.92)', 'rgba(59,130,246,.88)'], borderColor: ['#ffffff', '#ffffff', '#ffffff'], borderWidth: 4, hoverOffset: 8 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '64%',
+          plugins: {
+            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10, padding: 16, font: { family: 'Cairo' } } },
+            tooltip: { rtl: true, titleFont: { family: 'Cairo' }, bodyFont: { family: 'Cairo' }, callbacks: { label: function (ctx) { return ctx.label + ': ' + ctx.parsed + ' kWh'; } } }
+          }
+        }
+      });
+    }
+  }
+
+  function rpSetupNav() {
+    var form = document.getElementById('rp-nav-form');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var url = new URL(form.action, window.location.href);
+      new FormData(form).forEach(function (v, k) { url.searchParams.set(k, v); });
+      rpNavigate(url.toString());
+    });
+
+    form.querySelectorAll('.rp-seg-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var url = new URL(form.action, window.location.href);
+        new FormData(form).forEach(function (v, k) { url.searchParams.set(k, v); });
+        url.searchParams.set('view', btn.value);
+        rpNavigate(url.toString());
+      });
+    });
+
+    document.querySelectorAll('#rp-content .rp-date-arrow:not(.dim)').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var href = a.getAttribute('href');
+        if (href && href !== '#') { e.preventDefault(); rpNavigate(href); }
+      });
+    });
+  }
+
+  function rpNavigate(url) {
+    if (_rpBusy) return;
+    _rpBusy = true;
+    var oldEl = document.getElementById('rp-content');
+    if (oldEl) { oldEl.style.opacity = '0.35'; }
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var newEl = doc.getElementById('rp-content');
+        var curEl = document.getElementById('rp-content');
+        if (newEl && curEl) {
+          rpDestroyCharts();
+          curEl.replaceWith(newEl);
+          history.pushState({ rpUrl: url }, '', url);
+          newEl.style.opacity = '0';
+          rpInitCharts();
+          rpSetupNav();
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () { newEl.style.opacity = '1'; });
+          });
+        }
+      })
+      .catch(function () { window.location.href = url; })
+      .finally(function () { _rpBusy = false; });
+  }
+
+  window.addEventListener('popstate', function () { window.location.reload(); });
+  document.addEventListener('DOMContentLoaded', function () { rpSetupNav(); });
+})();
+</script>
 {% endblock %}
