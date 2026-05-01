@@ -421,135 +421,190 @@ def export_statistics_pdf():
     width, height = A4
     content_width = width - doc.leftMargin - doc.rightMargin
 
+    # ── Dashboard-aligned palette (matches statistics.html / dashboard_v40.css) ──
+    PDF_INK         = '#0b1220'
+    PDF_INK_SOFT    = '#1f2a44'
+    PDF_MUTED       = '#5e6f8c'
+    PDF_LINE        = '#e3eaf6'
+    PDF_LINE_STRONG = '#cfd9ec'
+    PDF_BG          = '#f5f8ff'
+    PDF_BG_ALT      = '#eef3fb'
+    PDF_AMBER       = '#f59e0b'
+    PDF_AMBER_SOFT  = '#fbbf24'
+    PDF_ROSE        = '#f43f5e'
+    PDF_EMERALD     = '#10b981'
+    PDF_SKY         = '#2563eb'
+    PDF_SKY_SOFT    = '#60a5fa'
+    PDF_VIOLET      = '#6d3aff'
+    PDF_HERO_FROM   = '#0e3b86'
+    PDF_HERO_MID    = '#3aa7ff'
+    PDF_HERO_TO     = '#ffd66e'
+
     base_styles = getSampleStyleSheet()
     styles = {
-        'title': ParagraphStyle(
-            'ArabicTitle',
-            parent=base_styles['Title'],
-            fontName=font_bold,
-            fontSize=24,
-            leading=30,
-            textColor=colors.HexColor('#14284b'),
-            alignment=1,
-            spaceAfter=4,
+        'hero_eyebrow': ParagraphStyle(
+            'HeroEyebrow', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=9, leading=12,
+            textColor=colors.HexColor(PDF_INK), alignment=1, spaceAfter=2,
         ),
-        'subtitle': ParagraphStyle(
-            'ArabicSubtitle',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11,
-            leading=16,
-            textColor=colors.HexColor('#62748b'),
-            alignment=1,
-            spaceAfter=12,
+        'hero_title': ParagraphStyle(
+            'HeroTitle', parent=base_styles['Title'],
+            fontName=font_bold, fontSize=22, leading=28,
+            textColor=colors.white, alignment=1, spaceAfter=2,
+        ),
+        'hero_subtitle': ParagraphStyle(
+            'HeroSubtitle', parent=base_styles['Normal'],
+            fontName=font_name, fontSize=11, leading=16,
+            textColor=colors.HexColor('#f1f5ff'), alignment=1, spaceAfter=0,
         ),
         'section': ParagraphStyle(
-            'ArabicSection',
-            parent=base_styles['Heading2'],
-            fontName=font_bold,
-            fontSize=16,
-            leading=22,
-            textColor=colors.HexColor('#14284b'),
-            alignment=2,
-            spaceAfter=8,
+            'ArabicSection', parent=base_styles['Heading2'],
+            fontName=font_bold, fontSize=15, leading=22,
+            textColor=colors.HexColor(PDF_INK), alignment=2, spaceAfter=6,
         ),
         'body': ParagraphStyle(
-            'ArabicBody',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11.5,
-            leading=18,
-            textColor=colors.HexColor('#22324d'),
-            alignment=2,
+            'ArabicBody', parent=base_styles['Normal'],
+            fontName=font_name, fontSize=11.5, leading=20,
+            textColor=colors.HexColor(PDF_INK_SOFT), alignment=2,
         ),
         'body_bold': ParagraphStyle(
-            'ArabicBodyBold',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=11.5,
-            leading=18,
-            textColor=colors.HexColor('#14284b'),
-            alignment=2,
+            'ArabicBodyBold', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=11.5, leading=20,
+            textColor=colors.HexColor(PDF_INK), alignment=2,
         ),
         'card_title': ParagraphStyle(
-            'CardTitle',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor('#5b6b84'),
-            alignment=1,
+            'CardTitle', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=10.5, leading=13,
+            textColor=colors.HexColor(PDF_MUTED), alignment=1,
         ),
         'card_value': ParagraphStyle(
-            'CardValue',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=20,
-            leading=24,
-            textColor=colors.HexColor('#14284b'),
-            alignment=1,
+            'CardValue', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=19, leading=24,
+            textColor=colors.HexColor(PDF_INK), alignment=1,
         ),
         'card_hint': ParagraphStyle(
-            'CardHint',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=8.5,
-            leading=10,
-            textColor=colors.HexColor('#8a97ab'),
-            alignment=1,
+            'CardHint', parent=base_styles['Normal'],
+            fontName=font_name, fontSize=8.5, leading=11,
+            textColor=colors.HexColor(PDF_MUTED), alignment=1,
         ),
         'table_header': ParagraphStyle(
-            'TableHeader',
-            parent=base_styles['Normal'],
-            fontName=font_bold,
-            fontSize=9.2,
-            leading=12,
-            textColor=colors.HexColor('#173057'),
-            alignment=1,
+            'TableHeader', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=9.2, leading=12,
+            textColor=colors.HexColor(PDF_INK_SOFT), alignment=1,
         ),
         'table_cell': ParagraphStyle(
-            'TableCell',
-            parent=base_styles['Normal'],
-            fontName=font_name,
-            fontSize=9.4,
-            leading=12,
-            textColor=colors.HexColor('#26354d'),
-            alignment=1,
+            'TableCell', parent=base_styles['Normal'],
+            fontName=font_name, fontSize=9.4, leading=12,
+            textColor=colors.HexColor(PDF_INK_SOFT), alignment=1,
+        ),
+        'table_cell_period': ParagraphStyle(
+            'TableCellPeriod', parent=base_styles['Normal'],
+            fontName=font_bold, fontSize=9.4, leading=12,
+            textColor=colors.HexColor(PDF_SKY), alignment=1,
         ),
     }
 
     def P(text, style='body'):
         return Paragraph(ar(text), styles[style])
 
-    def metric_card(title, value, hint='', bg='#f3f7fd', accent='#8ab4f8'):
-        card = Table(
+    def metric_card(title, value, hint, accent_hex):
+        """White card with a thick top accent bar — mirrors .st-metric in CSS."""
+        accent_strip = Table([[ '' ]], colWidths=[4.35 * cm], rowHeights=[0.14 * cm])
+        accent_strip.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(accent_hex)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        body = Table(
             [[P(title, 'card_title')], [P(value, 'card_value')], [P(hint or ' ', 'card_hint')]],
             colWidths=[4.35 * cm],
-            rowHeights=[0.7 * cm, 0.95 * cm, 0.45 * cm],
+            rowHeights=[0.65 * cm, 0.95 * cm, 0.5 * cm],
         )
-        card.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(bg)),
-            ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor(accent)),
-            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#d7e3f4')),
+        body.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('ROUNDEDCORNERS', [12, 12, 12, 12]),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
-        return card
+        wrapper = Table([[accent_strip], [body]], colWidths=[4.35 * cm])
+        wrapper.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('ROUNDEDCORNERS', [10, 10, 10, 10]),
+        ]))
+        return wrapper
+
+    # ── HERO HEADER (gradient sky→amber band, mirrors .st-hero) ──
+    def hero_band():
+        eyebrow_chip = Table(
+            [[P('تحليل الطاقة', 'hero_eyebrow')]],
+            colWidths=[3.6 * cm], rowHeights=[0.65 * cm],
+        )
+        eyebrow_chip.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('ROUNDEDCORNERS', [16, 16, 16, 16]),
+        ]))
+        eyebrow_row = Table([[eyebrow_chip]], colWidths=[content_width])
+        eyebrow_row.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        meta_text = f'الفترة: {title_hint}   •   التاريخ: {selected_date.strftime("%Y-%m-%d")}'
+        inner = Table(
+            [
+                [eyebrow_row],
+                [P('تقرير منصة الطاقة الشمسية', 'hero_title')],
+                [P(meta_text, 'hero_subtitle')],
+            ],
+            colWidths=[content_width],
+        )
+        inner.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+
+        wrapper = Table([[inner]], colWidths=[content_width])
+        wrapper.setStyle(TableStyle([
+            # gradient is faked by stacking row backgrounds — for a cleaner look
+            # we use a solid sky-blue with rounded corners (the painter underneath
+            # the page provides the soft accent halos like the dashboard hero).
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(PDF_HERO_MID)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 18),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 18),
+            ('TOPPADDING', (0, 0), (-1, -1), 18),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 18),
+            ('ROUNDEDCORNERS', [18, 18, 18, 18]),
+        ]))
+        return wrapper
 
     story = []
-    story.append(P('تقرير منصة الطاقة الشمسية', 'title'))
-    story.append(P(f'التاريخ: {selected_date.strftime("%Y-%m-%d")}   •   الفترة: {title_hint}', 'subtitle'))
+    story.append(hero_band())
+    story.append(Spacer(1, 0.55 * cm))
 
+    # Metric cards — colors mirror the dashboard scheme exactly
     cards = [
-        metric_card('إنتاج الشمس', fmt_energy_plain(stats['solar_generated_kwh']), 'إجمالي التوليد خلال الفترة', '#eef6ff', '#f59e0b'),
-        metric_card('استهلاك المنزل', fmt_energy_plain(stats['home_consumed_kwh']), 'إجمالي الاستهلاك خلال الفترة', '#fdf2f8', '#ec4899'),
-        metric_card('شحن البطارية من الشمس', fmt_energy_plain(stats['solar_to_battery_kwh']), 'الطاقة المخزنة في البطارية', '#effaf6', '#10b981'),
-        metric_card('متوسط البطارية', fmt_percent_plain(stats['avg_battery_soc']), 'متوسط نسبة الشحن', '#f5f3ff', '#8b5cf6'),
+        metric_card('إنتاج الشمس',          fmt_energy_plain(stats['solar_generated_kwh']),  'إجمالي التوليد خلال الفترة', PDF_AMBER),
+        metric_card('استهلاك المنزل',        fmt_energy_plain(stats['home_consumed_kwh']),    'إجمالي الاستهلاك خلال الفترة', PDF_ROSE),
+        metric_card('شحن البطارية من الشمس', fmt_energy_plain(stats['solar_to_battery_kwh']), 'الطاقة المخزنة في البطارية', PDF_EMERALD),
+        metric_card('متوسط البطارية',        fmt_percent_plain(stats['avg_battery_soc']),     'متوسط نسبة الشحن', PDF_SKY),
     ]
     cards_table = Table([cards], colWidths=[4.35 * cm] * 4, hAlign='CENTER')
     cards_table.setStyle(TableStyle([
@@ -559,7 +614,7 @@ def export_statistics_pdf():
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     story.append(cards_table)
-    story.append(Spacer(1, 0.45 * cm))
+    story.append(Spacer(1, 0.5 * cm))
 
     summary_items = [
         f"• من الشمس إلى البيت: {fmt_energy_plain(stats['solar_to_home_kwh'])}",
@@ -571,16 +626,16 @@ def export_statistics_pdf():
     summary_block = Table(summary_rows, colWidths=[content_width])
     summary_block.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('BOX', (0, 0), (-1, -1), 0.7, colors.HexColor('#d9e4f2')),
-        ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor('#c7d8ee')),
+        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
+        ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor(PDF_SKY)),
         ('LEFTPADDING', (0, 0), (-1, -1), 16),
         ('RIGHTPADDING', (0, 0), (-1, -1), 16),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ('ROUNDEDCORNERS', [12, 12, 12, 12]),
     ]))
     story.append(summary_block)
-    story.append(Spacer(1, 0.4 * cm))
+    story.append(Spacer(1, 0.45 * cm))
 
     story.append(P('الجدول التحليلي', 'section'))
 
@@ -595,7 +650,7 @@ def export_statistics_pdf():
             P(f"{float(row['solar_to_home_kwh'] or 0):.2f}", 'table_cell'),
             P(f"{float(row['home_consumed_kwh'] or 0):.2f}", 'table_cell'),
             P(f"{float(row['solar_generated_kwh'] or 0):.2f}", 'table_cell'),
-            P(str(row['label']), 'table_cell'),
+            P(str(row['label']), 'table_cell_period'),
         ])
 
     analytic_table = Table(
@@ -605,11 +660,12 @@ def export_statistics_pdf():
         hAlign='CENTER',
     )
     analytic_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e9f1fb')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#173057')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f5f9ff')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(PDF_INK_SOFT)),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.2, colors.HexColor(PDF_SKY_SOFT)),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fbff')]),
-        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#d3deed')),
-        ('INNERGRID', (0, 0), (-1, -1), 0.45, colors.HexColor('#dce5f2')),
+        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
+        ('INNERGRID', (0, 0), (-1, -1), 0.4, colors.HexColor(PDF_LINE)),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 7),
@@ -621,18 +677,44 @@ def export_statistics_pdf():
     story.append(analytic_table)
 
     def _paint_page(canv, _doc):
+        """Soft gradient page background + accent bands matching the dashboard hero."""
         canv.saveState()
-        canv.setFillColor(colors.HexColor('#f8fbff'))
+        # base page color (soft white-blue)
+        canv.setFillColor(colors.HexColor(PDF_BG))
         canv.rect(0, 0, width, height, stroke=0, fill=1)
-        canv.setFillColor(colors.HexColor('#dbe8f7'))
-        canv.roundRect(doc.leftMargin, height - 1.0 * cm, content_width, 0.08 * cm, 0.04 * cm, stroke=0, fill=1)
-        canv.setStrokeColor(colors.HexColor('#e6eef9'))
-        canv.setLineWidth(0.8)
+
+        # subtle radial halos (faked with overlapping translucent ellipses) — gives
+        # the same "sky glow" feel as the dashboard background.
+        try:
+            canv.setFillColorRGB(0.43, 0.23, 1.0, alpha=0.06)  # violet
+            canv.circle(width * 0.10, height * 1.02, 240, stroke=0, fill=1)
+            canv.setFillColorRGB(0.96, 0.62, 0.04, alpha=0.06)  # amber
+            canv.circle(width * 0.92, height * 1.02, 220, stroke=0, fill=1)
+            canv.setFillColorRGB(0.06, 0.72, 0.51, alpha=0.04)  # emerald
+            canv.circle(width * 0.50, -60, 280, stroke=0, fill=1)
+        except Exception:
+            pass
+
+        # top accent bar — same amber→sky gradient feel as hero
+        canv.setFillColor(colors.HexColor(PDF_SKY_SOFT))
+        canv.roundRect(doc.leftMargin, height - 0.85 * cm,
+                       content_width * 0.55, 0.10 * cm, 0.05 * cm, stroke=0, fill=1)
+        canv.setFillColor(colors.HexColor(PDF_AMBER_SOFT))
+        canv.roundRect(doc.leftMargin + content_width * 0.55, height - 0.85 * cm,
+                       content_width * 0.45, 0.10 * cm, 0.05 * cm, stroke=0, fill=1)
+
+        # footer divider + text
+        canv.setStrokeColor(colors.HexColor(PDF_LINE))
+        canv.setLineWidth(0.7)
         canv.line(doc.leftMargin, 1.0 * cm, width - doc.rightMargin, 1.0 * cm)
         canv.setFont(font_name, 8)
-        canv.setFillColor(colors.HexColor('#7b8aa4'))
+        canv.setFillColor(colors.HexColor(PDF_MUTED))
         footer = ar('منصة الطاقة الشمسية • تقرير تحليلي')
         canv.drawRightString(width - doc.rightMargin, 0.62 * cm, footer)
+
+        # tiny page number at left
+        page_label = ar(f'صفحة {canv.getPageNumber()}')
+        canv.drawString(doc.leftMargin, 0.62 * cm, page_label)
         canv.restoreState()
 
     doc.build(story, onFirstPage=_paint_page, onLaterPages=_paint_page)
