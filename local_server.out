@@ -5746,3 +5746,726 @@ schedule skip: prefix=battery_test reason=manual_mode
 sms critical skipped: disabled
 Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
 Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:53:22.647549+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:53:22.647549+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:53 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:53:22.647549+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:53 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:53:22.647549+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=392.382592 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:53:22.647549+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.main.sync_now_internal
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler job finished: app.blueprints.main.sync_now_internal
+Scheduler listener: job deye_auto_sync executed
+advanced scheduler tick at 2026-05-01T08:53:52.575994+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:53:52.575994+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:53 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:53:52.575994+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:53 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:53:52.575994+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=422.315435 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:53:52.575994+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:54:22.701780+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:54:22.701780+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:54 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:54:22.701780+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:54 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:54:22.701780+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=452.436833 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:54:22.701780+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:54:52.588170+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:54:52.588170+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:54 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:54:52.588170+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:54 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:54:52.588170+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=482.322738 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:54:52.588170+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:55:22.860185+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:55:22.860185+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:55 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:55:22.860185+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:55 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:55:22.860185+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=512.597825 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:55:22.860185+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:55:52.579429+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:55:52.579429+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:55 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:55:52.579429+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:55 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:55:52.579429+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=542.319244 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:55:52.579429+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:56:22.711602+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:56:22.711602+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:56 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:56:22.711602+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:56 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:56:22.711602+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=572.455253 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:56:22.711602+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:56:52.581400+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:56:52.581400+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:56 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:56:52.581400+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:56 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:56:52.581400+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=602.320316 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:56:52.581400+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:57:22.561506+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:57:22.561506+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:57 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:57:22.561506+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:57 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:57:22.561506+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=632.296907 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:57:22.561506+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:57:52.573972+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:57:52.573972+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:57 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:57:52.573972+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:57 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:57:52.573972+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=662.309493 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:57:52.573972+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:58:22.723360+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:58:22.723360+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:58 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:58:22.723360+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:58 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:58:22.723360+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=692.459512 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:58:22.723360+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.main.sync_now_internal
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler job finished: app.blueprints.main.sync_now_internal
+Scheduler listener: job deye_auto_sync executed
+advanced scheduler tick at 2026-05-01T08:58:52.553668+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:58:52.553668+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:58 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:58:52.553668+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:58 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:58:52.553668+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=722.28852 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:58:52.553668+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_weather_checks
+Scheduler job finished: app.blueprints.notifications.run_weather_checks
+Scheduler listener: job weather_change_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:59:23.756304+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:59:23.756304+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:59 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:59:23.756304+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:59 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:59:23.756304+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=753.491876 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:59:23.756304+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T08:59:52.576695+03:00 is_day=False weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+periodic_day decision: is_day=False due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_night mode=interval enabled=true now_local=2026-05-01T08:59:52.576695+03:00 start=sunset end=08:00 last_sent=2026-05-01T04:54:50.263325+00:00
+schedule skip: prefix=periodic_night reason=outside_window current=08:59 start=sunset end=08:00
+periodic_night decision: is_day=False due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T08:59:52.576695+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=08:59 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T08:59:52.576695+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=782.311862 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T08:59:52.576695+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:00:28.060585+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:00:28.060585+03:00 start=08:00 end=sunset last_sent=2026-04-30T16:12:16.191390+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=49691.871355 due=True
+periodic_day decision: is_day=True due=True
+scheduled notification send: periodic_day via telegram
+telegram send ok: status=200
+scheduled notification marked sent: periodic_day result=telegram:ok
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:00:28.060585+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:00 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:00:28.060585+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=822.756874 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:00:28.060585+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:00:54.233628+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:00:54.233628+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=22.072233 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:00:54.233628+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:00 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:00:54.233628+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=843.969075 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:00:54.233628+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:01:23.721134+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:01:23.721134+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=51.559492 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:01:23.721134+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:01 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:01:23.721134+03:00 start=08:00 end=sunset last_sent=2026-05-01T05:46:50.267654+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=873.455458 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:01:23.721134+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:01:53.035147+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:01:53.035147+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=80.873469 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:01:53.035147+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:01 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:01:53.035147+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=1.859006 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:01:53.035147+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:02:22.902107+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:02:22.902107+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=110.741086 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:02:22.902107+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:02 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:02:22.902107+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=31.727548 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:02:22.902107+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:02:52.770185+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:02:52.770185+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=140.608726 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:02:52.770185+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:02 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:02:52.770185+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=61.595763 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:02:52.770185+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:03:22.724189+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:03:22.724189+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=170.562859 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:03:22.724189+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:03 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:03:22.724189+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=91.548301 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:03:22.724189+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.main.sync_now_internal
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:03:52.596344+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:03:52.596344+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=200.434983 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:03:52.596344+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:03 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:03:52.596344+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=121.421345 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:03:52.596344+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.main.sync_now_internal
+Scheduler listener: job deye_auto_sync executed
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:04:22.650839+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:04:22.650839+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=230.490317 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:04:22.650839+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:04 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:04:22.650839+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=151.47751 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:04:22.650839+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:04:52.582822+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:04:52.582822+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=260.421905 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:04:52.582822+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:04 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:04:52.582822+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=181.410176 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:04:52.582822+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:05:22.892813+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:05:22.892813+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=290.732049 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:05:22.892813+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:05 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:05:22.892813+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=211.718533 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:05:22.892813+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:05:52.579105+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:05:52.579105+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=320.421988 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:05:52.579105+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:05 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:05:52.579105+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=241.408975 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:05:52.579105+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:06:22.650320+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:06:22.650320+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=350.493779 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:06:22.650320+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:06 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:06:22.650320+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=271.480544 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:06:22.650320+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:06:52.603508+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:06:52.603508+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=380.442246 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:06:52.603508+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:06 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:06:52.603508+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=301.427697 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:06:52.603508+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:07:22.590357+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:07:22.590357+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=410.429037 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:07:22.590357+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:07 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:07:22.590357+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=331.415925 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:07:22.590357+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:07:52.631388+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:07:52.631388+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=440.47004 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:07:52.631388+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:07 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:07:52.631388+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=361.456839 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:07:52.631388+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:08:22.683180+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:08:22.683180+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=470.521597 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:08:22.683180+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:08 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:08:22.683180+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=391.508148 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:08:22.683180+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.main.sync_now_internal
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler job finished: app.blueprints.main.sync_now_internal
+Scheduler listener: job deye_auto_sync executed
+advanced scheduler tick at 2026-05-01T09:08:52.668107+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:08:52.668107+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=500.510997 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:08:52.668107+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:08 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:08:52.668107+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=421.49815 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:08:52.668107+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_weather_checks
+Scheduler job finished: app.blueprints.notifications.run_weather_checks
+Scheduler listener: job weather_change_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:09:22.578765+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:09:22.578765+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=530.41815 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:09:22.578765+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:09 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:09:22.578765+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=451.406465 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:09:22.578765+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:09:52.633266+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:09:52.633266+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=560.471906 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:09:52.633266+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:09 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:09:52.633266+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=481.458231 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:09:52.633266+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:10:23.151377+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:10:23.151377+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=590.990056 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:10:23.151377+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:10 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:10:23.151377+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=511.975899 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:10:23.151377+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:10:52.674942+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:10:52.674942+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=620.513934 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:10:52.674942+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:10 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:10:52.674942+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=541.504899 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:10:52.674942+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler tick at 2026-05-01T09:11:22.662099+03:00 is_day=True weather_available=True
+periodic_day state: enabled=True channel=telegram mode=interval
+schedule check: prefix=periodic_day mode=interval enabled=true now_local=2026-05-01T09:11:22.662099+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:00:32.162209+00:00
+schedule interval: prefix=periodic_day interval_minutes=15 elapsed_seconds=650.504706 due=False
+periodic_day decision: is_day=True due=False
+periodic_day skipped after checks
+periodic_night state: enabled=True channel=telegram mode=interval
+periodic_night decision: is_day=True due=False
+periodic_night skipped after checks
+schedule check: prefix=pre_sunset mode=interval enabled=true now_local=2026-05-01T09:11:22.662099+03:00 start=13:00 end=sunset last_sent=2026-05-01T05:29:46.010346+00:00
+schedule skip: prefix=pre_sunset reason=outside_window current=09:11 start=13:00 end=sunset
+schedule check: prefix=load_alert mode=interval enabled=true now_local=2026-05-01T09:11:22.662099+03:00 start=08:00 end=sunset last_sent=2026-05-01T06:01:51.177868+00:00
+schedule interval: prefix=load_alert interval_minutes=15 elapsed_seconds=571.490472 due=False
+schedule check: prefix=battery_test mode=manual enabled=true now_local=2026-05-01T09:11:22.662099+03:00 start=00:00 end=23:59 last_sent=-
+schedule skip: prefix=battery_test reason=manual_mode
+sms critical skipped: disabled
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
