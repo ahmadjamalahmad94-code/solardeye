@@ -132,3 +132,236 @@ Press CTRL+C to quit
 127.0.0.1 - - [30/Apr/2026 23:32:27] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
 127.0.0.1 - - [30/Apr/2026 23:32:30] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
 127.0.0.1 - - [30/Apr/2026 23:32:32] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:34] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:37] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:43] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:46] "GET /register/username-check?lang=ar&username=\u0634\u0627\u0629\u0634\u064a HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:47] "GET /register/username-check?lang=ar&username=\u0634\u0627\u0629\u0634 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:48] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:50] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:50] "GET /register/username-check?lang=ar&username=ahmad HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:51] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:52] "GET /register/username-check?lang=ar&username=ahmad HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:52] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:56] "GET /register/username-check?lang=ar&username=ahmad1 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:32:56] "GET /register/username-check?lang=ar&username=ahmad1 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:00] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:02] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:05] "GET /register/username-check?lang=ar&username=ahmad HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:05] "GET /register/username-check?lang=ar&username=ahmad94 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:06] "GET /reports?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:07] "GET /static/css/sidebar_rebuild_v11.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:33:07] "GET /static/css/style.css?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:33:08] "GET /static/js/sidebar_rebuild_v11.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:33:08] "GET /static/js/app.js?v=v57-register-username-check-20260430 HTTP/1.1" 304 -
+127.0.0.1 - - [30/Apr/2026 23:33:12] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:14] "GET /register/username-check?lang=ar&username=mmidoo HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:15] "GET /register/username-check?lang=ar&username=mmidoo HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:15] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:16] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:19] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:21] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:21] "GET /register/username-check?lang=ar&username=mohamed HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:22] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:29] "GET /register/username-check?lang=ar&username=mohamed HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:35] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:35] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:36] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:39] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:41] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:46] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:49] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:49] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:53] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:57] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:59] "GET /statistics?view=week&date=2026-04-30 HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:33:59] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:01] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:03] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:08] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:11] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:29] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:30] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:35] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:44] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:46] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:49] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:34:51] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:05] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:08] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:17] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:24] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:30] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:37] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:41] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:46] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:49] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:35:56] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:01] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:07] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:19] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:23] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:28] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:38] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:44] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:36:54] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:06] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:06] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:14] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:26] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:32] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:40] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:44] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:45] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:37:55] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:02] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:05] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:16] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:22] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:35] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:35] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:50] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:38:59] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:06] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:07] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:17] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:25] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:31] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:36] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:45] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:39:52] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:04] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:09] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:17] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:24] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:33] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:37] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:48] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:40:54] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:05] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:10] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:20] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:26] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:27] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:35] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:41] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:48] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:41:53] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:42:00] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:42:09] "GET /notifications/feed?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:42:09] "GET /api/live?lang=ar HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 23:51:14] "GET /register/username-check?lang=ar&username=mohamed HTTP/1.1" 200 -
+[2026-05-01 02:53:03,350] ERROR in app: Exception on /live-data [GET]
+Traceback (most recent call last):
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\blueprints\energy.py", line 790, in live_data
+    return render_template('live_data.html',
+                           latest=latest, d=d, settings=settings,
+    ...<2 lines>...
+                           format_power=format_power,
+                           format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\templates\live_data.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\templates\base.html", line 45, in top-level template code
+    {% block body %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\templates\live_data.html", line 151, in block 'body'
+    {% include '_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\templates\_sidebar.html", line 90, in top-level template code
+    {% if portal_page_visible('dashboard') %}{{ nav_item('overview','\u0627\u0644\u0646\u0638\u0631\u0629 \u0627\u0644\u0639\u0627\u0645\u0629','Overview',['energy.dashboard','main.dashboard'],url_for('main.dashboard', lang=ui_lang),'grid') }}{% endif %}
+    ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\services\rbac.py", line 309, in portal_page_visible
+    row = _portal_page_row(page_key)
+  File "C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\services\rbac.py", line 219, in _portal_page_row
+    row = PortalPageSetting.query.filter_by(page_key=page_key).first()
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\query.py", line 2766, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\query.py", line 2864, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1813, in _execute_context
+    conn = self._revalidate_connection()
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 673, in _revalidate_connection
+    self._invalid_transaction()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 663, in _invalid_transaction
+    raise exc.PendingRollbackError(
+    ...<4 lines>...
+    )
+sqlalchemy.exc.PendingRollbackError: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
+127.0.0.1 - - [01/May/2026 02:53:03] "GET /live-data?lang=ar HTTP/1.1" 500 -
+Run time of job "_build_job.<locals>._inner (trigger: interval[0:05:00], next run at: 2026-04-30 23:53:46 UTC)" was missed by 0:04:31.806533
+Run time of job "_build_job.<locals>._inner (trigger: interval[0:10:00], next run at: 2026-04-30 23:58:56 UTC)" was missed by 0:04:21.830164
+Execution of job "_build_job.<locals>._inner (trigger: interval[0:00:30], next run at: 2026-04-30 23:53:21 UTC)" skipped: maximum number of running instances reached (1)
+Run time of job "_build_job.<locals>._inner (trigger: interval[0:10:00], next run at: 2026-05-01 03:58:56 UTC)" was missed by 0:05:52.445617
+Execution of job "_build_job.<locals>._inner (trigger: interval[0:00:30], next run at: 2026-05-01 03:54:51 UTC)" skipped: maximum number of running instances reached (1)
