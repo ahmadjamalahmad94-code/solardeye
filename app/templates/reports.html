@@ -34,8 +34,11 @@
   padding:18px clamp(14px,2.4vw,32px) 80px;
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--rp-ink);
+  display:flex;
+  flex-direction:column;
+  gap:30px;
 }
-.rp-page>*+*{margin-top:24px}
+.rp-page>*+*{margin-top:0}
 .rp-page *,.rp-page *::before,.rp-page *::after{box-sizing:border-box}
 
 /* HERO HEADER (sky gradient — matches dashboard) */
@@ -356,9 +359,15 @@
 .rp-val-batt {color:#047857 !important}
 .rp-val-grid {color:#1f2937 !important}
 
-#rp-content{transition:opacity .18s ease}
+#rp-content{
+  transition:opacity .18s ease;
+  display:flex;
+  flex-direction:column;
+  gap:30px;
+}
 @media (max-width:720px){
-  .rp-page>*+*{margin-top:18px}
+  .rp-page{gap:20px}
+  #rp-content{gap:20px}
   .rp-side-stack{gap:18px}
   .rp-table-scroll{max-height:420px}
   .rp-loads-list{max-height:220px}

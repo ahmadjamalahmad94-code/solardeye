@@ -379,8 +379,9 @@
       </section>
       </div>
 
+      <div class="d40-log-row span-full">
       {# 8. SMART EVENT LOG (span 6) #}
-      <section class="d40-card span-6 d40-log-card d40-log-half">
+      <section class="d40-card d40-log-card">
         <div class="d40-card-head">
           <div>
             <h3>🧠 {{ 'Smart event log' if ui_lang == 'en' else 'سجل الأحداث الذكي' }}</h3>
@@ -402,7 +403,7 @@
       </section>
 
       {# 9. SYNC HISTORY (span 6) #}
-      <section class="d40-card span-6 d40-log-card d40-log-half">
+      <section class="d40-card d40-log-card">
         <div class="d40-card-head">
           <div>
             <h3>🔁 {{ 'Last sync operations' if ui_lang == 'en' else 'آخر عمليات المزامنة' }}</h3>
@@ -421,6 +422,7 @@
           {% endfor %}
         </div>
       </section>
+      </div>
 
     </div>{# /d40-grid #}
   </main>

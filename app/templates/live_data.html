@@ -34,8 +34,11 @@
   padding:18px clamp(14px,2.4vw,32px) 80px;
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--lv-ink);
+  display:flex;
+  flex-direction:column;
+  gap:30px;
 }
-.lv-page>*+*{margin-top:24px}
+.lv-page>*+*{margin-top:0}
 .lv-page *,.lv-page *::before,.lv-page *::after{box-sizing:border-box}
 
 /* HERO HEADER */
@@ -270,7 +273,7 @@
 .lv-hist-empty{padding:2.2rem;text-align:center;color:var(--lv-muted);font-size:.9rem;font-weight:700}
 .lv-pv-empty{padding:1.6rem 1.8rem;font-size:.88rem;color:var(--lv-muted);text-align:center;font-weight:700}
 @media (max-width:720px){
-  .lv-page>*+*{margin-top:18px}
+  .lv-page{gap:20px}
   .lv-hist-scroll{max-height:420px}
 }
 </style>
