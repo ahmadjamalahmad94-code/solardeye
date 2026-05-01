@@ -1,4 +1,4 @@
-{% set is_en = (ui_lang or 'ar') == 'en' %}
+﻿{% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set unread_total = (g.mail_notification_count or 0) + (g.ticket_notification_count or 0) %}
 
 {% macro icon(name) -%}
@@ -54,7 +54,7 @@
     <div class="sd-user-v11">
       <div class="sd-avatar-v11">MA<span></span></div>
       <div class="sd-user-copy-v11">
-        <strong>{{ g.current_user_display or ('المشرف الافتراضي' if g.is_admin else 'المستخدم') }}</strong>
+        <strong>{{ g.current_user_display or ('Ø§Ù„Ù…Ø´Ø±Ù Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠ' if g.is_admin else 'المستخدم') }}</strong>
         <small>{{ 'Platform manager' if (g.is_admin and is_en) else ('مدير المنصة' if g.is_admin else ('Current account' if is_en else 'الحساب الحالي')) }}</small>
       </div>
     </div>
@@ -89,7 +89,6 @@
       <div class="sd-group-title-v11"><span>{{ 'Portal' if is_en else 'البوابة' }}</span></div>
       {% if portal_page_visible('dashboard') %}{{ nav_item('overview','النظرة العامة','Overview',['energy.dashboard','main.dashboard'],url_for('main.dashboard', lang=ui_lang),'grid') }}{% endif %}
       {{ nav_item('notification_center','مركز الإشعارات','Notification Center',['notifications_routes.notification_center','main.notification_center'],url_for('main.notification_center', lang=ui_lang),'inbox', unread_total) }}
-      {% if portal_page_visible('devices_manage') %}{{ nav_item('devices','أجهزتي','My Devices',['devices_routes.devices_manage','main.devices_manage'],url_for('main.devices_manage', lang=ui_lang),'monitor') }}{% endif %}
       {% if portal_page_visible('deye_settings') %}{{ nav_item('deye','إعدادات الربط','Connection Settings',['energy.deye_settings','main.deye_settings'],url_for('main.deye_settings', lang=ui_lang),'link') }}{% endif %}
       {% if portal_page_visible('onboarding') %}{{ nav_item('wizard','معالج الإعداد','Setup Wizard',['devices_routes.onboarding_wizard','main.onboarding_wizard'],url_for('main.onboarding_wizard', lang=ui_lang),'wand') }}{% endif %}
       {% if portal_page_visible('subscription') %}{{ nav_item('subscription','اشتراكي','Subscription',['billing.account_subscription','main.account_subscription'],url_for('main.account_subscription', lang=ui_lang),'id') }}{% endif %}
@@ -114,3 +113,4 @@
     </form>
   </div>
 </aside>
+

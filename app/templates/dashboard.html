@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v55-dashboard-log-side-by-side-20260430') }}">
 {% endblock %}
@@ -99,9 +99,9 @@
       <div class="d40-card span-full">
         <div class="d40-empty-card">
           <h3>{{ 'No device connected yet' if ui_lang == 'en' else 'لا يوجد جهاز مربوط بعد' }}</h3>
-          <p>{{ 'Add your device first from the device manager, then complete the connection settings before syncing.' if ui_lang == 'en' else 'أنشئ جهازك أولًا من صفحة إدارة الأجهزة، ثم أكمل إعدادات الربط قبل بدء المزامنة.' }}</p>
-          <a class="d40-action primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
-            <span>{{ 'Manage devices' if ui_lang == 'en' else 'إدارة الأجهزة' }}</span>
+          <p>{{ 'Add your device first from the setup wizard, then complete the connection settings before syncing.' if ui_lang == 'en' else 'أضف جهازك أولًا من معالج الإعداد، ثم أكمل إعدادات الربط قبل بدء المزامنة.' }}</p>
+          <a class="d40-action primary" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}">
+            <span>{{ 'Open setup wizard' if ui_lang == 'en' else 'فتح معالج الإعداد' }}</span>
           </a>
         </div>
       </div>
@@ -608,3 +608,5 @@
 })();
 </script>
 {% endblock %}
+
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
@@ -206,65 +206,20 @@ def select_device(device_id: int):
 
 @devices_bp.route('/devices/manage', methods=['GET', 'POST'])
 def devices_manage():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    guard = _require_subscription_guard()
-    if guard:
-        return guard
-    user = _active_user()
-    if user is None:
-        flash('يجب تسجيل الدخول أولًا.', 'warning')
-        return redirect(url_for('auth.login'))
-
-    if request.method == 'POST':
-        device = AppDevice(owner_user_id=user.id)
-        _save_device_fields(device, user.id)
-        db.session.add(device)
-        db.session.flush()
-        if not user.preferred_device_id:
-            user.preferred_device_id = device.id
-            session['current_device_id'] = device.id
-            session['current_device_type'] = device.device_type or 'deye'
-        db.session.commit()
-        flash('تمت إضافة الجهاز بنجاح.', 'success')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.name.asc(), AppDevice.id.asc()).all()
-    return render_template('devices_manage.html', devices_list=devices_list, provider_specs=_provider_specs_for_ui(_lang()), ui_lang=_lang(), current_device_id=session.get('current_device_id'))
+    flash('تم نقل إدارة الأجهزة إلى معالج الإعداد وإعدادات الربط.', 'info')
+    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
 def device_edit(device_id: int):
-    user = _active_user()
-    device = AppDevice.query.filter_by(id=device_id).first_or_404()
-    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
-        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    if request.method == 'POST':
-        _save_device_fields(device, device.owner_user_id or (user.id if user else None))
-        db.session.commit()
-        flash('تم تحديث الجهاز بنجاح.', 'success')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-
-    creds, device_settings = _device_payload(device)
-    return render_template('device_form.html', device=device, device_creds=creds, device_settings=device_settings, provider_specs=_provider_specs_for_ui(_lang()), mode='edit', ui_lang=_lang())
+    flash('تم إلغاء صفحة إدارة الأجهزة القديمة.', 'info')
+    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
 def device_toggle(device_id: int):
-    user = _active_user()
-    device = AppDevice.query.filter_by(id=device_id).first_or_404()
-    if not (is_system_admin() or (user and device.owner_user_id == user.id)):
-        flash('لا يمكنك تعديل هذا الجهاز.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
-    device.is_active = not bool(device.is_active)
-    db.session.commit()
-    flash('تم تحديث حالة الجهاز.', 'success')
-    return redirect(url_for('main.devices_manage', lang=_lang()))
-
-
+    flash('تم إلغاء صفحة إدارة الأجهزة القديمة.', 'info')
+    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
 @devices_bp.route('/onboarding', methods=['GET', 'POST'])
 def onboarding_wizard():
     energy_guard = _energy_portal_guard()
@@ -408,5 +363,6 @@ def battery_lab():
         voltage_values=voltage_values, current_values=current_values,
         format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang(),
     )
+
 
 

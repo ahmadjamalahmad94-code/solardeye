@@ -588,8 +588,8 @@
     }
     var selectedCity = (city && city.dataset.selected) || '';
     var cities = (opt.dataset.cities || '').split('|').filter(Boolean);
-    var chooseCityLabel = {{ ('Choose city' if is_en else '???? ???????') | tojson }};
-    var otherCityLabel = {{ ('Other city' if is_en else '????? ????') | tojson }};
+    var chooseCityLabel = {{ ('Choose city' if is_en else '? ?') | tojson }};
+    var otherCityLabel = {{ ('Other city' if is_en else '?? ?') | tojson }};
     if (city) {
       city.innerHTML = '';
       city.appendChild(new Option(chooseCityLabel, ''));
@@ -616,7 +616,7 @@
 
   city && city.addEventListener('change', function(){
     if (this.value === '__other__') {
-      var customCityPrompt = {{ ('Type city name' if is_en else '???? ??? ???????') | tojson }};
+      var customCityPrompt = {{ ('Type city name' if is_en else '? ? ?') | tojson }};
       var custom = prompt(customCityPrompt);
       if (custom && custom.trim()) {
         var opt = new Option(custom.trim(), custom.trim());

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
@@ -1114,7 +1114,7 @@ def deye_settings():
     device = _active_device()
     if device is None:
         flash('لا يوجد جهاز مربوط بهذا الحساب بعد. أضف جهازك أولًا.', 'warning')
-        return redirect(url_for('main.devices_manage', lang=_lang()))
+        return redirect(url_for('main.onboarding_wizard', lang=_lang()))
     settings = _device_runtime_settings(device, allow_global_connection=False)
     ready, ready_message = _device_sync_ready(device)
     if request.method == 'POST':

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -561,3 +561,4 @@ def protect_routes():
                 'message': 'انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.'
             }), 401
         return redirect(url_for('auth.login'))
+
