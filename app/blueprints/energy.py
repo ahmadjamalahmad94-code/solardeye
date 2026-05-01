@@ -341,11 +341,20 @@ def export_statistics_csv():
 
 @energy_bp.route('/statistics/export/pdf')
 def export_statistics_pdf():
+    """Pixel-style report mirroring the statistics page mock.
+    Two-column layout, vector illustrations, donut chart, bar chart, and
+    energy-flow diagram drawn directly on the canvas. Arabic encoding pipeline
+    (ar() / arabic_reshaper / get_display / _register_pdf_fonts) is preserved
+    exactly as before so RTL text continues to render correctly."""
+    import math as _math
+
     tz_name = current_app.config['LOCAL_TIMEZONE']
     selected_view, selected_date, filtered_rows, title_hint, *_ = _get_stats_context(request.args, tz_name)
     stats = compute_energy_stats(filtered_rows)
     table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
+    chart = build_period_chart(filtered_rows, tz_name, selected_view)
 
+    # ── Arabic shaping (UNTOUCHED) ─────────────────────────────────────────
     def ar(text):
         try:
             return get_display(arabic_reshaper.reshape(str(text)))
@@ -356,36 +365,23 @@ def export_statistics_pdf():
         from pathlib import Path
         base_dir = Path(current_app.root_path)
         candidates = [
-            (
-                'NotoArabic',
-                'NotoArabicBold',
-                base_dir / 'static' / 'fonts' / 'NotoSansArabic-Regular.ttf',
-                base_dir / 'static' / 'fonts' / 'NotoSansArabic-Bold.ttf',
-            ),
-            (
-                'NotoArabic',
-                'NotoArabicBold',
-                Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf'),
-                Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf'),
-            ),
-            (
-                'Amiri',
-                'AmiriBold',
-                Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Regular.ttf'),
-                Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Bold.ttf'),
-            ),
+            ('NotoArabic', 'NotoArabicBold',
+             base_dir / 'static' / 'fonts' / 'NotoSansArabic-Regular.ttf',
+             base_dir / 'static' / 'fonts' / 'NotoSansArabic-Bold.ttf'),
+            ('NotoArabic', 'NotoArabicBold',
+             Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf'),
+             Path('/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf')),
+            ('Amiri', 'AmiriBold',
+             Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Regular.ttf'),
+             Path('/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Bold.ttf')),
         ]
         for regular_name, bold_name, regular_path, bold_path in candidates:
             try:
                 if regular_path.exists() and bold_path.exists():
-                    try:
-                        pdfmetrics.getFont(regular_name)
-                    except Exception:
-                        pdfmetrics.registerFont(TTFont(regular_name, str(regular_path)))
-                    try:
-                        pdfmetrics.getFont(bold_name)
-                    except Exception:
-                        pdfmetrics.registerFont(TTFont(bold_name, str(bold_path)))
+                    try: pdfmetrics.getFont(regular_name)
+                    except Exception: pdfmetrics.registerFont(TTFont(regular_name, str(regular_path)))
+                    try: pdfmetrics.getFont(bold_name)
+                    except Exception: pdfmetrics.registerFont(TTFont(bold_name, str(bold_path)))
                     return regular_name, bold_name
             except Exception:
                 continue
@@ -393,334 +389,708 @@ def export_statistics_pdf():
 
     font_name, font_bold = _register_pdf_fonts()
 
-    def fmt_energy_plain(v):
-        try:
-            v = float(v or 0)
-        except Exception:
-            v = 0.0
-        if abs(v) >= 1000:
-            return f"{v/1000:.2f} MWh"
-        return f"{v:.2f} kWh"
+    def fmt_num(v, dp=2):
+        try: return f"{float(v or 0):.{dp}f}"
+        except Exception: return "0.00"
+    def fmt_pct(v):
+        try: return f"{float(v or 0):.1f}%"
+        except Exception: return "0.0%"
 
-    def fmt_percent_plain(v):
-        try:
-            return f"{float(v or 0):.1f}%"
-        except Exception:
-            return "0.0%"
+    # ── Dashboard color palette ────────────────────────────────────────────
+    INK         = '#0b1220'
+    INK_SOFT    = '#1f2a44'
+    MUTED       = '#5e6f8c'
+    LINE        = '#e3eaf6'
+    LINE_STRONG = '#cfd9ec'
+    BG          = '#f5f8ff'
+    AMBER       = '#f59e0b'
+    AMBER_SOFT  = '#fbbf24'
+    AMBER_BG    = '#fef3c7'
+    ROSE        = '#f43f5e'
+    ROSE_BG     = '#ffe4e6'
+    EMERALD     = '#10b981'
+    EMERALD_SOFT = '#34d399'
+    EMERALD_BG  = '#d1fae5'
+    SKY         = '#2563eb'
+    SKY_SOFT    = '#60a5fa'
+    SKY_BG      = '#dbeafe'
+    VIOLET      = '#6d3aff'
+    VIOLET_BG   = '#ede9fe'
+
+    width, height = A4
+
+    PAD     = 18
+    GAP     = 12
+    LEFT_W  = 178
+    RIGHT_W = width - 2 * PAD - LEFT_W - GAP
 
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf,
-        pagesize=A4,
-        rightMargin=1.4 * cm,
-        leftMargin=1.4 * cm,
-        topMargin=1.2 * cm,
-        bottomMargin=1.2 * cm,
-        title='تقرير منصة الطاقة الشمسية',
-    )
-    width, height = A4
-    content_width = width - doc.leftMargin - doc.rightMargin
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle('تقرير منصة الطاقة الشمسية')
 
-    # ── Dashboard-aligned palette (matches statistics.html / dashboard_v40.css) ──
-    PDF_INK         = '#0b1220'
-    PDF_INK_SOFT    = '#1f2a44'
-    PDF_MUTED       = '#5e6f8c'
-    PDF_LINE        = '#e3eaf6'
-    PDF_LINE_STRONG = '#cfd9ec'
-    PDF_BG          = '#f5f8ff'
-    PDF_BG_ALT      = '#eef3fb'
-    PDF_AMBER       = '#f59e0b'
-    PDF_AMBER_SOFT  = '#fbbf24'
-    PDF_ROSE        = '#f43f5e'
-    PDF_EMERALD     = '#10b981'
-    PDF_SKY         = '#2563eb'
-    PDF_SKY_SOFT    = '#60a5fa'
-    PDF_VIOLET      = '#6d3aff'
-    PDF_HERO_FROM   = '#0e3b86'
-    PDF_HERO_MID    = '#3aa7ff'
-    PDF_HERO_TO     = '#ffd66e'
+    # ────────────── Drawing helpers ──────────────
+    def hex_color(h):
+        if isinstance(h, str): return colors.HexColor(h)
+        return h
 
-    base_styles = getSampleStyleSheet()
-    styles = {
-        'hero_eyebrow': ParagraphStyle(
-            'HeroEyebrow', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=9, leading=12,
-            textColor=colors.HexColor(PDF_INK), alignment=1, spaceAfter=2,
-        ),
-        'hero_title': ParagraphStyle(
-            'HeroTitle', parent=base_styles['Title'],
-            fontName=font_bold, fontSize=22, leading=28,
-            textColor=colors.white, alignment=1, spaceAfter=2,
-        ),
-        'hero_subtitle': ParagraphStyle(
-            'HeroSubtitle', parent=base_styles['Normal'],
-            fontName=font_name, fontSize=11, leading=16,
-            textColor=colors.HexColor('#f1f5ff'), alignment=1, spaceAfter=0,
-        ),
-        'section': ParagraphStyle(
-            'ArabicSection', parent=base_styles['Heading2'],
-            fontName=font_bold, fontSize=15, leading=22,
-            textColor=colors.HexColor(PDF_INK), alignment=2, spaceAfter=6,
-        ),
-        'body': ParagraphStyle(
-            'ArabicBody', parent=base_styles['Normal'],
-            fontName=font_name, fontSize=11.5, leading=20,
-            textColor=colors.HexColor(PDF_INK_SOFT), alignment=2,
-        ),
-        'body_bold': ParagraphStyle(
-            'ArabicBodyBold', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=11.5, leading=20,
-            textColor=colors.HexColor(PDF_INK), alignment=2,
-        ),
-        'card_title': ParagraphStyle(
-            'CardTitle', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=10.5, leading=13,
-            textColor=colors.HexColor(PDF_MUTED), alignment=1,
-        ),
-        'card_value': ParagraphStyle(
-            'CardValue', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=19, leading=24,
-            textColor=colors.HexColor(PDF_INK), alignment=1,
-        ),
-        'card_hint': ParagraphStyle(
-            'CardHint', parent=base_styles['Normal'],
-            fontName=font_name, fontSize=8.5, leading=11,
-            textColor=colors.HexColor(PDF_MUTED), alignment=1,
-        ),
-        'table_header': ParagraphStyle(
-            'TableHeader', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=9.2, leading=12,
-            textColor=colors.HexColor(PDF_INK_SOFT), alignment=1,
-        ),
-        'table_cell': ParagraphStyle(
-            'TableCell', parent=base_styles['Normal'],
-            fontName=font_name, fontSize=9.4, leading=12,
-            textColor=colors.HexColor(PDF_INK_SOFT), alignment=1,
-        ),
-        'table_cell_period': ParagraphStyle(
-            'TableCellPeriod', parent=base_styles['Normal'],
-            fontName=font_bold, fontSize=9.4, leading=12,
-            textColor=colors.HexColor(PDF_SKY), alignment=1,
-        ),
-    }
-
-    def P(text, style='body'):
-        return Paragraph(ar(text), styles[style])
-
-    def metric_card(title, value, hint, accent_hex):
-        """White card with a thick top accent bar — mirrors .st-metric in CSS."""
-        accent_strip = Table([[ '' ]], colWidths=[4.35 * cm], rowHeights=[0.14 * cm])
-        accent_strip.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(accent_hex)),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        body = Table(
-            [[P(title, 'card_title')], [P(value, 'card_value')], [P(hint or ' ', 'card_hint')]],
-            colWidths=[4.35 * cm],
-            rowHeights=[0.65 * cm, 0.95 * cm, 0.5 * cm],
-        )
-        body.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ]))
-        wrapper = Table([[accent_strip], [body]], colWidths=[4.35 * cm])
-        wrapper.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ('ROUNDEDCORNERS', [10, 10, 10, 10]),
-        ]))
-        return wrapper
-
-    # ── HERO HEADER (gradient sky→amber band, mirrors .st-hero) ──
-    def hero_band():
-        eyebrow_chip = Table(
-            [[P('تحليل الطاقة', 'hero_eyebrow')]],
-            colWidths=[3.6 * cm], rowHeights=[0.65 * cm],
-        )
-        eyebrow_chip.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('ROUNDEDCORNERS', [16, 16, 16, 16]),
-        ]))
-        eyebrow_row = Table([[eyebrow_chip]], colWidths=[content_width])
-        eyebrow_row.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        meta_text = f'الفترة: {title_hint}   •   التاريخ: {selected_date.strftime("%Y-%m-%d")}'
-        inner = Table(
-            [
-                [eyebrow_row],
-                [P('تقرير منصة الطاقة الشمسية', 'hero_title')],
-                [P(meta_text, 'hero_subtitle')],
-            ],
-            colWidths=[content_width],
-        )
-        inner.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
-
-        wrapper = Table([[inner]], colWidths=[content_width])
-        wrapper.setStyle(TableStyle([
-            # gradient is faked by stacking row backgrounds — for a cleaner look
-            # we use a solid sky-blue with rounded corners (the painter underneath
-            # the page provides the soft accent halos like the dashboard hero).
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(PDF_HERO_MID)),
-            ('LEFTPADDING', (0, 0), (-1, -1), 18),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 18),
-            ('TOPPADDING', (0, 0), (-1, -1), 18),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 18),
-            ('ROUNDEDCORNERS', [18, 18, 18, 18]),
-        ]))
-        return wrapper
-
-    story = []
-    story.append(hero_band())
-    story.append(Spacer(1, 0.55 * cm))
-
-    # Metric cards — colors mirror the dashboard scheme exactly
-    cards = [
-        metric_card('إنتاج الشمس',          fmt_energy_plain(stats['solar_generated_kwh']),  'إجمالي التوليد خلال الفترة', PDF_AMBER),
-        metric_card('استهلاك المنزل',        fmt_energy_plain(stats['home_consumed_kwh']),    'إجمالي الاستهلاك خلال الفترة', PDF_ROSE),
-        metric_card('شحن البطارية من الشمس', fmt_energy_plain(stats['solar_to_battery_kwh']), 'الطاقة المخزنة في البطارية', PDF_EMERALD),
-        metric_card('متوسط البطارية',        fmt_percent_plain(stats['avg_battery_soc']),     'متوسط نسبة الشحن', PDF_SKY),
-    ]
-    cards_table = Table([cards], colWidths=[4.35 * cm] * 4, hAlign='CENTER')
-    cards_table.setStyle(TableStyle([
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    story.append(cards_table)
-    story.append(Spacer(1, 0.5 * cm))
-
-    summary_items = [
-        f"• من الشمس إلى البيت: {fmt_energy_plain(stats['solar_to_home_kwh'])}",
-        f"• من الشبكة إلى البيت: {fmt_energy_plain(stats['grid_to_home_kwh'])}",
-        f"• من البطارية إلى البيت: {fmt_energy_plain(stats['battery_to_home_kwh'])}",
-        f"• أعلى إنتاج لحظي: {format_power(stats['max_solar_w'])} واط",
-    ]
-    summary_rows = [[P('ملخص الفترة', 'section')]] + [[P(item, 'body')] for item in summary_items]
-    summary_block = Table(summary_rows, colWidths=[content_width])
-    summary_block.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
-        ('LINEABOVE', (0, 0), (-1, 0), 3, colors.HexColor(PDF_SKY)),
-        ('LEFTPADDING', (0, 0), (-1, -1), 16),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 16),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('ROUNDEDCORNERS', [12, 12, 12, 12]),
-    ]))
-    story.append(summary_block)
-    story.append(Spacer(1, 0.45 * cm))
-
-    story.append(P('الجدول التحليلي', 'section'))
-
-    headers = ['SOC', 'شبكة ← بيت', 'بطارية ← بيت', 'شمس ← بطارية', 'شمس ← بيت', 'المنزل', 'الشمس', 'الفترة']
-    table_data = [[P(h, 'table_header') for h in headers]]
-    for row in table_rows[:24]:
-        table_data.append([
-            P(f"{row['avg_battery_soc']}%", 'table_cell'),
-            P(f"{float(row['grid_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['battery_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_to_battery_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_to_home_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['home_consumed_kwh'] or 0):.2f}", 'table_cell'),
-            P(f"{float(row['solar_generated_kwh'] or 0):.2f}", 'table_cell'),
-            P(str(row['label']), 'table_cell_period'),
-        ])
-
-    analytic_table = Table(
-        table_data,
-        colWidths=[1.7 * cm, 2.15 * cm, 2.15 * cm, 2.15 * cm, 2.15 * cm, 1.85 * cm, 1.85 * cm, 2.35 * cm],
-        repeatRows=1,
-        hAlign='CENTER',
-    )
-    analytic_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f5f9ff')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(PDF_INK_SOFT)),
-        ('LINEBELOW', (0, 0), (-1, 0), 1.2, colors.HexColor(PDF_SKY_SOFT)),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fbff')]),
-        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor(PDF_LINE)),
-        ('INNERGRID', (0, 0), (-1, -1), 0.4, colors.HexColor(PDF_LINE)),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('ROUNDEDCORNERS', [10, 10, 10, 10]),
-    ]))
-    story.append(analytic_table)
-
-    def _paint_page(canv, _doc):
-        """Soft gradient page background + accent bands matching the dashboard hero."""
-        canv.saveState()
-        # base page color (soft white-blue)
-        canv.setFillColor(colors.HexColor(PDF_BG))
-        canv.rect(0, 0, width, height, stroke=0, fill=1)
-
-        # subtle radial halos (faked with overlapping translucent ellipses) — gives
-        # the same "sky glow" feel as the dashboard background.
+    def paint_bg():
+        c.setFillColor(hex_color(BG))
+        c.rect(0, 0, width, height, stroke=0, fill=1)
         try:
-            canv.setFillColorRGB(0.43, 0.23, 1.0, alpha=0.06)  # violet
-            canv.circle(width * 0.10, height * 1.02, 240, stroke=0, fill=1)
-            canv.setFillColorRGB(0.96, 0.62, 0.04, alpha=0.06)  # amber
-            canv.circle(width * 0.92, height * 1.02, 220, stroke=0, fill=1)
-            canv.setFillColorRGB(0.06, 0.72, 0.51, alpha=0.04)  # emerald
-            canv.circle(width * 0.50, -60, 280, stroke=0, fill=1)
+            c.setFillColorRGB(0.43, 0.23, 1.0, alpha=0.05)
+            c.circle(width * 0.10, height * 1.02, 240, stroke=0, fill=1)
+            c.setFillColorRGB(0.96, 0.62, 0.04, alpha=0.05)
+            c.circle(width * 0.92, height * 1.02, 220, stroke=0, fill=1)
+            c.setFillColorRGB(0.06, 0.72, 0.51, alpha=0.04)
+            c.circle(width * 0.50, -60, 280, stroke=0, fill=1)
         except Exception:
             pass
 
-        # top accent bar — same amber→sky gradient feel as hero
-        canv.setFillColor(colors.HexColor(PDF_SKY_SOFT))
-        canv.roundRect(doc.leftMargin, height - 0.85 * cm,
-                       content_width * 0.55, 0.10 * cm, 0.05 * cm, stroke=0, fill=1)
-        canv.setFillColor(colors.HexColor(PDF_AMBER_SOFT))
-        canv.roundRect(doc.leftMargin + content_width * 0.55, height - 0.85 * cm,
-                       content_width * 0.45, 0.10 * cm, 0.05 * cm, stroke=0, fill=1)
+    def card(x, y, w, h, fill='#ffffff', border=LINE, radius=14, shadow=True):
+        if shadow:
+            try:
+                c.setFillColorRGB(0.06, 0.09, 0.16, alpha=0.05)
+                c.roundRect(x, y - 2, w, h, radius, stroke=0, fill=1)
+            except Exception:
+                pass
+        c.setFillColor(hex_color(fill))
+        c.setStrokeColor(hex_color(border))
+        c.setLineWidth(0.7)
+        c.roundRect(x, y, w, h, radius, stroke=1, fill=1)
 
-        # footer divider + text
-        canv.setStrokeColor(colors.HexColor(PDF_LINE))
-        canv.setLineWidth(0.7)
-        canv.line(doc.leftMargin, 1.0 * cm, width - doc.rightMargin, 1.0 * cm)
-        canv.setFont(font_name, 8)
-        canv.setFillColor(colors.HexColor(PDF_MUTED))
-        footer = ar('منصة الطاقة الشمسية • تقرير تحليلي')
-        canv.drawRightString(width - doc.rightMargin, 0.62 * cm, footer)
+    def soft_chip(x, y, label, fill='#dbeafe', text_color='#1d4ed8', font=None, size=8.5, padx=8, pady=5, icon=None):
+        f = font or font_bold
+        s = ar(label)
+        c.setFont(f, size)
+        tw = c.stringWidth(s, f, size)
+        w = tw + padx * 2 + (16 if icon else 0)
+        h = size + pady * 2
+        c.setFillColor(hex_color(fill))
+        c.roundRect(x, y, w, h, h / 2, stroke=0, fill=1)
+        c.setFillColor(hex_color(text_color))
+        text_x = x + w - padx
+        if icon == 'bolt':
+            c.setFillColor(hex_color(text_color))
+            bx = x + padx
+            by = y + h / 2
+            c.setLineWidth(1.4)
+            c.setStrokeColor(hex_color(text_color))
+            path = c.beginPath()
+            path.moveTo(bx + 2, by + 4)
+            path.lineTo(bx - 1, by)
+            path.lineTo(bx + 1, by)
+            path.lineTo(bx - 2, by - 4)
+            c.drawPath(path, stroke=1, fill=0)
+            c.setFillColor(hex_color(text_color))
+            text_x = x + w - padx
+        c.setFont(f, size)
+        c.setFillColor(hex_color(text_color))
+        c.drawRightString(text_x, y + pady + 1, s)
+        return w, h
 
-        # tiny page number at left
-        page_label = ar(f'صفحة {canv.getPageNumber()}')
-        canv.drawString(doc.leftMargin, 0.62 * cm, page_label)
-        canv.restoreState()
+    def draw_text(s, x, y, font, size, color, align='left'):
+        c.setFont(font, size)
+        c.setFillColor(hex_color(color))
+        s_a = ar(s)
+        if align == 'center': c.drawCentredString(x, y, s_a)
+        elif align == 'right': c.drawRightString(x, y, s_a)
+        else: c.drawString(x, y, s_a)
 
-    doc.build(story, onFirstPage=_paint_page, onLaterPages=_paint_page)
+    def section_title(s, x, y, accent_color=SKY, w=None):
+        draw_text(s, x, y, font_bold, 10.5, INK_SOFT, align='right' if w is None else 'right')
+        c.setFillColor(hex_color(accent_color))
+        c.roundRect((x - 28) if w is None else (x + (w or 0) - 32 - 6), y - 5, 32, 2.4, 1.2, stroke=0, fill=1)
+
+    # ────────────── Icons (vector mini-icons) ──────────────
+    def icon_sun(cx, cy, color=AMBER, size=10):
+        c.setFillColor(hex_color(color))
+        c.circle(cx, cy, size * 0.55, stroke=0, fill=1)
+        c.setStrokeColor(hex_color(color))
+        c.setLineWidth(1.3)
+        for ang in range(0, 360, 45):
+            rx = _math.cos(_math.radians(ang)) * size
+            ry = _math.sin(_math.radians(ang)) * size
+            c.line(cx + rx * 0.72, cy + ry * 0.72, cx + rx, cy + ry)
+
+    def icon_home(cx, cy, color=SKY, size=11):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(hex_color(color))
+        c.setLineWidth(1.2)
+        p = c.beginPath()
+        p.moveTo(cx - size, cy - 1)
+        p.lineTo(cx, cy + size * 0.85)
+        p.lineTo(cx + size, cy - 1)
+        c.drawPath(p, stroke=1, fill=0)
+        c.rect(cx - size * 0.7, cy - size * 0.85, size * 1.4, size * 0.85, stroke=1, fill=0)
+        c.setFillColor(hex_color(color))
+        c.rect(cx - size * 0.18, cy - size * 0.85, size * 0.36, size * 0.55, stroke=0, fill=1)
+
+    def icon_battery(cx, cy, color=EMERALD, size=10, fill_ratio=0.6):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(colors.white)
+        c.setLineWidth(1.3)
+        bw, bh = size * 1.4, size * 0.8
+        c.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 1.5, stroke=1, fill=1)
+        c.rect(cx + bw / 2, cy - bh / 4, 1.6, bh / 2, stroke=0, fill=1)
+        c.setFillColor(hex_color(color))
+        c.roundRect(cx - bw / 2 + 1.5, cy - bh / 2 + 1.5, (bw - 3) * fill_ratio, bh - 3, 0.6, stroke=0, fill=1)
+
+    def icon_grid(cx, cy, color='#94a3b8', size=10):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(hex_color(color))
+        c.setLineWidth(1.3)
+        c.line(cx - size * 0.55, cy - size * 0.85, cx, cy + size * 0.55)
+        c.line(cx + size * 0.55, cy - size * 0.85, cx, cy + size * 0.55)
+        c.line(cx - size * 0.85, cy - size * 0.85, cx + size * 0.85, cy - size * 0.85)
+        c.line(cx - size * 0.85, cy - size * 0.85, cx - size * 0.55, cy + size * 0.55)
+        c.line(cx + size * 0.85, cy - size * 0.85, cx + size * 0.55, cy + size * 0.55)
+        c.line(cx - size * 0.55, cy + size * 0.55, cx + size * 0.55, cy + size * 0.55)
+
+    def icon_chart(cx, cy, color=SKY, size=10):
+        c.setFillColor(hex_color(color))
+        c.rect(cx - size * 0.85, cy - size * 0.85, size * 0.4, size * 1.3, stroke=0, fill=1)
+        c.rect(cx - size * 0.25, cy - size * 0.85, size * 0.4, size * 0.85, stroke=0, fill=1)
+        c.rect(cx + size * 0.35, cy - size * 0.85, size * 0.4, size * 1.7, stroke=0, fill=1)
+
+    def icon_bolt(cx, cy, color=AMBER, size=10):
+        c.setFillColor(hex_color(color))
+        p = c.beginPath()
+        p.moveTo(cx + 2, cy + size)
+        p.lineTo(cx - size * 0.6, cy)
+        p.lineTo(cx - 1, cy)
+        p.lineTo(cx - size * 0.5, cy - size)
+        p.lineTo(cx + size * 0.6, cy)
+        p.lineTo(cx + 1, cy)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+
+    def icon_doc(cx, cy, color=SKY, size=10):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(colors.white)
+        c.setLineWidth(1.2)
+        c.rect(cx - size * 0.7, cy - size * 0.95, size * 1.4, size * 1.9, stroke=1, fill=1)
+        c.setStrokeColor(hex_color(color))
+        for i in range(3):
+            yy = cy + size * 0.5 - i * size * 0.45
+            c.line(cx - size * 0.4, yy, cx + size * 0.4, yy)
+
+    def icon_table(cx, cy, color=SKY, size=10):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(colors.white)
+        c.setLineWidth(1.2)
+        c.rect(cx - size, cy - size * 0.8, size * 2, size * 1.6, stroke=1, fill=1)
+        c.line(cx - size, cy + size * 0.3, cx + size, cy + size * 0.3)
+        c.line(cx, cy - size * 0.8, cx, cy + size * 0.8)
+
+    def icon_shield(cx, cy, color=EMERALD, size=10):
+        c.setFillColor(hex_color(color))
+        p = c.beginPath()
+        p.moveTo(cx, cy + size)
+        p.lineTo(cx - size * 0.85, cy + size * 0.5)
+        p.lineTo(cx - size * 0.85, cy - size * 0.4)
+        p.lineTo(cx, cy - size)
+        p.lineTo(cx + size * 0.85, cy - size * 0.4)
+        p.lineTo(cx + size * 0.85, cy + size * 0.5)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+        c.setStrokeColor(colors.white); c.setLineWidth(1.4)
+        c.line(cx - size * 0.3, cy, cx - size * 0.05, cy - size * 0.3)
+        c.line(cx - size * 0.05, cy - size * 0.3, cx + size * 0.4, cy + size * 0.25)
+
+    def icon_clock(cx, cy, color=SKY, size=10):
+        c.setStrokeColor(hex_color(color))
+        c.setFillColor(colors.white)
+        c.setLineWidth(1.3)
+        c.circle(cx, cy, size * 0.85, stroke=1, fill=1)
+        c.line(cx, cy, cx, cy + size * 0.55)
+        c.line(cx, cy, cx + size * 0.4, cy)
+
+    # ────────────── Hero illustration (left top card) ──────────────
+    def draw_hero_illustration(x, y, w, h):
+        card(x, y, w, h, radius=18)
+        # decorative dots
+        c.setFillColor(hex_color(LINE_STRONG))
+        for i in range(5):
+            for j in range(5):
+                if (i + j) % 2 == 0:
+                    c.circle(x + w - 14 - i * 6, y + h - 14 - j * 6, 0.9, stroke=0, fill=1)
+        # plant in bottom-left
+        c.setStrokeColor(hex_color(EMERALD))
+        c.setLineWidth(1.4)
+        c.line(x + 22, y + 12, x + 22, y + 32)
+        c.setFillColor(hex_color(EMERALD))
+        c.circle(x + 17, y + 28, 4, stroke=0, fill=1)
+        c.circle(x + 27, y + 30, 4, stroke=0, fill=1)
+        c.setFillColor(hex_color(EMERALD_SOFT))
+        c.circle(x + 19, y + 22, 3.5, stroke=0, fill=1)
+        c.circle(x + 25, y + 24, 3.5, stroke=0, fill=1)
+        # sparkle
+        c.setStrokeColor(hex_color(AMBER_SOFT)); c.setLineWidth(1.3)
+        sx, sy = x + 16, y + h - 28
+        c.line(sx - 4, sy, sx + 4, sy); c.line(sx, sy - 4, sx, sy + 4)
+        c.line(sx - 3, sy - 3, sx + 3, sy + 3); c.line(sx - 3, sy + 3, sx + 3, sy - 3)
+        # sun (right side)
+        cx = x + w - 50
+        cy = y + h - 60
+        icon_sun(cx, cy, color=AMBER_SOFT, size=20)
+        # solar panel (center)
+        px = x + w / 2 - 35
+        py = y + 50
+        # back/shadow
+        c.setFillColor(hex_color('#0e3b86'))
+        c.roundRect(px - 2, py - 2, 70, 50, 4, stroke=0, fill=1)
+        # face
+        c.setFillColor(hex_color(SKY))
+        c.setStrokeColor(hex_color('#1e3a8a')); c.setLineWidth(0.6)
+        c.roundRect(px, py, 70, 50, 3, stroke=1, fill=1)
+        # cells grid
+        c.setStrokeColor(hex_color('#1e40af')); c.setLineWidth(0.4)
+        for i in range(1, 4):
+            c.line(px + i * 70 / 4, py, px + i * 70 / 4, py + 50)
+        c.line(px, py + 25, px + 70, py + 25)
+        # cell highlights
+        c.setFillColor(hex_color(SKY_SOFT))
+        c.rect(px + 2, py + 27, 14, 20, stroke=0, fill=1)
+        c.rect(px + 19, py + 27, 14, 20, stroke=0, fill=1)
+        # stand
+        c.setStrokeColor(hex_color('#1e3a8a')); c.setLineWidth(1.6)
+        c.line(px + 35, py, px + 25, py - 16)
+        c.line(px + 35, py, px + 45, py - 16)
+
+    # ────────────── Quick stats list (left, 4 rows) ──────────────
+    def draw_quick_stats_row(x, y, w, h, accent, accent_bg, draw_icon, value, title, hint):
+        # icon box
+        ibx, iby, ibw, ibh = x + 6, y + (h - 32) / 2, 32, 32
+        c.setFillColor(hex_color(accent_bg))
+        c.roundRect(ibx, iby, ibw, ibh, 8, stroke=0, fill=1)
+        draw_icon(ibx + ibw / 2, iby + ibh / 2)
+        # text columns (RTL: title and value on the right)
+        text_right = x + w - 6
+        draw_text(title, text_right, y + h - 14, font_name, 8.4, MUTED, align='right')
+        draw_text(value, text_right, y + h - 30, font_bold, 14.5, INK, align='right')
+        if hint:
+            draw_text(hint, text_right, y + 6, font_name, 7.4, MUTED, align='right')
+
+    # ────────────── Battery donut card ──────────────
+    def draw_battery_donut_card(x, y, w, h, soc_pct):
+        card(x, y, w, h, radius=14)
+        # title
+        draw_text('حالة البطارية', x + w / 2, y + h - 18, font_bold, 10.5, INK_SOFT, align='center')
+        # donut
+        cx, cy = x + w / 2, y + h / 2 - 8
+        outer_r, inner_r = 38, 28
+        ring_w = outer_r - inner_r
+        # background ring
+        c.setStrokeColor(hex_color('#eef2f9'))
+        c.setLineWidth(ring_w)
+        c.circle(cx, cy, (outer_r + inner_r) / 2, stroke=1, fill=0)
+        # progress arc
+        try:
+            soc = max(0.0, min(100.0, float(soc_pct or 0)))
+        except Exception:
+            soc = 0.0
+        if soc > 0:
+            c.setStrokeColor(hex_color(SKY))
+            c.setLineWidth(ring_w)
+            extent = -soc / 100.0 * 360.0  # negative for clockwise from top
+            c.arc(cx - (outer_r + inner_r) / 2, cy - (outer_r + inner_r) / 2,
+                  cx + (outer_r + inner_r) / 2, cy + (outer_r + inner_r) / 2,
+                  90, extent)
+        # center text
+        draw_text(f'{soc:.1f}%', cx, cy - 1, font_bold, 14, INK, align='center')
+        draw_text('نسبة الشحن الحالية', cx, cy - 14, font_name, 7, MUTED, align='center')
+        # legend bottom
+        ly = y + 12
+        c.setFillColor(hex_color(EMERALD))
+        c.roundRect(x + 14, ly + 1, 12, 8, 2, stroke=0, fill=1)
+        draw_text('مستوى الشحن', x + w - 12, ly + 1, font_name, 7.5, MUTED, align='right')
+
+    # ────────────── Trust badge (left bottom) ──────────────
+    def draw_trust_badge(x, y, w, h):
+        card(x, y, w, h, fill='#f5f9ff', border=LINE, radius=12)
+        ix = x + 12
+        iy = y + h / 2 + 6
+        c.setFillColor(hex_color(EMERALD_BG))
+        c.roundRect(ix - 11, iy - 11, 22, 22, 5, stroke=0, fill=1)
+        icon_shield(ix, iy, color=EMERALD, size=8)
+        draw_text('بيانات موثوقة', x + w - 10, y + h - 15, font_bold, 9.5, INK_SOFT, align='right')
+        draw_text('جميع البيانات محسوبة بدقة عالية', x + w - 10, y + h - 28, font_name, 7.2, MUTED, align='right')
+        draw_text('لتوفير رؤية موثوقة لأداء النظام', x + w - 10, y + h - 39, font_name, 7.2, MUTED, align='right')
+
+    # ────────────── Title + chip (right top) ──────────────
+    def draw_right_title(x, y, w):
+        # chip top-right
+        chip_label = ar('تحليل الطاقة')
+        c.setFont(font_bold, 9)
+        chip_w = c.stringWidth(chip_label, font_bold, 9) + 28
+        chip_h = 22
+        chip_x = x + w - chip_w
+        chip_y = y - chip_h
+        c.setFillColor(hex_color(SKY_BG))
+        c.roundRect(chip_x, chip_y, chip_w, chip_h, chip_h / 2, stroke=0, fill=1)
+        c.setFillColor(hex_color(SKY))
+        c.circle(chip_x + 11, chip_y + chip_h / 2, 4.5, stroke=0, fill=1)
+        c.setFillColor(colors.white)
+        # bolt inside circle
+        cb = c.beginPath()
+        bx, by = chip_x + 11, chip_y + chip_h / 2
+        cb.moveTo(bx + 1, by + 2.5); cb.lineTo(bx - 1.5, by - 0.2)
+        cb.lineTo(bx + 0.3, by - 0.2); cb.lineTo(bx - 1, by - 2.5)
+        cb.lineTo(bx + 1.8, by); cb.lineTo(bx + 0.2, by); cb.close()
+        c.drawPath(cb, stroke=0, fill=1)
+        c.setFillColor(hex_color(SKY))
+        c.drawRightString(chip_x + chip_w - 10, chip_y + 6.5, chip_label)
+
+        # title (right-aligned)
+        draw_text('تقرير منصة الطاقة الشمسية', x + w, y - 60, font_bold, 22, INK, align='right')
+        # subtitle / date range
+        date_str = selected_date.strftime('%Y-%m-%d')
+        # date pill
+        sub_text = f'الفترة: يوم {date_str}   إلى التاريخ {date_str}'
+        c.setFont(font_name, 9.5)
+        sub_w = c.stringWidth(ar(sub_text), font_name, 9.5)
+        sub_x = x + w - sub_w - 24
+        sub_y = y - 90
+        # mini calendar icon
+        c.setFillColor(hex_color(SKY))
+        c.roundRect(x + w - 16, sub_y - 2, 12, 12, 2, stroke=0, fill=1)
+        c.setFillColor(colors.white)
+        c.rect(x + w - 14, sub_y + 7, 8, 1.5, stroke=0, fill=1)
+        c.rect(x + w - 14, sub_y + 1, 8, 5, stroke=0, fill=1)
+        draw_text(sub_text, x + w - 22, sub_y + 1, font_name, 9.5, INK_SOFT, align='right')
+
+    # ────────────── Energy flow card ──────────────
+    def draw_energy_flow_card(x, y, w, h):
+        card(x, y, w, h, radius=14)
+        # title row
+        draw_text('تدفق الطاقة', x + w - 14, y + h - 18, font_bold, 10.5, INK_SOFT, align='right')
+        # tiny "flow" icon
+        c.setFillColor(hex_color(SKY))
+        c.roundRect(x + w - 78, y + h - 22, 14, 14, 3, stroke=0, fill=1)
+        c.setStrokeColor(colors.white); c.setLineWidth(1.2)
+        c.line(x + w - 75, y + h - 15, x + w - 70, y + h - 15)
+        c.line(x + w - 70, y + h - 15, x + w - 70, y + h - 11)
+
+        # diagram center
+        cx_top = x + w / 2
+        cy_top = y + h - 50
+        cx_mid = x + w / 2
+        cy_mid = y + h / 2 - 8
+        cx_left = x + 38
+        cx_right = x + w - 38
+        cy_side = cy_mid
+
+        # solar generated value (top)
+        try:
+            v_solar = float(stats.get('solar_generated_kwh') or 0)
+            v_batt = float(stats.get('battery_to_home_kwh') or 0)
+            v_grid = float(stats.get('grid_to_home_kwh') or 0)
+            v_home = float(stats.get('home_consumed_kwh') or 0)
+        except Exception:
+            v_solar = v_batt = v_grid = v_home = 0.0
+
+        # SUN node
+        c.setFillColor(hex_color(AMBER_BG))
+        c.circle(cx_top, cy_top, 14, stroke=0, fill=1)
+        icon_sun(cx_top, cy_top, color=AMBER, size=9)
+        draw_text(f'{v_solar:.2f}', cx_top, cy_top - 28, font_bold, 11, INK, align='center')
+        draw_text('إنتاج الشمس', cx_top, cy_top - 40, font_name, 7.2, MUTED, align='center')
+
+        # HOME center node (larger)
+        c.setFillColor(hex_color(SKY_BG))
+        c.circle(cx_mid, cy_mid, 22, stroke=0, fill=1)
+        c.setFillColor(hex_color(SKY))
+        c.circle(cx_mid, cy_mid, 18, stroke=0, fill=1)
+        icon_home(cx_mid, cy_mid, color=colors.white, size=10)
+
+        # BATTERY node (left)
+        c.setFillColor(hex_color(EMERALD_BG))
+        c.circle(cx_left, cy_side, 13, stroke=0, fill=1)
+        icon_battery(cx_left, cy_side, color=EMERALD, size=8, fill_ratio=0.7)
+        draw_text(f'{v_batt:.2f}', cx_left, cy_side - 24, font_bold, 10, INK, align='center')
+        draw_text('من البطارية', cx_left, cy_side - 36, font_name, 7, MUTED, align='center')
+
+        # GRID node (right)
+        c.setFillColor(hex_color(VIOLET_BG))
+        c.circle(cx_right, cy_side, 13, stroke=0, fill=1)
+        icon_grid(cx_right, cy_side, color=VIOLET, size=8)
+        draw_text(f'{v_grid:.2f}', cx_right, cy_side - 24, font_bold, 10, INK, align='center')
+        draw_text('من الشبكة', cx_right, cy_side - 36, font_name, 7, MUTED, align='center')
+
+        # HOME bottom
+        cx_bot = x + w / 2
+        cy_bot = y + 36
+        draw_text(f'{v_home:.2f}', cx_bot, cy_bot - 4, font_bold, 11, INK, align='center')
+        draw_text('استهلاك المنزل', cx_bot, cy_bot - 16, font_name, 7.2, MUTED, align='center')
+
+        # dashed connectors
+        c.setStrokeColor(hex_color(LINE_STRONG))
+        c.setLineWidth(1.0)
+        c.setDash(2, 2)
+        # sun → home
+        c.line(cx_top, cy_top - 14, cx_mid, cy_mid + 22)
+        # battery → home
+        c.line(cx_left + 13, cy_side, cx_mid - 22, cy_mid)
+        # grid → home
+        c.line(cx_right - 13, cy_side, cx_mid + 22, cy_mid)
+        # home → bottom (estimate consumption)
+        c.line(cx_mid, cy_mid - 22, cx_bot, cy_bot + 8)
+        c.setDash()
+
+        # arrowheads
+        def arrow(px, py, dx, dy, color):
+            c.setFillColor(hex_color(color))
+            ang = _math.atan2(dy, dx)
+            sz = 4
+            p = c.beginPath()
+            p.moveTo(px, py)
+            p.lineTo(px - sz * _math.cos(ang - 0.4), py - sz * _math.sin(ang - 0.4))
+            p.lineTo(px - sz * _math.cos(ang + 0.4), py - sz * _math.sin(ang + 0.4))
+            p.close()
+            c.drawPath(p, stroke=0, fill=1)
+        arrow(cx_mid - 22, cy_mid + 1, cx_mid - 22 - cx_left + 13, 0, EMERALD)
+        arrow(cx_mid + 22, cy_mid + 1, cx_mid + 22 - cx_right + 13, 0, VIOLET)
+        arrow(cx_mid, cy_mid + 22, 0, 22, AMBER)
+        arrow(cx_bot, cy_bot + 8, 0, -8, SKY)
+
+    # ────────────── 24-hour bar chart ──────────────
+    def draw_trend_chart(x, y, w, h):
+        card(x, y, w, h, radius=14)
+        # title row
+        # chart icon left
+        c.setFillColor(hex_color(SKY_BG))
+        c.roundRect(x + w - 24, y + h - 22, 14, 14, 3, stroke=0, fill=1)
+        icon_chart(x + w - 17, y + h - 15, color=SKY, size=4.5)
+        draw_text('اتجاه إنتاج الشمس', x + w - 32, y + h - 18, font_bold, 10.5, INK_SOFT, align='right')
+
+        # total label
+        try: total = float(stats.get('solar_generated_kwh') or 0)
+        except Exception: total = 0
+        # right-aligned total
+        draw_text('إجمالي التوليد:', x + w - 14, y + h - 38, font_name, 8.5, MUTED, align='right')
+        draw_text(f'{total:.2f}', x + w - 84, y + h - 38, font_bold, 11, SKY, align='right')
+
+        # bars area
+        bx, by = x + 14, y + 22
+        bw, bh = w - 28, h - 70
+        labels = chart.get('labels') or []
+        solar = chart.get('solar') or []
+        if not labels or not solar:
+            # fallback: 24 hours empty
+            labels = [f'{i:02d}:00' for i in range(24)]
+            solar = [0] * 24
+        # baseline grid
+        c.setStrokeColor(hex_color('#eef2f9')); c.setLineWidth(0.5)
+        for i in range(4):
+            yy = by + bh * i / 4
+            c.line(bx, yy, bx + bw, yy)
+        # bars
+        max_v = max([float(v or 0) for v in solar] + [1])
+        n = len(solar)
+        bar_gap = max(1, (bw / n) * 0.18)
+        bar_w = max(1.5, (bw / n) - bar_gap)
+        for i, v in enumerate(solar):
+            try: vv = float(v or 0)
+            except Exception: vv = 0
+            ratio = vv / max_v if max_v > 0 else 0
+            bh_i = max(0.8, bh * ratio)
+            bxi = bx + i * (bar_w + bar_gap)
+            # gradient effect: darker bottom, lighter top — fake with two stacked rects
+            c.setFillColor(hex_color(SKY))
+            c.roundRect(bxi, by, bar_w, bh_i, min(1.5, bar_w / 2), stroke=0, fill=1)
+            c.setFillColor(hex_color(EMERALD_SOFT))
+            tip = max(0.6, min(bh_i * 0.35, 6))
+            c.roundRect(bxi, by + bh_i - tip, bar_w, tip, min(1.5, bar_w / 2), stroke=0, fill=1)
+        # x-axis labels every ~3 hours
+        c.setFillColor(hex_color(MUTED))
+        c.setFont(font_name, 6.4)
+        step = max(1, n // 8)
+        for i in range(0, n, step):
+            xx = bx + i * (bar_w + bar_gap) + bar_w / 2
+            c.drawCentredString(xx, by - 9, str(labels[i]))
+
+    # ────────────── Summary grid (4 mini stats) ──────────────
+    def draw_summary_card(x, y, w, h):
+        card(x, y, w, h, radius=14)
+        # title icon (doc)
+        c.setFillColor(hex_color(SKY_BG))
+        c.roundRect(x + w - 26, y + h - 22, 14, 14, 3, stroke=0, fill=1)
+        icon_doc(x + w - 19, y + h - 15, color=SKY, size=4.5)
+        draw_text('ملخص الفترة', x + w - 34, y + h - 18, font_bold, 10.5, INK_SOFT, align='right')
+
+        # 4 cells in 2x2
+        cells = [
+            ('من الشمس إلى البيت:',  fmt_num(stats['solar_to_home_kwh']),  AMBER, AMBER_BG, lambda cx, cy: icon_sun(cx, cy, AMBER, 6)),
+            ('من الشبكة إلى البيت:', fmt_num(stats['grid_to_home_kwh']),   VIOLET, VIOLET_BG, lambda cx, cy: icon_grid(cx, cy, VIOLET, 6)),
+            ('من البطارية إلى البيت:', fmt_num(stats['battery_to_home_kwh']), EMERALD, EMERALD_BG, lambda cx, cy: icon_battery(cx, cy, EMERALD, 6, 0.7)),
+            ('أعلى إنتاج لحظي:', f"{stats.get('max_solar_w', 0)} واط", AMBER, AMBER_BG, lambda cx, cy: icon_bolt(cx, cy, AMBER, 6)),
+        ]
+        col_gap, row_gap = 10, 8
+        cell_w = (w - 28 - col_gap) / 2
+        cell_h = (h - 50 - row_gap) / 2
+        ox = x + 14
+        oy = y + 14
+        for idx, (title, val, accent, bg, draw_ic) in enumerate(cells):
+            r = idx // 2
+            cidx = idx % 2
+            cx = ox + (1 - cidx) * (cell_w + col_gap)  # RTL: first cell on right
+            cy = oy + (1 - r) * (cell_h + row_gap)
+            # cell card
+            c.setFillColor(hex_color('#f8fbff'))
+            c.setStrokeColor(hex_color(LINE)); c.setLineWidth(0.5)
+            c.roundRect(cx, cy, cell_w, cell_h, 10, stroke=1, fill=1)
+            # icon circle on left side
+            c.setFillColor(hex_color(bg))
+            c.circle(cx + 18, cy + cell_h / 2, 13, stroke=0, fill=1)
+            draw_ic(cx + 18, cy + cell_h / 2)
+            # title + value (right side)
+            draw_text(title, cx + cell_w - 8, cy + cell_h - 16, font_name, 8, MUTED, align='right')
+            draw_text(val, cx + cell_w - 8, cy + 8, font_bold, 13, accent, align='right')
+
+    # ────────────── Analytical table ──────────────
+    def draw_analytical_table(x, y, w, h):
+        card(x, y, w, h, radius=14)
+        c.setFillColor(hex_color(SKY_BG))
+        c.roundRect(x + w - 26, y + h - 22, 14, 14, 3, stroke=0, fill=1)
+        icon_table(x + w - 19, y + h - 15, color=SKY, size=4.5)
+        draw_text('الجدول التحليلي', x + w - 34, y + h - 18, font_bold, 10.5, INK_SOFT, align='right')
+
+        # column setup (RTL — period on the right)
+        headers = [
+            ('الفترة',          icon_clock,   SKY),
+            ('الشمس',           icon_sun,     AMBER),
+            ('المنزل',          icon_home,    SKY),
+            ('شمس بيت',        icon_sun,     AMBER),
+            ('شمس بطارية',     icon_battery, EMERALD),
+            ('بطارية بيت',     icon_battery, EMERALD),
+            ('شبكة بيت',       icon_grid,    VIOLET),
+        ]
+        n_cols = len(headers)
+        tx = x + 12
+        ty = y + 14
+        tw = w - 24
+        col_w = tw / n_cols
+        # header row
+        head_h = 28
+        head_y = y + h - 38 - head_h
+        c.setFillColor(hex_color('#f5f9ff'))
+        c.roundRect(tx, head_y, tw, head_h, 8, stroke=0, fill=1)
+        for i, (lbl, ic, color) in enumerate(headers):
+            cx = tx + tw - (i + 0.5) * col_w  # rightmost first
+            # icon
+            ic(cx, head_y + head_h - 10, color=color, size=5.5)
+            draw_text(lbl, cx, head_y + 6, font_bold, 8, INK_SOFT, align='center')
+        # underline accent
+        c.setFillColor(hex_color(SKY_SOFT))
+        c.rect(tx, head_y, tw, 1.4, stroke=0, fill=1)
+
+        # rows
+        max_rows = 6
+        rows = list(table_rows[:max_rows]) if table_rows else []
+        row_h = (head_y - ty - 10) / max(1, max_rows)
+        for r_idx, row in enumerate(rows):
+            ry = head_y - (r_idx + 1) * row_h
+            if r_idx % 2 == 1:
+                c.setFillColor(hex_color('#fafcff'))
+                c.rect(tx, ry, tw, row_h, stroke=0, fill=1)
+            cells_vals = [
+                str(row.get('label', '')),
+                fmt_num(row.get('solar_generated_kwh', 0)),
+                fmt_num(row.get('home_consumed_kwh', 0)),
+                fmt_num(row.get('solar_to_home_kwh', 0)),
+                fmt_num(row.get('solar_to_battery_kwh', 0)),
+                fmt_num(row.get('battery_to_home_kwh', 0)),
+                fmt_num(row.get('grid_to_home_kwh', 0)),
+            ]
+            for i, val in enumerate(cells_vals):
+                cx = tx + tw - (i + 0.5) * col_w
+                font = font_bold if i == 0 else font_name
+                color = SKY if i == 0 else INK_SOFT
+                draw_text(val, cx, ry + row_h / 2 - 3, font, 8.5, color, align='center')
+        if not rows:
+            draw_text('لا توجد بيانات كافية لهذه الفترة بعد.',
+                      tx + tw / 2, head_y - 30, font_name, 9, MUTED, align='center')
+
+    # ════════════ COMPOSE PAGE ════════════
+    paint_bg()
+
+    # left column origin
+    lx = PAD
+    rx = PAD + LEFT_W + GAP
+    # top y
+    top_y = height - PAD
+
+    # Right column title block (compute height first so left hero matches its level)
+    title_block_h = 110
+    draw_right_title(rx, top_y, RIGHT_W)
+
+    # LEFT — hero illustration  (slightly extends below right title)
+    hero_h = 240
+    hero_y = top_y - hero_h
+    draw_hero_illustration(lx, hero_y, LEFT_W, hero_h)
+
+    # LEFT — quick stats label
+    qs_label_y = hero_y - 12
+    draw_text('نظرة سريعة', lx + LEFT_W - 6, qs_label_y, font_bold, 10.5, INK_SOFT, align='right')
+    c.setFillColor(hex_color(SKY))
+    c.rect(lx + LEFT_W - 38, qs_label_y - 5, 32, 2.4, stroke=0, fill=1)
+
+    # LEFT — quick stats rows
+    stat_h = 50
+    stat_y = qs_label_y - 10
+    stats_list = [
+        (lambda cx, cy: icon_sun(cx, cy, AMBER, 8),       AMBER,   AMBER_BG,   fmt_num(stats['solar_generated_kwh']),   'إنتاج الشمس',          'إجمالي التوليد خلال الفترة'),
+        (lambda cx, cy: icon_home(cx, cy, SKY, 7),         SKY,     SKY_BG,     fmt_num(stats['home_consumed_kwh']),     'استهلاك المنزل',        'إجمالي الاستهلاك خلال الفترة'),
+        (lambda cx, cy: icon_battery(cx, cy, EMERALD, 7, 0.65), EMERALD, EMERALD_BG, fmt_num(stats['solar_to_battery_kwh']),  'البطارية من الشمس شحن', 'الطاقة المخزنة في البطارية'),
+        (lambda cx, cy: icon_chart(cx, cy, VIOLET, 6),     VIOLET,  VIOLET_BG,  fmt_pct(stats['avg_battery_soc']),       'متوسط البطارية',        'متوسط نسبة الشحن'),
+    ]
+    for ic, accent, accent_bg, val, title_txt, hint in stats_list:
+        stat_y -= stat_h + 4
+        draw_quick_stats_row(lx, stat_y, LEFT_W, stat_h, accent, accent_bg, ic, val, title_txt, hint)
+
+    # LEFT — battery donut card
+    donut_h = 150
+    donut_y = stat_y - donut_h - 12
+    draw_battery_donut_card(lx, donut_y, LEFT_W, donut_h, stats.get('avg_battery_soc'))
+
+    # LEFT — trust badge
+    trust_h = 60
+    trust_y = donut_y - trust_h - 10
+    if trust_y > PAD + 20:
+        draw_trust_badge(lx, trust_y, LEFT_W, trust_h)
+
+    # RIGHT — energy flow + trend chart row
+    charts_top = top_y - title_block_h - 10
+    charts_h = 220
+    flow_w = (RIGHT_W - 10) * 0.42
+    trend_w = (RIGHT_W - 10) * 0.58
+    draw_energy_flow_card(rx, charts_top - charts_h, flow_w, charts_h)
+    draw_trend_chart(rx + flow_w + 10, charts_top - charts_h, trend_w, charts_h)
+
+    # RIGHT — summary card
+    summary_top = charts_top - charts_h - 12
+    summary_h = 130
+    draw_summary_card(rx, summary_top - summary_h, RIGHT_W, summary_h)
+
+    # RIGHT — analytical table
+    table_top = summary_top - summary_h - 12
+    table_h = max(140, table_top - PAD - 30)
+    draw_analytical_table(rx, table_top - table_h, RIGHT_W, table_h)
+
+    # Footer
+    c.setStrokeColor(hex_color(LINE)); c.setLineWidth(0.6)
+    c.line(PAD, PAD + 12, width - PAD, PAD + 12)
+    c.setFont(font_name, 7.5)
+    c.setFillColor(hex_color(MUTED))
+    c.drawRightString(width - PAD, PAD + 2, ar('منصة الطاقة الشمسية • تقرير تحليلي'))
+    c.drawString(PAD, PAD + 2, ar(f'صفحة 1'))
+
+    c.showPage()
+    c.save()
     buf.seek(0)
     filename = f"taqrir_{selected_view}_{selected_date.strftime('%Y-%m-%d')}.pdf"
-    return Response(buf.getvalue(), mimetype='application/pdf', headers={'Content-Disposition': f'attachment; filename={filename}'})
+    return Response(buf.getvalue(), mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 
 @energy_bp.route('/deye', methods=['GET', 'POST'])
@@ -923,108 +1293,4 @@ def loads_page():
             save_value = safe_float(request.form.get('night_max_w'), 0)
             if save_value > 0:
                 _save_setting_value('night_max_load_w', str(int(round(save_value))))
-                db.session.commit()
-                saved_night_max_w = save_value
-                simulate_max_w = save_value
-                simulation = _manual_load_planner(latest, simulate_max_w, weather=weather, now_local=now_local)
-                flash('تم حفظ أقصى حمل ليلي بنجاح', 'success')
-            else:
-                flash('أدخل قيمة صحيحة للحمل الليلي', 'warning')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-        elif action == 'simulate':
-            if simulate_max_w <= 0:
-                flash('حدد قيمة أقصى حمل للتجربة أولاً', 'warning')
-            else:
-                flash('تم تحديث تجربة اقتراح الأحمال', 'success')
-        elif action == 'send_telegram_loads':
-            settings = load_settings()
-            title = '⚡ اقتراح الأحمال الآن'
-            if simulation and simulate_max_w > 0:
-                lines = [
-                    '🧪 تجربة اقتراح الأحمال',
-                    simulation.get('mode_ar', ''),
-                    f"🔌 الحد المحدد: {int(round(simulation.get('max_allowed_w', 0)))}W" if simulation.get('mode') == 'night' else f"☀️ الفائض الشمسي: {int(round(simulation.get('available_w', 0)))}W",
-                    f"🏠 الحمل الحالي: {int(round(simulation.get('current_load_w', 0)))}W",
-                    f"⚡ المتاح: {int(round(simulation.get('available_w', 0)))}W",
-                    '',
-                ]
-                fit = simulation.get('fit') or []
-                if fit:
-                    lines.append('يمكنك تشغيل الآن فقط الأجهزة الأقل من المتاح:')
-                    for row in fit[:8]:
-                        lines.append(f"✔ {row.get('name')} — {int(round(float(row.get('power_w') or 0)))}W")
-                else:
-                    lines.append('⚠️ لا يوجد جهاز مناسب ضمن هذا الحد حاليًا.')
-                message = '\n'.join(lines)
-            else:
-                message = build_telegram_quick_reply('loads', latest, weather)
-            ok, _resp = send_telegram_message(settings, title, message)
-            if ok:
-                send_telegram_menu(settings)
-                flash('تم إرسال اقتراح الأحمال إلى Telegram', 'success')
-            else:
-                flash('فشل إرسال اقتراح الأحمال إلى Telegram. راجع إعدادات البوت.', 'warning')
-            return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
-
-    loads = _serialize_loads()
-    smart_loads = _smart_load_suggestions(latest, settings=settings)
-    return render_template('loads.html', latest=latest, loads=loads, smart_loads=smart_loads, simulation=simulation,
-                           saved_night_max_w=saved_night_max_w,
-                           format_power=format_power, format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
-
-
-@energy_bp.route('/plant-info')
-def plant_info():
-    energy_guard = _energy_portal_guard()
-    if energy_guard:
-        return energy_guard
-    latest = _latest_reading()
-    settings = load_settings()
-    tz_name = current_app.config['LOCAL_TIMEZONE']
-    production_summary = get_production_summary(tz_name)
-    return render_template('plant_info.html', latest=latest, settings=settings,
-                           production_summary=production_summary,
-                           format_energy=format_energy,
-                           format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
-
-
-@energy_bp.route('/api/raw-debug')
-def api_raw_debug():
-    if not is_system_admin() or not current_app.config.get('DEBUG_TOOLS_ENABLED'):
-        return {'ok': False, 'error': 'Debug tools are disabled.'}, 403
-    latest = _latest_reading()
-    if not latest:
-        return {'ok': False, 'error': 'No reading found'}
-    try:
-        raw = json.loads(latest.raw_json) if latest.raw_json else {}
-    except Exception:
-        raw = {'raw_text': latest.raw_json}
-
-    # Also try live device list call for debugging
-    device_list_result = []
-    device_detail_test = {}
-    try:
-        from ..services.deye_client import DeyeClient
-        settings = load_settings()
-        client = DeyeClient(settings)
-        token = client.obtain_token()
-        device_list_result = client.station_device_list(token)
-        # Try device_sn directly
-        if client.device_sn:
-            device_detail_test = client.device_original_data(token, client.device_sn)
-    except Exception as e:
-        device_list_result = [{'error': str(e)}]
-
-    payload = {
-        'created_at': latest.created_at.isoformat(),
-        'daily_production_stored': latest.daily_production,
-        'monthly_production_stored': latest.monthly_production,
-        'total_production_stored': latest.total_production,
-        'solar_power': latest.solar_power,
-        'battery_soc': latest.battery_soc,
-        'device_list_live': device_list_result,
-        'device_detail_test': device_detail_test,
-        'top_level_keys': list(raw.keys()) if isinstance(raw, dict) else [],
-        'raw': raw,
-    }
-    return sanitize_response_payload(payload)
+                db.sessio
