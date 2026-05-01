@@ -35,7 +35,7 @@
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--rp-ink);
 }
-.rp-page>*+*{margin-top:18px}
+.rp-page>*+*{margin-top:24px}
 .rp-page *,.rp-page *::before,.rp-page *::after{box-sizing:border-box}
 
 /* HERO HEADER (sky gradient — matches dashboard) */
@@ -258,7 +258,7 @@
 .rp-card-head small{font-size:.78rem;color:var(--rp-muted);font-weight:700;display:block}
 .rp-chart-wrap{padding:.5rem 1.1rem 1.2rem}
 .rp-chart-wrap canvas{width:100% !important}
-.rp-side-stack{display:flex;flex-direction:column;gap:18px}
+.rp-side-stack{display:flex;flex-direction:column;gap:24px}
 
 /* WEATHER CARD */
 .rp-weather-head{display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:.6rem}
@@ -296,7 +296,14 @@
 .rp-mix-tag.grid  .rp-mix-dot{background:#94a3b8}
 
 /* SMART LOADS CARD */
-.rp-loads-list{padding:.2rem 1.1rem 0;display:flex;flex-direction:column;gap:.55rem}
+.rp-loads-list{
+  padding:.2rem 1.1rem 0;
+  display:flex;
+  flex-direction:column;
+  gap:.55rem;
+  max-height:260px;
+  overflow:auto;
+}
 .rp-load-row{
   display:flex;align-items:center;justify-content:space-between;
   background:linear-gradient(180deg,#fff,#f7faff);
@@ -319,7 +326,10 @@
 /* TABLE */
 .rp-table-card{margin-bottom:0}
 .rp-table-card .rp-card-head{padding-bottom:14px}
-.rp-table-scroll{overflow-x:auto}
+.rp-table-scroll{
+  overflow:auto;
+  max-height:min(62vh,520px);
+}
 .rp-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
 .rp-table thead th{
   padding:.85rem 1rem;text-align:start;
@@ -347,6 +357,12 @@
 .rp-val-grid {color:#1f2937 !important}
 
 #rp-content{transition:opacity .18s ease}
+@media (max-width:720px){
+  .rp-page>*+*{margin-top:18px}
+  .rp-side-stack{gap:18px}
+  .rp-table-scroll{max-height:420px}
+  .rp-loads-list{max-height:220px}
+}
 </style>
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">

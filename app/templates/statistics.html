@@ -34,7 +34,7 @@
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--st-ink);
 }
-.st-page>*+*{margin-top:18px}
+.st-page>*+*{margin-top:24px}
 .st-page *,.st-page *::before,.st-page *::after{box-sizing:border-box}
 
 /* HERO HEADER (sky gradient like dashboard hero) */
@@ -281,7 +281,7 @@
 
 /* CHART CARDS */
 .st-charts{
-  display:grid;gap:18px;
+  display:grid;gap:24px;
   grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);
 }
 @media (max-width:1100px){.st-charts{grid-template-columns:1fr}}
@@ -329,7 +329,10 @@
 
 /* TABLE */
 .st-table-card .st-card-head{padding-bottom:14px}
-.st-table-scroll{overflow-x:auto}
+.st-table-scroll{
+  overflow:auto;
+  max-height:min(62vh,520px);
+}
 .st-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
 .st-table thead th{
   padding:.85rem 1rem;text-align:start;
@@ -366,6 +369,11 @@
   transition:all .25s ease;pointer-events:none;
 }
 .st-toast.is-show{opacity:1;transform:translateY(0)}
+@media (max-width:720px){
+  .st-page>*+*{margin-top:18px}
+  .st-charts{gap:18px}
+  .st-table-scroll{max-height:420px}
+}
 </style>
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">

@@ -35,7 +35,7 @@
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--lv-ink);
 }
-.lv-page>*+*{margin-top:18px}
+.lv-page>*+*{margin-top:24px}
 .lv-page *,.lv-page *::before,.lv-page *::after{box-sizing:border-box}
 
 /* HERO HEADER */
@@ -184,7 +184,7 @@
 .lv-empty p{font-size:.9rem;color:var(--lv-muted);font-weight:700}
 
 /* ─── SECTION CARDS ─── */
-.lv-section{}
+.lv-section{margin-top:0}
 .lv-card{
   background:var(--lv-card);border:1px solid var(--lv-line);
   border-radius:var(--lv-radius-lg);overflow:hidden;
@@ -243,7 +243,10 @@
 
 /* ─── HISTORY TABLE ─── */
 .lv-hist-section{margin-bottom:0}
-.lv-hist-scroll{overflow-x:auto}
+.lv-hist-scroll{
+  overflow:auto;
+  max-height:min(62vh,520px);
+}
 .lv-hist-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
 .lv-hist-table thead th{
   padding:.85rem 1.1rem;text-align:start;
@@ -266,6 +269,10 @@
 .lv-hist-val-dis {color:#c2410c !important;font-weight:900}
 .lv-hist-empty{padding:2.2rem;text-align:center;color:var(--lv-muted);font-size:.9rem;font-weight:700}
 .lv-pv-empty{padding:1.6rem 1.8rem;font-size:.88rem;color:var(--lv-muted);text-align:center;font-weight:700}
+@media (max-width:720px){
+  .lv-page>*+*{margin-top:18px}
+  .lv-hist-scroll{max-height:420px}
+}
 </style>
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
