@@ -510,3 +510,4 @@ Traceback (most recent call last):
 sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "dpg-d7f20rpf9bms739tjh4g-a.frankfurt-postgres.render.com" to address: Name or service not known
 
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
+127.0.0.1 - - [01/May/2026 13:57:41] "GET /register/username-check?lang=ar&username=mohamed HTTP/1.1" 200 -

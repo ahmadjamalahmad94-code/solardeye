@@ -722,24 +722,28 @@ def export_statistics_pdf():
         # chip top-right
         chip_label = ar('تحليل الطاقة')
         c.setFont(font_bold, 9)
-        chip_w = c.stringWidth(chip_label, font_bold, 9) + 28
+        text_w = c.stringWidth(chip_label, font_bold, 9)
+        chip_pad_l = 26  # extra room for icon + breathing space
+        chip_pad_r = 12
+        chip_w = text_w + chip_pad_l + chip_pad_r
         chip_h = 22
         chip_x = x + w - chip_w
         chip_y = y - chip_h
         c.setFillColor(hex_color(SKY_BG))
         c.roundRect(chip_x, chip_y, chip_w, chip_h, chip_h / 2, stroke=0, fill=1)
+        # icon disc on the left
         c.setFillColor(hex_color(SKY))
-        c.circle(chip_x + 11, chip_y + chip_h / 2, 4.5, stroke=0, fill=1)
+        c.circle(chip_x + 12, chip_y + chip_h / 2, 5, stroke=0, fill=1)
         c.setFillColor(colors.white)
-        # bolt inside circle
         cb = c.beginPath()
-        bx, by = chip_x + 11, chip_y + chip_h / 2
-        cb.moveTo(bx + 1, by + 2.5); cb.lineTo(bx - 1.5, by - 0.2)
-        cb.lineTo(bx + 0.3, by - 0.2); cb.lineTo(bx - 1, by - 2.5)
-        cb.lineTo(bx + 1.8, by); cb.lineTo(bx + 0.2, by); cb.close()
+        bx, by = chip_x + 12, chip_y + chip_h / 2
+        cb.moveTo(bx + 1.2, by + 3.0); cb.lineTo(bx - 1.8, by - 0.2)
+        cb.lineTo(bx + 0.3, by - 0.2); cb.lineTo(bx - 1.2, by - 3.0)
+        cb.lineTo(bx + 2.0, by); cb.lineTo(bx + 0.2, by); cb.close()
         c.drawPath(cb, stroke=0, fill=1)
+        # text right-aligned at the right edge minus padding
         c.setFillColor(hex_color(SKY))
-        c.drawRightString(chip_x + chip_w - 10, chip_y + 6.5, chip_label)
+        c.drawRightString(chip_x + chip_w - chip_pad_r, chip_y + 6.5, chip_label)
 
         # title (right-aligned)
         draw_text('تقرير منصة الطاقة الشمسية', x + w, y - 60, font_bold, 22, INK, align='right')
@@ -771,14 +775,17 @@ def export_statistics_pdf():
         c.line(x + w - 75, y + h - 15, x + w - 70, y + h - 15)
         c.line(x + w - 70, y + h - 15, x + w - 70, y + h - 11)
 
-        # diagram center
-        cx_top = x + w / 2
-        cy_top = y + h - 50
-        cx_mid = x + w / 2
-        cy_mid = y + h / 2 - 8
-        cx_left = x + 38
-        cx_right = x + w - 38
-        cy_side = cy_mid
+        # diagram center — geometry tuned so labels never collide
+        cx_top   = x + w / 2
+        cy_top   = y + h - 48
+        cx_mid   = x + w / 2
+        cy_mid   = y + h / 2 - 10
+        cx_left  = x + 34
+        cx_right = x + w - 34
+        cy_side  = cy_mid - 10
+        home_r   = 17
+        side_r   = 12
+        sun_r    = 13
 
         # solar generated value (top)
         try:
@@ -789,52 +796,48 @@ def export_statistics_pdf():
         except Exception:
             v_solar = v_batt = v_grid = v_home = 0.0
 
-        # SUN node
+        # SUN node (top centre)
         c.setFillColor(hex_color(AMBER_BG))
-        c.circle(cx_top, cy_top, 14, stroke=0, fill=1)
-        icon_sun(cx_top, cy_top, color=AMBER, size=9)
-        draw_text(f'{v_solar:.2f}', cx_top, cy_top - 28, font_bold, 11, INK, align='center')
-        draw_text('إنتاج الشمس', cx_top, cy_top - 40, font_name, 7.2, MUTED, align='center')
+        c.circle(cx_top, cy_top, sun_r, stroke=0, fill=1)
+        icon_sun(cx_top, cy_top, color=AMBER, size=8)
+        draw_text(f'{v_solar:.2f}', cx_top, cy_top - sun_r - 10, font_bold, 10.5, INK, align='center')
+        draw_text('إنتاج الشمس', cx_top, cy_top - sun_r - 22, font_name, 7, MUTED, align='center')
 
-        # HOME center node (larger)
+        # HOME centre node (smaller so side labels don't collide)
         c.setFillColor(hex_color(SKY_BG))
-        c.circle(cx_mid, cy_mid, 22, stroke=0, fill=1)
+        c.circle(cx_mid, cy_mid, home_r + 4, stroke=0, fill=1)
         c.setFillColor(hex_color(SKY))
-        c.circle(cx_mid, cy_mid, 18, stroke=0, fill=1)
-        icon_home(cx_mid, cy_mid, color=colors.white, size=10)
+        c.circle(cx_mid, cy_mid, home_r, stroke=0, fill=1)
+        icon_home(cx_mid, cy_mid, color=colors.white, size=8.5)
 
-        # BATTERY node (left)
+        # BATTERY node (left, slightly below home)
         c.setFillColor(hex_color(EMERALD_BG))
-        c.circle(cx_left, cy_side, 13, stroke=0, fill=1)
-        icon_battery(cx_left, cy_side, color=EMERALD, size=8, fill_ratio=0.7)
-        draw_text(f'{v_batt:.2f}', cx_left, cy_side - 24, font_bold, 10, INK, align='center')
-        draw_text('من البطارية', cx_left, cy_side - 36, font_name, 7, MUTED, align='center')
+        c.circle(cx_left, cy_side, side_r, stroke=0, fill=1)
+        icon_battery(cx_left, cy_side, color=EMERALD, size=7, fill_ratio=0.7)
+        draw_text(f'{v_batt:.2f}', cx_left, cy_side - side_r - 10, font_bold, 9.5, INK, align='center')
+        draw_text('من البطارية', cx_left, cy_side - side_r - 22, font_name, 6.7, MUTED, align='center')
 
-        # GRID node (right)
+        # GRID node (right, slightly below home)
         c.setFillColor(hex_color(VIOLET_BG))
-        c.circle(cx_right, cy_side, 13, stroke=0, fill=1)
-        icon_grid(cx_right, cy_side, color=VIOLET, size=8)
-        draw_text(f'{v_grid:.2f}', cx_right, cy_side - 24, font_bold, 10, INK, align='center')
-        draw_text('من الشبكة', cx_right, cy_side - 36, font_name, 7, MUTED, align='center')
+        c.circle(cx_right, cy_side, side_r, stroke=0, fill=1)
+        icon_grid(cx_right, cy_side, color=VIOLET, size=7)
+        draw_text(f'{v_grid:.2f}', cx_right, cy_side - side_r - 10, font_bold, 9.5, INK, align='center')
+        draw_text('من الشبكة', cx_right, cy_side - side_r - 22, font_name, 6.7, MUTED, align='center')
 
-        # HOME bottom
+        # HOME consumption (bottom centre)
         cx_bot = x + w / 2
-        cy_bot = y + 36
-        draw_text(f'{v_home:.2f}', cx_bot, cy_bot - 4, font_bold, 11, INK, align='center')
-        draw_text('استهلاك المنزل', cx_bot, cy_bot - 16, font_name, 7.2, MUTED, align='center')
+        cy_bot = y + 32
+        draw_text(f'{v_home:.2f}', cx_bot, cy_bot - 2, font_bold, 10.5, INK, align='center')
+        draw_text('استهلاك المنزل', cx_bot, cy_bot - 14, font_name, 7, MUTED, align='center')
 
-        # dashed connectors
+        # dashed connectors — drawn to the edges of the new (smaller) circles
         c.setStrokeColor(hex_color(LINE_STRONG))
         c.setLineWidth(1.0)
         c.setDash(2, 2)
-        # sun → home
-        c.line(cx_top, cy_top - 14, cx_mid, cy_mid + 22)
-        # battery → home
-        c.line(cx_left + 13, cy_side, cx_mid - 22, cy_mid)
-        # grid → home
-        c.line(cx_right - 13, cy_side, cx_mid + 22, cy_mid)
-        # home → bottom (estimate consumption)
-        c.line(cx_mid, cy_mid - 22, cx_bot, cy_bot + 8)
+        c.line(cx_top, cy_top - sun_r, cx_mid, cy_mid + home_r + 3)
+        c.line(cx_left + side_r, cy_side, cx_mid - home_r - 3, cy_mid - 4)
+        c.line(cx_right - side_r, cy_side, cx_mid + home_r + 3, cy_mid - 4)
+        c.line(cx_mid, cy_mid - home_r - 3, cx_bot, cy_bot + 10)
         c.setDash()
 
         # arrowheads
@@ -848,10 +851,10 @@ def export_statistics_pdf():
             p.lineTo(px - sz * _math.cos(ang + 0.4), py - sz * _math.sin(ang + 0.4))
             p.close()
             c.drawPath(p, stroke=0, fill=1)
-        arrow(cx_mid - 22, cy_mid + 1, cx_mid - 22 - cx_left + 13, 0, EMERALD)
-        arrow(cx_mid + 22, cy_mid + 1, cx_mid + 22 - cx_right + 13, 0, VIOLET)
-        arrow(cx_mid, cy_mid + 22, 0, 22, AMBER)
-        arrow(cx_bot, cy_bot + 8, 0, -8, SKY)
+        arrow(cx_mid - home_r - 3, cy_mid - 4, -1, 0,  EMERALD)
+        arrow(cx_mid + home_r + 3, cy_mid - 4,  1, 0,  VIOLET)
+        arrow(cx_mid, cy_mid + home_r + 3, 0,  1, AMBER)
+        arrow(cx_bot, cy_bot + 10, 0, -1, SKY)
 
     # ────────────── 24-hour bar chart ──────────────
     def draw_trend_chart(x, y, w, h):
@@ -901,13 +904,20 @@ def export_statistics_pdf():
             c.setFillColor(hex_color(EMERALD_SOFT))
             tip = max(0.6, min(bh_i * 0.35, 6))
             c.roundRect(bxi, by + bh_i - tip, bar_w, tip, min(1.5, bar_w / 2), stroke=0, fill=1)
-        # x-axis labels every ~3 hours
+        # x-axis labels — auto-step so labels never overlap
         c.setFillColor(hex_color(MUTED))
         c.setFont(font_name, 6.4)
-        step = max(1, n // 8)
+        # roughly each label needs ~30pt of horizontal room
+        per_label = max(28.0, c.stringWidth('00:00', font_name, 6.4) + 6)
+        max_labels = max(4, int(bw / per_label))
+        step = max(1, int(_math.ceil(n / max_labels)))
         for i in range(0, n, step):
             xx = bx + i * (bar_w + bar_gap) + bar_w / 2
             c.drawCentredString(xx, by - 9, str(labels[i]))
+        # always include last label if not already drawn
+        if (n - 1) % step != 0 and n > 1:
+            xx = bx + (n - 1) * (bar_w + bar_gap) + bar_w / 2
+            c.drawCentredString(xx, by - 9, str(labels[-1]))
 
     # ────────────── Summary grid (4 mini stats) ──────────────
     def draw_summary_card(x, y, w, h):
@@ -1029,15 +1039,15 @@ def export_statistics_pdf():
     hero_y = top_y - hero_h
     draw_hero_illustration(lx, hero_y, LEFT_W, hero_h)
 
-    # LEFT — quick stats label
-    qs_label_y = hero_y - 12
+    # LEFT — quick stats label (extra clearance below hero card)
+    qs_label_y = hero_y - 18
     draw_text('نظرة سريعة', lx + LEFT_W - 6, qs_label_y, font_bold, 10.5, INK_SOFT, align='right')
     c.setFillColor(hex_color(SKY))
     c.rect(lx + LEFT_W - 38, qs_label_y - 5, 32, 2.4, stroke=0, fill=1)
 
     # LEFT — quick stats rows
-    stat_h = 50
-    stat_y = qs_label_y - 10
+    stat_h = 48
+    stat_y = qs_label_y - 14
     stats_list = [
         (lambda cx, cy: icon_sun(cx, cy, AMBER, 8),       AMBER,   AMBER_BG,   fmt_num(stats['solar_generated_kwh']),   'إنتاج الشمس',          'إجمالي التوليد خلال الفترة'),
         (lambda cx, cy: icon_home(cx, cy, SKY, 7),         SKY,     SKY_BG,     fmt_num(stats['home_consumed_kwh']),     'استهلاك المنزل',        'إجمالي الاستهلاك خلال الفترة'),
