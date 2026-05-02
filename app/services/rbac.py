@@ -90,9 +90,10 @@ DEFAULT_ROLE_CATALOG = DEFAULT_ROLES[:1] + STAFF_ROLE_PRESETS + DEFAULT_ROLES[1:
 
 PORTAL_PAGES = (
     {'page_key': 'dashboard', 'endpoint': 'main.dashboard', 'label_ar': 'النظرة العامة', 'label_en': 'Overview', 'icon': '🏠', 'group_key': 'portal', 'sort_order': 1, 'is_locked': True},
-    {'page_key': 'deye_settings', 'endpoint': 'main.deye_settings', 'label_ar': 'إعدادات الربط', 'label_en': 'Connection Settings', 'icon': '🔗', 'group_key': 'portal', 'sort_order': 3},
-    {'page_key': 'onboarding', 'endpoint': 'main.onboarding_wizard', 'label_ar': 'معالج الإعداد', 'label_en': 'Setup Wizard', 'icon': '🧭', 'group_key': 'portal', 'sort_order': 3},
-    {'page_key': 'subscription', 'endpoint': 'main.account_subscription', 'label_ar': 'اشتراكي', 'label_en': 'Subscription', 'icon': '💳', 'group_key': 'portal', 'sort_order': 4},
+    {'page_key': 'devices_manage', 'endpoint': 'main.devices_manage', 'label_ar': 'أجهزتي', 'label_en': 'My Devices', 'icon': '🔌', 'group_key': 'portal', 'sort_order': 2},
+    {'page_key': 'profile', 'endpoint': 'main.account_profile', 'label_ar': 'الملف الشخصي', 'label_en': 'Profile', 'icon': '👤', 'group_key': 'portal', 'sort_order': 3},
+    {'page_key': 'onboarding', 'endpoint': 'main.onboarding_wizard', 'label_ar': 'معالج الإعداد', 'label_en': 'Setup Wizard', 'icon': '🧭', 'group_key': 'portal', 'sort_order': 4},
+    {'page_key': 'subscription', 'endpoint': 'main.account_subscription', 'label_ar': 'اشتراكي', 'label_en': 'Subscription', 'icon': '💳', 'group_key': 'portal', 'sort_order': 5},
     {'page_key': 'statistics', 'endpoint': 'main.statistics', 'label_ar': 'الإحصائيات', 'label_en': 'Statistics', 'icon': '📊', 'group_key': 'monitoring', 'sort_order': 10},
     {'page_key': 'reports', 'endpoint': 'main.reports', 'label_ar': 'التقارير', 'label_en': 'Reports', 'icon': '🧾', 'group_key': 'monitoring', 'sort_order': 11},
     {'page_key': 'live_data', 'endpoint': 'main.live_data', 'label_ar': 'البيانات الحية', 'label_en': 'Live Data', 'icon': '📡', 'group_key': 'monitoring', 'sort_order': 12},
@@ -105,7 +106,10 @@ PORTAL_ENDPOINT_TO_KEY = {p['endpoint']: p['page_key'] for p in PORTAL_PAGES}
 PORTAL_ENDPOINT_TO_KEY.update({
     'main.portal_messages': 'support', 'main.portal_tickets': 'support',
     'energy.dashboard': 'dashboard',
-    'energy.deye_settings': 'deye_settings',
+    'devices_routes.devices_manage': 'devices_manage',
+    'devices_routes.device_edit': 'devices_manage',
+    'devices_routes.device_toggle': 'devices_manage',
+    'devices_routes.account_profile': 'profile',
     'devices_routes.onboarding_wizard': 'onboarding',
     'billing.account_subscription': 'subscription',
     'energy.statistics': 'statistics',

@@ -136,6 +136,7 @@ def _migrate_database():
             'city': 'VARCHAR(120)',
             'timezone': "VARCHAR(64) DEFAULT 'Asia/Hebron'",
             'preferred_language': "VARCHAR(10) DEFAULT 'ar'",
+            'profile_image_url': 'VARCHAR(255)',
             'role': "VARCHAR(50) DEFAULT 'admin'",
             'preferred_device_type': "VARCHAR(50) DEFAULT 'deye'",
             'preferred_device_id': 'INTEGER',

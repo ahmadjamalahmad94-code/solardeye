@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import re
+
 from datetime import UTC, datetime, timedelta
 
 from ..extensions import db
 from ..models import SmartRecommendationLog, SmartSnapshot
 from ..services.scope import current_scope_ids, scoped_query
 from ..services.utils import to_json, utc_to_local
+from ..services.sun_context import compute_sun_context, SunContext
 from .helpers import (
     build_battery_insights,
     build_pre_sunset_prediction,
@@ -188,40 +191,68 @@ def _confidence_profile(matched_count: int) -> dict:
 
 
 
-def _sun_phase_guidance(is_day: bool, sunrise_remaining_label: str | None, hours_until_sunrise: float | None) -> dict:
+def _sun_phase_guidance(is_day: bool, sunrise_remaining_label: str | None,
+                          hours_until_sunrise: float | None,
+                          ctx: SunContext | None = None) -> dict:
+    """Phase-aware lead message for the smart-prediction card.
+
+    When `ctx` is provided we use the unified SunContext (preferred path).
+    The legacy boolean-`is_day` parameters remain only for backward
+    compatibility with old call-sites that haven't been wired up to the
+    SunContext yet — once everything is migrated we can drop them.
+    """
+    if ctx is not None:
+        return {
+            'title': 'السيناريو القادم',
+            'summary': ctx.smart_card_lead(lang='ar'),
+            'detail': ctx.weather_advice(lang='ar')[0],
+            'show_sunrise_label': ctx.phase in ('night', 'dawn', 'dusk'),
+        }
+
+    # ── legacy fallback (no ctx) ───────────────────────────────────────
     sunrise_remaining_label = sunrise_remaining_label or 'غير متاح'
     if is_day:
         return {
             'title': 'السيناريو القادم',
-            'summary': '☀️ الشمس الآن مشرقة، ويتم تسجيل القراءات الحالية ومزامنتها وأرشفتها لبناء التوقع الذكي.',
-            'detail': 'كل مزامنة نهارية جديدة تقوّي الأرشيف التاريخي وتُحسّن دقة المقارنات القادمة.',
+            'summary': '🌤️ الإنتاج جارٍ الآن — كل قراءة تُغذّي الأرشيف الذكي.',
+            'detail': 'كل مزامنة جديدة تقوّي الأرشيف وتُحسّن دقّة المقارنات.',
             'show_sunrise_label': False,
         }
-
     if hours_until_sunrise is not None and hours_until_sunrise <= 1.5:
         return {
             'title': 'السيناريو القادم',
-            'summary': '🌅 الشروق قريب، وما تبقى من الليل قصير نسبيًا.',
+            'summary': '🌅 الشروق قريب، الإنتاج سيبدأ قريبًا.',
             'detail': f'المتبقي للشروق: {sunrise_remaining_label}.',
             'show_sunrise_label': True,
         }
-
     return {
         'title': 'السيناريو القادم',
-        'summary': '🌙 الليل مستمر، ويعتمد القرار الآن على صمود البطارية حتى الشروق.',
+        'summary': '🌙 فترة ليلية — البطارية تحمل النظام حتى الشروق.',
         'detail': f'المتبقي للشروق: {sunrise_remaining_label}.',
         'show_sunrise_label': True,
     }
+
 
 def _scenario_from_history(current_snapshot: SmartSnapshot, avg_solar: float, avg_surplus: float, risk_code: str, matched_count: int) -> dict:
     current_solar = _safe_float(getattr(current_snapshot, 'solar_power', 0), 0)
     current_surplus = _safe_float(getattr(current_snapshot, 'actual_surplus_w', 0), 0)
     solar_delta = round(avg_solar - current_solar, 1)
     surplus_delta = round(avg_surplus - current_surplus, 1)
+    # Build a SunContext for this snapshot's moment so the messages adapt
+    # to the *exact* phase (descending afternoon, pre-sunset, dusk, night).
+    try:
+        ctx = compute_sun_context(latest=None, weather=None,
+                                   timezone_name=None)
+        # NOTE: ctx is computed for *now* — for snapshots tied to past moments
+        # we still rely on classify_day_phase via the snapshot's local hour,
+        # but for live decisions ctx is correct.
+    except Exception:
+        ctx = None
     sun_guidance = _sun_phase_guidance(
         bool(getattr(current_snapshot, 'is_day', False)),
         human_duration_hours(getattr(current_snapshot, 'hours_until_sunrise', None)) if getattr(current_snapshot, 'hours_until_sunrise', None) is not None else 'غير متاح',
         getattr(current_snapshot, 'hours_until_sunrise', None),
+        ctx=ctx,
     )
 
     if matched_count <= 2:
@@ -239,19 +270,33 @@ def _scenario_from_history(current_snapshot: SmartSnapshot, avg_solar: float, av
     else:
         history_summary = '📈 الأرشيف يميل إلى استقرار مقبول خلال الساعة القادمة إذا استمرت الظروف نفسها.'
 
-    solar_phrase = 'أقل' if solar_delta < -80 else ('أعلى' if solar_delta > 80 else 'قريب من الحالي')
-    if solar_phrase == 'قريب من الحالي':
-        detail = f'الإنتاج المتوقع يقارب {avg_solar:.1f} واط، والفائض المتوقع يقارب {avg_surplus:.1f} واط.'
+    # During descent phases (afternoon/pre_sunset/sunset/dusk/night) the
+    # archive average can mathematically exceed the current reading because
+    # the archive includes earlier-in-the-hour readings.  But it's
+    # *misleading* to tell the user "expected higher than current" when the
+    # sun is actually setting.  Suppress the comparison phrase in those
+    # cases and lean on the phase-aware message instead.
+    in_descent = ctx is not None and ctx.phase in ('afternoon', 'pre_sunset', 'sunset', 'dusk', 'night')
+    if in_descent:
+        detail = f'الإنتاج المتوقع للساعة القادمة {avg_solar:.1f} واط (متوسط من الأرشيف)، والفائض المتوقع {avg_surplus:.1f} واط.'
     else:
-        detail = f'الإنتاج المتوقع {avg_solar:.1f} واط، وهو {solar_phrase} من القراءة الحالية، والفائض المتوقع {avg_surplus:.1f} واط.'
+        solar_phrase = 'أقل' if solar_delta < -80 else ('أعلى' if solar_delta > 80 else 'قريب من الحالي')
+        if solar_phrase == 'قريب من الحالي':
+            detail = f'الإنتاج المتوقع يقارب {avg_solar:.1f} واط، والفائض المتوقع يقارب {avg_surplus:.1f} واط.'
+        else:
+            detail = f'الإنتاج المتوقع {avg_solar:.1f} واط، وهو {solar_phrase} من القراءة الحالية، والفائض المتوقع {avg_surplus:.1f} واط.'
 
     if surplus_delta < -150:
         detail += ' يفضل عدم تشغيل حمل إضافي طويل الآن.'
     elif surplus_delta > 200:
         detail += ' قد تكون هناك مساحة محدودة لأحمال خفيفة إذا استمرت الظروف.'
 
-    summary = f"{sun_guidance['summary']} {history_summary}" if bool(getattr(current_snapshot, 'is_day', False)) else history_summary
-    detail = f"{detail} {sun_guidance['detail']}" if not bool(getattr(current_snapshot, 'is_day', False)) else detail
+    # Avoid concatenating possibly-contradictory leads.  The sun_guidance
+    # message already describes the phase; appending a second sentence about
+    # surplus risk creates the "sun is shining + expect a drop" tension we
+    # had before.  Keep them on separate lines (summary vs detail).
+    summary = sun_guidance['summary']
+    detail = f"{history_summary} {detail}".strip()
 
     return {
         'scenario_title_ar': sun_guidance['title'],
@@ -396,11 +441,16 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         home = float(latest.home_load or 0)
 
         prediction = build_pre_sunset_prediction(latest, weather=weather, settings=settings) if weather else build_pre_sunset_prediction(latest, weather=None, settings=settings)
+        # Unified phase context — the single source of truth from now on.
+        try:
+            sun_ctx = compute_sun_context(latest=latest, weather=weather, settings=settings)
+        except Exception:
+            sun_ctx = None
         minutes_to_sunset = prediction.get('minutes_to_sunset') if prediction else None
         hours_until_sunrise = prediction.get('hours_until_sunrise') if prediction else None
         sunrise_remaining_label = prediction.get('sunrise_remaining_label', 'غير متاح') if prediction else 'غير متاح'
         is_day = bool(prediction.get('is_day')) if prediction and prediction.get('is_day') is not None else (_safe_float(getattr(latest, 'solar_power', 0), 0) > 50)
-        sun_guidance = _sun_phase_guidance(is_day, sunrise_remaining_label, hours_until_sunrise)
+        sun_guidance = _sun_phase_guidance(is_day, sunrise_remaining_label, hours_until_sunrise, ctx=sun_ctx)
 
         if (not is_day) or str(context).lower() == 'periodic_night':
             if soc <= max(float(battery_reserve_percent), 20):
@@ -468,6 +518,19 @@ def build_smart_energy_advice(latest, weather=None, settings=None, context='peri
         advice['scenario_summary'] = analysis.get('scenario_summary_ar', sun_guidance['summary'])
         advice['scenario_detail'] = analysis.get('scenario_detail_ar', sun_guidance['detail'])
         advice['historical_is_actionable'] = bool(analysis.get('use_historical_for_decision'))
+
+        # Decouple status_label from confidence_message — never print "بحذر"
+        # twice in the same card (status + confidence badge both said it
+        # before).  The confidence badge is the canonical home for "بحذر".
+        try:
+            conf_msg = (advice.get('confidence_message') or '').strip()
+            status_lbl = advice.get('status_label') or ''
+            if conf_msg and conf_msg in status_lbl:
+                cleaned = re.sub(rf'\s*{re.escape(conf_msg)}\s*$', '', status_lbl).strip()
+                if cleaned:
+                    advice['status_label'] = cleaned
+        except Exception:
+            pass
         advice['hours_until_sunrise'] = hours_until_sunrise
         advice['show_sunrise_label'] = bool(analysis.get('show_sunrise_label', False))
         advice['sunrise_remaining_label'] = sunrise_remaining_label if advice['show_sunrise_label'] else 'غير متاح'

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/devices_manage_v64.css', v='v66-devices-hub-playbook-pass-20260501') }}">
+{% endblock %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set providers = provider_specs or [] %}
+{% set current_provider = device.device_type or 'deye' %}
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+  {% include '_sidebar.html' %}
+
+  <main class="app-main content-area dm64-page">
+    <section class="dm64-hero dm64-form-page-shell">
+      <div class="dm64-hero-head">
+        <span class="dm64-hero-badge">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
+      </div>
+      <div class="dm64-hero-grid">
+        <div class="dm64-hero-copy">
+          <div class="dm64-hero-actions">
+            <a class="dm64-btn dm64-btn-secondary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+              <span>{{ 'Back' if is_en else 'الرجوع' }}</span>
+              <span>↩</span>
+            </a>
+          </div>
+        </div>
+        <div class="dm64-hero-content">
+          <h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1>
+          <p>{{ 'Update the provider fields and keep secret inputs blank to preserve the saved values.' if is_en else 'حدّث بيانات المزود واترك الحقول السرية فارغة للاحتفاظ بالقيم المحفوظة.' }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dm64-form-page-shell">
+      <article class="dm64-panel dm64-form-shell">
+        <form method="post" class="dm64-device-form" data-device-provider-form data-edit-device>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="dm64-form-section-title">{{ '1. Provider' if is_en else '1. نوع الجهاز' }}</div>
+          <div class="dm64-form-full provider-picker-v10519">
+            <select class="form-select form-select-lg" name="device_type" data-provider-select>
+              {% for p in providers %}
+                <option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="provider-selected-note-v10519" data-provider-note></div>
+          </div>
+
+          <div class="dm64-form-section-title">{{ '2. Basic info' if is_en else '2. البيانات الأساسية' }}</div>
+          <div>
+            <label class="form-label">{{ 'Device name' if is_en else 'اسم الجهاز' }}</label>
+            <input class="form-control form-control-lg" name="name" value="{{ device.name }}" required>
+          </div>
+          <div>
+            <label class="form-label">{{ 'Plant / site name' if is_en else 'اسم المحطة / الموقع' }}</label>
+            <input class="form-control form-control-lg" name="plant_name" value="{{ device.plant_name or '' }}">
+          </div>
+          <div>
+            <label class="form-label">{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</label>
+            <input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or device_settings.get('api_base_url', '') or '' }}" data-provider-base-url>
+          </div>
+          <div>
+            <label class="form-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label>
+            <input class="form-control form-control-lg" name="timezone" value="{{ device.timezone or 'Asia/Hebron' }}">
+          </div>
+
+          <div class="dm64-form-section-title">{{ '3. Connection fields' if is_en else '3. بيانات الربط المطلوبة' }}</div>
+          <div class="dm64-form-full dynamic-fields-v10519" data-provider-fields></div>
+
+          <div class="dm64-form-full">
+            <label class="form-label">{{ 'Notes' if is_en else 'ملاحظات' }}</label>
+            <textarea class="form-control" rows="4" name="notes">{{ device.notes or '' }}</textarea>
+          </div>
+          <label class="dm64-form-full dm64-switch-row">
+            <input type="checkbox" name="is_active" {% if device.is_active %}checked{% endif %}>
+            <span>{{ 'Device enabled' if is_en else 'الجهاز مفعل' }}</span>
+          </label>
+
+          <div class="dm64-form-actions dm64-form-full">
+            <button class="dm64-btn dm64-btn-primary" type="submit">{{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
+            <a class="dm64-btn dm64-btn-ghost" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
+          </div>
+        </form>
+      </article>
+    </section>
+  </main>
+</div>
+
+<script>
+window.SOLARDEYE_PROVIDER_SPECS = {{ providers|tojson }};
+window.SOLARDEYE_DEVICE_VALUES = {{ {'creds': device_creds, 'settings': device_settings}|tojson }};
+</script>
+{% endblock %}

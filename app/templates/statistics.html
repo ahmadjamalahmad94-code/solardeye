@@ -664,7 +664,8 @@
   document.addEventListener('visibilitychange',function(){if(!document.hidden)stScheduleAutoRefresh()});
   window.addEventListener('popstate',function(){window.location.reload()});
   document.addEventListener('DOMContentLoaded',function(){stSetupNav();stInitCharts();stScheduleAutoRefresh()});
-  window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('statsProfileChart');if(c&&!Chart.getChart(c))stInitCharts()}});
-})();
-</script>
-{% endblock %}
+      window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('statsProfileChart');if(c&&!Chart.getChart(c))stInitCharts()}});
+    })();
+    </script>
+    {% endblock %}
+    

@@ -1,0 +1,962 @@
+{% extends 'base.html' %}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set providers = provider_specs or [] %}
+{% set page_dir = 'ltr' if is_en else 'rtl' %}
+{% set stats = namespace(active=0, current=None) %}
+{% for dev in devices_list %}
+  {% if dev.is_active %}{% set stats.active = stats.active + 1 %}{% endif %}
+  {% if dev.id == current_device_id %}{% set stats.current = dev %}{% endif %}
+{% endfor %}
+{% if stats.current is none and devices_list %}{% set stats.current = devices_list[0] %}{% endif %}
+
+{# ─── icon helpers ─── #}
+{% macro dev_icon(code) %}{% if 'deye' in code %}☀️{% elif 'tesla' in code %}⚡{% elif 'victron' in code %}🔋{% elif 'huawei' in code or 'sungrow' in code or 'goodwe' in code %}☁️{% elif 'fronius' in code or 'kostal' in code or 'opendtu' in code %}🏠{% elif 'shelly' in code %}🔌{% elif 'mqtt' in code or 'modbus' in code %}📡{% elif 'home_assistant' in code %}🏡{% elif 'solaredge' in code or 'solarman' in code or 'soliscloud' in code or 'growatt' in code %}🌤️{% elif 'enphase' in code or 'apsystems' in code %}☀️{% elif 'tigo' in code %}⚙️{% elif 'sma' in code %}🌞{% else %}⚡{% endif %}{% endmacro %}
+{% macro cat_label(cat) %}{% if cat == 'inverter_cloud' %}{{ 'Cloud' if is_en else 'سحابي' }}{% elif cat == 'local_inverter' %}{{ 'Local' if is_en else 'محلي' }}{% elif cat == 'hybrid_energy_system' %}{{ 'Hybrid' if is_en else 'هجين' }}{% elif cat == 'battery_energy_site' %}{{ 'Battery' if is_en else 'بطارية' }}{% elif cat == 'smart_load_meter' %}{{ 'Smart' if is_en else 'ذكي' }}{% elif cat == 'logger_cloud' %}{{ 'Logger' if is_en else 'لوغر' }}{% elif cat == 'energy_gateway' %}{{ 'Gateway' if is_en else 'بوابة' }}{% elif cat == 'local_protocol' %}{{ 'Protocol' if is_en else 'بروتوكول' }}{% elif cat == 'microinverter_cloud' %}{{ 'Micro' if is_en else 'مصغّر' }}{% elif cat == 'optimizer_cloud' %}{{ 'Optimizer' if is_en else 'محسّن' }}{% else %}{{ cat }}{% endif %}{% endmacro %}
+
+<style>
+.dm-page{
+  --dm-ink:#0b1220;
+  --dm-ink-soft:#1f2a44;
+  --dm-muted:#5e6f8c;
+  --dm-line:#e3eaf6;
+  --dm-line-strong:#cfd9ec;
+  --dm-card:#ffffff;
+  --dm-bg:#eef3fb;
+  --dm-violet:#6d3aff;
+  --dm-amber:#f59e0b;
+  --dm-amber-soft:#fbbf24;
+  --dm-emerald:#10b981;
+  --dm-emerald-soft:#34d399;
+  --dm-sky:#2563eb;
+  --dm-sky-soft:#60a5fa;
+  --dm-rose:#f43f5e;
+  --dm-shadow-sm:0 6px 18px rgba(15,23,42,.06);
+  --dm-shadow:0 22px 60px rgba(15,23,42,.09);
+  --dm-radius:22px;
+  --dm-radius-lg:30px;
+  --dm-radius-xl:38px;
+  background:
+    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
+    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
+    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
+  min-height:100vh;
+  padding:16px clamp(14px,2vw,28px) 72px;
+  font-family:'Cairo','Inter',system-ui,sans-serif;
+  color:var(--dm-ink);
+  display:flex;flex-direction:column;gap:30px;
+}
+.dm-page *,.dm-page *::before,.dm-page *::after{box-sizing:border-box}
+
+/* HERO */
+.dm-hero{
+  position:relative;border-radius:var(--dm-radius-xl);
+  padding:clamp(20px,2.8vw,30px) clamp(18px,2.6vw,30px);
+  overflow:hidden;color:#fff;
+  box-shadow:0 28px 68px rgba(15,23,42,.12);isolation:isolate;
+  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
+}
+.dm-hero::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
+    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
+}
+.dm-hero-grid{
+  position:relative;z-index:1;
+  display:grid;gap:16px;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.92fr);
+  align-items:center;
+}
+@media (max-width:980px){.dm-hero-grid{grid-template-columns:1fr}}
+.dm-hero-text{display:flex;flex-direction:column;gap:6px;min-width:0}
+.dm-eyebrow{
+  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+  font-size:.68rem;font-weight:900;letter-spacing:.5px;text-transform:uppercase;
+  color:#0b1531;background:rgba(255,255,255,.92);
+  padding:.33rem .68rem;border-radius:999px;
+  box-shadow:0 6px 16px rgba(11,21,49,.18);
+}
+.dm-eyebrow .dm-pulse{width:8px;height:8px;border-radius:50%;background:var(--dm-amber);box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:dmPulse 1.8s infinite}
+@keyframes dmPulse{0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+.dm-hero h1{font-size:clamp(1.42rem,2.3vw,1.88rem);font-weight:950;margin:0;line-height:1.12;color:#fff;text-shadow:0 4px 18px rgba(11,21,49,.18)}
+.dm-hero p{margin:0;font-size:.9rem;color:rgba(255,255,255,.9);max-width:60ch;line-height:1.5;font-weight:600}
+.dm-hero-meta{display:flex;flex-wrap:wrap;gap:.38rem .48rem;margin-top:.35rem}
+.dm-hero-meta-item{
+  display:inline-flex;align-items:center;gap:.4rem;
+  font-size:.74rem;font-weight:800;color:#0b1531;
+  background:rgba(255,255,255,.92);padding:.32rem .68rem;border-radius:11px;
+  box-shadow:0 4px 12px rgba(11,21,49,.10);
+}
+.dm-hero-meta-item b{color:#0b1531;font-weight:900}
+.dm-hero-actions{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:flex-end;position:relative;z-index:1}
+@media (max-width:980px){.dm-hero-actions{justify-content:flex-start}}
+.dm-hero-btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.55rem .95rem;border-radius:13px;
+  font-size:.81rem;font-weight:900;text-decoration:none;
+  border:1px solid transparent;cursor:pointer;font-family:inherit;
+  transition:transform .15s,box-shadow .15s;
+}
+.dm-hero-btn.secondary{background:#fff;color:var(--dm-ink-soft);border-color:var(--dm-line)}
+.dm-hero-btn.secondary:hover{transform:translateY(-1px);box-shadow:var(--dm-shadow-sm)}
+.dm-hero-btn.primary{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 10px 24px rgba(245,158,11,.24)}
+.dm-hero-btn.primary:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(245,158,11,.3)}
+.dm-hero-btn .icon{font-size:1rem;line-height:1}
+
+/* FLASH STACK */
+.dm-flash{display:flex;flex-direction:column;gap:.5rem}
+.dm-flash .flash-toast-v61{margin:0}
+
+/* KPI STRIP */
+.dm-stats{display:grid;gap:16px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1024px){.dm-stats{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.dm-stats{grid-template-columns:1fr}}
+.dm-stat{
+  position:relative;background:var(--dm-card);
+  border:1px solid var(--dm-line);border-radius:var(--dm-radius-lg);
+  padding:16px 18px 18px;box-shadow:var(--dm-shadow-sm);overflow:hidden;
+  transition:all .2s;display:flex;flex-direction:column;gap:.4rem;
+}
+.dm-stat:hover{transform:translateY(-3px);box-shadow:var(--dm-shadow);border-color:var(--dm-line-strong)}
+.dm-stat::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;border-radius:var(--dm-radius-lg) var(--dm-radius-lg) 0 0;opacity:.95}
+.dm-stat.violet::before {background:linear-gradient(90deg,#6d3aff,#a78bfa)}
+.dm-stat.amber::before  {background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.dm-stat.emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
+.dm-stat.sky::before    {background:linear-gradient(90deg,#2563eb,#60a5fa)}
+.dm-stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;margin-top:.2rem}
+.dm-stat-icon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.24rem}
+.dm-stat.violet  .dm-stat-icon{background:rgba(109,58,255,.12);color:#5b21b6}
+.dm-stat.amber   .dm-stat-icon{background:rgba(245,158,11,.12);color:#b45309}
+.dm-stat.emerald .dm-stat-icon{background:rgba(16,185,129,.12);color:#047857}
+.dm-stat.sky     .dm-stat-icon{background:rgba(37,99,235,.12);color:#1d4ed8}
+.dm-stat-trend{font-size:.66rem;font-weight:900;padding:.26rem .58rem;border-radius:999px;background:#f1f5fc;color:var(--dm-ink-soft);border:1px solid var(--dm-line)}
+.dm-stat-label{font-size:.78rem;color:var(--dm-muted);font-weight:800;letter-spacing:.2px}
+.dm-stat-value{font-size:1.82rem;font-weight:950;color:var(--dm-ink);line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.dm-stat.violet  .dm-stat-value{color:#5b21b6}
+.dm-stat.amber   .dm-stat-value{color:#b45309}
+.dm-stat.emerald .dm-stat-value{color:#047857}
+.dm-stat.sky     .dm-stat-value{color:#1d4ed8}
+.dm-stat-sub{font-size:.75rem;color:var(--dm-muted);line-height:1.45;font-weight:600}
+
+/* SECTION HEADER */
+.dm-section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.65rem;padding:0 4px}
+.dm-main-stage .dm-section-head{grid-column:1 / -1}
+.dm-section-head h2{font-size:1.08rem;font-weight:950;color:var(--dm-ink);margin:0;display:inline-flex;align-items:center;gap:.48rem}
+.dm-section-head h2 .dm-section-icon{
+  width:32px;height:32px;border-radius:9px;background:rgba(37,99,235,.12);
+  display:inline-flex;align-items:center;justify-content:center;font-size:1rem;color:#1d4ed8;
+}
+.dm-section-head small{display:block;color:var(--dm-muted);font-weight:700;font-size:.78rem}
+.dm-section-head .dm-pill{
+  display:inline-flex;align-items:center;gap:.4rem;
+  font-size:.74rem;font-weight:800;color:var(--dm-ink-soft);
+  background:#fff;padding:.34rem .68rem;border-radius:999px;
+  border:1px solid var(--dm-line);box-shadow:var(--dm-shadow-sm);
+}
+
+/* WORKSPACE SPLIT */
+.dm-workspace{
+  display:grid;
+  gap:22px;
+  align-items:start;
+}
+.dm-page[dir="ltr"] .dm-workspace{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-areas:"rail main main main";
+}
+.dm-page[dir="rtl"] .dm-workspace{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-areas:"main main main rail";
+}
+.dm-side-rail{
+  grid-area:rail;
+  display:grid;
+  gap:16px;
+  align-content:start;
+  min-width:0;
+}
+.dm-main-stage{
+  grid-area:main;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+  min-width:0;
+}
+@media (max-width:980px){
+  .dm-workspace{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "main"
+      "rail";
+  }
+  .dm-main-stage{
+    grid-template-columns:1fr;
+  }
+}
+
+/* DEVICES GRID */
+.dm-grid{
+  grid-column:1 / -1;
+  display:grid;
+  gap:16px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:stretch;
+}
+.dm-page[dir="rtl"] .dm-grid{grid-template-areas:". secondary current"}
+.dm-page[dir="ltr"] .dm-grid{grid-template-areas:"current secondary ."}
+@media (max-width:980px){
+  .dm-grid{
+    grid-template-columns:1fr;
+    grid-template-areas:none;
+  }
+}
+.dm-device{
+  position:relative;background:var(--dm-card);
+  border:1px solid var(--dm-line);border-radius:var(--dm-radius-lg);
+  padding:16px 18px 14px;box-shadow:var(--dm-shadow-sm);
+  display:flex;flex-direction:column;gap:12px;
+  transition:all .2s;overflow:hidden;
+}
+.dm-device:hover{transform:translateY(-3px);box-shadow:var(--dm-shadow);border-color:var(--dm-line-strong)}
+.dm-device-current{grid-area:current}
+.dm-device-secondary{grid-area:secondary}
+.dm-device-extra{grid-column:1 / -1}
+.dm-device-current,
+.dm-add-tile.dm-secondary-slot{
+  height:100%;
+}
+.dm-page[dir="rtl"] .dm-device-current{grid-column:1}
+.dm-page[dir="rtl"] .dm-device-secondary{grid-column:2}
+.dm-page[dir="rtl"] .dm-add-tile.dm-secondary-slot{grid-column:2}
+.dm-page[dir="ltr"] .dm-device-current{grid-column:1}
+.dm-page[dir="ltr"] .dm-device-secondary{grid-column:2}
+.dm-page[dir="ltr"] .dm-add-tile.dm-secondary-slot{grid-column:2}
+.dm-device.is-current{border-color:rgba(245,158,11,.45);box-shadow:0 0 0 3px rgba(245,158,11,.10),var(--dm-shadow)}
+.dm-device.is-current::after{
+  content:"";position:absolute;inset:0 0 auto 0;height:5px;
+  border-radius:var(--dm-radius-lg) var(--dm-radius-lg) 0 0;
+  background:linear-gradient(90deg,#fbbf24,#f59e0b);
+}
+.dm-device.is-disabled{opacity:.55}
+.dm-device-head{display:flex;align-items:center;gap:.75rem}
+.dm-device-icon{
+  width:46px;height:46px;border-radius:13px;
+  background:rgba(245,158,11,.12);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1.36rem;flex-shrink:0;
+}
+.dm-device-badges{margin-inline-start:auto;display:flex;flex-wrap:wrap;gap:.35rem}
+.dm-badge{
+  font-size:.66rem;font-weight:900;padding:.22rem .62rem;border-radius:999px;white-space:nowrap;
+  border:1px solid transparent;
+}
+.dm-badge.gold{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 4px 12px rgba(245,158,11,.28)}
+.dm-badge.muted{background:#f1f5fc;color:var(--dm-muted);border-color:var(--dm-line)}
+.dm-device-body{display:flex;flex-direction:column;gap:.35rem}
+.dm-device-name{font-size:1rem;font-weight:900;color:var(--dm-ink);margin:0;line-height:1.22}
+.dm-device-type{font-size:.7rem;color:#b45309;font-weight:900;text-transform:uppercase;letter-spacing:.35px}
+.dm-device-meta{font-size:.78rem;color:var(--dm-muted);font-weight:700;display:inline-flex;align-items:center;gap:.35rem}
+.dm-device-status{
+  display:inline-flex;align-items:center;gap:.5rem;
+  margin-top:.18rem;font-size:.72rem;font-weight:800;
+  padding:.28rem .58rem;border-radius:999px;align-self:flex-start;
+  background:#f1f5fc;color:var(--dm-ink-soft);border:1px solid var(--dm-line);
+}
+.dm-device-status .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--dm-muted);flex-shrink:0}
+.dm-device-status.connected{background:#d1fae5;color:#047857;border-color:#a7f3d0}
+.dm-device-status.connected .dm-dot{background:var(--dm-emerald);box-shadow:0 0 6px rgba(16,185,129,.5)}
+.dm-device-status.error{background:#ffe4e6;color:#be123c;border-color:#fecdd3}
+.dm-device-status.error .dm-dot{background:var(--dm-rose)}
+.dm-device-status.pending{background:#fef3c7;color:#b45309;border-color:#fde68a}
+.dm-device-status.pending .dm-dot{background:var(--dm-amber)}
+
+.dm-device-actions{display:flex;flex-wrap:wrap;gap:.4rem;border-top:1px solid var(--dm-line);padding-top:12px}
+.dm-device-actions form{margin:0;flex:1}
+.dm-action-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.5rem .82rem;border-radius:10px;
+  font-size:.78rem;font-weight:900;font-family:inherit;cursor:pointer;
+  text-decoration:none;border:1px solid var(--dm-line);background:#fff;color:var(--dm-ink-soft);
+  transition:all .15s;width:100%;
+}
+.dm-action-btn:hover{transform:translateY(-1px);box-shadow:var(--dm-shadow-sm);background:#f5f9ff}
+.dm-action-btn.primary{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;border-color:transparent;box-shadow:0 5px 14px rgba(245,158,11,.22)}
+.dm-action-btn.primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(245,158,11,.28)}
+.dm-action-btn.icon-only{flex:0 0 auto;width:36px;padding:.5rem 0}
+
+/* ADD TILE */
+.dm-add-tile{
+  border:2px dashed var(--dm-line-strong);background:rgba(255,255,255,.55);
+  border-radius:var(--dm-radius-lg);padding:20px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.55rem;
+  cursor:pointer;color:var(--dm-muted);font-family:inherit;min-height:184px;
+  transition:all .2s;
+}
+.dm-add-tile:hover{
+  border-color:var(--dm-amber);color:var(--dm-amber);
+  background:linear-gradient(135deg,rgba(255,207,77,.12),rgba(245,158,11,.08));
+  transform:translateY(-3px);box-shadow:var(--dm-shadow);
+}
+.dm-add-tile-icon{
+  width:54px;height:54px;border-radius:16px;
+  background:rgba(245,158,11,.12);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:900;
+}
+.dm-add-tile-label{font-size:.94rem;font-weight:900;color:var(--dm-ink-soft)}
+.dm-add-tile-hint{font-size:.74rem;color:var(--dm-muted);font-weight:600}
+
+/* EMPTY STATE */
+.dm-empty{
+  background:var(--dm-card);border:2px dashed var(--dm-line-strong);
+  border-radius:var(--dm-radius-lg);padding:60px 30px;text-align:center;
+  box-shadow:var(--dm-shadow-sm);
+}
+.dm-empty-icon{
+  width:80px;height:80px;margin:0 auto 18px;border-radius:24px;
+  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.12));
+  display:flex;align-items:center;justify-content:center;font-size:2.4rem;
+}
+.dm-empty h3{font-size:1.3rem;font-weight:950;color:var(--dm-ink);margin:0 0 .4rem}
+.dm-empty p{font-size:.92rem;color:var(--dm-muted);font-weight:600;max-width:420px;margin:0 auto 22px;line-height:1.55}
+
+/* INTEGRATIONS PANEL */
+.dm-panel{
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,251,255,.96));
+  border:1px solid rgba(214,226,245,.92);
+  border-radius:28px;
+  padding:16px 16px 14px;
+  box-shadow:0 10px 28px rgba(15,23,42,.05);
+}
+.dm-add-tile.dm-secondary-slot{grid-area:secondary}
+.dm-add-tile.dm-full-row{grid-column:1 / -1}
+.dm-panel-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:.65rem;flex-wrap:wrap}
+.dm-panel-head h3{font-size:1rem;font-weight:950;color:var(--dm-ink);margin:0;line-height:1.25}
+.dm-panel-head small{font-size:.74rem;color:var(--dm-muted);font-weight:700;display:block;margin-top:3px}
+.dm-int-grid{display:grid;gap:10px;grid-template-columns:1fr;max-height:332px;overflow:auto;padding-inline-end:4px}
+.dm-int-grid::-webkit-scrollbar{width:8px}
+.dm-int-grid::-webkit-scrollbar-track{background:transparent}
+.dm-int-grid::-webkit-scrollbar-thumb{background:rgba(148,163,184,.45);border-radius:999px}
+.dm-int-row{
+  display:flex;align-items:center;gap:.65rem;
+  background:linear-gradient(180deg,#fff,#f7faff);
+  border:1px solid rgba(220,230,245,.95);border-radius:14px;padding:.68rem .78rem;
+  transition:all .15s;
+}
+.dm-int-row:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(15,23,42,.06);border-color:var(--dm-line-strong)}
+.dm-int-icon{
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(245,158,11,.12);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;
+}
+.dm-int-text{display:flex;flex-direction:column;min-width:0}
+.dm-int-name{font-size:.78rem;font-weight:900;color:var(--dm-ink-soft);line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-int-cat{font-size:.66rem;color:var(--dm-muted);font-weight:700}
+.dm-int-tag{
+  margin-inline-start:auto;font-size:.62rem;font-weight:900;
+  padding:.18rem .5rem;border-radius:999px;
+  background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;
+  text-transform:uppercase;letter-spacing:.4px;
+}
+.dm-checklist{
+  display:grid;
+  gap:10px;
+}
+.dm-check-item{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:10px;
+  align-items:start;
+  padding:10px 0;
+  border-bottom:1px solid rgba(238,243,251,.95);
+}
+.dm-check-item:last-child{border-bottom:none;padding-bottom:0}
+.dm-check-badge{
+  width:24px;height:24px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#eff6ff;color:#2563eb;border:1px solid #dbeafe;
+  font-size:.72rem;font-weight:900;flex-shrink:0;
+}
+.dm-check-copy{
+  display:grid;
+  gap:3px;
+  min-width:0;
+}
+.dm-check-copy strong{
+  font-size:.8rem;
+  font-weight:850;
+  color:var(--dm-ink-soft);
+  line-height:1.35;
+}
+.dm-check-copy span{
+  font-size:.72rem;
+  color:var(--dm-muted);
+  font-weight:700;
+  line-height:1.5;
+}
+
+/* ════ ADD-DEVICE DRAWER (slim) ════ */
+.dm-drawer{position:fixed;inset:0;z-index:9100;pointer-events:none;opacity:0;transition:opacity .2s}
+.dm-drawer.open{pointer-events:all;opacity:1}
+.dm-drawer-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px)}
+.dm-drawer-panel{
+  position:absolute;top:0;bottom:0;width:min(540px,96vw);
+  background:#fff;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:-12px 0 40px rgba(15,23,42,.20);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+[dir=rtl] .dm-drawer-panel{left:0;transform:translateX(-110%)}
+[dir=ltr] .dm-drawer-panel{right:0;transform:translateX(110%)}
+.dm-drawer.open .dm-drawer-panel{transform:translateX(0)}
+
+.dm-drawer-head{
+  position:relative;padding:20px 22px 16px;
+  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 80%);
+  color:#fff;flex-shrink:0;
+}
+.dm-drawer-head::after{
+  content:"";position:absolute;inset:auto 0 0 0;height:3px;
+  background:linear-gradient(90deg,#fbbf24,#f59e0b);
+}
+.dm-drawer-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+.dm-drawer-title{font-size:1.1rem;font-weight:950;margin:0 0 .2rem;color:#fff}
+.dm-drawer-sub{font-size:.82rem;color:rgba(255,255,255,.85);margin:0;font-weight:600}
+.dm-drawer-close{
+  background:rgba(255,255,255,.18);border:none;color:#fff;
+  width:32px;height:32px;border-radius:10px;
+  font-size:1rem;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.dm-drawer-close:hover{background:rgba(255,255,255,.30)}
+
+/* Steps */
+.dm-steps{display:flex;align-items:center;gap:0;padding:14px 22px;border-bottom:1px solid var(--dm-line);background:#f8fbff;flex-shrink:0}
+.dm-step{display:flex;align-items:center;gap:.5rem;flex:0 0 auto}
+.dm-step-num{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--dm-line);color:var(--dm-muted);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.78rem;font-weight:900;transition:all .2s;
+}
+.dm-step-lbl{font-size:.82rem;color:var(--dm-muted);font-weight:800;transition:color .2s}
+.dm-step.active .dm-step-num{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 4px 12px rgba(245,158,11,.25)}
+.dm-step.active .dm-step-lbl{color:var(--dm-ink)}
+.dm-step.done .dm-step-num{background:var(--dm-emerald);color:#fff}
+.dm-step.done .dm-step-lbl{color:var(--dm-emerald)}
+.dm-step-line{flex:1;height:2px;background:var(--dm-line);margin:0 .65rem;border-radius:1px}
+
+/* Body */
+.dm-step-body{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px;background:#fff}
+.dm-search-wrap{
+  position:sticky;top:0;z-index:3;background:#fff;padding-bottom:6px;
+  display:flex;align-items:center;gap:.5rem;
+}
+.dm-search-wrap::before{
+  content:"🔍";font-size:1rem;
+  position:absolute;inset-inline-start:14px;top:13px;opacity:.55;pointer-events:none;
+}
+.dm-search-input{
+  flex:1;background:#f8fbff;border:1px solid var(--dm-line);
+  border-radius:12px;color:var(--dm-ink);padding:.6rem .9rem .6rem 2.3rem;
+  font-size:.88rem;font-family:inherit;font-weight:600;outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+[dir=rtl] .dm-search-input{padding:.6rem 2.3rem .6rem .9rem}
+.dm-search-input:focus{border-color:var(--dm-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.dm-search-input::placeholder{color:var(--dm-muted);font-weight:500}
+
+.dm-providers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.65rem}
+.dm-prov-card{
+  background:#fff;border:1.5px solid var(--dm-line);
+  border-radius:13px;padding:.75rem .55rem;text-align:center;cursor:pointer;
+  color:var(--dm-ink-soft);font-family:inherit;
+  transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:.25rem;
+}
+.dm-prov-card:hover{transform:translateY(-2px);border-color:var(--dm-amber);box-shadow:0 8px 18px rgba(245,158,11,.18)}
+.dm-prov-card.active{border-color:var(--dm-amber);background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));box-shadow:0 0 0 2px rgba(245,158,11,.30)}
+.dm-prov-card.dm-hidden{display:none}
+.dm-prov-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:rgba(245,158,11,.10);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1.4rem;
+}
+.dm-prov-name{font-size:.74rem;font-weight:800;line-height:1.25;color:var(--dm-ink)}
+.dm-prov-cat{font-size:.65rem;color:var(--dm-muted);font-weight:700}
+
+.dm-step-foot{
+  display:flex;gap:.65rem;margin-top:auto;padding:14px 22px;
+  border-top:1px solid var(--dm-line);background:#f8fbff;flex-shrink:0;
+}
+.dm-step-foot .dm-action-btn{flex:1;width:auto;padding:.7rem 1rem}
+
+/* Step 2 */
+.dm-sel-banner{
+  display:flex;align-items:center;gap:.7rem;
+  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));
+  border:1px solid rgba(245,158,11,.30);border-radius:14px;
+  padding:.65rem .85rem;flex-shrink:0;
+}
+.dm-back-btn{background:none;border:none;color:#b45309;cursor:pointer;font-size:.78rem;font-weight:900;text-decoration:underline;flex-shrink:0;font-family:inherit}
+.dm-sel-icon{
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(245,158,11,.18);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;
+}
+.dm-sel-info{display:flex;flex-direction:column;min-width:0}
+.dm-sel-info strong{font-size:.92rem;font-weight:900;color:var(--dm-ink);line-height:1.2}
+.dm-sel-note{font-size:.7rem;color:var(--dm-muted);font-weight:600;margin-top:1px}
+
+.dm-section-lbl{
+  font-size:.7rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--dm-muted);padding-top:.25rem;
+  display:inline-flex;align-items:center;gap:.4rem;
+}
+.dm-section-lbl::before{content:"";width:14px;height:2px;background:var(--dm-amber);border-radius:1px}
+
+.dm-fields-row{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+@media (max-width:540px){.dm-fields-row{grid-template-columns:1fr}}
+.dm-field{display:flex;flex-direction:column;gap:5px}
+.dm-field label{font-size:.74rem;font-weight:800;color:var(--dm-ink-soft);display:flex;align-items:baseline;gap:4px;margin:0}
+.dm-field label .text-danger{color:#be123c}
+.dm-field input,.dm-field textarea{
+  background:#fff;border:1px solid var(--dm-line);border-radius:11px;
+  color:var(--dm-ink);padding:.55rem .8rem;
+  font-size:.88rem;font-family:inherit;font-weight:600;outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.dm-field input:focus,.dm-field textarea:focus{border-color:var(--dm-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.dm-field input::placeholder,.dm-field textarea::placeholder{color:var(--dm-muted);font-weight:500}
+
+.dm-toggle-row{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.6rem .85rem;border-radius:12px;
+  background:#f8fbff;border:1px solid var(--dm-line);
+}
+.dm-toggle-row input[type=checkbox]{
+  appearance:none;width:38px;height:22px;border-radius:11px;background:var(--dm-line);
+  position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;
+}
+.dm-toggle-row input[type=checkbox]::after{
+  content:"";position:absolute;top:2px;inset-inline-start:2px;
+  width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 4px rgba(15,23,42,.2);transition:inset-inline-start .2s;
+}
+.dm-toggle-row input[type=checkbox]:checked{background:linear-gradient(135deg,#10b981,#34d399)}
+.dm-toggle-row input[type=checkbox]:checked::after{inset-inline-start:18px}
+.dm-toggle-row label{font-size:.85rem;font-weight:800;color:var(--dm-ink-soft);cursor:pointer;margin:0}
+
+.dm-form{display:flex;flex-direction:column;gap:14px}
+
+/* Dynamic provider fields injected by app.js */
+.provider-field-grid-v10519{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+@media (max-width:540px){.provider-field-grid-v10519{grid-template-columns:1fr}}
+.provider-field-card-v10519{display:flex;flex-direction:column;gap:5px}
+.provider-field-card-v10519 .form-label{display:flex;align-items:baseline;justify-content:space-between;font-size:.74rem;font-weight:800;color:var(--dm-ink-soft);margin:0}
+.provider-field-card-v10519 .form-label small{font-size:.66rem;color:var(--dm-muted);font-weight:700}
+.provider-field-card-v10519 .form-control,.provider-field-card-v10519 input,.provider-field-card-v10519 select,.provider-field-card-v10519 textarea{
+  background:#fff;border:1px solid var(--dm-line);border-radius:11px;
+  color:var(--dm-ink);padding:.55rem .8rem;font-size:.88rem;font-family:inherit;font-weight:600;outline:none;
+}
+.provider-field-card-v10519 .form-control:focus{border-color:var(--dm-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.field-hint-v10519{font-size:.7rem;color:var(--dm-muted);font-weight:600}
+.empty-box-v2{color:var(--dm-muted);font-size:.85rem;padding:.5rem 0;font-weight:600}
+</style>
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+  {% include '_sidebar.html' %}
+
+  <main class="app-main content-area">
+    <div class="dm-page" dir="{{ page_dir }}">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="dm-flash">
+            {% for category, message in messages %}
+              <div class="flash-toast-v61 {{ category }}"><span>{{ '✅' if category == 'success' else ('⚠️' if category == 'warning' else ('❌' if category == 'danger' else 'ℹ️')) }}</span><p>{{ t(message) }}</p></div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <section class="dm-hero">
+        <div class="dm-hero-grid">
+          <div class="dm-hero-text">
+            <span class="dm-eyebrow"><span class="dm-pulse"></span>{{ 'Devices Hub' if is_en else 'مركز الأجهزة' }}</span>
+            <h1>{{ 'My Devices' if is_en else 'أجهزتي' }}</h1>
+            <p>{{ 'Manage your active devices, switch the current one used for monitoring, and add new integrations from one clean workspace.' if is_en else 'أدِر أجهزتك المفعّلة، بدّل الجهاز المستخدم في صفحات المتابعة، وأضِف تكاملات جديدة من مساحة واحدة مرتّبة.' }}</p>
+            <div class="dm-hero-meta">
+              <span class="dm-hero-meta-item">📦 <b>{{ devices_list|length }} {{ 'devices' if is_en else 'جهاز' }}</b></span>
+              <span class="dm-hero-meta-item">🟢 <b>{{ stats.active }} {{ 'active' if is_en else 'مفعّل' }}</b></span>
+              <span class="dm-hero-meta-item">🧩 <b>{{ providers|length }} {{ 'integrations' if is_en else 'تكامل' }}</b></span>
+            </div>
+          </div>
+          <div class="dm-hero-actions">
+            <a class="dm-hero-btn secondary" href="{{ url_for('main.dashboard', lang=ui_lang) }}">
+              <span class="icon">📊</span><span>{{ 'Dashboard' if is_en else 'لوحة المتابعة' }}</span>
+            </a>
+            <button class="dm-hero-btn primary" type="button" id="btnOpenDrawer">
+              <span class="icon">＋</span><span>{{ 'Add device' if is_en else 'إضافة جهاز' }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="dm-stats">
+        <article class="dm-stat amber">
+          <div class="dm-stat-top"><div class="dm-stat-icon">🎯</div><span class="dm-stat-trend">{{ 'Current' if is_en else 'الحالي' }}</span></div>
+          <div class="dm-stat-label">{{ 'Current device' if is_en else 'الجهاز الحالي' }}</div>
+          <div class="dm-stat-value">{{ 1 if stats.current else 0 }}</div>
+          <div class="dm-stat-sub">{{ stats.current.name if stats.current else ('No device selected' if is_en else 'لا يوجد جهاز محدد') }}</div>
+        </article>
+        <article class="dm-stat emerald">
+          <div class="dm-stat-top"><div class="dm-stat-icon">🟢</div><span class="dm-stat-trend">{{ 'Active' if is_en else 'مفعّل' }}</span></div>
+          <div class="dm-stat-label">{{ 'Enabled devices' if is_en else 'الأجهزة المفعّلة' }}</div>
+          <div class="dm-stat-value">{{ stats.active }}</div>
+          <div class="dm-stat-sub">{{ 'Ready for runtime sync' if is_en else 'جاهزة للتشغيل والمزامنة' }}</div>
+        </article>
+        <article class="dm-stat sky">
+          <div class="dm-stat-top"><div class="dm-stat-icon">📦</div><span class="dm-stat-trend">{{ 'Total' if is_en else 'الإجمالي' }}</span></div>
+          <div class="dm-stat-label">{{ 'All devices' if is_en else 'كل الأجهزة' }}</div>
+          <div class="dm-stat-value">{{ devices_list|length }}</div>
+          <div class="dm-stat-sub">{{ 'Registered under your account' if is_en else 'مسجّلة على حسابك' }}</div>
+        </article>
+        <article class="dm-stat violet">
+          <div class="dm-stat-top"><div class="dm-stat-icon">🧩</div><span class="dm-stat-trend">{{ 'Types' if is_en else 'أنواع' }}</span></div>
+          <div class="dm-stat-label">{{ 'Integration categories' if is_en else 'فئات التكامل' }}</div>
+          <div class="dm-stat-value">{{ providers|length }}</div>
+          <div class="dm-stat-sub">{{ 'Cloud, local, battery & gateways' if is_en else 'سحابي ومحلي وبطارية وبوابات' }}</div>
+        </article>
+      </section>
+
+      <div class="dm-workspace">
+        <aside class="dm-side-rail">
+          <section class="dm-panel">
+            <div class="dm-panel-head">
+              <div>
+                <h3>{{ 'Available integrations' if is_en else 'التكاملات المتاحة' }}</h3>
+                <small>{{ 'A soft scrolling list of supported device types' if is_en else 'قائمة ناعمة قابلة للتمرير لأنواع الأجهزة المدعومة' }}</small>
+              </div>
+              <span class="dm-pill">{{ providers|length }} {{ 'types' if is_en else 'نوع' }}</span>
+            </div>
+            <div class="dm-int-grid">
+              {% for provider in providers %}
+              <div class="dm-int-row">
+                <div class="dm-int-icon">{{ dev_icon(provider.code or '') }}</div>
+                <div class="dm-int-text">
+                  <span class="dm-int-name">{{ provider.name }}</span>
+                  <span class="dm-int-cat">{{ cat_label(provider.category) }}</span>
+                </div>
+                <span class="dm-int-tag">{{ ('Cloud' if is_en else 'سحابي') if provider.provider in ['cloud','api'] else ('Local' if is_en else 'محلي') }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="dm-panel">
+            <div class="dm-panel-head">
+              <div>
+                <h3>{{ 'Work steps' if is_en else 'خطوات العمل' }}</h3>
+                <small>{{ 'A steady and gentle setup path for each device' if is_en else 'ترتيب واضح وناعم لإعداد كل جهاز' }}</small>
+              </div>
+            </div>
+            <div class="dm-checklist">
+              <div class="dm-check-item">
+                <span class="dm-check-badge">1</span>
+                <div class="dm-check-copy">
+                  <strong>{{ 'Choose the integration type' if is_en else 'اختر نوع التكامل أو مزود الخدمة' }}</strong>
+                  <span>{{ 'Start with the provider that matches your inverter or gateway.' if is_en else 'ابدأ بالمزود المطابق للانفرتر أو البوابة لديك.' }}</span>
+                </div>
+              </div>
+              <div class="dm-check-item">
+                <span class="dm-check-badge">2</span>
+                <div class="dm-check-copy">
+                  <strong>{{ 'Add the basic device details first' if is_en else 'أدخل البيانات الأساسية للجهاز أولًا' }}</strong>
+                  <span>{{ 'Name, plant and timezone are enough for a clean start.' if is_en else 'الاسم والمحطة والمنطقة الزمنية تكفي لبداية مرتبة.' }}</span>
+                </div>
+              </div>
+              <div class="dm-check-item">
+                <span class="dm-check-badge">3</span>
+                <div class="dm-check-copy">
+                  <strong>{{ 'Complete only the required connection fields' if is_en else 'أكمل فقط حقول الربط الخاصة بهذا المزود' }}</strong>
+                  <span>{{ 'The required fields change according to the selected provider.' if is_en else 'الحقول المطلوبة تختلف حسب نوع التكامل الذي اخترته.' }}</span>
+                </div>
+              </div>
+              <div class="dm-check-item">
+                <span class="dm-check-badge">4</span>
+                <div class="dm-check-copy">
+                  <strong>{{ 'Set the current device for monitoring' if is_en else 'عيّن جهازًا حاليًا للمتابعة الرئيسية' }}</strong>
+                  <span>{{ 'Keep one device current so dashboards and sync stay focused.' if is_en else 'احتفظ بجهاز واحد حالي حتى تبقى المتابعة والمزامنة مركزة.' }}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <div class="dm-main-stage">
+          <div class="dm-section-head">
+            <div>
+              <h2><span class="dm-section-icon">⌁</span>{{ 'Your devices' if is_en else 'أسطول الأجهزة' }}</h2>
+              <small>{{ 'Tap any card to activate, edit, or toggle' if is_en else 'بطاقات خفيفة وواضحة لتبديل الجهاز الحالي وتعديل بياناته بدون تشتيت.' }}</small>
+            </div>
+            {% if devices_list %}<span class="dm-pill">{{ devices_list|length }} / {{ stats.active }}</span>{% endif %}
+          </div>
+
+          {% if devices_list %}
+          {% set ns = namespace(non_current_index=0) %}
+          <section class="dm-grid">
+            {% for dev in devices_list %}
+            {% set dev_type = dev.device_type or 'deye' %}
+            {% set is_cur = current_device_id == dev.id %}
+            {% if not is_cur %}{% set ns.non_current_index = ns.non_current_index + 1 %}{% endif %}
+            <article class="dm-device {% if is_cur %}is-current dm-device-current{% elif ns.non_current_index == 1 %}dm-device-secondary{% else %}dm-device-extra{% endif %} {% if not dev.is_active %}is-disabled{% endif %}">
+              <div class="dm-device-head">
+                <div class="dm-device-icon">{{ dev_icon(dev_type) }}</div>
+                <div class="dm-device-badges">
+                  {% if is_cur %}<span class="dm-badge gold">{{ 'Current' if is_en else 'الحالي' }}</span>{% endif %}
+                  {% if not dev.is_active %}<span class="dm-badge muted">{{ 'Off' if is_en else 'متوقف' }}</span>{% endif %}
+                </div>
+              </div>
+              <div class="dm-device-body">
+                <h3 class="dm-device-name">{{ dev.name }}</h3>
+                <div class="dm-device-type">{{ dev_type | replace('_',' ') | title }}</div>
+                {% if dev.plant_name %}<div class="dm-device-meta">{{ dev.plant_name }}</div>{% endif %}
+                {% if dev.station_id %}<div class="dm-device-meta">{{ mask_identifier(dev.station_id) }}</div>{% endif %}
+                {% set cs = dev.connection_status or 'new' %}
+                <span class="dm-device-status {{ cs if cs in ['connected','error','pending'] else '' }}">
+                  <span class="dm-dot"></span>{{ t(cs) }}
+                </span>
+              </div>
+              <div class="dm-device-actions">
+                {% if not is_cur %}
+                <form method="post" action="{{ url_for('main.select_device', device_id=dev.id, lang=ui_lang) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="dm-action-btn primary" type="submit">{{ 'Activate' if is_en else 'تفعيل' }}</button>
+                </form>
+                {% endif %}
+                <a class="dm-action-btn {% if is_cur %}primary{% endif %}" style="flex:1"
+                   href="{{ url_for('main.device_edit', device_id=dev.id, lang=ui_lang) }}">
+                  {{ 'Edit' if is_en else 'تعديل' }}
+                </a>
+                <form method="post" action="{{ url_for('main.device_toggle', device_id=dev.id, lang=ui_lang) }}" style="flex:0 0 auto">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="dm-action-btn icon-only" type="submit"
+                          title="{{ ('Disable' if dev.is_active else 'Enable') if is_en else ('تعطيل' if dev.is_active else 'تفعيل') }}">
+                    {{ '−' if dev.is_active else '+' }}
+                  </button>
+                </form>
+              </div>
+            </article>
+            {% endfor %}
+            <button class="dm-add-tile {% if ns.non_current_index == 0 %}dm-secondary-slot{% else %}dm-full-row{% endif %}" type="button" id="btnOpenDrawerCard">
+              <div class="dm-add-tile-icon">+</div>
+              <div class="dm-add-tile-label">{{ 'Add device' if is_en else 'إضافة جهاز' }}</div>
+              <div class="dm-add-tile-hint">{{ 'Connect a new integration' if is_en else 'ربط تكامل جديد' }}</div>
+            </button>
+          </section>
+          {% else %}
+          <section class="dm-empty">
+            <div class="dm-empty-icon">+</div>
+            <h3>{{ 'No devices yet' if is_en else 'لا يوجد أي جهاز بعد' }}</h3>
+            <p>{{ 'Add your first device and start monitoring your solar system.' if is_en else 'أضف أول جهاز وابدأ متابعة منظومتك الشمسية من مكان واحد.' }}</p>
+            <button class="dm-hero-btn primary" type="button" id="btnOpenDrawerEmpty" style="margin:0 auto">
+              <span class="icon">+</span><span>{{ 'Add my first device' if is_en else 'إضافة أول جهاز' }}</span>
+            </button>
+          </section>
+          {% endif %}
+        </div>
+      </div>
+    </div><!-- .dm-page -->
+
+    {# ════════ ADD-DEVICE DRAWER ════════ #}
+    <div class="dm-drawer" id="dmDrawer" aria-hidden="true" dir="{{ page_dir }}">
+      <div class="dm-drawer-backdrop" id="dmBackdrop"></div>
+      <div class="dm-drawer-panel">
+
+        <div class="dm-drawer-head">
+          <div class="dm-drawer-head-row">
+            <div>
+              <h2 class="dm-drawer-title">＋ {{ 'Add new device' if is_en else 'إضافة جهاز جديد' }}</h2>
+              <p class="dm-drawer-sub">{{ 'Choose a type → enter details' if is_en else 'اختر نوع الجهاز ← أدخل البيانات' }}</p>
+            </div>
+            <button class="dm-drawer-close" id="dmCloseBtn" aria-label="Close">✕</button>
+          </div>
+        </div>
+
+        <div class="dm-steps">
+          <div class="dm-step active" id="sInd1">
+            <span class="dm-step-num">1</span>
+            <span class="dm-step-lbl">{{ 'Device type' if is_en else 'نوع الجهاز' }}</span>
+          </div>
+          <div class="dm-step-line"></div>
+          <div class="dm-step" id="sInd2">
+            <span class="dm-step-num">2</span>
+            <span class="dm-step-lbl">{{ 'Details' if is_en else 'البيانات' }}</span>
+          </div>
+        </div>
+
+        {# ── Step 1 ── #}
+        <div class="dm-step-body" id="dmStep1">
+          <div class="dm-search-wrap" style="position:relative">
+            <input type="text" class="dm-search-input" id="providerSearch"
+                   placeholder="{{ 'Search device type…' if is_en else 'ابحث عن نوع الجهاز…' }}" autocomplete="off">
+          </div>
+          <div class="dm-providers-grid" id="dmProvidersGrid">
+            {% for p in providers %}
+            <button type="button"
+                    class="dm-prov-card {% if p.code == 'deye' %}active{% endif %}"
+                    data-code="{{ p.code }}" data-name="{{ p.name }}" data-cat="{{ p.category }}"
+                    data-base-url="{{ p.base_url or '' }}">
+              <div class="dm-prov-icon">{{ dev_icon(p.code) }}</div>
+              <div class="dm-prov-name">{{ p.name }}</div>
+              <div class="dm-prov-cat">{{ cat_label(p.category) }}</div>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="dm-step-foot" id="dmFootStep1">
+          <button class="dm-action-btn" type="button" id="dmCancelStep1">{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+          <button class="dm-action-btn primary" type="button" id="dmNextStep">{{ 'Next' if is_en else 'التالي' }} →</button>
+        </div>
+
+        {# ── Step 2 ── #}
+        <div class="dm-step-body" id="dmStep2" style="display:none">
+          <div class="dm-sel-banner">
+            <button type="button" class="dm-back-btn" id="dmBackBtn">{{ '← Change' if is_en else '← تغيير' }}</button>
+            <span class="dm-sel-icon" id="dmSelIcon">☀️</span>
+            <div class="dm-sel-info">
+              <strong id="dmSelName">Deye Cloud</strong>
+              <div class="dm-sel-note" id="dmSelNote"></div>
+            </div>
+          </div>
+
+          <form method="post" class="dm-form" data-device-provider-form autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="device_type" id="dmHiddenType" value="deye">
+            <select id="dmHiddenSelect" data-provider-select style="display:none" tabindex="-1" aria-hidden="true">
+              {% for p in providers %}
+              <option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url or '' }}" {% if p.code == 'deye' %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+
+            <div class="dm-section-lbl">{{ 'Basic info' if is_en else 'معلومات أساسية' }}</div>
+            <div class="dm-fields-row">
+              <div class="dm-field">
+                <label>{{ 'Device name' if is_en else 'اسم الجهاز' }} <span class="text-danger">*</span></label>
+                <input name="name" required placeholder="{{ 'e.g. Home Inverter' if is_en else 'مثال: انفرتر البيت' }}">
+              </div>
+              <div class="dm-field">
+                <label>{{ 'Plant / site' if is_en else 'اسم المحطة' }}</label>
+                <input name="plant_name" placeholder="{{ 'Optional' if is_en else 'اختياري' }}">
+              </div>
+            </div>
+            <div class="dm-fields-row">
+              <div class="dm-field">
+                <label>{{ 'API base URL' if is_en else 'رابط API' }}</label>
+                <input name="api_base_url" data-provider-base-url placeholder="{{ 'Auto-filled when known' if is_en else 'يُعبأ تلقائيًا' }}">
+              </div>
+              <div class="dm-field">
+                <label>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label>
+                <input name="timezone" value="Asia/Hebron">
+              </div>
+            </div>
+
+            <div class="dm-section-lbl" id="dmConnLbl" style="display:none">{{ 'Connection details' if is_en else 'بيانات الربط' }}</div>
+            <div data-provider-fields></div>
+            <div data-provider-note style="display:none"></div>
+
+            <div class="dm-field">
+              <label>{{ 'Notes' if is_en else 'ملاحظات' }}</label>
+              <textarea rows="2" name="notes" placeholder="{{ 'Internal note (optional)' if is_en else 'ملاحظة داخلية (اختياري)' }}"></textarea>
+            </div>
+
+            <div class="dm-toggle-row">
+              <input type="checkbox" name="is_active" id="newDevActive" checked>
+              <label for="newDevActive">{{ 'Enable device immediately' if is_en else 'تفعيل الجهاز فور الإضافة' }}</label>
+            </div>
+
+            <div class="dm-step-foot" style="border-top:1px solid var(--dm-line);margin:14px -22px -18px;padding:14px 22px;background:#f8fbff">
+              <button type="button" class="dm-action-btn" id="dmCancelStep2">{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+              <button type="submit" class="dm-action-btn primary">✅ {{ 'Add device' if is_en else 'إضافة الجهاز' }}</button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>window.SOLARDEYE_PROVIDER_SPECS = {{ providers|tojson }};</script>
+<script>
+(function(){
+  'use strict';
+  var drawer=document.getElementById('dmDrawer');
+  var backdrop=document.getElementById('dmBackdrop');
+  var step1=document.getElementById('dmStep1');
+  var step2=document.getElementById('dmStep2');
+  var foot1=document.getElementById('dmFootStep1');
+  var sInd1=document.getElementById('sInd1');
+  var sInd2=document.getElementById('sInd2');
+  var hiddenType=document.getElementById('dmHiddenType');
+  var hiddenSelect=document.getElementById('dmHiddenSelect');
+  var selName=document.getElementById('dmSelName');
+  var selNote=document.getElementById('dmSelNote');
+  var selIcon=document.getElementById('dmSelIcon');
+  var connLbl=document.getElementById('dmConnLbl');
+  var searchInput=document.getElementById('providerSearch');
+  var provGrid=document.getElementById('dmProvidersGrid');
+  var specs=window.SOLARDEYE_PROVIDER_SPECS||[];
+  var currentCode='deye';
+
+  var ICONS={deye:'☀️',tesla_energy:'⚡',victron_vrm:'🔋',huawei_fusionsolar:'☁️',sungrow_isolarcloud:'☁️',goodwe_sems:'☁️',fronius_local:'🏠',kostal_plenticore_local:'🏠',opendtu_local:'🏠',shelly_gen2:'🔌',mqtt_energy_gateway:'📡',modbus_tcp_energy:'📡',home_assistant_energy:'🏡',solaredge_cloud:'🌤️',solarman_openapi:'🌤️',soliscloud_v2:'🌤️',growatt_v1:'🌤️',enphase_enlighten:'☀️',apsystems_ema:'☀️',tigo_energy_intelligence:'⚙️',sma_cloud:'🌞'};
+
+  function openDrawer(){if(!drawer)return;drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';showStep(1);}
+  function closeDrawer(){if(!drawer)return;drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+  function showStep(n){
+    if(n===1){
+      step1.style.display='';step2.style.display='none';if(foot1)foot1.style.display='';
+      sInd1.classList.add('active');sInd1.classList.remove('done');
+      sInd2.classList.remove('active','done');
+    }else{
+      step1.style.display='none';step2.style.display='';if(foot1)foot1.style.display='none';
+      sInd1.classList.remove('active');sInd1.classList.add('done');
+      sInd2.classList.add('active');
+      if(hiddenSelect)hiddenSelect.dispatchEvent(new Event('change'));
+      updateConnLbl();
+    }
+  }
+  function updateConnLbl(){var spec=specs.find(function(s){return s.code===currentCode;});if(connLbl)connLbl.style.display=(spec&&spec.fields&&spec.fields.length)?'':'none';}
+  function selectProvider(code,name){
+    currentCode=code;
+    if(provGrid)provGrid.querySelectorAll('.dm-prov-card').forEach(function(c){c.classList.toggle('active',c.dataset.code===code);});
+    if(hiddenType)hiddenType.value=code;
+    if(hiddenSelect)hiddenSelect.value=code;
+    if(selIcon)selIcon.textContent=ICONS[code]||'⚡';
+    if(selName)selName.textContent=name||code;
+    var spec=specs.find(function(s){return s.code===code;});
+    if(selNote&&spec)selNote.textContent=spec.notes||'';
+  }
+  if(provGrid)provGrid.querySelectorAll('.dm-prov-card').forEach(function(card){card.addEventListener('click',function(){selectProvider(card.dataset.code,card.dataset.name);});});
+  if(searchInput&&provGrid)searchInput.addEventListener('input',function(){
+    var q=searchInput.value.trim().toLowerCase();
+    provGrid.querySelectorAll('.dm-prov-card').forEach(function(c){
+      var n=(c.querySelector('.dm-prov-name')||{}).textContent||'';
+      var cat=c.dataset.cat||'';
+      c.classList.toggle('dm-hidden',!!(q&&!n.toLowerCase().includes(q)&&!cat.toLowerCase().includes(q)));
+    });
+  });
+  ['btnOpenDrawer','btnOpenDrawerCard','btnOpenDrawerEmpty'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('click',openDrawer);});
+  var closeBtn=document.getElementById('dmCloseBtn');if(closeBtn)closeBtn.addEventListener('click',closeDrawer);
+  if(backdrop)backdrop.addEventListener('click',closeDrawer);
+  var c1=document.getElementById('dmCancelStep1');var c2=document.getElementById('dmCancelStep2');
+  var nxt=document.getElementById('dmNextStep');var bk=document.getElementById('dmBackBtn');
+  if(c1)c1.addEventListener('click',closeDrawer);
+  if(c2)c2.addEventListener('click',closeDrawer);
+  if(nxt)nxt.addEventListener('click',function(){showStep(2);});
+  if(bk)bk.addEventListener('click',function(){showStep(1);});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer();});
+  selectProvider('deye','Deye Cloud');
+})();
+</script>
+{% endblock %}

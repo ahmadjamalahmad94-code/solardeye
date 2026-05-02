@@ -113,6 +113,11 @@ def register_main_compat_routes(main_bp):
         from .devices_routes import devices_manage as _impl
         return _impl(*args, **kwargs)
 
+    @main_bp.route('/account/profile', methods=['GET', 'POST'])
+    def account_profile(*args, **kwargs):
+        from .devices_routes import account_profile as _impl
+        return _impl(*args, **kwargs)
+
     @main_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
     def device_edit(*args, **kwargs):
         from .devices_routes import device_edit as _impl

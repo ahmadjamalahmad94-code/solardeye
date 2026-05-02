@@ -3,8 +3,13 @@
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
 # window. This keeps behavior stable while main.py shrinks safely.
+from pathlib import Path
+from uuid import uuid4
+
 from flask import Blueprint
+from werkzeug.utils import secure_filename
 from ..services.energy_integrations import provider_catalog
+from ..services.location_catalog import countries_for_template, timezones_for_template
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -189,6 +194,88 @@ def _device_payload(device: AppDevice | None):
     }
     return normalized_creds, normalized_settings
 
+
+def _text_looks_broken(value: str | None) -> bool:
+    text = (value or '').strip()
+    if not text:
+        return False
+    return any(token in text for token in ('Ø', 'Ù', 'Ã', 'Â', 'ðŸ', 'â'))
+
+
+def _country_flag(code: str | None) -> str:
+    code = (code or '').strip().upper()
+    if len(code) != 2 or not code.isalpha():
+        return '🌐'
+    return ''.join(chr(127397 + ord(char)) for char in code)
+
+
+def _profile_country_options(lang: str | None = None) -> list[dict]:
+    is_en = (lang or _lang()) == 'en'
+    rows = []
+    for country in countries_for_template():
+        label_ar = country.get('name_ar') or ''
+        label_en = country.get('name_en') or ''
+        label = label_en if is_en else (label_en if _text_looks_broken(label_ar) else label_ar)
+        rows.append({
+            'code': country.get('code') or '',
+            'dial': country.get('dial') or '',
+            'label': label,
+            'flag': _country_flag(country.get('code')),
+            'timezone': country.get('timezone') or 'Asia/Hebron',
+        })
+    return rows
+
+
+def _profile_upload_dir() -> Path:
+    folder = Path(current_app.static_folder) / 'uploads' / 'profiles'
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+_PROFILE_ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp'}
+_PROFILE_MAX_BYTES = 4 * 1024 * 1024
+
+
+def _delete_profile_image(public_url: str | None):
+    value = (public_url or '').strip()
+    if 'uploads/profiles/' not in value:
+        return
+    filename = value.split('uploads/profiles/', 1)[-1].split('?', 1)[0].strip().strip('/\\')
+    if not filename or filename != Path(filename).name:
+        return
+    target = _profile_upload_dir() / filename
+    try:
+        if target.exists():
+            target.unlink()
+    except OSError:
+        pass
+
+
+def _save_profile_image(file_storage) -> str | None:
+    if not file_storage or not (file_storage.filename or '').strip():
+        return None
+    filename = secure_filename(file_storage.filename) or ''
+    ext = Path(filename).suffix.lower()
+    if ext not in _PROFILE_ALLOWED_EXTENSIONS:
+        flash('صيغة الصورة غير مدعومة. الصيغ المسموحة: PNG, JPG, JPEG, WEBP.' if _lang() != 'en' else 'Unsupported image format. Allowed: PNG, JPG, JPEG, WEBP.', 'warning')
+        return None
+    folder = _profile_upload_dir()
+    target_name = f'profile_{uuid4().hex[:10]}{ext}'
+    target_path = folder / target_name
+    file_storage.save(target_path)
+    try:
+        size = target_path.stat().st_size
+    except OSError:
+        size = 0
+    if size > _PROFILE_MAX_BYTES:
+        try:
+            target_path.unlink()
+        except OSError:
+            pass
+        flash('حجم الصورة أكبر من 4MB.' if _lang() != 'en' else 'Image size exceeds 4MB.', 'warning')
+        return None
+    return url_for('static', filename=f'uploads/profiles/{target_name}')
+
 devices_bp = Blueprint('devices_routes', __name__)
 
 @devices_bp.route('/devices/select/<int:device_id>', methods=['POST'])
@@ -206,20 +293,175 @@ def select_device(device_id: int):
 
 @devices_bp.route('/devices/manage', methods=['GET', 'POST'])
 def devices_manage():
-    flash('تم نقل إدارة الأجهزة إلى معالج الإعداد وإعدادات الربط.', 'info')
-    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
+
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        device = AppDevice(owner_user_id=user.id)
+        db.session.add(device)
+        db.session.flush()
+        _save_device_fields(device, user.id)
+        if not user.preferred_device_id:
+            user.preferred_device_id = device.id
+        session['current_device_id'] = user.preferred_device_id or device.id
+        session['current_device_type'] = device.device_type or 'deye'
+        db.session.commit()
+        flash('تمت إضافة الجهاز بنجاح.', 'success')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+
+    devices_list = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).all()
+    current_device_id = user.preferred_device_id or session.get('current_device_id')
+    return render_template(
+        'devices_manage.html',
+        devices_list=devices_list,
+        provider_specs=_provider_specs_for_ui(_lang()),
+        current_device_id=current_device_id,
+        ui_lang=_lang(),
+    )
+
+
+@devices_bp.route('/account/profile', methods=['GET', 'POST'])
+def account_profile():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
+
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+
+    lang = _lang()
+    is_en = lang == 'en'
+    country_options = _profile_country_options(lang)
+    timezone_options = timezones_for_template()
+    current_phone_code = (user.phone_country_code or '+970').strip() or '+970'
+
+    if request.method == 'POST':
+        username = (request.form.get('username') or user.username or '').strip()
+        other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
+        if not username:
+            flash('اسم المستخدم مطلوب.' if not is_en else 'Username is required.', 'warning')
+        elif other:
+            flash('اسم المستخدم مستخدم من قبل.' if not is_en else 'Username is already in use.', 'danger')
+        else:
+            user.username = username
+            user.full_name = (request.form.get('full_name') or '').strip() or None
+            user.email = (request.form.get('email') or '').strip() or None
+            user.phone_country_code = (request.form.get('phone_country_code') or '').strip() or None
+            user.phone_number = (request.form.get('phone_number') or '').strip() or None
+            user.country = (request.form.get('country') or '').strip() or None
+            user.city = (request.form.get('city') or '').strip() or None
+            user.timezone = (request.form.get('timezone') or 'Asia/Hebron').strip() or 'Asia/Hebron'
+            user.preferred_language = (request.form.get('preferred_language') or 'ar').strip() or 'ar'
+
+            uploaded_image = _save_profile_image(request.files.get('profile_image_file'))
+            if request.form.get('clear_profile_image') == '1' and not uploaded_image:
+                _delete_profile_image(user.profile_image_url)
+                user.profile_image_url = None
+            elif uploaded_image:
+                _delete_profile_image(user.profile_image_url)
+                user.profile_image_url = uploaded_image
+
+            password = (request.form.get('password') or '').strip()
+            confirm_password = (request.form.get('confirm_password') or '').strip()
+            if password:
+                if password != confirm_password:
+                    flash('تأكيد كلمة المرور غير مطابق.' if not is_en else 'Password confirmation does not match.', 'danger')
+                    return redirect(url_for('main.account_profile', lang=lang))
+                user.password_hash = generate_password_hash(password)
+
+            db.session.commit()
+            session['username'] = user.username
+            session['ui_lang'] = user.preferred_language or 'ar'
+            flash('تم تحديث الملف الشخصي بنجاح.' if not is_en else 'Profile updated successfully.', 'success')
+            return redirect(url_for('main.account_profile', lang=user.preferred_language or lang))
+
+    return render_template(
+        'account_profile.html',
+        user_obj=user,
+        country_options=country_options,
+        timezone_options=timezone_options,
+        current_phone_code=current_phone_code,
+        ui_lang=lang,
+    )
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/edit', methods=['GET', 'POST'])
 def device_edit(device_id: int):
-    flash('تم إلغاء صفحة إدارة الأجهزة القديمة.', 'info')
-    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
+
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+
+    device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first_or_404()
+    if request.method == 'POST':
+        _save_device_fields(device, user.id)
+        db.session.commit()
+        flash('تم تحديث الجهاز بنجاح.', 'success')
+        return redirect(url_for('main.devices_manage', lang=_lang()))
+
+    device_creds, device_settings = _device_payload(device)
+    return render_template(
+        'device_form.html',
+        device=device,
+        device_creds=device_creds,
+        device_settings=device_settings,
+        provider_specs=_provider_specs_for_ui(_lang()),
+        ui_lang=_lang(),
+    )
 
 
 @devices_bp.route('/devices/manage/<int:device_id>/toggle', methods=['POST'])
 def device_toggle(device_id: int):
-    flash('تم إلغاء صفحة إدارة الأجهزة القديمة.', 'info')
-    return redirect(url_for('main.onboarding_wizard', lang=_lang()))
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    guard = _require_subscription_guard()
+    if guard:
+        return guard
+
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+
+    device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first_or_404()
+    device.is_active = not bool(device.is_active)
+
+    if not device.is_active and user.preferred_device_id == device.id:
+        replacement = AppDevice.query.filter(
+            AppDevice.owner_user_id == user.id,
+            AppDevice.id != device.id,
+            AppDevice.is_active.is_(True),
+        ).order_by(AppDevice.id.asc()).first()
+        user.preferred_device_id = replacement.id if replacement else None
+        session['current_device_id'] = user.preferred_device_id
+        session['current_device_type'] = replacement.device_type if replacement else None
+
+    if device.is_active and not user.preferred_device_id:
+        user.preferred_device_id = device.id
+        session['current_device_id'] = device.id
+        session['current_device_type'] = device.device_type or 'deye'
+
+    db.session.commit()
+    flash('تم تحديث حالة الجهاز.', 'success')
+    return redirect(url_for('main.devices_manage', lang=_lang()))
 @devices_bp.route('/onboarding', methods=['GET', 'POST'])
 def onboarding_wizard():
     energy_guard = _energy_portal_guard()

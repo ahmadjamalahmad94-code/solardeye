@@ -436,18 +436,37 @@ def _save_setting_value(key: str, value: str):
         db.session.add(Setting(key=key, value=value))
 
 
-def _load_suggestion_mode(now_local, weather=None):
+def _load_suggestion_mode(now_local, weather=None, latest=None, settings=None):
+    """Decide whether load-suggestions should run in 'day' or 'night' mode.
+
+    Old behaviour was a hardcoded "day = 09:00 → sunset" window, which
+    incorrectly treated 8 AM as night even though the sun has already been
+    producing for 1-2 hours.  We now delegate to SunContext: day-mode kicks
+    in for the productive phases (sunrise / morning / noon / afternoon /
+    pre_sunset) and switches to night-mode only at sunset / dusk / night /
+    dawn.  This keeps the night-load-cap behaviour for genuinely dark
+    periods while letting morning hours use the actual solar surplus.
+    """
     sunset_dt = _parse_hhmm_local(getattr(weather, 'sunset_time', None), now_local) if weather else None
-    day_start = now_local.replace(hour=9, minute=0, second=0, microsecond=0)
-    if sunset_dt and day_start <= now_local < sunset_dt:
-        return 'day', sunset_dt
-    return 'night', sunset_dt
+    try:
+        from ..services.sun_context import compute_sun_context
+        ctx = compute_sun_context(latest=latest, weather=weather, settings=settings)
+        if ctx.is_day_for_production or ctx.phase in ('sunrise', 'morning', 'noon', 'afternoon', 'pre_sunset'):
+            return 'day', sunset_dt
+        return 'night', sunset_dt
+    except Exception:
+        # Conservative fallback — still better than the 9 AM cutoff:
+        # treat sunrise→sunset as day if we have any sunset info.
+        sunrise_dt = _parse_hhmm_local(getattr(weather, 'sunrise_time', None), now_local) if weather else None
+        if sunrise_dt and sunset_dt and sunrise_dt <= now_local < sunset_dt:
+            return 'day', sunset_dt
+        return 'night', sunset_dt
 
 
 def _manual_load_planner(latest, max_allowed_w=0, weather=None, now_local=None):
     loads = [r for r in _serialize_loads() if r.is_enabled]
     now_local = now_local or utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
-    mode, sunset_dt = _load_suggestion_mode(now_local, weather)
+    mode, sunset_dt = _load_suggestion_mode(now_local, weather, latest=latest)
     current_load = float(latest.home_load or 0) if latest else 0.0
     surplus_data = compute_actual_solar_surplus(latest, weather=weather)
     raw_surplus = float(surplus_data.get('raw_surplus_w', 0) or 0)
@@ -503,7 +522,7 @@ def _smart_load_suggestions(latest, settings=None):
         }
     weather = get_weather_for_latest(latest)
     now_local = utc_to_local(datetime.now(UTC), current_app.config['LOCAL_TIMEZONE']) or datetime.now(UTC)
-    phase, _ = _load_suggestion_mode(now_local, weather)
+    phase, _ = _load_suggestion_mode(now_local, weather, latest=latest, settings=settings)
     battery_soc = float(latest.battery_soc or 0)
     surplus_data = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
     raw_surplus = float(surplus_data.get('raw_surplus_w', 0) or 0)

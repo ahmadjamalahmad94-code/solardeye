@@ -23,6 +23,7 @@ class AppUser(db.Model):
     city = db.Column(db.String(120), nullable=True)
     timezone = db.Column(db.String(64), nullable=True, default='Asia/Hebron')
     preferred_language = db.Column(db.String(10), nullable=True, default='ar')
+    profile_image_url = db.Column(db.String(255), nullable=True)
     role = db.Column(db.String(50), nullable=False, default='admin')
     preferred_device_type = db.Column(db.String(50), nullable=False, default='deye')
     preferred_device_id = db.Column(db.Integer, nullable=True, index=True)

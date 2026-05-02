@@ -544,15 +544,16 @@
               {% else %}
               <tr><td colspan="5"><div class="lv-hist-empty">{{ 'No historical data available.' if is_en else 'لا توجد بيانات تاريخية.' }}</div></td></tr>
               {% endfor %}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+          {% endif %}{# end if latest #}
+
         </div>
-      </div>
-      {% endif %}
-
-      {% endif %}{# end if latest #}
-
+      </main>
     </div>
-  </main>
-</div>
-{% endblock %}
+    {% endblock %}
+    

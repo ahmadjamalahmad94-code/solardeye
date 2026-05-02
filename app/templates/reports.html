@@ -665,10 +665,11 @@
         newEl.style.opacity='0';rpInitCharts();rpSetupNav();
         requestAnimationFrame(function(){requestAnimationFrame(function(){newEl.style.opacity='1'})})}
     }).catch(function(){window.location.href=url}).finally(function(){_rpBusy=false});
-  }
-  window.addEventListener('popstate',function(){window.location.reload()});
-  document.addEventListener('DOMContentLoaded',function(){rpSetupNav();rpInitCharts()});
-  window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('reportsMainChart');if(c&&!Chart.getChart(c))rpInitCharts()}});
-})();
-</script>
-{% endblock %}
+      }
+      window.addEventListener('popstate',function(){window.location.reload()});
+      document.addEventListener('DOMContentLoaded',function(){rpSetupNav();rpInitCharts()});
+      window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('reportsMainChart');if(c&&!Chart.getChart(c))rpInitCharts()}});
+    })();
+    </script>
+    {% endblock %}
+    

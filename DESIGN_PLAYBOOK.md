@@ -518,3 +518,16 @@ grid-template-columns: minmax(0, 1fr) 340px;
 - main card فارغ طويل فقط لأن side column أطول
 - تكرار زر الإضافة في الهيرو ثم داخل نفس section ثم داخل placeholder card
 - قسم مساعد مثل “التكاملات المتاحة” يسرق الانتباه من القسم الأساسي مثل “أسطول الأجهزة”
+
+## 24. Device Hub Rules
+
+- The devices page should behave as a hub, not a long open form.
+- Keep the default layout focused on:
+  - hero
+  - summary cards
+  - support sidebar
+  - fleet cards
+- Add-device forms should open in a drawer or a clearly isolated surface, not stretch the full page by default.
+- Long integration catalogs must stay inside an internal scroll panel.
+- Device cards and add-device cards must use the same top accent-line treatment used by the reference stat cards.
+- Main sections need explicit visible spacing between them; do not rely only on parent gap when the visual separation is weak.

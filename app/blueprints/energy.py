@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
@@ -150,6 +150,22 @@ def dashboard():
         sunset_text=(weather.sunset_time if weather and getattr(weather, 'sunset_time', None) else None),
     )
 
+    # SunContext — single source of truth for "what time of day is it".
+    # Every widget that asks "is the sun up?", "what icon should I show?",
+    # "what advice fits the moment?" must consume this object.
+    from ..services.sun_context import compute_sun_context
+    sun_ctx = compute_sun_context(latest=latest, weather=weather, settings=settings)
+    weather_now_icon = sun_ctx.weather_icon_for(
+        getattr(weather, 'condition_ar', None) if weather else None,
+        cloud_cover=float(getattr(weather, 'cloud_cover', 0) or 0) if weather else 0,
+    )
+    weather_now_label = sun_ctx.weather_label_for(
+        getattr(weather, 'condition_ar', None) if weather else None,
+        cloud_cover=float(getattr(weather, 'cloud_cover', 0) or 0) if weather else 0,
+        lang=_lang(),
+    )
+    weather_advice_text, weather_advice_level = sun_ctx.weather_advice(lang=_lang())
+
     return render_template(
         'dashboard.html',
         latest=latest, settings=settings, labels=labels,
@@ -162,7 +178,9 @@ def dashboard():
         battery_reserve_percent=battery_reserve_percent, system_state=system_state, system_status=system_status,
         weather=weather, weather_insight=weather_insight, solar_prediction=solar_prediction, smart_overview=smart_overview,
         production_summary=production_summary, smart_loads=smart_loads, actual_surplus=actual_surplus, recent_events=recent_events,
-        day_phase=day_phase,
+        day_phase=day_phase, sun_ctx=sun_ctx,
+        weather_now_icon=weather_now_icon, weather_now_label=weather_now_label,
+        weather_advice_text=weather_advice_text, weather_advice_level=weather_advice_level,
         human_duration_hours=human_duration_hours, format_energy=format_energy,
         format_power=format_power, _to_12h_label=_to_12h_label,
         format_local=lambda dt: format_local_datetime(dt, tz_name),
@@ -198,9 +216,35 @@ def api_live():
     system_state = system_status['title']
     solar_prediction = build_pre_sunset_prediction(latest, weather, settings)
     actual_surplus = compute_actual_solar_surplus(latest, weather=weather, settings=settings)
+    # Compute phase-aware weather overrides (icon/label/advice) so the live
+    # poller doesn't overwrite the server-rendered values with raw API data.
+    from ..services.sun_context import compute_sun_context
+    _live_ctx = compute_sun_context(latest=latest, weather=weather, settings=settings)
+    _wx_icon = _live_ctx.weather_icon_for(
+        getattr(weather, 'condition_ar', None) if weather else None,
+        cloud_cover=float(getattr(weather, 'cloud_cover', 0) or 0) if weather else 0,
+    )
+    _wx_label = _live_ctx.weather_label_for(
+        getattr(weather, 'condition_ar', None) if weather else None,
+        cloud_cover=float(getattr(weather, 'cloud_cover', 0) or 0) if weather else 0,
+        lang=_lang(),
+    )
+    _wx_advice, _wx_advice_level = _live_ctx.weather_advice(lang=_lang())
     return {
         'ok': True,
         'day_phase': day_phase_payload,
+        'sun_phase': {
+            'phase': _live_ctx.phase,
+            'icon': _live_ctx.icon,
+            'label_ar': _live_ctx.label_ar,
+            'label_en': _live_ctx.label_en,
+            'is_day_for_production': _live_ctx.is_day_for_production,
+            'is_night': _live_ctx.is_night,
+            'weather_icon': _wx_icon,
+            'weather_label': _wx_label,
+            'weather_advice': _wx_advice,
+            'weather_advice_level': _wx_advice_level,
+        },
         'latest': {
             'solar_power': latest.solar_power, 'home_load': latest.home_load,
             'battery_soc': latest.battery_soc, 'grid_power': latest.grid_power,
@@ -1111,18 +1155,8 @@ def deye_settings():
     guard = _require_subscription_guard()
     if guard:
         return guard
-    device = _active_device()
-    if device is None:
-        flash('لا يوجد جهاز مربوط بهذا الحساب بعد. أضف جهازك أولًا.', 'warning')
-        return redirect(url_for('main.onboarding_wizard', lang=_lang()))
-    settings = _device_runtime_settings(device, allow_global_connection=False)
-    ready, ready_message = _device_sync_ready(device)
-    if request.method == 'POST':
-        _save_deye_settings_to_device(device, request.form)
-        db.session.commit()
-        flash('تم حفظ إعدادات الربط لهذا الجهاز.', 'success')
-        return redirect(url_for('main.deye_settings', lang=_lang()))
-    return render_template('deye_settings.html', settings=settings, current_device=device, device_ready=ready, device_ready_message=ready_message, ui_lang=_lang())
+    flash('تم نقل إعدادات الربط الخاصة بـ Deye إلى مركز أجهزتي.', 'info')
+    return redirect(url_for('main.devices_manage', lang=_lang()))
 
 
 @energy_bp.route('/test-connection', methods=['POST'])
@@ -1134,7 +1168,7 @@ def test_connection():
     ready, ready_message = _device_sync_ready(device)
     if not ready:
         flash(ready_message, 'warning')
-        return redirect(url_for('main.deye_settings', lang=_lang()))
+        return redirect(url_for('main.devices_manage', lang=_lang()))
     client = DeyeClient(_device_runtime_settings(device, allow_global_connection=False))
     try:
         token = client.obtain_token()
@@ -1145,7 +1179,7 @@ def test_connection():
     except Exception as exc:
         log_event('danger', f'فشل اختبار الاتصال: {exc}')
         flash(f'فشل اختبار الاتصال: {exc}', 'danger')
-    return redirect(url_for('main.deye_settings', lang=_lang()))
+    return redirect(url_for('main.devices_manage', lang=_lang()))
 
 
 @energy_bp.route('/sync-now', methods=['POST'])

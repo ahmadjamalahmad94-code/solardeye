@@ -304,6 +304,14 @@ html[dir="rtl"] .d40-hero-sun { transition-property: transform, opacity, top, in
   gap: 22px;
   align-items: stretch;
 }
+.d40-surplus-stack {
+  grid-column: span 12;
+  display: grid;
+  gap: 30px;
+}
+.d40-surplus-stack > .d40-card {
+  min-width: 0;
+}
 @media (max-width: 1100px) {
   .d40-card.span-8, .d40-card.span-7, .d40-card.span-6, .d40-card.span-5,
   .d40-card.span-4, .d40-card.span-3 { grid-column: span 12; }

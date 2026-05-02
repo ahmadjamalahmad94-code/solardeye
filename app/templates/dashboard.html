@@ -1,6 +1,6 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v55-dashboard-log-side-by-side-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_v40.css', v='v72-dashboard-surplus-stack-gap-20260502') }}">
 {% endblock %}
 {% block body %}
 <script>document.body.classList.add('dashboard-page-v27','dashboard-page-v40');</script>
@@ -69,9 +69,9 @@
        STICKY ACTION BAR — settings, sync, last update, status
        ============================================================ #}
     <div class="d40-actionbar">
-      <a href="{{ url_for('main.deye_settings', lang=ui_lang) }}" class="d40-action">
+      <a href="{{ url_for('main.devices_manage', lang=ui_lang) }}" class="d40-action">
         <span class="d40-meta-icon">⚙</span>
-        <span>{{ 'Settings' if ui_lang == 'en' else 'الإعدادات' }}</span>
+        <span>{{ 'My devices' if ui_lang == 'en' else 'أجهزتي' }}</span>
       </a>
       <form method="post" action="{{ url_for('main.sync_now', lang=ui_lang) }}" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -99,7 +99,7 @@
       <div class="d40-card span-full">
         <div class="d40-empty-card">
           <h3>{{ 'No device connected yet' if ui_lang == 'en' else 'لا يوجد جهاز مربوط بعد' }}</h3>
-          <p>{{ 'Add your device first from the setup wizard, then complete the connection settings before syncing.' if ui_lang == 'en' else 'أضف جهازك أولًا من معالج الإعداد، ثم أكمل إعدادات الربط قبل بدء المزامنة.' }}</p>
+          <p>{{ 'Add your device first from the setup wizard, then complete its provider details from My Devices before syncing.' if ui_lang == 'en' else 'أضف جهازك أولًا من معالج الإعداد، ثم أكمل بياناته من صفحة أجهزتي قبل بدء المزامنة.' }}</p>
           <a class="d40-action primary" href="{{ url_for('main.onboarding_wizard', lang=ui_lang) }}">
             <span>{{ 'Open setup wizard' if ui_lang == 'en' else 'فتح معالج الإعداد' }}</span>
           </a>
@@ -110,8 +110,8 @@
         <div class="d40-empty-card">
           <h3>{{ 'Current device is not ready to sync' if ui_lang == 'en' else 'الجهاز الحالي غير جاهز للمزامنة' }}</h3>
           <p>{{ device_ready_message }}</p>
-          <a class="d40-action primary" href="{{ url_for('main.deye_settings', lang=ui_lang) }}">
-            <span>{{ 'Complete connection settings' if ui_lang == 'en' else 'إكمال إعدادات الربط' }}</span>
+          <a class="d40-action primary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+            <span>{{ 'Open My Devices' if ui_lang == 'en' else 'فتح أجهزتي' }}</span>
           </a>
         </div>
       </div>
@@ -184,9 +184,10 @@
         </div>
         <div class="d40-weather-shell">
           <div class="d40-weather-now">
-            <div class="icon" data-bind="weather.icon">{{ weather.icon if weather else '🌤️' }}</div>
+            {# icon + label respect the phase: ☀️/🌤️/⛅ during day, 🌙/☁️🌙 at night #}
+            <div class="icon" data-bind="weather.icon">{{ weather_now_icon or (weather.icon if weather else '🌤️') }}</div>
             <div class="temp" data-bind="weather.temp">{{ weather.temperature if weather else '--' }}°</div>
-            <div class="cond" data-bind="weather.cond">{{ weather.condition_ar if weather else ('Not available' if ui_lang == 'en' else 'غير متاح') }}</div>
+            <div class="cond" data-bind="weather.cond">{{ weather_now_label or (weather.condition_ar if weather else ('Not available' if ui_lang == 'en' else 'غير متاح')) }}</div>
           </div>
           <div class="d40-weather-side">
             <div class="d40-weather-meta">
@@ -196,10 +197,16 @@
               <div class="d40-info-box"><small>{{ 'Time to full battery' if ui_lang == 'en' else 'وقت امتلاء البطارية' }}</small><strong data-bind="prediction.time_to_full">{{ human_duration_hours(solar_prediction.time_to_full_hours) if solar_prediction else '--' }}</strong></div>
             </div>
             {% if weather and weather.timeline %}
+            {# Phase-aware timeline: past slots dimmed, current slot highlighted, future slots full opacity. #}
+            {% set _now_hour = sun_ctx.now_local.hour if sun_ctx else 0 %}
             <div class="d40-timeline">
               {% for slot in weather.timeline %}
-              <div class="d40-slot">
-                <small>{{ slot.time_label }}</small>
+              {% set _slot_hour = (slot.time_label.split(':')[0]|int) if slot.time_label and ':' in slot.time_label else 0 %}
+              {% set _is_past = _slot_hour < _now_hour %}
+              {% set _is_now = _slot_hour == _now_hour %}
+              <div class="d40-slot {% if _is_past %}is-past{% elif _is_now %}is-now{% endif %}"
+                   style="{% if _is_past %}opacity:.45;{% elif _is_now %}box-shadow:0 0 0 2px var(--d-amber);{% endif %}">
+                <small>{{ slot.time_label }}{% if _is_now %} ⬅︎ {{ 'NOW' if ui_lang == 'en' else 'الآن' }}{% endif %}</small>
                 <div class="wx-icon">{{ slot.icon }}</div>
                 <strong>{{ slot.temperature }}°</strong>
                 <small>{{ slot.condition_ar }}</small>
@@ -217,8 +224,9 @@
               </div>
               <div class="d40-advice amber">
                 <small>{{ 'Weather advice' if ui_lang == 'en' else 'نصيحة الطقس' }}</small>
-                <strong>{{ weather.condition_ar if weather else '—' }}</strong>
-                <p>{{ weather_insight.headline if weather_insight else ('Not enough data.' if ui_lang == 'en' else 'لا تتوفر بيانات كافية.') }}</p>
+                <strong>{{ weather_now_label or (weather.condition_ar if weather else '—') }}</strong>
+                {# advice text is generated phase-aware so at 7:21 PM it says "wait for sunrise" instead of "best time is mid-morning" #}
+                <p>{{ weather_advice_text or (weather_insight.headline if weather_insight else ('Not enough data.' if ui_lang == 'en' else 'لا تتوفر بيانات كافية.')) }}</p>
               </div>
             </div>
           </div>
@@ -271,8 +279,9 @@
         </div>
       </section>
 
+      <div class="d40-surplus-stack span-full">
       {# 4. SMART LOADS (span 6) #}
-      <section class="d40-card span-6">
+      <section class="d40-card">
         <div class="d40-card-head">
           <div>
             <h3>💡 {{ 'Smart load suggestions' if ui_lang == 'en' else 'التوصيات الذكية للأحمال' }}</h3>
@@ -317,7 +326,7 @@
       </section>
 
       {# 5. ACTUAL SURPLUS CALCULATION (span 6) #}
-      <section class="d40-card span-6">
+      <section class="d40-card">
         <div class="d40-card-head">
           <div>
             <h3>📊 {{ 'Actual solar surplus' if ui_lang == 'en' else 'حساب الفائض الشمسي الفعلي' }}</h3>
@@ -342,6 +351,7 @@
           </div>
         </div>
       </section>
+      </div>
 
       <div class="d40-charts-row span-full">
       {# 6. POWER CHART #}
@@ -572,11 +582,16 @@
       else if (['danger','red','error'].indexOf(tone) >= 0) chip.classList.add('red');
       else chip.classList.add('muted');
     }
+    /* Weather widget — read phase-aware values from sun_phase first.
+       Falls back to raw weather only if SunContext payload missing. */
     var w = p.weather;
-    if (w) {
-      setBind('weather.icon', w.icon || '');
-      setBind('weather.temp', (w.temperature !== null && w.temperature !== undefined ? w.temperature : '--') + '°');
-      setBind('weather.cond', w.condition_ar || '');
+    var sph = p.sun_phase || {};
+    if (w || sph) {
+      var phaseIcon  = sph.weather_icon  || (w && w.icon) || '';
+      var phaseLabel = sph.weather_label || (w && w.condition_ar) || '';
+      setBind('weather.icon', phaseIcon);
+      setBind('weather.temp', (w && w.temperature !== null && w.temperature !== undefined ? w.temperature : '--') + '°');
+      setBind('weather.cond', phaseLabel);
     }
     var sp = p.solar_prediction;
     if (sp) {
@@ -608,5 +623,3 @@
 })();
 </script>
 {% endblock %}
-
-

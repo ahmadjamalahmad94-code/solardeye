@@ -1106,11 +1106,33 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
     remaining_label = 'الشمس غائبة' if (remaining_hours is not None and remaining_hours <= 0) else human_duration_hours(remaining_hours)
     sunrise_label_human = human_duration_hours(hours_until_sunrise) if hours_until_sunrise is not None else 'غير متاح'
 
-    if not is_day:
-        if hours_until_sunrise is not None and hours_until_sunrise <= 1.5:
-            verdict, advice, level = 'قرب الشروق', 'المتبقي للشروق قصير نسبيًا، يمكن التفكير بأحمال خفيفة جدًا بحذر.', 'warning'
+    # Phase-aware verdict — uses SunContext so a perfectly normal late-day
+    # battery discharge isn't flagged as "danger" with a scary amber banner.
+    # The core insight: at 19:21 (sunset), "battery is discharging, no
+    # charging" is *expected*, not alarming.  Only escalate to danger when
+    # there's actually something to worry about (deep night with low SOC).
+    try:
+        from ..services.sun_context import compute_sun_context
+        _ctx = compute_sun_context(latest=latest, weather=weather, settings=settings)
+        _phase = _ctx.phase
+    except Exception:
+        _ctx = None
+        _phase = None
+
+    if not is_day or _phase in ('dusk', 'night'):
+        # Genuine night: real warning only if battery is critical, otherwise informational
+        if soc <= float(battery_reserve_percent or 20):
+            verdict, advice, level = 'بطارية منخفضة ليلاً', 'الشحن قارب على هامش الأمان — قلّل الأحمال.', 'danger'
+        elif hours_until_sunrise is not None and hours_until_sunrise <= 1.5:
+            verdict, advice, level = 'قرب الشروق', 'الإنتاج سيبدأ قريبًا — يمكن تشغيل أحمال خفيفة جدًا بحذر.', 'warning'
         else:
-            verdict, advice, level = 'فترة ليلية', 'يعتمد القرار الآن على صمود البطارية حتى الشروق.', 'danger'
+            verdict, advice, level = 'فترة ليلية', 'البطارية تحمل النظام حتى الشروق.', 'info'
+    elif _phase in ('sunset',):
+        # Twilight transition — discharge is the natural new normal
+        verdict, advice, level = 'الشمس تغيب — تحوّل إلى البطارية', 'سلوك متوقّع لانتهاء الإنتاج. أوقف الأحمال غير الضرورية.', 'info'
+    elif _phase in ('pre_sunset',) and discharge_power_w > 0 and charge_power_w <= 0:
+        # Last 90 minutes before effective sunset, battery already taking over
+        verdict, advice, level = 'قبل الغروب — البطارية تأخذ المسؤولية', 'تأكد أن الشحن كافٍ لباقي الليل.', 'warning'
     elif soc >= 99:
         verdict, advice, level = 'البطارية ممتلئة', 'شحن مكتمل.', 'success'
     elif discharge_power_w > 0 and charge_power_w <= 0:
@@ -1129,7 +1151,20 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
     except Exception:
         cloud_val = 0
 
-    if 'ممطر' in cond_text:
+    # Phase-aware weather advice — at night/dusk, pivot the message to
+    # "wait for sunrise" instead of slapping "الطقس مشمس" on a 7 PM card.
+    if _ctx is not None and _ctx.phase in ('night', 'dusk'):
+        if 'ممطر' in cond_text:
+            weather_advice, weather_level = 'ليلة ممطرة — انتظر شروق الغد.', 'info'
+        elif cloud_val >= 60:
+            weather_advice, weather_level = 'ليلة غائمة — انتظر شروق الغد.', 'info'
+        else:
+            weather_advice, weather_level = f'ليلة هادئة — الشروق متوقّع {_ctx.sunrise_text}.', 'info'
+    elif _ctx is not None and _ctx.phase in ('dawn',):
+        weather_advice, weather_level = f'الشروق قريب ({_ctx.sunrise_text}) — الإنتاج سيبدأ قريبًا.', 'info'
+    elif _ctx is not None and _ctx.phase == 'sunset':
+        weather_advice, weather_level = 'وقت الغروب — الإنتاج توقف، أوقف الأحمال غير الضرورية.', 'warning'
+    elif 'ممطر' in cond_text:
         weather_advice, weather_level = 'اليوم ممطر، الإنتاج قد ينخفض.', 'danger'
     elif ('غائم' in cond_text and 'جزئي' not in cond_text) or cloud_val >= 85:
         weather_advice, weather_level = 'اليوم غائم بشكل كامل.', 'danger'
