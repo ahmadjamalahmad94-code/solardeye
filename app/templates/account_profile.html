@@ -40,7 +40,7 @@
   padding:18px clamp(14px,2.4vw,32px) 80px;
   font-family:'Cairo','Inter',system-ui,sans-serif;
   color:var(--pf-ink);
-  display:flex;flex-direction:column;gap:24px;
+  display:flex;flex-direction:column;gap:18px;
 }
 .pf-page *,.pf-page *::before,.pf-page *::after{box-sizing:border-box}
 .pf-flash{display:flex;flex-direction:column;gap:.5rem}
@@ -48,9 +48,9 @@
 /* HERO */
 .pf-hero{
   position:relative;border-radius:var(--pf-radius-xl);
-  padding:clamp(22px,3vw,34px) clamp(20px,3vw,38px);
+  padding:clamp(18px,2.4vw,26px) clamp(18px,2.4vw,30px);
   overflow:hidden;color:#fff;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);isolation:isolate;
+  box-shadow:0 30px 70px rgba(15,23,42,.13);isolation:isolate;
   background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
 }
 .pf-hero::before{
@@ -83,36 +83,42 @@
   100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
 }
 .pf-hero h1{
-  font-size:clamp(1.55rem,2.6vw,2.05rem);font-weight:950;
+  font-size:clamp(1.4rem,2.3vw,1.85rem);font-weight:950;
   margin:0;line-height:1.18;color:#fff;
   text-shadow:0 4px 18px rgba(11,21,49,.22);
 }
-.pf-hero p{margin:0;font-size:.95rem;color:rgba(255,255,255,.92);max-width:64ch;line-height:1.55;font-weight:600}
+.pf-hero p{margin:0;font-size:.88rem;color:rgba(255,255,255,.92);max-width:62ch;line-height:1.5;font-weight:600}
 .pf-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
 .pf-meta span{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);padding:.36rem .75rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
+  display:inline-flex;align-items:center;gap:.35rem;
+  font-size:.74rem;font-weight:800;color:#0b1531;
+  background:rgba(255,255,255,.94);padding:.32rem .65rem;border-radius:10px;
+  box-shadow:0 4px 10px rgba(11,21,49,.10);
 }
 
 /* HERO PANEL (avatar) */
 .pf-hero-panel{
-  display:flex;flex-direction:column;align-items:center;gap:.75rem;
+  display:flex;flex-direction:column;align-items:center;gap:.55rem;
   background:rgba(255,255,255,.95);
-  padding:18px 22px;border-radius:22px;
-  box-shadow:0 14px 30px rgba(11,21,49,.18);
-  min-width:200px;
+  padding:14px 18px 12px;border-radius:18px;
+  box-shadow:0 12px 26px rgba(11,21,49,.16);
+  min-width:180px;
 }
 .pf-avatar-shell{
-  width:96px;height:96px;border-radius:50%;
-  background:linear-gradient(135deg,#fbbf24,#f59e0b);
+  width:88px;height:88px;border-radius:50%;
+  background:linear-gradient(135deg,#fff,#fef3c7);
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;flex-shrink:0;
-  box-shadow:0 12px 24px rgba(245,158,11,.30);
+  box-shadow:0 10px 22px rgba(245,158,11,.32);
   border:3px solid #fff;
+  padding:4px;
 }
-.pf-avatar-image{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.pf-avatar-image{
+  width:100%;height:100%;
+  object-fit:contain;        /* show entire image without cropping */
+  border-radius:50%;
+  background:#fff;
+}
 .pf-avatar-image.is-hidden{display:none}
 .pf-avatar-fallback{
   font-size:2.4rem;font-weight:900;color:#fff;
@@ -121,15 +127,15 @@
   text-shadow:0 4px 12px rgba(11,21,49,.30);
 }
 .pf-hero-status{display:flex;flex-direction:column;align-items:center;gap:.15rem;text-align:center}
-.pf-hero-status strong{font-size:1rem;font-weight:950;color:var(--pf-ink);line-height:1.2}
-.pf-hero-status small{font-size:.78rem;color:var(--pf-muted);font-weight:700}
+.pf-hero-status strong{font-size:.92rem;font-weight:950;color:var(--pf-ink);line-height:1.2}
+.pf-hero-status small{font-size:.72rem;color:var(--pf-muted);font-weight:700}
 .pf-hero-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
 .pf-hero-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:.5rem .9rem;border-radius:11px;
-  font-size:.78rem;font-weight:900;font-family:inherit;
+  display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+  padding:.42rem .8rem;border-radius:10px;
+  font-size:.74rem;font-weight:900;font-family:inherit;
   text-decoration:none;border:1px solid transparent;cursor:pointer;
-  transition:all .15s;
+  transition:all .15s;white-space:nowrap;
 }
 .pf-hero-btn-primary{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 6px 16px rgba(245,158,11,.25)}
 .pf-hero-btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35);color:#0b1531}
@@ -137,64 +143,65 @@
 .pf-hero-btn-secondary:hover{transform:translateY(-1px);box-shadow:var(--pf-shadow-sm);color:var(--pf-ink-soft)}
 
 /* SUMMARY (4 KPI cards) */
-.pf-summary-grid{display:grid;gap:18px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.pf-summary-grid{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:1024px){.pf-summary-grid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:560px){.pf-summary-grid{grid-template-columns:1fr}}
 .pf-stat{
   position:relative;background:var(--pf-card);
-  border:1px solid var(--pf-line);border-radius:var(--pf-radius-lg);
-  padding:18px 20px 20px;box-shadow:var(--pf-shadow-sm);overflow:hidden;
+  border:1px solid var(--pf-line);border-radius:18px;
+  padding:14px 16px 14px;box-shadow:var(--pf-shadow-sm);overflow:hidden;
   transition:all .2s;
-  display:flex;flex-direction:column;gap:.4rem;
+  display:flex;flex-direction:column;gap:.3rem;
 }
 .pf-stat:hover{transform:translateY(-3px);box-shadow:var(--pf-shadow);border-color:var(--pf-line-strong)}
 .pf-stat::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--pf-radius-lg) var(--pf-radius-lg) 0 0;opacity:.95;
+  content:"";position:absolute;inset:0 0 auto 0;height:4px;
+  border-radius:18px 18px 0 0;opacity:.95;
 }
-.pf-stat-violet ::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
+.pf-stat-violet::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
 .pf-stat-sky    ::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
 .pf-stat-emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
 .pf-stat-amber  ::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
 .pf-stat-kicker{
-  font-size:.7rem;color:var(--pf-muted);font-weight:900;
-  text-transform:uppercase;letter-spacing:.4px;margin-top:.25rem;
+  font-size:.66rem;color:var(--pf-muted);font-weight:900;
+  text-transform:uppercase;letter-spacing:.4px;margin-top:.15rem;
+  display:inline-flex;align-items:center;gap:.3rem;
 }
 .pf-stat strong{
-  font-size:1.18rem;font-weight:950;color:var(--pf-ink);line-height:1.25;
+  font-size:.98rem;font-weight:900;color:var(--pf-ink);line-height:1.25;
   font-variant-numeric:tabular-nums;word-break:break-word;
 }
 .pf-stat-violet  strong{color:#5b21b6}
 .pf-stat-sky     strong{color:#1d4ed8}
 .pf-stat-emerald strong{color:#047857}
 .pf-stat-amber   strong{color:#b45309}
-.pf-stat small{font-size:.78rem;color:var(--pf-muted);font-weight:600;line-height:1.5}
+.pf-stat small{font-size:.7rem;color:var(--pf-muted);font-weight:600;line-height:1.4}
 
 /* FORM GRID */
-.pf-grid{display:grid;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.pf-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (max-width:980px){.pf-grid{grid-template-columns:1fr}}
 .pf-card{
   position:relative;background:var(--pf-card);
-  border:1px solid var(--pf-line);border-radius:var(--pf-radius-lg);
-  padding:22px 24px 20px;box-shadow:var(--pf-shadow-sm);
+  border:1px solid var(--pf-line);border-radius:22px;
+  padding:18px 20px 18px;box-shadow:var(--pf-shadow-sm);
   transition:all .2s;overflow:hidden;
-  display:flex;flex-direction:column;gap:18px;
+  display:flex;flex-direction:column;gap:14px;
 }
 .pf-card:hover{box-shadow:var(--pf-shadow);border-color:var(--pf-line-strong)}
 .pf-card::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--pf-radius-lg) var(--pf-radius-lg) 0 0;opacity:.95;
+  content:"";position:absolute;inset:0 0 auto 0;height:4px;
+  border-radius:22px 22px 0 0;opacity:.95;
 }
 .pf-card-wide{grid-column:1/-1}
 .pf-card-accent-sky    ::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
 .pf-card-accent-amber  ::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.pf-card-accent-violet ::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
+.pf-card-accent-violet::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
 .pf-card-accent-emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
 .pf-card-accent-rose   ::before{background:linear-gradient(90deg,#f43f5e,#fb7185)}
 
 .pf-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
-.pf-card-head h2{font-size:1.05rem;font-weight:950;color:var(--pf-ink);margin:0;line-height:1.3}
-.pf-card-head small{font-size:.7rem;color:var(--pf-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:2px}
+.pf-card-head h2{font-size:.98rem;font-weight:950;color:var(--pf-ink);margin:0;line-height:1.3}
+.pf-card-head small{font-size:.65rem;color:var(--pf-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:1px}
 .pf-chip{
   display:inline-flex;align-items:center;gap:.4rem;
   font-size:.72rem;font-weight:900;color:#1d4ed8;
@@ -203,17 +210,17 @@
 }
 
 /* FIELDS */
-.pf-fields{display:grid;gap:14px;grid-template-columns:1fr}
+.pf-fields{display:grid;gap:10px;grid-template-columns:1fr}
 .pf-fields-two{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (max-width:560px){.pf-fields-two{grid-template-columns:1fr}}
-.pf-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pf-field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pf-field-full{grid-column:1/-1}
-.pf-field>span{font-size:.78rem;font-weight:800;color:var(--pf-ink-soft);letter-spacing:.2px}
+.pf-field>span{font-size:.74rem;font-weight:800;color:var(--pf-ink-soft);letter-spacing:.2px}
 .pf-field input,.pf-field select,.pf-field textarea,
 .pf-field .form-control{
-  background:#fff;border:1px solid var(--pf-line);border-radius:11px;
-  color:var(--pf-ink);padding:.6rem .85rem;
-  font-size:.92rem;font-family:inherit;font-weight:600;outline:none;
+  background:#fff;border:1px solid var(--pf-line);border-radius:10px;
+  color:var(--pf-ink);padding:.5rem .75rem;
+  font-size:.88rem;font-family:inherit;font-weight:600;outline:none;
   transition:border-color .15s,box-shadow .15s;
   width:100%;
 }
@@ -225,42 +232,49 @@
 .pf-field input::placeholder,.pf-field textarea::placeholder{color:var(--pf-muted);font-weight:500}
 .ltr-field-v108{direction:ltr;text-align:start}
 
-.pf-phone-row{display:grid;grid-template-columns:minmax(140px,38%) 1fr;gap:.5rem}
-@media (max-width:480px){.pf-phone-row{grid-template-columns:1fr}}
+.pf-phone-row{display:grid;grid-template-columns:1fr 130px;gap:.5rem}
+.pf-phone-dial{font-weight:800;text-align:center}
+@media (max-width:480px){.pf-phone-row{grid-template-columns:1fr;gap:.4rem}}
 
 /* IMAGE UPLOADER */
-.pf-uploader{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pf-uploader{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .pf-uploader-preview{
-  width:90px;height:90px;border-radius:24px;
-  background:linear-gradient(135deg,#fef3c7,#fcd34d);
+  width:78px;height:78px;border-radius:20px;
+  background:linear-gradient(135deg,#fff,#fef3c7);
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;flex-shrink:0;
-  border:2px solid #fff;
-  box-shadow:0 8px 18px rgba(245,158,11,.22);
+  border:2px solid #fef3c7;
+  box-shadow:0 8px 18px rgba(245,158,11,.18);
+  padding:4px;
 }
-.pf-uploader-image{width:100%;height:100%;object-fit:cover;border-radius:22px}
+.pf-uploader-image{
+  width:100%;height:100%;
+  object-fit:contain;        /* show entire image without cropping */
+  border-radius:18px;
+  background:#fff;
+}
 .pf-uploader-image.is-hidden{display:none}
 .pf-uploader-fallback{font-size:2rem;font-weight:900;color:#b45309}
 .pf-uploader-actions{display:flex;flex-direction:column;gap:.45rem;flex:1;min-width:200px}
 .pf-uploader-actions input[type=file]{display:none}
 .pf-upload-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
-  padding:.6rem 1rem;border-radius:12px;
+  display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+  padding:.48rem .85rem;border-radius:10px;
   background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:.85rem;font-weight:900;cursor:pointer;
+  font-size:.78rem;font-weight:900;cursor:pointer;
   transition:all .15s;font-family:inherit;border:none;
-  box-shadow:0 6px 16px rgba(245,158,11,.25);
+  box-shadow:0 5px 14px rgba(245,158,11,.25);
   align-self:flex-start;
 }
 .pf-upload-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35)}
 .pf-link-btn{
   background:none;border:none;color:var(--pf-rose);
-  font-size:.82rem;font-weight:800;cursor:pointer;font-family:inherit;
+  font-size:.76rem;font-weight:800;cursor:pointer;font-family:inherit;
   text-decoration:underline;text-underline-offset:3px;
   align-self:flex-start;padding:0;
 }
 .pf-link-btn:hover{color:#be123c}
-.pf-uploader-actions small{font-size:.74rem;color:var(--pf-muted);font-weight:600}
+.pf-uploader-actions small{font-size:.7rem;color:var(--pf-muted);font-weight:600;line-height:1.4}
 
 /* SAVE BUTTON */
 .pf-actions{
@@ -269,12 +283,12 @@
 }
 .pf-save-btn{
   display:inline-flex;align-items:center;gap:.5rem;
-  padding:.85rem 2rem;border-radius:14px;
+  padding:.7rem 1.6rem;border-radius:13px;
   background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:1rem;font-weight:900;font-family:inherit;
+  font-size:.92rem;font-weight:900;font-family:inherit;
   border:none;cursor:pointer;
   transition:all .15s;
-  box-shadow:0 14px 30px rgba(245,158,11,.28);
+  box-shadow:0 12px 26px rgba(245,158,11,.28);
 }
 .pf-save-btn:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(245,158,11,.38)}
 .pf-save-btn::before{content:"💾"}
@@ -416,12 +430,12 @@
             <label class="pf-field">
               <span>{{ 'Phone number' if is_en else 'رقم الهاتف' }}</span>
               <div class="pf-phone-row">
-                <select class="form-control" name="phone_country_code">
+                <input class="form-control ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
+                <select class="form-control pf-phone-dial" name="phone_country_code">
                   {% for country in country_options %}
-                    <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+                    <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>
                   {% endfor %}
                 </select>
-                <input class="form-control ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
               </div>
             </label>
             <label class="pf-field">
