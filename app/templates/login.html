@@ -1,76 +1,319 @@
 {% extends 'base.html' %}
-{% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/login_v50.css', v='v50-login-luxury-20260430') }}">
-{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set next_lang = 'ar' if is_en else 'en' %}
+{% set page_dir = 'ltr' if is_en else 'rtl' %}
 {% set site_name = (landing.site_name_en if is_en else landing.site_name_ar) if (landing is defined and landing) else ('Solar Energy Platform' if is_en else 'منصة الطاقة الشمسية') %}
 
-<div class="lg50-page">
-  <div class="lg50-bg" aria-hidden="true"></div>
-  <div class="lg50-stars" aria-hidden="true"></div>
-  <div class="lg50-particles" aria-hidden="true">
-    <span class="lg50-particle"></span>
-    <span class="lg50-particle"></span>
-    <span class="lg50-particle"></span>
-    <span class="lg50-particle"></span>
-    <span class="lg50-particle"></span>
-    <span class="lg50-particle"></span>
-  </div>
+<style>
+.lg-page{
+  --lg-ink:#0b1220;
+  --lg-ink-soft:#1f2a44;
+  --lg-muted:#5e6f8c;
+  --lg-line:#e3eaf6;
+  --lg-line-strong:#cfd9ec;
+  --lg-card:#ffffff;
+  --lg-amber:#f59e0b;
+  --lg-amber-soft:#fbbf24;
+  --lg-emerald:#10b981;
+  --lg-sky:#2563eb;
+  --lg-sky-soft:#60a5fa;
+  --lg-violet:#6d3aff;
+  --lg-rose:#f43f5e;
+  --lg-shadow-sm:0 6px 18px rgba(15,23,42,.06);
+  --lg-shadow:0 22px 60px rgba(15,23,42,.12);
+  background:
+    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
+    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
+    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
+  min-height:100vh;padding:24px clamp(14px,3vw,40px);
+  font-family:'Cairo','Inter',system-ui,sans-serif;
+  color:var(--lg-ink);
+  position:relative;display:flex;align-items:center;justify-content:center;
+}
+.lg-page *,.lg-page *::before,.lg-page *::after{box-sizing:border-box}
 
-  <a class="lg50-lang-toggle" href="?lang={{ next_lang }}" title="{{ 'Switch language' if is_en else 'تغيير اللغة' }}">
+.lg-lang-toggle{
+  position:fixed;top:18px;inset-inline-end:18px;z-index:20;
+  display:inline-flex;align-items:center;gap:6px;
+  background:#fff;color:var(--lg-ink-soft);
+  border:1px solid var(--lg-line);box-shadow:var(--lg-shadow-sm);
+  padding:.45rem .85rem;border-radius:999px;
+  font-size:.78rem;font-weight:900;text-decoration:none;
+  transition:all .15s;
+}
+.lg-lang-toggle:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(15,23,42,.12);color:var(--lg-ink)}
+
+.lg-stage{
+  width:100%;max-width:1180px;
+  background:#fff;border:1px solid var(--lg-line);
+  border-radius:32px;overflow:hidden;
+  box-shadow:0 38px 90px rgba(15,23,42,.14);
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  min-height:620px;
+}
+@media (max-width:980px){.lg-stage{grid-template-columns:1fr}}
+
+/* SHOWCASE — sky→amber gradient panel on the left */
+.lg-showcase{
+  position:relative;
+  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
+  color:#fff;padding:clamp(28px,3vw,40px) clamp(28px,3vw,40px);
+  display:flex;flex-direction:column;gap:20px;justify-content:space-between;
+  isolation:isolate;overflow:hidden;
+}
+.lg-showcase::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
+    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
+}
+.lg-showcase>*{position:relative;z-index:1}
+@media (max-width:980px){.lg-showcase{display:none}}
+
+.lg-brand{display:flex;align-items:center;gap:.75rem}
+.lg-brand-mark{
+  width:46px;height:46px;border-radius:14px;
+  background:rgba(255,255,255,.95);color:#b45309;
+  font-size:1.45rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 22px rgba(11,21,49,.20);
+}
+.lg-brand-text strong{font-size:1.05rem;font-weight:950;color:#fff;display:block;line-height:1.2}
+.lg-brand-text small{font-size:.78rem;color:rgba(255,255,255,.85);font-weight:600}
+
+.lg-showcase-body{display:flex;flex-direction:column;gap:1rem}
+.lg-eyebrow{
+  display:inline-flex;align-items:center;gap:.4rem;align-self:flex-start;
+  font-size:.74rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
+  color:#0b1531;background:rgba(255,255,255,.95);
+  padding:.35rem .85rem;border-radius:999px;
+  box-shadow:0 6px 16px rgba(11,21,49,.18);
+}
+.lg-eyebrow .lg-pulse{
+  width:8px;height:8px;border-radius:50%;background:var(--lg-amber);
+  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:lgPulse 1.8s infinite;
+}
+@keyframes lgPulse{
+  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
+  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
+  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
+}
+.lg-showcase h1{
+  font-size:clamp(1.5rem,2.4vw,2rem);font-weight:950;
+  margin:0;line-height:1.2;color:#fff;
+  text-shadow:0 4px 18px rgba(11,21,49,.22);
+}
+.lg-tagline{margin:0;font-size:.92rem;color:rgba(255,255,255,.92);line-height:1.55;font-weight:600;max-width:46ch}
+
+.lg-feature-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;
+  margin-top:.4rem;
+}
+.lg-feature{
+  display:flex;align-items:center;gap:.65rem;
+  background:rgba(255,255,255,.92);
+  border-radius:13px;padding:.65rem .8rem;
+  box-shadow:0 6px 14px rgba(11,21,49,.10);
+}
+.lg-feature-icon{
+  width:34px;height:34px;border-radius:10px;
+  background:rgba(245,158,11,.15);color:#b45309;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;
+}
+.lg-feature.f-emerald .lg-feature-icon{background:rgba(16,185,129,.15);color:#047857}
+.lg-feature.f-amber   .lg-feature-icon{background:rgba(245,158,11,.18);color:#b45309}
+.lg-feature.f-cyan    .lg-feature-icon{background:rgba(37,99,235,.15);color:#1d4ed8}
+.lg-feature-text strong{display:block;font-size:.84rem;font-weight:900;color:var(--lg-ink);line-height:1.2}
+.lg-feature-text small{font-size:.7rem;color:var(--lg-muted);font-weight:600}
+
+.lg-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;
+  background:rgba(255,255,255,.92);
+  border-radius:14px;padding:.85rem;
+  box-shadow:0 6px 14px rgba(11,21,49,.10);
+}
+.lg-stat{display:flex;flex-direction:column;align-items:center;text-align:center}
+.lg-stat strong{font-size:1.05rem;font-weight:950;color:var(--lg-ink);font-variant-numeric:tabular-nums;line-height:1.2}
+.lg-stat small{font-size:.7rem;color:var(--lg-muted);font-weight:700;margin-top:2px}
+
+/* FORM SIDE */
+.lg-form-wrap{
+  padding:clamp(26px,3vw,40px) clamp(22px,3vw,36px);
+  display:flex;flex-direction:column;gap:18px;
+  justify-content:center;
+}
+.lg-card-mobile-brand{display:none;align-items:center;gap:.6rem;margin-bottom:8px}
+@media (max-width:980px){.lg-card-mobile-brand{display:flex}}
+.lg-card-mobile-brand .lg-brand-mark{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
+  color:#0b1531;width:42px;height:42px;border-radius:12px;
+  box-shadow:0 8px 18px rgba(245,158,11,.30);
+}
+.lg-card-mobile-brand strong{display:block;font-size:.95rem;font-weight:950;color:var(--lg-ink);line-height:1.2}
+.lg-card-mobile-brand small{font-size:.74rem;color:var(--lg-muted);font-weight:600}
+
+.lg-back-link{
+  font-size:.78rem;font-weight:800;color:var(--lg-muted);
+  text-decoration:none;align-self:flex-start;
+}
+.lg-back-link:hover{color:var(--lg-sky)}
+
+.lg-card-head h2{
+  font-size:1.35rem;font-weight:950;color:var(--lg-ink);margin:0 0 .25rem;line-height:1.25;
+}
+.lg-card-head p{font-size:.85rem;color:var(--lg-muted);margin:0;line-height:1.55;font-weight:600}
+
+.lg-flash{
+  display:flex;align-items:center;gap:.6rem;
+  border-radius:12px;padding:.65rem .9rem;font-size:.85rem;font-weight:700;
+  border:1px solid transparent;
+}
+.lg-flash.success{background:#d1fae5;color:#047857;border-color:#a7f3d0}
+.lg-flash.warning{background:#fef3c7;color:#b45309;border-color:#fde68a}
+.lg-flash.danger,.lg-flash.error{background:#ffe4e6;color:#be123c;border-color:#fecdd3}
+.lg-flash.info{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe}
+
+.lg-form{display:flex;flex-direction:column;gap:14px}
+.lg-field{display:flex;flex-direction:column;gap:5px}
+.lg-field label{font-size:.78rem;font-weight:800;color:var(--lg-ink-soft)}
+
+.lg-field-input{
+  position:relative;display:flex;align-items:center;
+  background:#fff;border:1px solid var(--lg-line);border-radius:11px;
+  transition:border-color .15s,box-shadow .15s;
+  padding-inline-start:38px;padding-inline-end:8px;
+}
+.lg-field-input:focus-within{border-color:var(--lg-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.lg-field-input.error{border-color:var(--lg-rose);box-shadow:0 0 0 3px rgba(244,63,94,.18)}
+.lg-field-icon{
+  position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);
+  color:var(--lg-muted);display:flex;align-items:center;
+}
+.lg-input{
+  flex:1;background:none;border:none;outline:none;
+  padding:.65rem .15rem;
+  font-size:.92rem;font-family:inherit;font-weight:600;color:var(--lg-ink);
+  width:100%;
+}
+.lg-input::placeholder{color:var(--lg-muted);font-weight:500}
+.lg-toggle-pw{
+  background:none;border:none;color:var(--lg-muted);cursor:pointer;
+  padding:.4rem;border-radius:8px;display:inline-flex;align-items:center;
+  transition:color .15s,background .15s;
+}
+.lg-toggle-pw:hover{color:var(--lg-ink-soft);background:#f5f9ff}
+
+.lg-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap}
+.lg-check{display:inline-flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:700;color:var(--lg-ink-soft);cursor:pointer}
+.lg-check input{
+  appearance:none;width:18px;height:18px;border-radius:5px;
+  border:1.5px solid var(--lg-line-strong);background:#fff;cursor:pointer;
+  position:relative;flex-shrink:0;transition:all .15s;
+}
+.lg-check input:checked{background:linear-gradient(135deg,#ffcf4d,#f59e0b);border-color:#f59e0b}
+.lg-check input:checked::after{
+  content:"";position:absolute;inset:3px 4px;
+  border:solid #0b1531;border-width:0 0 2px 2px;transform:rotate(-45deg);
+  width:8px;height:5px;
+}
+.lg-forgot{font-size:.82rem;font-weight:800;color:var(--lg-sky);text-decoration:none}
+.lg-forgot:hover{color:#1d4ed8;text-decoration:underline}
+
+.lg-submit{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:.85rem 1.2rem;border-radius:13px;
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
+  font-size:1rem;font-weight:950;font-family:inherit;cursor:pointer;
+  border:none;transition:all .15s;
+  box-shadow:0 14px 30px rgba(245,158,11,.28);
+}
+.lg-submit:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(245,158,11,.38)}
+.lg-submit-arrow{font-weight:900;transition:transform .15s}
+.lg-submit:hover .lg-submit-arrow{transform:translateX({{ '4px' if is_en else '-4px' }})}
+
+.lg-divider{
+  text-align:center;font-size:.74rem;color:var(--lg-muted);font-weight:800;
+  position:relative;text-transform:uppercase;letter-spacing:.4px;
+  margin:.4rem 0;
+}
+.lg-divider::before,.lg-divider::after{
+  content:"";position:absolute;top:50%;width:42%;height:1px;background:var(--lg-line);
+}
+.lg-divider::before{inset-inline-start:0}
+.lg-divider::after{inset-inline-end:0}
+
+.lg-socials{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+.lg-social{
+  display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
+  padding:.65rem .9rem;border-radius:12px;
+  background:#fff;color:var(--lg-ink-soft);
+  border:1px solid var(--lg-line);
+  font-size:.85rem;font-weight:800;text-decoration:none;font-family:inherit;
+  transition:all .15s;
+}
+.lg-social:hover{transform:translateY(-1px);box-shadow:var(--lg-shadow-sm);background:#f5f9ff;color:var(--lg-ink)}
+
+.lg-signup{font-size:.85rem;color:var(--lg-muted);font-weight:600;text-align:center;margin:0}
+.lg-signup a{color:var(--lg-sky);font-weight:900;text-decoration:none}
+.lg-signup a:hover{text-decoration:underline}
+
+.lg-trust{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem .85rem;
+  padding-top:6px;border-top:1px solid var(--lg-line);margin-top:4px;
+}
+.lg-trust span{
+  font-size:.72rem;color:var(--lg-muted);font-weight:700;
+  display:inline-flex;align-items:center;gap:.3rem;
+}
+</style>
+
+<div class="lg-page" dir="{{ page_dir }}">
+  <a class="lg-lang-toggle" href="?lang={{ next_lang }}" title="{{ 'Switch language' if is_en else 'تغيير اللغة' }}">
     🌐 <span>{{ 'العربية' if is_en else 'English' }}</span>
   </a>
 
-  <div class="lg50-stage">
-    <aside class="lg50-showcase">
-      <div class="lg50-showcase-grid" aria-hidden="true"></div>
-
-      <div class="lg50-brand">
-        <span class="lg50-brand-mark">⚡</span>
-        <div class="lg50-brand-text">
+  <div class="lg-stage">
+    {# ── SHOWCASE (left side, hidden on mobile) ── #}
+    <aside class="lg-showcase">
+      <div class="lg-brand">
+        <span class="lg-brand-mark">⚡</span>
+        <div class="lg-brand-text">
           <strong>{{ site_name }}</strong>
           <small>{{ 'Smart energy command center' if is_en else 'مركز قيادة الطاقة الذكية' }}</small>
         </div>
       </div>
 
-      <div class="lg50-showcase-body">
-        <span class="lg50-eyebrow">
-          <i>✦</i>{{ 'Welcome back' if is_en else 'مرحبًا بعودتك' }}
-        </span>
-
+      <div class="lg-showcase-body">
+        <span class="lg-eyebrow"><span class="lg-pulse"></span>{{ 'Welcome back' if is_en else 'مرحبًا بعودتك' }}</span>
         <h1>{{ 'Power your future with intelligence.' if is_en else 'قد طاقتك بذكاء يصنع الفرق.' }}</h1>
+        <p class="lg-tagline">{{ 'Real-time monitoring, smart alerts, and AI-powered forecasts — all in one professional command center.' if is_en else 'مراقبة لحظية، تنبيهات ذكية، وتوقعات مدعومة بالذكاء الاصطناعي في مركز قيادة احترافي واحد.' }}</p>
 
-        <p class="lg50-tagline">
-          {{ 'Real-time monitoring, smart alerts, and AI-powered forecasts — all in one professional command center for solar systems and connected devices.' if is_en else 'مراقبة لحظية، تنبيهات ذكية، وتوقعات مدعومة بالذكاء الاصطناعي في مركز قيادة احترافي واحد لأنظمة الطاقة الشمسية والأجهزة المتصلة.' }}
-        </p>
-
-        <div class="lg50-feature-grid">
-          <div class="lg50-feature">
-            <span class="lg50-feature-icon">⚡</span>
-            <div class="lg50-feature-text">
+        <div class="lg-feature-grid">
+          <div class="lg-feature">
+            <span class="lg-feature-icon">⚡</span>
+            <div class="lg-feature-text">
               <strong>{{ 'Live monitoring' if is_en else 'مراقبة لحظية' }}</strong>
               <small>{{ 'Real-time energy flow' if is_en else 'تدفق الطاقة لحظيًا' }}</small>
             </div>
           </div>
-          <div class="lg50-feature f-amber">
-            <span class="lg50-feature-icon">☀️</span>
-            <div class="lg50-feature-text">
+          <div class="lg-feature f-amber">
+            <span class="lg-feature-icon">☀️</span>
+            <div class="lg-feature-text">
               <strong>{{ 'Solar AI' if is_en else 'ذكاء شمسي' }}</strong>
               <small>{{ 'Smart forecasts that learn' if is_en else 'توقعات ذكية تتعلم' }}</small>
             </div>
           </div>
-          <div class="lg50-feature f-emerald">
-            <span class="lg50-feature-icon">🔔</span>
-            <div class="lg50-feature-text">
+          <div class="lg-feature f-emerald">
+            <span class="lg-feature-icon">🔔</span>
+            <div class="lg-feature-text">
               <strong>{{ 'Reliable alerts' if is_en else 'تنبيهات موثوقة' }}</strong>
               <small>{{ 'SMS, Telegram, in-app' if is_en else 'SMS، تيليجرام، داخل التطبيق' }}</small>
             </div>
           </div>
-          <div class="lg50-feature f-cyan">
-            <span class="lg50-feature-icon">🛡️</span>
-            <div class="lg50-feature-text">
+          <div class="lg-feature f-cyan">
+            <span class="lg-feature-icon">🛡️</span>
+            <div class="lg-feature-text">
               <strong>{{ 'Enterprise security' if is_en else 'أمان مؤسسي' }}</strong>
               <small>{{ 'RBAC, audit logs, backups' if is_en else 'صلاحيات، سجلات، نسخ احتياطي' }}</small>
             </div>
@@ -78,148 +321,124 @@
         </div>
       </div>
 
-      <div class="lg50-stats">
-        <div class="lg50-stat">
-          <strong>99.9%</strong>
-          <small>{{ 'Uptime' if is_en else 'الجاهزية' }}</small>
-        </div>
-        <div class="lg50-stat">
-          <strong>24/7</strong>
-          <small>{{ 'Live data' if is_en else 'بيانات حيّة' }}</small>
-        </div>
-        <div class="lg50-stat">
-          <strong>AR · EN</strong>
-          <small>{{ 'Bilingual' if is_en else 'لغتان' }}</small>
-        </div>
-      </div>
-
-      <div class="lg50-preview" aria-hidden="true">
-        <div class="lg50-preview-head">
-          <span></span><span></span><span></span>
-        </div>
-        <div class="lg50-preview-bars">
-          <b></b><b></b><b></b><b></b><b></b><b></b>
-        </div>
-        <div class="lg50-preview-line"></div>
+      <div class="lg-stats">
+        <div class="lg-stat"><strong>99.9%</strong><small>{{ 'Uptime' if is_en else 'الجاهزية' }}</small></div>
+        <div class="lg-stat"><strong>24/7</strong><small>{{ 'Live data' if is_en else 'بيانات حيّة' }}</small></div>
+        <div class="lg-stat"><strong>AR · EN</strong><small>{{ 'Bilingual' if is_en else 'لغتان' }}</small></div>
       </div>
     </aside>
 
-    <main class="lg50-form-wrap">
-      <div class="lg50-card">
-        <div class="lg50-card-mobile-brand">
-          <span class="lg50-brand-mark">⚡</span>
-          <div>
-            <strong>{{ site_name }}</strong>
-            <small>{{ 'Smart energy command center' if is_en else 'مركز قيادة الطاقة الذكية' }}</small>
+    {# ── FORM SIDE ── #}
+    <main class="lg-form-wrap">
+      <div class="lg-card-mobile-brand">
+        <span class="lg-brand-mark">⚡</span>
+        <div>
+          <strong>{{ site_name }}</strong>
+          <small>{{ 'Smart energy command center' if is_en else 'مركز قيادة الطاقة الذكية' }}</small>
+        </div>
+      </div>
+
+      <a class="lg-back-link" href="{{ url_for('main.index', lang=ui_lang) }}">
+        {{ '← Back to home' if is_en else '← العودة للرئيسية' }}
+      </a>
+
+      <header class="lg-card-head">
+        <h2>{{ 'Sign in to your dashboard' if is_en else 'تسجيل الدخول إلى لوحتك' }}</h2>
+        <p>{{ 'Enter your credentials to access your real-time command center.' if is_en else 'أدخل بياناتك للدخول إلى مركز قيادة الطاقة المباشر.' }}</p>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="lg-flash {{ category }}">
+              <span aria-hidden="true">{% if category == 'success' %}✅{% elif category == 'danger' or category == 'error' %}⚠️{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('auth.login') }}" class="lg-form" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="lg-field">
+          <label for="lg-user">{{ 'Username' if is_en else 'اسم المستخدم' }}</label>
+          <div class="lg-field-input">
+            <span class="lg-field-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <input class="lg-input" id="lg-user" name="username" required autocomplete="username"
+                   placeholder="{{ 'e.g. ahmad' if is_en else 'مثال: ahmad' }}" dir="ltr">
           </div>
         </div>
 
-        <a class="lg50-back-link" href="{{ url_for('main.index', lang=ui_lang) }}">
-          {{ '← Back to home' if is_en else '← العودة للرئيسية' }}
+        <div class="lg-field">
+          <label for="lg-pw">{{ 'Password' if is_en else 'كلمة المرور' }}</label>
+          <div class="lg-field-input">
+            <span class="lg-field-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </span>
+            <input class="lg-input" id="lg-pw" type="password" name="password" required autocomplete="current-password"
+                   placeholder="{{ 'Enter your password' if is_en else 'أدخل كلمة المرور' }}" dir="ltr">
+            <button class="lg-toggle-pw" type="button" data-toggle="lg-pw" aria-label="{{ 'Show password' if is_en else 'إظهار كلمة المرور' }}">
+              <svg class="ic-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="ic-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="lg-row">
+          <label class="lg-check">
+            <input type="checkbox" name="remember" value="1">
+            <span>{{ 'Remember me' if is_en else 'تذكرني' }}</span>
+          </label>
+          <a class="lg-forgot" href="#">{{ 'Forgot password?' if is_en else 'نسيت كلمة المرور؟' }}</a>
+        </div>
+
+        <button class="lg-submit" type="submit">
+          <span>🔒 {{ 'Sign in securely' if is_en else 'دخول آمن' }}</span>
+          <span class="lg-submit-arrow">{{ '→' if is_en else '←' }}</span>
+        </button>
+      </form>
+
+      <div class="lg-divider">{{ 'or continue with' if is_en else 'أو تابع باستخدام' }}</div>
+
+      <div class="lg-socials">
+        <a class="lg-social" href="{{ url_for('auth.google_start') }}">
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+            <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+          </svg>
+          <span>Google</span>
         </a>
+        <a class="lg-social" href="{{ url_for('auth.facebook_start') }}">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+          <span>Facebook</span>
+        </a>
+      </div>
 
-        <header class="lg50-card-head">
-          <h2>{{ 'Sign in to your dashboard' if is_en else 'تسجيل الدخول إلى لوحتك' }}</h2>
-          <p>{{ 'Enter your credentials to access your real-time energy command center.' if is_en else 'أدخل بياناتك للدخول إلى مركز قيادة الطاقة المباشر.' }}</p>
-        </header>
+      <p class="lg-signup">
+        {{ "Don't have an account?" if is_en else 'ليس لديك حساب؟' }}
+        <a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Create one now' if is_en else 'أنشئ حسابك الآن' }}</a>
+      </p>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="lg50-flash {{ category }}">
-                <span aria-hidden="true">{% if category == 'success' %}✅{% elif category == 'danger' or category == 'error' %}⚠️{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
-                <span>{{ message }}</span>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <form method="post" action="{{ url_for('auth.login') }}" class="lg50-form" autocomplete="on">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-          <div class="lg50-field">
-            <label for="lg50-user">{{ 'Username' if is_en else 'اسم المستخدم' }}</label>
-            <div class="lg50-field-input">
-              <span class="lg50-field-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </span>
-              <input class="lg50-input" id="lg50-user" name="username" required autocomplete="username"
-                     placeholder="{{ 'e.g. ahmad' if is_en else 'مثال: ahmad' }}" dir="ltr">
-            </div>
-          </div>
-
-          <div class="lg50-field">
-            <label for="lg50-pw">{{ 'Password' if is_en else 'كلمة المرور' }}</label>
-            <div class="lg50-field-input">
-              <span class="lg50-field-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </span>
-              <input class="lg50-input" id="lg50-pw" type="password" name="password" required autocomplete="current-password"
-                     placeholder="{{ 'Enter your password' if is_en else 'أدخل كلمة المرور' }}" dir="ltr">
-              <button class="lg50-toggle-pw" type="button" data-toggle="lg50-pw" aria-label="{{ 'Show password' if is_en else 'إظهار كلمة المرور' }}">
-                <svg class="ic-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg class="ic-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="lg50-row">
-            <label class="lg50-check">
-              <input type="checkbox" name="remember" value="1">
-              <span class="lg50-check-mark"></span>
-              <span>{{ 'Remember me' if is_en else 'تذكرني' }}</span>
-            </label>
-            <a class="lg50-forgot" href="#">{{ 'Forgot password?' if is_en else 'نسيت كلمة المرور؟' }}</a>
-          </div>
-
-          <button class="lg50-submit" type="submit">
-            <span>{{ 'Sign in securely' if is_en else 'دخول آمن' }}</span>
-            <span class="lg50-submit-arrow" aria-hidden="true">{{ '→' if is_en else '←' }}</span>
-          </button>
-        </form>
-
-        <div class="lg50-divider">{{ 'or continue with' if is_en else 'أو تابع باستخدام' }}</div>
-
-        <div class="lg50-socials">
-          <a class="lg50-social google" href="{{ url_for('auth.google_start') }}">
-            <svg width="20" height="20" viewBox="0 0 48 48">
-              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-              <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-            </svg>
-            <span>Google</span>
-          </a>
-          <a class="lg50-social facebook" href="{{ url_for('auth.facebook_start') }}">
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span>Facebook</span>
-          </a>
-        </div>
-
-        <p class="lg50-signup">
-          {{ "Don't have an account?" if is_en else 'ليس لديك حساب؟' }}
-          <a href="{{ url_for('auth.register', lang=ui_lang) }}">{{ 'Create one now' if is_en else 'أنشئ حسابك الآن' }}</a>
-        </p>
-
-        <div class="lg50-trust">
-          <span>🔒 {{ 'Encrypted' if is_en else 'مشفّر' }}</span>
-          <span>🛡️ {{ 'GDPR-ready' if is_en else 'مهيأ لـ GDPR' }}</span>
-          <span>⚡ {{ 'Fast & reliable' if is_en else 'سريع وموثوق' }}</span>
-        </div>
+      <div class="lg-trust">
+        <span>🔒 {{ 'Encrypted' if is_en else 'مشفّر' }}</span>
+        <span>🛡️ {{ 'GDPR-ready' if is_en else 'مهيأ لـ GDPR' }}</span>
+        <span>⚡ {{ 'Fast & reliable' if is_en else 'سريع وموثوق' }}</span>
       </div>
     </main>
   </div>
@@ -241,26 +460,15 @@
       }
     });
   });
-
-  var stage = document.querySelector('.lg50-stage');
-  var grid = document.querySelector('.lg50-showcase-grid');
-  if (stage && grid && window.matchMedia('(min-width:1025px)').matches) {
-    stage.addEventListener('mousemove', function(e){
-      var x = (e.clientX / window.innerWidth - 0.5) * 12;
-      var y = (e.clientY / window.innerHeight - 0.5) * 12;
-      grid.style.transform = 'translate(' + x + 'px,' + y + 'px)';
-    });
-  }
-
-  document.querySelectorAll('.lg50-input').forEach(function(inp){
+  document.querySelectorAll('.lg-input').forEach(function(inp){
     inp.addEventListener('blur', function(){
-      var holder = inp.closest('.lg50-field-input');
+      var holder = inp.closest('.lg-field-input');
       if (!holder) return;
       if (inp.required && !inp.value.trim()) holder.classList.add('error');
       else holder.classList.remove('error');
     });
     inp.addEventListener('input', function(){
-      var holder = inp.closest('.lg50-field-input');
+      var holder = inp.closest('.lg-field-input');
       if (holder) holder.classList.remove('error');
     });
   });

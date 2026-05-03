@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="{{ ui_lang or 'ar' }}" dir="{{ 'ltr' if (ui_lang or 'ar') == 'en' else 'rtl' }}">
 <head>
   <meta charset="UTF-8">
@@ -17,6 +17,7 @@
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='v78-account-profile-playbook-20260502') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_rebuild_v11.css', v='v78-account-profile-playbook-20260502') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unified_theme_v1.css', v='v80-unified-theme-20260502') }}">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="theme-saas saas-only heavy-v70 heavy-v71 heavy-v72 heavy-v721 heavy-v80 heavy-v90 heavy-v100 no-global-utility-bar {% if account_preview_restricted %}account-preview-v107{% endif %}" data-lang="{{ ui_lang or 'ar' }}" data-account-restricted="{{ '1' if account_preview_restricted else '0' }}" data-restricted-message="{{ account_preview_message|e }}" data-csrf-token="{{ csrf_token() if session.get('logged_in') or request.endpoint in ['auth.login','auth.register'] else '' }}">
