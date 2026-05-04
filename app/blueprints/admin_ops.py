@@ -154,3 +154,16 @@ def admin_devices_center_v9():
         'types': len(device_types),
     }
     return render_template('admin_devices_center.html', rows=rows, device_types=device_types, device_stats=device_stats, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+
+
+@admin_ops_bp.route('/admin/design-qa')
+def admin_design_qa():
+    """Design system showcase + regression-detection canvas.
+
+    Renders every reusable component from unified_theme_v1.css side-by-side.
+    Hidden from the sidebar; reach via direct URL only.
+    """
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    return render_template('admin_design_qa.html', ui_lang=_lang())

@@ -19,13 +19,27 @@
         data-case-base-url="{{ url_for('support.admin_support_command_center') }}"
         data-action-url="{{ url_for('main.admin_support_command_action', lang=ui_lang) }}">
 
-    <header class="sc-page-head">
-      <div class="sc-page-head-text">
-        <h1>{{ 'Support &amp; Mail Center' if is_en else 'مركز البريد والدعم الفني' }}</h1>
-        <p>{{ 'Manage messages, tickets, and follow-ups in one place.' if is_en else 'إدارة الرسائل والتذاكر والمتابعة من مكان واحد.' }}</p>
-      </div>
-      <div class="sc-page-head-actions">
-        <button type="button" class="sc-btn-v2 ghost" data-sc-refresh>↻ {{ 'Refresh' if is_en else 'تحديث' }}</button>
+    {# ═══════════ Unified hero (.hu-*) ═══════════ #}
+    <header class="hu-hero sc-page-head">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a10 10 0 0 1 20 0v7a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>
+            {{ 'Support Center' if is_en else 'مركز الدعم' }}
+          </span>
+          <h1 class="hu-h1">{{ 'Support &amp; Mail Center' if is_en else 'مركز البريد والدعم الفني' }}</h1>
+          <p class="hu-tagline">{{ 'Manage messages, tickets, and follow-ups in one place.' if is_en else 'إدارة الرسائل والتذاكر والمتابعة من مكان واحد.' }}</p>
+          <div class="hu-hero-meta">
+            {% if stats.get('all', 0) %}<span class="hu-meta-pill"><b>{{ stats.get('all', 0) }}</b> {{ 'total' if is_en else 'الإجمالي' }}</span>{% endif %}
+            {% if stats.get('unanswered', 0) %}<span class="hu-meta-pill warn">⚠️ <b>{{ stats.get('unanswered', 0) }}</b> {{ 'unanswered' if is_en else 'غير مقروءة' }}</span>{% endif %}
+            {% if stats.get('overdue', 0) %}<span class="hu-meta-pill warn">⏰ <b>{{ stats.get('overdue', 0) }}</b> {{ 'overdue' if is_en else 'متأخر' }}</span>{% endif %}
+            {% if stats.get('urgent', 0) %}<span class="hu-meta-pill warn">🔴 <b>{{ stats.get('urgent', 0) }}</b> {{ 'urgent' if is_en else 'عاجل' }}</span>{% endif %}
+            {% if stats.get('closed', 0) %}<span class="hu-meta-pill ok">✅ <b>{{ stats.get('closed', 0) }}</b> {{ 'resolved' if is_en else 'محلولة' }}</span>{% endif %}
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <button type="button" class="hu-btn hu-btn-ghost" data-sc-refresh>↻ {{ 'Refresh' if is_en else 'تحديث' }}</button>
+        </div>
       </div>
     </header>
 

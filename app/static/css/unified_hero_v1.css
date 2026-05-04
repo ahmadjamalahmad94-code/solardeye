@@ -1,0 +1,260 @@
+/* ════════════════════════════════════════════════════════════════════
+   SolarDeye — Unified Hero v1
+   Class prefix: .hu-*  (Hero Unified)
+   Per design playbook: light gradient hero with mandatory spacing rule.
+   Apply on ANY page by:
+     <header class="hu-hero">
+       <div class="hu-hero-grid">
+         <div class="hu-hero-text">
+           <span class="hu-eyebrow"><svg .../>Title chip</span>
+           <h1 class="hu-h1">Page Title</h1>
+           <p class="hu-tagline">Page description.</p>
+         </div>
+         <div class="hu-hero-cta">
+           <a class="hu-btn hu-btn-ghost">Secondary</a>
+           <a class="hu-btn hu-btn-primary">+ Primary action</a>
+         </div>
+       </div>
+     </header>
+═════════════════════════════════════════════════════════════════════ */
+
+/* HERO container — light gradient, dotted top decoration, wave footer */
+.hu-hero{
+  position:relative;
+  border-radius:30px !important;
+  /* halved padding-top per design lock */
+  padding:32px clamp(28px,3.2vw,44px) 36px !important;
+  overflow:hidden;
+  isolation:isolate;
+  box-shadow:0 22px 60px rgba(15,23,42,.10);
+  border:1px solid rgba(255,255,255,.6);
+  background:
+    linear-gradient(135deg,
+      #7fb1e6 0%,
+      #a9c8ec 22%,
+      #d6dfee 50%,
+      #f1e6d6 78%,
+      #f8d7b6 100%);
+}
+
+/* Top-start dotted pattern (decorative) */
+.hu-hero::before{
+  content:"";position:absolute;
+  inset-block-start:18px;inset-inline-start:24px;
+  width:160px;height:90px;z-index:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.55) 1.5px, transparent 1.6px);
+  background-size:14px 14px;
+  -webkit-mask-image:linear-gradient(135deg,#000 0%, transparent 80%);
+          mask-image:linear-gradient(135deg,#000 0%, transparent 80%);
+}
+
+/* Bottom wave decoration */
+.hu-hero::after{
+  content:"";position:absolute;left:0;right:0;bottom:-2px;height:60px;
+  z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'><path d='M0,80 C200,120 400,40 600,70 C800,100 1000,60 1200,90 L1200,120 L0,120 Z' fill='rgba(255,255,255,0.55)'/><path d='M0,90 C250,120 450,60 700,85 C900,105 1050,75 1200,95 L1200,120 L0,120 Z' fill='rgba(255,255,255,0.35)'/></svg>");
+  background-size:100% 100%;background-repeat:no-repeat;
+}
+.hu-hero > *{position:relative;z-index:1}
+
+/* 2-column grid: text/CTA */
+.hu-hero-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:24px;align-items:center;
+}
+@media (max-width:980px){.hu-hero-grid{grid-template-columns:1fr;gap:18px}}
+
+.hu-hero-text{display:flex;flex-direction:column;gap:0;min-width:0}
+
+/* Eyebrow — white pill with optional SVG icon */
+.hu-eyebrow{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.78rem;font-weight:900;letter-spacing:.3px;
+  color:#1d4ed8;background:#fff;
+  padding:.45rem .9rem;border-radius:999px;
+  box-shadow:0 8px 22px rgba(11,21,49,.10);
+  border:1px solid rgba(255,255,255,.8);
+  align-self:flex-start;
+}
+.hu-eyebrow svg{width:16px;height:16px;color:#1d4ed8;flex-shrink:0}
+
+/* H1 — saturated blue title */
+body main.app-main .hu-h1,
+.hu-h1{
+  font-size:clamp(1.5rem,2.4vw,2rem) !important;
+  font-weight:950 !important;
+  margin:.85rem 0 .55rem !important;
+  line-height:1.25 !important;
+  color:#1d4ed8 !important;
+  letter-spacing:-.2px !important;
+  text-shadow:none !important;
+}
+
+/* Tagline — soft gray with vertical accent bar */
+.hu-tagline{
+  margin:0 !important;
+  font-size:.92rem;line-height:1.6;font-weight:600;max-width:60ch;
+  color:#334155 !important;
+  display:flex;align-items:flex-start;gap:.6rem;
+}
+.hu-tagline::before{
+  content:"";flex-shrink:0;
+  width:3px;align-self:stretch;border-radius:3px;
+  background:linear-gradient(180deg,#3aa7ff,#ffd66e);
+}
+
+/* CTA cluster */
+.hu-hero-cta{
+  display:flex;flex-wrap:wrap;gap:.6rem;
+  justify-content:flex-end;align-content:flex-start;align-items:center;
+}
+
+/* Buttons — high specificity to beat global <a> link styles */
+.hu-btn{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.6rem 1rem;border-radius:13px;
+  font-size:.82rem;font-weight:900;
+  text-decoration:none !important;
+  transition:transform .15s,box-shadow .15s;
+  cursor:pointer;border:none;font-family:inherit;
+}
+.hu-btn.is-sm{padding:.45rem .8rem;font-size:.78rem;border-radius:11px}
+.hu-btn:disabled,.hu-btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+body main.app-main .hu-btn-primary,
+body main.app-main .hu-btn-primary:hover,
+body main.app-main .hu-btn-primary:visited,
+.hu-btn-primary{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
+  color:#0b1531 !important;
+  box-shadow:0 10px 22px rgba(245,158,11,.28);
+}
+.hu-btn-primary:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(245,158,11,.38)}
+
+body main.app-main .hu-btn-ghost,
+body main.app-main .hu-btn-ghost:hover,
+body main.app-main .hu-btn-ghost:visited,
+.hu-btn-ghost{
+  background:#fff;
+  color:#1f2a44 !important;
+  box-shadow:0 8px 20px rgba(11,21,49,.10);
+  border:1px solid rgba(255,255,255,.9);
+}
+.hu-btn-ghost:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(11,21,49,.14)}
+
+body main.app-main .hu-btn-success,
+body main.app-main .hu-btn-success:hover,
+.hu-btn-success{
+  background:linear-gradient(135deg,#34d399,#10b981);
+  color:#04221b !important;
+  box-shadow:0 10px 22px rgba(16,185,129,.28);
+}
+
+body main.app-main .hu-btn-danger,
+body main.app-main .hu-btn-danger:hover,
+.hu-btn-danger{
+  background:linear-gradient(135deg,#fb7185,#f43f5e);
+  color:#fff !important;
+  box-shadow:0 10px 22px rgba(244,63,94,.28);
+}
+
+/* Optional meta-pill row inside the hero (active subs / live status / etc) */
+.hu-hero-meta{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:10px}
+.hu-meta-pill{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:#fff;color:#1f2a44;
+  padding:.35rem .75rem;border-radius:11px;
+  font-size:.74rem;font-weight:800;
+  box-shadow:0 4px 10px rgba(11,21,49,.10);
+}
+.hu-meta-pill b{color:#0b1531;font-weight:950}
+.hu-meta-pill.ok{background:linear-gradient(135deg,#10b981,#34d399);color:#04221b}
+.hu-meta-pill.ok b{color:#04221b}
+.hu-meta-pill.warn{background:linear-gradient(135deg,#fbbf24,#f97316);color:#0b1531}
+.hu-meta-pill.warn b{color:#0b1531}
+
+/* ════════════════════════════════════════════════════════════════════
+   SPECIFICITY REINFORCEMENT — beat global rules from style.css
+   that target generic <header>, .admin-page-head, .hero-banner, etc.
+═════════════════════════════════════════════════════════════════════ */
+body main.app-main .hu-hero,
+body .app-shell .hu-hero,
+html body .hu-hero{
+  border-radius:30px !important;
+  padding:32px clamp(28px,3.2vw,44px) 36px !important;
+  margin:0 !important;
+  color:inherit !important;
+  background:
+    linear-gradient(135deg,
+      #7fb1e6 0%,
+      #a9c8ec 22%,
+      #d6dfee 50%,
+      #f1e6d6 78%,
+      #f8d7b6 100%) !important;
+  box-shadow:0 22px 60px rgba(15,23,42,.10) !important;
+  border:1px solid rgba(255,255,255,.6) !important;
+  display:block !important;
+  align-items:initial !important;
+  grid-template-columns:initial !important;
+}
+body main.app-main .hu-hero h1,
+body main.app-main .hu-hero .hu-h1{
+  color:#1d4ed8 !important;
+  font-size:clamp(1.5rem,2.4vw,2rem) !important;
+  font-weight:950 !important;
+  margin:.85rem 0 .55rem !important;
+  line-height:1.25 !important;
+  text-shadow:none !important;
+}
+body main.app-main .hu-hero p,
+body main.app-main .hu-hero .hu-tagline{
+  color:#334155 !important;
+}
+body main.app-main .hu-hero .hu-eyebrow{
+  color:#1d4ed8 !important;
+  background:#fff !important;
+}
+body main.app-main .hu-hero .hu-eyebrow svg{
+  width:16px !important;height:16px !important;
+  color:#1d4ed8 !important;flex-shrink:0 !important;
+}
+body main.app-main .hu-hero .hu-btn-primary{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b) !important;
+  color:#0b1531 !important;
+}
+body main.app-main .hu-hero .hu-btn-ghost{
+  background:#fff !important;
+  color:#1f2a44 !important;
+}
+
+/* ── Defensive SVG sizing — any svg inside a hu-* button or chip ── */
+body main.app-main .hu-btn svg,
+body main.app-main .hu-meta-pill svg,
+body main.app-main .hu-hero-cta svg{
+  width:16px !important;
+  height:16px !important;
+  flex-shrink:0 !important;
+  display:inline-block !important;
+  vertical-align:middle !important;
+}
+/* Padding reinforcement — covers any conflict with global header rules */
+body main.app-main header.hu-hero,
+body .app-shell main header.hu-hero,
+body main.app-main section.hu-hero{
+  padding:32px clamp(28px,3.2vw,44px) 36px !important;
+}
+
+/* ── NUCLEAR specificity — beats body.heavy-v100 .content-area > :first-child ── */
+body.heavy-v100 .content-area > .hu-hero.hu-hero,
+body.heavy-v100 .content-area > .hu-hero.hu-hero.hu-hero,
+.app-main .hu-hero.hu-hero{
+  padding:32px clamp(28px,3.2vw,44px) 36px !important;
+  margin:0 !important;
+  border-radius:30px !important;
+  background:
+    linear-gradient(135deg,
+      #7fb1e6 0%, #a9c8ec 22%, #d6dfee 50%, #f1e6d6 78%, #f8d7b6 100%) !important;
+  color:inherit !important;
+  display:block !important;
+}

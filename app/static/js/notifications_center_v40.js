@@ -79,15 +79,93 @@
     return true;
   }
 
+  /* ---------------- Pagination state ---------------- */
+  const PAGE_SIZE = 10;
+  const pager = root.querySelector('[data-ncv40-pager]');
+  const pagerInfo = pager && pager.querySelector('[data-ncv40-pager-info]');
+  const pagerPages = pager && pager.querySelector('[data-ncv40-pager-pages]');
+  const labelShowing = pager ? (pager.dataset.labelShowing || 'Showing') : 'Showing';
+  const labelOf = pager ? (pager.dataset.labelOf || 'of') : 'of';
+  const labelPrev = pager ? (pager.dataset.labelPrev || 'Prev') : 'Prev';
+  const labelNext = pager ? (pager.dataset.labelNext || 'Next') : 'Next';
+  let currentPage = 1;
+
+  function pageWindow(current, total){
+    // Returns [pages...] with possible 'ellipsis' marker for tidy 1 … N pagers
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
+    const out = [1];
+    const left = Math.max(2, current - 1);
+    const right = Math.min(total - 1, current + 1);
+    if (left > 2) out.push('…');
+    for (let p = left; p <= right; p++) out.push(p);
+    if (right < total - 1) out.push('…');
+    out.push(total);
+    return out;
+  }
+
+  function renderPager(visibleCount){
+    if (!pager) return;
+    const totalPages = Math.max(1, Math.ceil(visibleCount / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const startIdx = (currentPage - 1) * PAGE_SIZE + 1;
+    const endIdx = Math.min(visibleCount, currentPage * PAGE_SIZE);
+    if (pagerInfo){
+      pagerInfo.innerHTML = visibleCount === 0
+        ? ''
+        : labelShowing + ' <b>' + startIdx + '–' + endIdx + '</b> ' + labelOf + ' <b>' + visibleCount + '</b>';
+    }
+    if (pagerPages){
+      pagerPages.innerHTML = '';
+      if (visibleCount === 0) { pager.style.display = 'none'; return; }
+      pager.style.display = '';
+      const prev = document.createElement('button');
+      prev.type = 'button'; prev.className = 'ncv40-pager-btn'; prev.textContent = labelPrev;
+      prev.disabled = currentPage <= 1;
+      prev.addEventListener('click', () => { currentPage--; apply(); });
+      pagerPages.appendChild(prev);
+      pageWindow(currentPage, totalPages).forEach(p => {
+        if (p === '…'){
+          const sep = document.createElement('span');
+          sep.className = 'ncv40-pager-ellipsis'; sep.textContent = '…';
+          pagerPages.appendChild(sep);
+          return;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ncv40-pager-btn' + (p === currentPage ? ' is-active' : '');
+        btn.textContent = String(p);
+        btn.addEventListener('click', () => { currentPage = p; apply(); });
+        pagerPages.appendChild(btn);
+      });
+      const next = document.createElement('button');
+      next.type = 'button'; next.className = 'ncv40-pager-btn'; next.textContent = labelNext;
+      next.disabled = currentPage >= totalPages;
+      next.addEventListener('click', () => { currentPage++; apply(); });
+      pagerPages.appendChild(next);
+    }
+  }
+
   function apply() {
-    let count = 0;
+    let visibleIdx = 0;
+    const startIdx = (currentPage - 1) * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    let totalMatches = 0;
     items.forEach(item => {
       const ok = matches(item);
       item.classList.toggle('is-hidden', !ok);
-      if (ok) count++;
+      if (ok){
+        const onPage = (visibleIdx >= startIdx && visibleIdx < endIdx);
+        item.classList.toggle('is-out-of-page', !onPage);
+        visibleIdx++;
+        totalMatches++;
+      } else {
+        item.classList.remove('is-out-of-page');
+      }
     });
-    if (visibleCountEl) visibleCountEl.textContent = count;
-    if (emptyEl) emptyEl.style.display = count === 0 ? '' : 'none';
+    if (visibleCountEl) visibleCountEl.textContent = totalMatches;
+    if (emptyEl) emptyEl.style.display = totalMatches === 0 ? '' : 'none';
+    renderPager(totalMatches);
   }
 
   /* ---------------- Tabs ---------------- */
@@ -96,6 +174,7 @@
       root.querySelectorAll('[data-ncv40-tab]').forEach(b => b.classList.remove('is-active'));
       btn.classList.add('is-active');
       state.tab = btn.dataset.ncv40Tab || 'all';
+      currentPage = 1;
 
       // Sync stat-card highlights when tabs are clicked
       root.querySelectorAll('[data-ncv40-stat]').forEach(s => s.classList.remove('is-active'));
@@ -120,6 +199,7 @@
     input.addEventListener('change', () => {
       if (input.checked) {
         state.statusFilter = input.value;
+        currentPage = 1;
         apply();
       }
     });
@@ -129,6 +209,7 @@
     input.addEventListener('change', () => {
       if (input.checked) {
         state.priorityFilter = input.value;
+        currentPage = 1;
         apply();
       }
     });
@@ -139,6 +220,7 @@
   if (search) {
     search.addEventListener('input', debounce(() => {
       state.search = (search.value || '').trim().toLowerCase();
+      currentPage = 1;
       apply();
     }, 180));
   }

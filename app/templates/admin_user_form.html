@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set current_role = user_obj.role if user_obj else (default_role or 'assistant_manager') %}
@@ -28,8 +29,8 @@
         <label><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg" name="email" value="{{ user_obj.email if user_obj else '' }}"></label>
         <label><span>{{ 'Password' if is_en else 'كلمة المرور' }}</span><input type="password" class="form-control form-control-lg" name="password" {{ 'required' if mode == 'create' else '' }} placeholder="{{ 'Leave blank to keep current password' if is_en and mode == 'edit' else '' }}"></label>
         <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name if user_obj else '' }}"></label>
-        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country if user_obj else '' }}"></label>
-        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city if user_obj else '' }}"></label>
+        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=(user_obj.country if user_obj else ''), classes='form-control form-control-lg', countries=country_options, lang=ui_lang) }}</label>
+        <label><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=(user_obj.city if user_obj else ''), classes='form-control form-control-lg', lang=ui_lang) }}</label>
         {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
         <div class="phone-combo-v124 full">
           <label>

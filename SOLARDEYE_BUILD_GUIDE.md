@@ -1036,3 +1036,103 @@ If any of those fail, regenerate with the failing point highlighted.
 - **Air over density.** When in doubt, add more space, not less. Bump `gap: 18` → `24`, padding `16` → `20`.
 
 If you do all this, the page will feel like the rest of SolarDeye. If you cut corners, it will feel foreign. There's no middle ground.
+
+
+---
+
+## 8. The unified-theme override file (v82, May 2026)
+
+After Wave 1 (auth pages) and Wave 2 (subscriber pages) shipped with their own scoped CSS files, we still had ~24 admin templates running on legacy classes from `style.css`. Touching every admin template by hand was scope-explosion territory. So we built one global override file.
+
+### Architecture
+
+```
+base.html  →  loads in this exact order:
+   1. style.css                (legacy, v78-account-profile-playbook-20260502)
+   2. sidebar_rebuild_v11.css  (sidebar-only, v78-...)
+   3. unified_theme_v1.css     (LAST, wins via cascade — v82-admin-wave3b-20260503)
+   4. {% block extra_head %}   (per-page scoped CSS files)
+```
+
+`unified_theme_v1.css` repaints every legacy admin class — `.admin-card-v2`, `.admin-kpi-card`, `.admin-table-v2`, `.user360-*`, `.status-pill`, `.quick-links-v2`, `.activity-list-v2`, etc. — with the unified light theme using `!important` so heavy-v* body modifiers can't override it.
+
+Pages with their own scoped sheet (`landing_settings_v110.css`, `platform_review.css`, `services_health.css`, `notifications_center.css`) load AFTER the override, so their custom hero designs win locally without leaking into the rest of admin.
+
+### Why one file beats per-template overrides
+
+| Per-template override | Single override file |
+|---|---|
+| 24 templates to edit | 1 CSS file to edit |
+| Risk of typos × 24 | Risk × 1 |
+| Cache busting per file | Cache busting once |
+| Hard to enforce consistency | Tokenized, tested, documented |
+| Harder to A/B alternate themes | Just swap or feature-flag the file |
+
+### What lives in `unified_theme_v1.css`
+
+```
+:root            → CSS tokens (--u-ink, --u-amber, --u-shadow-sm, etc.)
+body.theme-saas  → page background gradient
+.app-main        → content padding/color
+.topbar / header.admin-page-head
+                 → sky→amber gradient hero with eyebrow + h1
+.stat-card / .panel-card / .live-hero-card
+                 → subscriber legacy classes (loads, channels, etc.)
+.admin-shell-v2  → admin shell padding/gap
+.admin-page-head → admin hero with action pills
+.admin-kpi-card  → 220px-min auto-fit grid + amber top stripe
+.admin-card-v2   → white card, 24px radius, dashed inline heading divider
+.admin-table-v2  → gradient thead, hover rows, sub-text style
+.user360-hero    → user-profile KPI grid (5 cards, 180px min)
+.user360-tab     → pill tabs, amber gradient when .active
+.status-pill     → success/warning/danger pills, brand-aligned
+.quick-links-v2  → linked-list cards with hover lift
+.activity-list-v2/.activity-item-v2
+                 → vertical activity feed
+.empty-box-v2    → dashed border empty state
+prefers-reduced-motion @media block
+:focus-visible   → amber rings on all interactives
+@media print     → simplified greyscale print stylesheet
+body[data-theme="dark"] → dormant; ready for dark-mode toggle
+```
+
+### How to add a new admin page (3 steps, 5 minutes)
+
+1. **Use the standard skeleton** — copy from any current admin template:
+   ```html
+   {% extends 'base.html' %}
+   {% block body %}
+   {% set is_en = (ui_lang or 'ar') == 'en' %}
+   <div class="app-shell has-layout-sidebar sidebar-collapsed">
+     {% include '_sidebar.html' %}
+     <main class="app-main content-area admin-shell-v2">
+       <header class="admin-page-head">
+         <div>
+           <span class="eyebrow">{{ '...' }}</span>
+           <h1>{{ '...' }}</h1>
+           <p>{{ '...' }}</p>
+         </div>
+         <div class="admin-head-actions">...</div>
+       </header>
+       <!-- content -->
+     </main>
+   </div>
+   {% endblock %}
+   ```
+2. **Use existing classes only** — `.admin-kpi-grid-v2 + .admin-kpi-card`, `.admin-layout-v2 + .admin-card-v2`, `.admin-table-v2`, `.status-pill`, `.user360-hero/-kpi/-tab` etc.
+3. **No need to write any CSS.** If your page truly needs a custom hero (like `landing_settings`), add a scoped CSS file in `{% block extra_head %}` — it'll naturally win over the override.
+
+### Verification: the Design QA page
+
+A regression-detection canvas lives at `/admin/design-qa`. It renders every reusable component side-by-side. After ANY change to `unified_theme_v1.css`, open this page and visually scan — anything that looks wrong is a regression. Save it to your bookmarks bar.
+
+### Cache busting protocol
+
+Every change to `unified_theme_v1.css` MUST bump the `v=...` parameter in `base.html` — otherwise users (and you) see stale cached CSS. Format: `v<N>-<short-description>-<YYYYMMDD>`. Latest: `v82-admin-wave3b-20260503`.
+
+### Anti-patterns to avoid
+
+❌ Don't write `<style>` blocks inside admin templates. Add to `unified_theme_v1.css` instead so all admin pages get it.
+❌ Don't use inline `style="..."` for color, background, or border on .admin-* elements. The override won't be able to win.
+❌ Don't use absolute pixel values that contradict tokens (use `var(--u-ink)`, `var(--u-amber)`, etc.).
+❌ Don't import `style.css` admin classes directly in new code — they're flagged for removal as we expand the override.

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
 {% block extra_head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/devices_manage_v64.css', v='v66-devices-hub-playbook-pass-20260501') }}">
 {% endblock %}
@@ -61,7 +62,7 @@
           </div>
           <div>
             <label class="form-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label>
-            <input class="form-control form-control-lg" name="timezone" value="{{ device.timezone or 'Asia/Hebron' }}">
+            {{ loc.timezone_select(name='timezone', value=(device.timezone or 'Asia/Hebron'), classes='form-control form-control-lg', groups=timezone_groups, lang=ui_lang) }}
           </div>
 
           <div class="dm64-form-section-title">{{ '3. Connection fields' if is_en else '3. بيانات الربط المطلوبة' }}</div>

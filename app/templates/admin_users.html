@@ -2,184 +2,437 @@
 {% block title %}{{ 'Admin Team' if (ui_lang or 'ar') == 'en' else 'فريق الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set page_dir = 'ltr' if is_en else 'rtl' %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_team.css', v='v97-team-modular-20260504') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal_system_v1.css', v='v97-team-modular-20260504') }}">
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 admin-team-v122">
-    <header class="admin-page-head compact admin-team-head-v122">
-      <div>
-        <span class="eyebrow">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</span>
-        <h1>{{ 'Staff accounts and exact access control' if is_en else 'حسابات الإدارة والتحكم الدقيق بالصلاحيات' }}</h1>
-        <p>{{ 'Only operational staff appear here. Subscribers stay in Subscribers CRM.' if is_en else 'هذه الصفحة تعرض فريق الإدارة فقط. المشتركين العاديين يبقوا داخل إدارة المستفيدين.' }}</p>
+  <main class="app-main content-area at-page" dir="{{ page_dir }}">
+
+    {# ═══════════════ HERO (unified .hu-*) ═══════════════ #}
+    <header class="hu-hero at-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {{ 'Admin Team' if is_en else 'فريق الإدارة' }}
+          </span>
+          <h1 class="hu-h1">{{ 'Staff accounts and exact access control' if is_en else 'حسابات الإدارة والتحكم الدقيق بالصلاحيات' }}</h1>
+          <p class="hu-tagline">{{ 'Only operational staff appear here. Subscribers stay in the Subscribers CRM.' if is_en else 'هذه الصفحة تعرض فريق الإدارة فقط. المشتركون العاديون يبقوا في إدارة المستفيدين.' }}</p>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('access_control.admin_roles_v10', lang=ui_lang) }}">🎭 {{ 'Roles' if is_en else 'الأدوار' }}</a>
+          <a class="hu-btn hu-btn-primary" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">+ {{ 'Staff user' if is_en else 'عضو إدارة' }}</a>
+        </div>
       </div>
     </header>
 
-    <section class="admin-team-toolbar-v126">
-      <div class="command-search-v61 admin-team-search-v126"><span>⌕</span><input id="adminTeamSearchV122" type="search" placeholder="{{ 'Search admin team...' if is_en else 'ابحث في فريق الإدارة...' }}"></div>
-      <div class="admin-team-toolbar-actions-v126">
-        <select id="adminTeamRoleFilterV122" class="form-select">
-          <option value="all">{{ 'All roles' if is_en else 'كل الأدوار' }}</option>
-          {% for role in available_roles() %}
-            {% if role.code not in ['user','subscriber','customer'] %}
-              <option value="{{ role.code }}">{{ role.name_en if is_en else role.name_ar }}</option>
-            {% endif %}
-          {% endfor %}
-        </select>
-        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">{{ '+ Staff user' if is_en else '+ عضو إدارة' }}</a>
-        <a class="btn btn-outline-primary" href="{{ url_for('access_control.admin_roles_v10', lang=ui_lang) }}">{{ 'Roles' if is_en else 'الأدوار' }}</a>
-      </div>
+    {# ═══════════════ KPI STATS ═══════════════ #}
+    <section class="at-stats">
+      <article class="at-stat">
+        <div class="at-stat-head">
+          <small>{{ 'Team' if is_en else 'الفريق' }}</small>
+          <span class="at-stat-icon">👥</span>
+        </div>
+        <strong>{{ stats.total }}</strong>
+        <span>{{ 'staff accounts' if is_en else 'حساب إداري' }}</span>
+      </article>
+      <article class="at-stat s-emerald">
+        <div class="at-stat-head">
+          <small>{{ 'Active' if is_en else 'النشط' }}</small>
+          <span class="at-stat-icon">✅</span>
+        </div>
+        <strong>{{ stats.active }}</strong>
+        <span>{{ 'can sign in' if is_en else 'يمكنهم الدخول' }}</span>
+      </article>
+      <article class="at-stat s-violet">
+        <div class="at-stat-head">
+          <small>{{ 'Roles' if is_en else 'الأدوار' }}</small>
+          <span class="at-stat-icon">🎭</span>
+        </div>
+        <strong>{{ stats.roles }}</strong>
+        <span>{{ 'permission sets' if is_en else 'مجموعات صلاحيات' }}</span>
+      </article>
+      <article class="at-stat s-sky">
+        <div class="at-stat-head">
+          <small>{{ 'Assigned support' if is_en else 'دعم مكلَّف' }}</small>
+          <span class="at-stat-icon">🎧</span>
+        </div>
+        <strong>{{ stats.with_support }}</strong>
+        <span>{{ 'team members' if is_en else 'لديهم دعم' }}</span>
+      </article>
+      <article class="at-stat s-rose">
+        <div class="at-stat-head">
+          <small>{{ 'Disabled' if is_en else 'معطَّل' }}</small>
+          <span class="at-stat-icon">⛔</span>
+        </div>
+        <strong>{{ stats.disabled }}</strong>
+        <span>{{ 'inactive' if is_en else 'غير نشط' }}</span>
+      </article>
     </section>
 
-    <section class="admin-team-kpis-v122">
-      <article><small>{{ 'Team' if is_en else 'الفريق' }}</small><strong>{{ stats.total }}</strong><span>{{ 'staff accounts' if is_en else 'حساب إداري' }}</span></article>
-      <article><small>{{ 'Active' if is_en else 'النشط' }}</small><strong>{{ stats.active }}</strong><span>{{ 'can sign in' if is_en else 'يمكنهم الدخول' }}</span></article>
-      <article><small>{{ 'Roles' if is_en else 'الأدوار' }}</small><strong>{{ stats.roles }}</strong><span>{{ 'permission sets' if is_en else 'مجموعات صلاحيات' }}</span></article>
-      <article><small>{{ 'Assigned support' if is_en else 'دعم مكلّف' }}</small><strong>{{ stats.with_support }}</strong><span>{{ 'team members' if is_en else 'أعضاء لديهم دعم' }}</span></article>
-      <article><small>{{ 'Disabled' if is_en else 'معطل' }}</small><strong>{{ stats.disabled }}</strong><span>{{ 'inactive' if is_en else 'غير نشط' }}</span></article>
-    </section>
-
-    <form method="post" id="adminTeamBulkFormV122" class="admin-card-v2 admin-team-card-v122 staff-board-card-v150">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="staff-action-head-v150">
-        <div>
-          <span class="staff-action-icon-v150">♙</span>
-          <h2>{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</h2>
-          <p>{{ 'Select an admin team member to enable the available actions.' if is_en else 'حدد عضو إدارة لتفعيل الإجراءات' }}</p>
-        </div>
-        <div class="staff-selected-card-v150">
-          <strong id="adminTeamSelectedMirrorV150">0</strong>
-          <span>{{ 'selected' if is_en else 'محدد' }}</span>
-        </div>
+    {# ═══════════════ TOOLBAR ═══════════════ #}
+    <section class="at-toolbar">
+      <div class="at-search">
+        <span class="at-search-icon">🔎</span>
+        <input id="adminTeamSearchV122" type="search" placeholder="{{ 'Search admin team…' if is_en else 'ابحث في فريق الإدارة…' }}">
       </div>
-      <div class="admin-team-action-bar-v125 is-disabled" id="adminTeamBulkV122" aria-live="polite">
-        <div class="bulk-action-status-v117 admin-team-action-status-v125">
-          <strong><span id="adminTeamSelectedV122">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
-          <small id="adminTeamSelectedHintV125">{{ 'Select a staff member to enable admin actions' if is_en else 'حدد عضو إدارة لتفعيل الإجراءات' }}</small>
-        </div>
-        <div class="bulk-action-buttons-v117 admin-team-action-buttons-v125">
-          <a class="btn btn-outline-primary btn-sm disabled" href="#" id="adminTeamProfileV125" aria-disabled="true">▤ {{ 'Profile' if is_en else 'فتح الملف' }}</a>
-          <button class="btn btn-outline-primary btn-sm" type="button" id="adminTeamPermissionsV125" data-requires-selected disabled>⚙ {{ 'Permissions' if is_en else 'الصلاحيات' }}</button>
-          <button class="btn btn-outline-primary btn-sm" type="button" id="adminTeamMessageV125" data-requires-selected disabled>✉ {{ 'Message' if is_en else 'إرسال رسالة' }}</button>
-          <button class="btn btn-solar btn-sm" type="submit" name="bulk_action" value="activate" id="adminTeamToggleV125" data-requires-selected disabled>● {{ 'Activate' if is_en else 'تفعيل' }}</button>
-          <button class="btn btn-outline-danger btn-sm" type="submit" name="bulk_action" value="remove_staff" data-requires-selected data-confirm="{{ 'Remove this staff member from admin team?' if is_en else 'حذف هذا العضو من فريق الإدارة؟' }}" disabled>🗑 {{ 'Delete' if is_en else 'حذف' }}</button>
-          <button class="btn btn-outline-secondary btn-sm" type="button" id="adminTeamClearV122" disabled>{{ 'Clear selection' if is_en else 'إلغاء التحديد' }}</button>
-        </div>
-      </div>
-
-      <div class="staff-board-v150">
-        <div class="staff-board-head-v150">
-          <span>{{ 'Team member' if is_en else 'مدير النظام' }}</span>
-          <span>{{ 'Role' if is_en else 'الدور' }}</span>
-          <span>{{ 'Access' if is_en else 'الوصول' }}</span>
-          <span>{{ 'Assigned support' if is_en else 'الدعم المكلف' }}</span>
-          <span><input type="checkbox" id="adminTeamSelectAllV150" aria-label="{{ 'Select visible staff' if is_en else 'تحديد الظاهر من فريق الإدارة' }}"></span>
-        </div>
-        {% for u in users %}
-          {% set role_code = (u.role or 'user')|lower %}
-          {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
-          {% set support_total = (support.mail or 0) + (support.tickets or 0) %}
-          <article class="admin-team-row-v122 staff-row-v150" data-admin-team-row data-user-id="{{ u.id }}" data-role="{{ role_code }}" data-status="{{ 'active' if u.is_active else 'disabled' }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}" data-display-name="{{ u.full_name or u.username }}" data-search="{{ (u.full_name or '')|lower }} {{ u.username|lower }} {{ (u.email or '')|lower }} {{ role_label(role_code, ui_lang)|lower }}">
-            <a class="admin-team-person-v122 staff-person-v150" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}">
-              <span>{{ (u.full_name or u.username or 'U')[:1] }}</span>
-              <div><strong>{{ u.full_name or u.username }}</strong><small>@{{ u.username }}{% if u.email %} · {{ mask_email(u.email) }}{% endif %}</small></div>
-            </a>
-            <div class="admin-team-cell-v122 staff-role-v150">
-              <small>{{ 'Role' if is_en else 'الدور' }}</small>
-              <strong>{{ role_label(role_code, ui_lang) }}</strong>
-            </div>
-            <div class="admin-team-cell-v122 staff-access-v150">
-              <small>{{ 'Access' if is_en else 'الوصول' }}</small>
-              <span class="ui-badge-v70 {{ 'is-success' if u.is_active else 'is-danger' }}">{{ 'Active' if is_en and u.is_active else ('Disabled' if is_en else ('نشط' if u.is_active else 'معطل')) }}</span>
-              <span class="ui-badge-v70 {{ 'is-warning' if role_code == 'admin' else 'is-muted' }}">{{ 'Full admin' if is_en and role_code == 'admin' else ('مدير كامل' if role_code == 'admin' else ('Limited' if is_en else 'محدد')) }}</span>
-            </div>
-            <div class="admin-team-cell-v122 staff-support-v150">
-              <small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small>
-              {% if support_total %}
-                <span class="support-badge-v5 mail">{{ support.mail or 0 }} {{ 'mail' if is_en else 'رسائل' }}</span>
-                <span class="support-badge-v5 ticket">{{ support.tickets or 0 }} {{ 'tickets' if is_en else 'تذاكر' }}</span>
-              {% else %}
-                <strong>{{ 'None' if is_en else 'لا يوجد' }}</strong>
-              {% endif %}
-            </div>
-            <div class="staff-check-v150">
-              <input type="checkbox" class="admin-team-check-v122" name="user_ids" value="{{ u.id }}">
-            </div>
-          </article>
-        {% else %}
-          <div class="empty-box-v2">{{ 'No staff accounts yet.' if is_en else 'لا يوجد أعضاء إدارة بعد.' }}</div>
+      <select id="adminTeamRoleFilterV122" class="at-select">
+        <option value="all">{{ 'All roles' if is_en else 'كل الأدوار' }}</option>
+        {% for role in available_roles() %}
+          {% if role.code not in ['user','subscriber','customer'] %}
+            <option value="{{ role.code }}">{{ role.name_en if is_en else role.name_ar }}</option>
+          {% endif %}
         {% endfor %}
+      </select>
+    </section>
+
+    {# ═══════════════ BOARD ═══════════════ #}
+    <form method="post" id="adminTeamBulkFormV122" class="at-board">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="at-board-head">
+        <div class="at-board-title">
+          <span class="at-board-title-icon">♟</span>
+          <div class="at-board-title-text">
+            <small>{{ 'Roster' if is_en else 'القائمة' }}</small>
+            <h2>{{ 'Admin team members' if is_en else 'أعضاء فريق الإدارة' }}</h2>
+          </div>
+        </div>
+        <span class="at-selected-pill">
+          <strong id="adminTeamSelectedMirrorV150">0</strong>
+          {{ 'selected' if is_en else 'محدَّد' }}
+        </span>
+      </div>
+
+      <div class="at-action-bar is-disabled" id="adminTeamBulkV122" aria-live="polite">
+        <div class="at-action-status">
+          <strong><span id="adminTeamSelectedV122">0</span> {{ 'selected' if is_en else 'محدَّد' }}</strong>
+          <small id="adminTeamSelectedHintV125">{{ 'Select a staff member to enable admin actions' if is_en else 'حدِّد عضو إدارة لتفعيل الإجراءات' }}</small>
+        </div>
+        <div class="at-action-buttons">
+          <a class="hu-btn hu-btn-ghost is-sm disabled" href="#" id="adminTeamProfileV125" aria-disabled="true">▤ {{ 'Profile' if is_en else 'فتح الملف' }}</a>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" id="adminTeamPermissionsV125" data-requires-selected disabled>⚙ {{ 'Permissions' if is_en else 'الصلاحيات' }}</button>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" id="adminTeamMessageV125" data-requires-selected disabled>✉ {{ 'Message' if is_en else 'إرسال رسالة' }}</button>
+          <button class="hu-btn hu-btn-primary is-sm" type="submit" name="bulk_action" value="activate" id="adminTeamToggleV125" data-requires-selected disabled>● {{ 'Activate' if is_en else 'تفعيل' }}</button>
+          <button class="hu-btn hu-btn-danger is-sm" type="submit" name="bulk_action" value="remove_staff" data-requires-selected data-confirm="{{ 'Remove this staff member from admin team?' if is_en else 'حذف هذا العضو من فريق الإدارة؟' }}" disabled>🗑 {{ 'Delete' if is_en else 'حذف' }}</button>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" id="adminTeamClearV122" disabled>{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
+        </div>
+      </div>
+
+      <div class="at-list-head">
+        <span>{{ 'Avatar' if is_en else 'الصورة' }}</span>
+        <span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span>
+        <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+        <span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span>
+        <span>{{ 'Role' if is_en else 'الدور' }}</span>
+        <span>{{ 'Access' if is_en else 'الوصول' }}</span>
+        <span>{{ 'Assigned support' if is_en else 'الدعم المكلَّف' }}</span>
+        <span><input type="checkbox" id="adminTeamSelectAllV150" class="at-check" aria-label="{{ 'Select visible' if is_en else 'تحديد الظاهر' }}"></span>
+      </div>
+
+      {% for u in users %}
+        {% set role_code = (u.role or 'user')|lower %}
+        {% set support = support_map.get(u.id, {'mail':0,'tickets':0}) %}
+        {% set support_total = (support.mail or 0) + (support.tickets or 0) %}
+        <article class="at-row" data-admin-team-row data-user-id="{{ u.id }}" data-role="{{ role_code }}" data-status="{{ 'active' if u.is_active else 'disabled' }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}" data-display-name="{{ u.full_name or u.username }}" data-search="{{ (u.full_name or '')|lower }} {{ u.username|lower }} {{ (u.email or '')|lower }} {{ role_label(role_code, ui_lang)|lower }}">
+          <a class="at-person-link" href="{{ url_for('main.admin_user_profile', user_id=u.id, lang=ui_lang, staff=1) }}">
+            <span class="at-person-avatar">{{ (u.full_name or u.username or 'U')[:1]|upper }}</span>
+          </a>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Username' if is_en else 'اسم المستخدم' }}</span>
+            <strong>@{{ u.username }}</strong>
+          </div>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Full name' if is_en else 'الاسم' }}</span>
+            <strong>{{ u.full_name or u.username }}</strong>
+          </div>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Email' if is_en else 'البريد' }}</span>
+            <small>{% if u.email %}{{ mask_email(u.email) }}{% else %}—{% endif %}</small>
+          </div>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Role' if is_en else 'الدور' }}</span>
+            <strong>{{ role_label(role_code, ui_lang) }}</strong>
+          </div>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Access' if is_en else 'الوصول' }}</span>
+            <div class="at-pill-row">
+              <span class="at-pill {{ 'success' if u.is_active else 'danger' }}">{{ ('Active' if u.is_active else 'Disabled') if is_en else ('نشط' if u.is_active else 'معطَّل') }}</span>
+              <span class="at-pill {{ 'warning' if role_code == 'admin' else 'muted' }}">{{ ('Full admin' if role_code == 'admin' else 'Limited') if is_en else ('مدير كامل' if role_code == 'admin' else 'محدَّد') }}</span>
+            </div>
+          </div>
+          <div class="at-cell">
+            <span class="at-cell-label">{{ 'Support' if is_en else 'الدعم' }}</span>
+            {% if support_total %}
+              <div class="at-pill-row">
+                <span class="at-support-badge mail">✉ {{ support.mail or 0 }} {{ 'mail' if is_en else 'رسائل' }}</span>
+                <span class="at-support-badge ticket">🎫 {{ support.tickets or 0 }} {{ 'tickets' if is_en else 'تذاكر' }}</span>
+              </div>
+            {% else %}
+              <strong style="color:var(--at-muted)">{{ 'None' if is_en else 'لا يوجد' }}</strong>
+            {% endif %}
+          </div>
+          <div>
+            <input type="checkbox" class="at-check admin-team-check-v122" name="user_ids" value="{{ u.id }}">
+          </div>
+        </article>
+      {% else %}
+        <div class="at-empty"><span>👥</span>{{ 'No staff accounts yet.' if is_en else 'لا يوجد أعضاء إدارة بعد.' }}</div>
+      {% endfor %}
+
+      <div class="at-pager" id="adminTeamPager">
+        <div class="at-pager-info" data-pager-info></div>
+        <div class="at-pager-pages" data-pager-pages></div>
       </div>
     </form>
 
+    {# ═══════════════ DIALOGS (per-user) ═══════════════ #}
+
+
+    {# ═════════ Modals (m2 system — clean div overlays) ═════════ #}
     {% for u in users %}
       {% set role_code = (u.role or 'user')|lower %}
-      <dialog class="admin-team-modal-v125" id="staffPermDialog{{ u.id }}">
-        <form method="post" class="admin-team-modal-card-v125">
+      {% set initial = (u.full_name or u.username or 'U')[:1]|upper %}
+
+      {# Permissions modal (single user) #}
+      <div class="m2-overlay" id="permModal-{{ u.id }}" data-m2 hidden>
+        <form method="post" class="m2-card">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="bulk_action" value="quick_permissions">
           <input type="hidden" name="user_ids" value="{{ u.id }}">
-          <header>
-            <div><small>{{ 'Quick permissions' if is_en else 'صلاحيات سريعة' }}</small><h3>{{ u.full_name or u.username }}</h3></div>
-            <button type="button" class="modal-close-v125" data-close-dialog>×</button>
-          </header>
-          <label class="admin-team-modal-role-v125"><span>{{ 'Role' if is_en else 'الدور' }}</span>
-            <select class="form-select" name="role">
-              {% for role in available_roles() %}
-                {% if role.code not in ['user','subscriber','customer'] %}
-                  <option value="{{ role.code }}" {% if role_code == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>
+
+          <div class="m2-bar">
+            <button type="button" class="m2-close" data-m2-close aria-label="إغلاق">×</button>
+          </div>
+
+          <div class="m2-person">
+            <span class="m2-avatar lock">{{ initial }}</span>
+            <strong class="m2-name">{{ u.full_name or u.username }}</strong>
+            <small class="m2-handle">@{{ u.username }}</small>
+            <span class="m2-chip amber">🔐 {{ 'Permissions' if is_en else 'إدارة الصلاحيات' }}</span>
+          </div>
+
+          <div class="m2-body">
+            <div class="m2-field">
+              <span class="m2-section-label">🎭 {{ 'Base role' if is_en else 'الدور الأساسي' }}</span>
+              <select class="m2-select" name="role">
+                {% for role in available_roles() %}
+                  {% if role.code not in ['user','subscriber','customer'] %}
+                    <option value="{{ role.code }}" {% if role_code == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <span class="m2-field-hint">ℹ️ {{ 'Sets default permissions automatically' if is_en else 'يضبط الصلاحيات الافتراضية تلقائياً' }}</span>
+            </div>
+
+            <div class="m2-section-label">⚙️ {{ 'Granular permissions' if is_en else 'صلاحيات تفصيلية' }}</div>
+            {% set perm_groups = [
+              ('👥', '#a78bfa,#7c3aed', ('Members & roles' if is_en else 'الأعضاء والصلاحيات'), ['can_manage_users','can_manage_roles','can_manage_portal_visibility']),
+              ('🔌', '#60a5fa,#2563eb', ('Devices & integrations' if is_en else 'الأجهزة والتكاملات'), ['can_manage_devices','can_manage_integrations','can_configure_integrations']),
+              ('🎧', '#34d399,#10b981', ('Support' if is_en else 'الدعم'), ['can_manage_support']),
+              ('💰', '#fbbf24,#f59e0b', ('Finance' if is_en else 'المالية'), ['can_manage_finance','can_manage_subscriptions']),
+              ('💾', '#fb7185,#f43f5e', ('System & backups' if is_en else 'النظام والنسخ الاحتياطي'), ['can_manage_backups','can_view_logs','can_manage_system']),
+              ('📱', '#a78bfa,#6d3aff', ('Mobile API' if is_en else 'تطبيق الموبايل'), ['can_access_mobile_api']),
+            ] %}
+            {% set all_perms = permission_rows_by_user.get(u.id, []) %}
+            {% set perms_by_key = {} %}
+            {% for p in all_perms %}{% set _ = perms_by_key.update({p.key: p}) %}{% endfor %}
+
+            <div class="m2-perm-groups">
+              {% for icon, grad, gname, keys in perm_groups %}
+                {% set group_perms = [] %}
+                {% for k in keys %}{% if k in perms_by_key %}{% set _ = group_perms.append(perms_by_key[k]) %}{% endif %}{% endfor %}
+                {% if group_perms %}
+                <div class="m2-perm-group">
+                  <div class="m2-perm-group-title">
+                    <span class="m2-perm-group-title-icon" style="background:linear-gradient(135deg,{{ grad }})">{{ icon }}</span>
+                    {{ gname }}
+                  </div>
+                  {% for perm in group_perms %}
+                  <label class="m2-perm {{ 'is-on' if perm.checked else '' }}">
+                    <input type="checkbox" name="{{ perm.key }}" {% if perm.checked %}checked{% endif %}>
+                    <span class="m2-perm-label">{{ perm.label }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
                 {% endif %}
               {% endfor %}
-            </select>
-          </label>
-          <div class="admin-team-perm-grid-v125">
-            {% for perm in permission_rows_by_user.get(u.id, []) %}
-              <label class="admin-team-perm-card-v125 {{ 'is-on' if perm.checked else '' }}">
-                <input type="checkbox" name="{{ perm.key }}" {% if perm.checked %}checked{% endif %}>
-                <span>{{ perm.label }}</span>
-                <small>{{ perm.group }}</small>
-              </label>
-            {% endfor %}
+            </div>
           </div>
-          <footer>
-            <button class="btn btn-solar" type="submit">{{ 'Save permissions' if is_en else 'حفظ الصلاحيات' }}</button>
-            <button class="btn btn-outline-secondary" type="button" data-close-dialog>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
-          </footer>
-        </form>
-      </dialog>
 
-      <dialog class="admin-team-modal-v125" id="staffMessageDialog{{ u.id }}">
-        <form method="post" class="admin-team-modal-card-v125">
+          <div class="m2-foot">
+            <span class="m2-foot-meta">🔒 {{ 'Saves immediately' if is_en else 'يُحفظ فوراً' }}</span>
+            <div class="m2-foot-actions">
+              <button class="m2-btn m2-btn-ghost" type="button" data-m2-close>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+              <button class="m2-btn m2-btn-primary" type="submit">💾 {{ 'Save' if is_en else 'حفظ' }}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {# Single-user message modal #}
+      <div class="m2-overlay" id="msgModal-{{ u.id }}" data-m2 hidden>
+        <form method="post" class="m2-card">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="bulk_action" value="send_staff_message">
           <input type="hidden" name="user_ids" value="{{ u.id }}">
-          <header>
-            <div><small>{{ 'Internal message' if is_en else 'رسالة داخلية' }}</small><h3>{{ u.full_name or u.username }}</h3></div>
-            <button type="button" class="modal-close-v125" data-close-dialog>×</button>
-          </header>
-          <div class="admin-team-message-grid-v125">
-            <label><span>{{ 'Subject' if is_en else 'الموضوع' }}</span><input class="form-control" name="subject" required></label>
-            <label><span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
-              <select class="form-select" name="priority">
-                <option value="normal">{{ 'Normal' if is_en else 'عادي' }}</option>
-                <option value="important">{{ 'Important' if is_en else 'مهم' }}</option>
-                <option value="urgent">{{ 'Urgent' if is_en else 'عاجل' }}</option>
-              </select>
-            </label>
-            <label class="full"><span>{{ 'Message' if is_en else 'نص الرسالة' }}</span><textarea class="form-control" name="body" rows="5" required></textarea></label>
+
+          <div class="m2-bar">
+            <button type="button" class="m2-close" data-m2-close aria-label="إغلاق">×</button>
           </div>
-          <footer>
-            <button class="btn btn-solar" type="submit">{{ 'Send message' if is_en else 'إرسال الرسالة' }}</button>
-            <button class="btn btn-outline-secondary" type="button" data-close-dialog>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
-          </footer>
+
+          <div class="m2-person">
+            <span class="m2-avatar mail">{{ initial }}</span>
+            <strong class="m2-name">{{ u.full_name or u.username }}</strong>
+            <small class="m2-handle">@{{ u.username }}{% if u.email %} · {{ mask_email(u.email) }}{% endif %}</small>
+            <span class="m2-chip sky">📧 {{ 'New message' if is_en else 'رسالة داخلية جديدة' }}</span>
+          </div>
+
+          <div class="m2-body">
+            <div class="m2-field">
+              <span class="m2-section-label">⚡ {{ 'Priority' if is_en else 'الأولوية' }}</span>
+              <div class="m2-priority">
+                <input type="radio" name="priority" id="p-n-{{ u.id }}" value="normal" checked>
+                <label for="p-n-{{ u.id }}" class="normal">🟢 {{ 'Normal' if is_en else 'عادية' }}</label>
+                <input type="radio" name="priority" id="p-i-{{ u.id }}" value="important">
+                <label for="p-i-{{ u.id }}" class="important">🟡 {{ 'Important' if is_en else 'مهمة' }}</label>
+                <input type="radio" name="priority" id="p-u-{{ u.id }}" value="urgent">
+                <label for="p-u-{{ u.id }}" class="urgent">🔴 {{ 'Urgent' if is_en else 'عاجلة' }}</label>
+              </div>
+            </div>
+
+            <div class="m2-field">
+              <label for="s-{{ u.id }}">📌 {{ 'Subject' if is_en else 'الموضوع' }}</label>
+              <input class="m2-input" type="text" id="s-{{ u.id }}" name="subject" required placeholder="{{ 'Brief title…' if is_en else 'عنوان مختصر…' }}">
+            </div>
+
+            <div class="m2-field">
+              <label for="b-{{ u.id }}">💬 {{ 'Message body' if is_en else 'نص الرسالة' }}</label>
+              <textarea class="m2-textarea" id="b-{{ u.id }}" name="body" rows="5" required placeholder="{{ 'Write your message…' if is_en else 'اكتب رسالتك هنا…' }}"></textarea>
+              <span class="m2-field-hint">💡 {{ 'Recipient gets a notification immediately.' if is_en else 'المستلم سيحصل على إشعار فوري.' }}</span>
+            </div>
+          </div>
+
+          <div class="m2-foot">
+            <span class="m2-foot-meta">🔐 {{ 'Internal — staff only' if is_en else 'داخلية — للفريق فقط' }}</span>
+            <div class="m2-foot-actions">
+              <button class="m2-btn m2-btn-ghost" type="button" data-m2-close>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+              <button class="m2-btn m2-btn-primary" type="submit">📤 {{ 'Send' if is_en else 'إرسال' }}</button>
+            </div>
+          </div>
         </form>
-      </dialog>
+      </div>
     {% endfor %}
+
+    {# Multi-recipient (broadcast) message modal — single shared element #}
+    <div class="m2-overlay" id="msgModalMulti" data-m2 hidden>
+      <form method="post" class="m2-card">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="bulk_action" value="send_staff_message">
+        <div data-multi-ids></div>
+
+        <div class="m2-bar">
+          <button type="button" class="m2-close" data-m2-close aria-label="إغلاق">×</button>
+        </div>
+
+        <div class="m2-person">
+          <span class="m2-avatar broadcast">📤</span>
+          <strong class="m2-name">{{ 'Group message' if is_en else 'رسالة جماعية' }}</strong>
+          <small class="m2-handle">{{ 'Broadcast to multiple staff' if is_en else 'بثّ لعدد من أعضاء الإدارة' }}</small>
+          <span class="m2-chip emerald">📧 {{ 'Broadcast' if is_en else 'بثّ جماعي' }}</span>
+        </div>
+
+        <div class="m2-body">
+          <div class="m2-recipients">
+            <span class="m2-recipients-count">📬 {{ 'Sending to' if is_en else 'إرسال إلى' }} <strong data-multi-count>0</strong> {{ 'recipients' if is_en else 'مستلمين' }}</span>
+            <div class="m2-recipients-list" data-multi-list></div>
+          </div>
+
+          <div class="m2-field">
+            <span class="m2-section-label">⚡ {{ 'Priority' if is_en else 'الأولوية' }}</span>
+            <div class="m2-priority">
+              <input type="radio" name="priority" id="m-p-n" value="normal" checked>
+              <label for="m-p-n" class="normal">🟢 {{ 'Normal' if is_en else 'عادية' }}</label>
+              <input type="radio" name="priority" id="m-p-i" value="important">
+              <label for="m-p-i" class="important">🟡 {{ 'Important' if is_en else 'مهمة' }}</label>
+              <input type="radio" name="priority" id="m-p-u" value="urgent">
+              <label for="m-p-u" class="urgent">🔴 {{ 'Urgent' if is_en else 'عاجلة' }}</label>
+            </div>
+          </div>
+
+          <div class="m2-field">
+            <label for="multi-s">📌 {{ 'Subject' if is_en else 'الموضوع' }}</label>
+            <input class="m2-input" type="text" id="multi-s" name="subject" required placeholder="{{ 'Brief title…' if is_en else 'عنوان مختصر…' }}">
+          </div>
+
+          <div class="m2-field">
+            <label for="multi-b">💬 {{ 'Message body' if is_en else 'نص الرسالة' }}</label>
+            <textarea class="m2-textarea" id="multi-b" name="body" rows="5" required placeholder="{{ 'Write — sent to all selected…' if is_en else 'اكتب رسالتك — تُرسل لكل من اخترتهم…' }}"></textarea>
+            <span class="m2-field-hint">💡 {{ 'Each recipient gets a separate notification.' if is_en else 'كل مستلم سيحصل على إشعار منفصل.' }}</span>
+          </div>
+        </div>
+
+        <div class="m2-foot">
+          <span class="m2-foot-meta">🔐 {{ 'Internal broadcast' if is_en else 'بثّ داخلي للفريق' }}</span>
+          <div class="m2-foot-actions">
+            <button class="m2-btn m2-btn-ghost" type="button" data-m2-close>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+            <button class="m2-btn m2-btn-primary" type="submit">📤 {{ 'Send to all' if is_en else 'إرسال للكل' }}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
   </main>
 </div>
+
 <script>
+/* ── m2 modal controller (super simple, robust) ── */
+window.m2 = {
+  open(id){
+    const m = document.getElementById(id);
+    if(!m) return;
+    m.removeAttribute('hidden');
+    m.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  },
+  close(id){
+    const m = id ? document.getElementById(id) : document.querySelector('.m2-overlay.is-open');
+    if(!m) return;
+    m.classList.remove('is-open');
+    m.setAttribute('hidden', '');
+    document.body.style.overflow = '';
+  }
+};
+document.addEventListener('click', e => {
+  // backdrop click closes
+  if(e.target.classList && e.target.classList.contains('m2-overlay')) m2.close(e.target.id);
+  // close buttons
+  if(e.target.closest && e.target.closest('[data-m2-close]')){
+    const o = e.target.closest('.m2-overlay');
+    if(o) m2.close(o.id);
+  }
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') m2.close();
+});
+/* Live perm-card visual toggle */
+document.addEventListener('change', e => {
+  if(e.target.matches('.m2-perm input[type="checkbox"]')){
+    e.target.closest('.m2-perm').classList.toggle('is-on', e.target.checked);
+  }
+});
+
+/* ── Team page logic ── */
 (function(){
+  const isEn = {{ 'true' if is_en else 'false' }};
+  const PAGE_SIZE = 10;
+
   const q = document.getElementById('adminTeamSearchV122');
   const role = document.getElementById('adminTeamRoleFilterV122');
-  const rows = Array.from(document.querySelectorAll('[data-admin-team-row]'));
+  const allRows = Array.from(document.querySelectorAll('[data-admin-team-row]'));
   const checks = Array.from(document.querySelectorAll('.admin-team-check-v122'));
   const selectAll = document.getElementById('adminTeamSelectAllV150');
   const bar = document.getElementById('adminTeamBulkV122');
@@ -191,63 +444,177 @@
   const permissions = document.getElementById('adminTeamPermissionsV125');
   const message = document.getElementById('adminTeamMessageV125');
   const toggle = document.getElementById('adminTeamToggleV125');
-  const gated = Array.from(document.querySelectorAll('[data-requires-selected]'));
-  function visible(row){
-    const text = (q?.value || '').toLowerCase().trim();
-    const roleValue = role?.value || 'all';
-    return (!text || (row.dataset.search || '').includes(text)) && (roleValue === 'all' || row.dataset.role === roleValue);
+  const deleteBtn = document.querySelector('button[name="bulk_action"][value="remove_staff"]');
+
+  let currentPage = 1;
+
+  function rowMatchesFilter(row){
+    const text = (q && q.value || '').toLowerCase().trim();
+    const roleVal = (role && role.value) || 'all';
+    return (!text || (row.dataset.search || '').includes(text)) &&
+           (roleVal === 'all' || row.dataset.role === roleVal);
   }
-  function filter(){ rows.forEach(row => row.style.display = visible(row) ? '' : 'none'); }
-  function openDialog(prefix, row){
-    if(!row) return;
-    const dialog = document.getElementById(`${prefix}${row.dataset.userId}`);
-    if(dialog?.showModal) dialog.showModal();
+  function filteredRows(){ return allRows.filter(rowMatchesFilter); }
+
+  /* Pagination */
+  const pagerHost = document.getElementById('adminTeamPager');
+  const pagerInfo = pagerHost && pagerHost.querySelector('[data-pager-info]');
+  const pagerPages = pagerHost && pagerHost.querySelector('[data-pager-pages]');
+  function pageWindow(cur, total){
+    if(total<=7) return Array.from({length:total},(_,i)=>i+1);
+    const out=[1];const l=Math.max(2,cur-1),r=Math.min(total-1,cur+1);
+    if(l>2)out.push('…');for(let p=l;p<=r;p++)out.push(p);if(r<total-1)out.push('…');out.push(total);return out;
   }
+  function applyPagination(){
+    const filtered = filteredRows();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if(currentPage>totalPages) currentPage=totalPages;
+    if(currentPage<1) currentPage=1;
+    const start = (currentPage-1)*PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    allRows.forEach(r => r.style.display='none');
+    filtered.slice(start, end).forEach(r => r.style.display='');
+    if(pagerHost){
+      if(filtered.length === 0){ pagerHost.style.display='none'; return; }
+      pagerHost.style.display='';
+      if(pagerInfo){
+        pagerInfo.innerHTML = (isEn?'Showing ':'عرض ') + '<b>' + (start+1) + '–' + Math.min(end,filtered.length) + '</b> ' + (isEn?'of':'من') + ' <b>' + filtered.length + '</b>';
+      }
+      if(pagerPages){
+        pagerPages.innerHTML = '';
+        const prev = document.createElement('button');
+        prev.type='button'; prev.className='at-pager-btn'; prev.textContent = isEn?'Prev':'السابق';
+        prev.disabled = currentPage<=1;
+        prev.addEventListener('click', () => { currentPage--; applyPagination(); });
+        pagerPages.appendChild(prev);
+        pageWindow(currentPage, totalPages).forEach(p => {
+          if(p === '…'){ const s=document.createElement('span'); s.className='at-pager-ellipsis'; s.textContent='…'; pagerPages.appendChild(s); return; }
+          const btn = document.createElement('button');
+          btn.type='button';
+          btn.className = 'at-pager-btn' + (p===currentPage ? ' is-active' : '');
+          btn.textContent = String(p);
+          btn.addEventListener('click', () => { currentPage = p; applyPagination(); });
+          pagerPages.appendChild(btn);
+        });
+        const next = document.createElement('button');
+        next.type='button'; next.className='at-pager-btn'; next.textContent = isEn?'Next':'التالي';
+        next.disabled = currentPage>=totalPages;
+        next.addEventListener('click', () => { currentPage++; applyPagination(); });
+        pagerPages.appendChild(next);
+      }
+    }
+  }
+
+  /* Smart button enabling */
+  function setBtnDisabled(el, disabled){
+    if(!el) return;
+    if(el.tagName === 'A'){
+      el.classList.toggle('disabled', disabled);
+      el.setAttribute('aria-disabled', String(disabled));
+      if(disabled) el.setAttribute('tabindex','-1'); else el.removeAttribute('tabindex');
+    } else {
+      el.disabled = disabled;
+    }
+  }
+
   function update(){
     const selected = checks.filter(c => c.checked);
-    if(count) count.textContent = selected.length;
-    if(mirror) mirror.textContent = selected.length;
-    const disabled = selected.length === 0;
-    bar?.classList.toggle('is-disabled', disabled);
-    bar?.classList.toggle('is-active', !disabled);
-    gated.forEach(item => item.disabled = disabled);
-    if(clear) clear.disabled = selected.length === 0;
-    const firstRow = selected[0]?.closest('[data-admin-team-row]');
-    if(hint) hint.textContent = firstRow ? (selected.length === 1 ? firstRow.dataset.displayName : `${selected.length} ${'{{ 'staff members selected' if is_en else 'أعضاء إدارة محددين' }}'}`) : "{{ 'Select a staff member to enable admin actions' if is_en else 'حدد عضو إدارة لتفعيل الإجراءات' }}";
-    if(profile){
-      profile.href = firstRow?.dataset.profileUrl || '#';
-      profile.classList.toggle('disabled', disabled);
-      profile.setAttribute('aria-disabled', String(disabled));
+    const n = selected.length;
+    const any = n > 0, one = n === 1;
+    if(count) count.textContent = n;
+    if(mirror) mirror.textContent = n;
+    if(bar){ bar.classList.toggle('is-disabled', !any); bar.classList.toggle('is-active', any); }
+    const firstRow = selected[0] && selected[0].closest('[data-admin-team-row]');
+    if(hint){
+      if(n===0) hint.textContent = isEn?'Select staff to enable actions':'حدِّد عضو/أعضاء لتفعيل الإجراءات';
+      else if(n===1) hint.textContent = (isEn?'Selected: ':'المحدَّد: ') + (firstRow?firstRow.dataset.displayName:'');
+      else hint.textContent = (isEn?(n+' members selected — only group actions available'):('تم تحديد '+n+' أعضاء — تتفعّل الإجراءات الجماعية فقط'));
     }
+    setBtnDisabled(profile,     !one);
+    setBtnDisabled(permissions, !one);
+    setBtnDisabled(message,     !any);
+    setBtnDisabled(toggle,      !any);
+    setBtnDisabled(deleteBtn,   !any);
+    setBtnDisabled(clear,       !any);
+    if(profile) profile.href = (one && firstRow && firstRow.dataset.profileUrl) ? firstRow.dataset.profileUrl : '#';
     if(toggle){
-      const isActive = firstRow?.dataset.status === 'active';
+      const allActive = any && selected.every(c => c.closest('[data-admin-team-row]').dataset.status === 'active');
+      const isActive = one ? (firstRow && firstRow.dataset.status === 'active') : allActive;
       toggle.value = isActive ? 'disable' : 'activate';
-      toggle.innerHTML = isActive ? "◐ {{ 'Disable' if is_en else 'تعطيل' }}" : "● {{ 'Activate' if is_en else 'تفعيل' }}";
-      toggle.classList.toggle('btn-outline-secondary', isActive);
-      toggle.classList.toggle('btn-solar', !isActive);
+      toggle.innerHTML = isActive
+        ? (isEn ? '◐ Disable' + (n>1?' all':'') : '◐ تعطيل' + (n>1?' الكل':''))
+        : (isEn ? '● Activate' + (n>1?' all':'') : '● تفعيل' + (n>1?' الكل':''));
     }
-    rows.forEach(row => row.classList.toggle('is-selected', !!row.querySelector('.admin-team-check-v122')?.checked));
+    allRows.forEach(row => {
+      const c = row.querySelector('.admin-team-check-v122');
+      row.classList.toggle('is-selected', !!(c && c.checked));
+    });
   }
-  q?.addEventListener('input', filter);
-  role?.addEventListener('change', filter);
-  selectAll?.addEventListener('change', () => {
-    rows.filter(row => row.style.display !== 'none').forEach(row => {
-      const check = row.querySelector('.admin-team-check-v122');
-      if(check) check.checked = selectAll.checked;
+
+  if(q) q.addEventListener('input', () => { currentPage=1; applyPagination(); });
+  if(role) role.addEventListener('change', () => { currentPage=1; applyPagination(); });
+  checks.forEach(c => c.addEventListener('change', update));
+  if(selectAll) selectAll.addEventListener('change', () => {
+    allRows.forEach(row => {
+      if(row.style.display === 'none') return;
+      const c = row.querySelector('.admin-team-check-v122');
+      if(c) c.checked = selectAll.checked;
     });
     update();
   });
-  checks.forEach(c => c.addEventListener('change', () => {
-    if(c.checked) checks.forEach(other => { if(other !== c) other.checked = false; });
-    update();
+  if(clear) clear.addEventListener('click', () => { checks.forEach(c => c.checked=false); if(selectAll) selectAll.checked=false; update(); });
+
+  /* Permissions: only single */
+  if(permissions) permissions.addEventListener('click', () => {
+    const sel = checks.filter(c => c.checked);
+    if(sel.length !== 1) return;
+    const row = sel[0].closest('[data-admin-team-row]');
+    m2.open('permModal-' + row.dataset.userId);
+  });
+
+  /* Message: single → personal modal; multi → broadcast modal */
+  if(message) message.addEventListener('click', () => {
+    const sel = checks.filter(c => c.checked);
+    if(sel.length === 0) return;
+    if(sel.length === 1){
+      const row = sel[0].closest('[data-admin-team-row]');
+      m2.open('msgModal-' + row.dataset.userId);
+    } else {
+      const dialog = document.getElementById('msgModalMulti');
+      const idsHolder = dialog.querySelector('[data-multi-ids]');
+      const list = dialog.querySelector('[data-multi-list]');
+      const cnt = dialog.querySelector('[data-multi-count]');
+      idsHolder.innerHTML = '';
+      list.innerHTML = '';
+      sel.forEach(c => {
+        const row = c.closest('[data-admin-team-row]');
+        const inp = document.createElement('input');
+        inp.type='hidden'; inp.name='user_ids'; inp.value=row.dataset.userId;
+        idsHolder.appendChild(inp);
+        const chip = document.createElement('span');
+        chip.className='m2-recipient-chip';
+        const av = document.createElement('span');
+        av.className='m2-recipient-chip-avatar';
+        av.textContent = (row.dataset.displayName || 'U').charAt(0).toUpperCase();
+        chip.appendChild(av);
+        chip.appendChild(document.createTextNode(' ' + (row.dataset.displayName || row.dataset.userId)));
+        list.appendChild(chip);
+      });
+      cnt.textContent = sel.length;
+      m2.open('msgModalMulti');
+    }
+  });
+
+  if(profile) profile.addEventListener('click', e => {
+    if(profile.getAttribute('aria-disabled') === 'true') e.preventDefault();
+  });
+
+  document.querySelectorAll('[data-confirm]').forEach(btn => btn.addEventListener('click', e => {
+    if(!confirm(btn.dataset.confirm || 'Confirm?')) e.preventDefault();
   }));
-  permissions?.addEventListener('click', () => openDialog('staffPermDialog', checks.find(c => c.checked)?.closest('[data-admin-team-row]')));
-  message?.addEventListener('click', () => openDialog('staffMessageDialog', checks.find(c => c.checked)?.closest('[data-admin-team-row]')));
-  clear?.addEventListener('click', () => { checks.forEach(c => c.checked = false); update(); });
-  document.querySelectorAll('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog')?.close()));
-  document.querySelectorAll('.admin-team-modal-v125').forEach(dialog => dialog.addEventListener('click', event => { if(event.target === dialog) dialog.close(); }));
-  document.querySelectorAll('[data-confirm]').forEach(btn => btn.addEventListener('click', event => { if(!confirm(btn.dataset.confirm || 'Confirm?')) event.preventDefault(); }));
-  filter(); update();
+
+  applyPagination();
+  update();
 })();
 </script>
 {% endblock %}

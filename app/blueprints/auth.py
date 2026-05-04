@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -28,7 +28,7 @@ from ..services.support_ops import unread_counts
 from ..services.rbac import admin_landing_url
 from ..services.access_state import account_access_state
 from ..services.energy_integrations import PROVIDER_CATALOG
-from ..services.location_catalog import countries_for_template, timezones_for_template, find_country
+from ..services.location_catalog import countries_for_template, timezones_for_template, timezones_grouped_for_template, find_country
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -236,6 +236,7 @@ def login():
 def register():
     country_options = countries_for_template()
     timezone_options = timezones_for_template()
+    timezone_groups = timezones_grouped_for_template()
     provider_options = [
         {'code': p.code, 'name': p.name, 'category': p.category, 'notes_ar': p.notes_ar, 'notes_en': p.notes_en}
         for p in PROVIDER_CATALOG[:22]
@@ -322,7 +323,7 @@ def register():
                 flash('يمكنك استكشاف الخدمات الآن وإضافة جهاز لاحقًا من صفحة أجهزتي.', 'info')
                 return redirect(url_for('main.account_subscription', lang=preferred_language))
             return redirect(url_for('main.onboarding_wizard', lang=preferred_language))
-    return render_template('register.html', country_options=country_options, timezone_options=timezone_options, provider_options=provider_options, form_values=form_values)
+    return render_template('register.html', country_options=country_options, timezone_options=timezone_options, timezone_groups=timezone_groups, provider_options=provider_options, form_values=form_values)
 
 
 

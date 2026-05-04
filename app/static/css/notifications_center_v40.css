@@ -4,15 +4,16 @@
    ===================================================================== */
 
 :root {
-  --ncv40-bg: #f1f5fb;
+  /* Aligned with SolarDeye design system §1 (auth pages, admin dashboard) */
+  --ncv40-bg: #eef3fb;
   --ncv40-surface: #ffffff;
   --ncv40-surface-2: #f8fafc;
-  --ncv40-border: #e3eaf4;
+  --ncv40-border: #e3eaf6;          /* --xx-line */
   --ncv40-border-2: #eef2f8;
-  --ncv40-text: #0f172a;
-  --ncv40-text-2: #334155;
-  --ncv40-muted: #64748b;
-  --ncv40-soft-muted: #94a3b8;
+  --ncv40-text: #0b1220;             /* --xx-ink */
+  --ncv40-text-2: #1f2a44;           /* --xx-ink-soft */
+  --ncv40-muted: #4a5b78;            /* --xx-muted (WCAG AA) */
+  --ncv40-soft-muted: #bcc8df;       /* --xx-line-strong */
 
   --ncv40-primary: #2563eb;
   --ncv40-primary-soft: #eff6ff;
@@ -45,32 +46,35 @@
 /* =====================  Page Shell  ===================== */
 .ncv40-page {
   min-height: 100vh;
+  /* Standard SolarDeye page background — same on dashboard, auth, admin */
   background:
-    radial-gradient(1200px 600px at 100% -200px, rgba(37, 99, 235, .07), transparent 60%),
-    radial-gradient(900px 500px at -200px 200px, rgba(124, 58, 237, .05), transparent 60%),
-    var(--ncv40-bg) !important;
-  padding: 26px 28px 60px !important;
+    radial-gradient(1100px 480px at 12% -10%, rgba(109,58,255,.10), transparent 55%),
+    radial-gradient(900px 420px at 92% -4%, rgba(245,158,11,.10), transparent 55%),
+    linear-gradient(180deg, #f5f8ff 0%, #eef3fb 60%, #e8eef9 100%) !important;
+  padding: 22px clamp(14px,2.4vw,28px) 56px !important;
   color: var(--ncv40-text);
   overflow: visible !important;
+  font-family: 'Cairo', 'Inter', system-ui, sans-serif;
 }
+/* Explicit, !important inter-section spacing — survives any global ruleset */
+.ncv40-page > .ncv40-hero    { margin: 0 0 0 0 !important }
+.ncv40-page > .ncv40-stats   { margin: 26px 0 0 0 !important }
+.ncv40-page > .ncv40-toolbar { margin: 26px 0 0 0 !important }
+.ncv40-page > .ncv40-grid    { margin: 26px 0 0 0 !important }
+.ncv40-page > .ncv40-list-card { margin: 26px 0 0 0 !important }
+.ncv40-page > section,
+.ncv40-page > header { margin-block-start: 26px !important }
+.ncv40-page > :first-child { margin-block-start: 0 !important }
 
 [dir="rtl"] .ncv40-page { direction: rtl; }
 
-/* =====================  Hero  ===================== */
+/* =====================  Hero  =====================
+   The unified .hu-hero (unified_hero_v1.css) drives the visual now.
+   We only keep neutral grid/spacing here; legacy ::before/::after below
+   are retained as no-ops because .hu-hero overrides them.
+=================================================== */
 .ncv40-hero {
   position: relative;
-  background:
-    linear-gradient(135deg, #1e293b 0%, #1e3a8a 50%, #4338ca 100%);
-  border-radius: var(--ncv40-radius-xl);
-  padding: 32px 36px;
-  color: #fff;
-  box-shadow: var(--ncv40-shadow-lg);
-  overflow: hidden;
-  margin-bottom: 22px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
-  align-items: center;
 }
 
 .ncv40-hero::before {
@@ -353,15 +357,17 @@
   border: 1px solid var(--ncv40-border);
   background: var(--ncv40-surface-2);
   border-radius: 12px;
-  height: 42px;
-  padding: 0 38px 0 14px;
+  height: 44px;
+  /* logical: 42px reserved for the icon on the START side, 14px on the END */
+  padding-block: 0;
+  padding-inline-start: 42px;
+  padding-inline-end: 14px;
   font-size: .9rem;
   font-weight: 600;
   color: var(--ncv40-text);
   outline: none;
   transition: var(--ncv40-transition);
 }
-[dir="rtl"] .ncv40-search input { padding: 0 14px 0 38px; }
 .ncv40-search input:focus {
   border-color: var(--ncv40-primary);
   background: #fff;
@@ -370,14 +376,13 @@
 .ncv40-search svg {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-end: 12px;
+  inset-inline-start: 14px;
   transform: translateY(-50%);
   width: 18px; height: 18px;
-  fill: none; stroke: var(--ncv40-soft-muted);
+  fill: none; stroke: var(--ncv40-muted);
   stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   pointer-events: none;
 }
-[dir="rtl"] .ncv40-search svg { inset-inline-end: auto; inset-inline-start: 12px; }
 
 /* =====================  Layout Grid  ===================== */
 .ncv40-grid {
@@ -478,9 +483,59 @@
   align-self: stretch;
 }
 
-.ncv40-row[data-kind="message"] { --row-color: var(--ncv40-primary); --row-soft: var(--ncv40-primary-soft); }
-.ncv40-row[data-kind="ticket"]  { --row-color: var(--ncv40-orange); --row-soft: var(--ncv40-orange-soft); }
-.ncv40-row[data-kind="system"]  { --row-color: var(--ncv40-green); --row-soft: var(--ncv40-green-soft); }
+/* Strong visual distinction between kinds */
+.ncv40-row[data-kind="message"] {
+  --row-color: var(--ncv40-primary);
+  --row-soft: var(--ncv40-primary-soft);
+  --row-deep: var(--ncv40-primary-deep);
+  --row-bar-w: 4px;
+}
+.ncv40-row[data-kind="ticket"]  {
+  --row-color: var(--ncv40-orange);
+  --row-soft: var(--ncv40-orange-soft);
+  --row-deep: var(--ncv40-orange-deep);
+  --row-bar-w: 6px;        /* tickets get a thicker bar — they are actionable */
+}
+.ncv40-row[data-kind="system"]  {
+  --row-color: var(--ncv40-green);
+  --row-soft: var(--ncv40-green-soft);
+  --row-deep: #047857;
+  --row-bar-w: 4px;
+}
+/* Make the side-bar always visible (not only on unread) so types pop instantly */
+.ncv40-row .ncv40-row-bar{
+  background: var(--row-color);
+  width: var(--row-bar-w, 4px);
+  opacity: .85;
+}
+/* Avatar reflects kind */
+.ncv40-row[data-kind="message"] .ncv40-row-avatar{
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(37,99,235,.22);
+}
+.ncv40-row[data-kind="ticket"] .ncv40-row-avatar{
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0b1531;
+  box-shadow: 0 6px 14px rgba(245,158,11,.28);
+}
+.ncv40-row[data-kind="system"] .ncv40-row-avatar{
+  background: linear-gradient(135deg, #34d399, #10b981);
+  color: #04221b;
+  box-shadow: 0 6px 14px rgba(16,185,129,.22);
+}
+/* Kind chip styling reflects the row color */
+.ncv40-row .ncv40-chip.kind{
+  background: var(--row-color);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+.ncv40-row[data-kind="ticket"] .ncv40-chip.kind{ color: #0b1531 }
+/* Soft tinted background on hover, color-coded */
+.ncv40-row[data-kind="message"]:hover{ background: var(--ncv40-primary-soft) }
+.ncv40-row[data-kind="ticket"]:hover { background: var(--ncv40-orange-soft) }
+.ncv40-row[data-kind="system"]:hover { background: var(--ncv40-green-soft) }
 
 .ncv40-row.is-unread {
   background: linear-gradient(90deg, var(--row-soft, #eff6ff) 0%, transparent 50%);
@@ -887,4 +942,94 @@
 @media (max-width: 480px) {
   .ncv40-stats { grid-template-columns: 1fr; }
   .ncv40-stat-value { font-size: 1.7rem; }
+}
+
+/* =====================  Pagination (10 per page, client-side)  ===================== */
+.ncv40-pager{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--ncv40-border);
+  background: var(--ncv40-surface-2);
+  flex-wrap: wrap;
+}
+.ncv40-pager-info{
+  font-size: .82rem;
+  color: var(--ncv40-muted);
+  font-weight: 800;
+}
+.ncv40-pager-info b{ color: var(--ncv40-text); font-weight: 950 }
+.ncv40-pager-pages{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ncv40-pager-btn{
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ncv40-border);
+  background: #fff;
+  color: var(--ncv40-text-2);
+  border-radius: 9px;
+  font-size: .82rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: var(--ncv40-transition);
+  font-family: inherit;
+}
+.ncv40-pager-btn:hover{
+  border-color: var(--ncv40-primary);
+  color: var(--ncv40-primary);
+  background: var(--ncv40-primary-soft);
+}
+.ncv40-pager-btn.is-active{
+  background: linear-gradient(135deg, #ffcf4d, #f59e0b);
+  border-color: transparent;
+  color: #0b1531;
+  box-shadow: 0 4px 10px rgba(245,158,11,.22);
+}
+.ncv40-pager-btn:disabled{
+  opacity: .4;
+  cursor: not-allowed;
+  background: var(--ncv40-surface-2);
+}
+.ncv40-pager-ellipsis{
+  color: var(--ncv40-muted);
+  padding: 0 4px;
+  font-weight: 900;
+}
+.ncv40-row.is-out-of-page{ display: none !important }
+@media (max-width: 640px){
+  .ncv40-pager{ flex-direction: column; align-items: stretch; gap: 10px }
+  .ncv40-pager-pages{ justify-content: center; flex-wrap: wrap }
+}
+
+/* Disable legacy ncv40-hero decorations — handled by unified .hu-hero */
+.ncv40-hero::before,
+.ncv40-hero::after { content: none !important; background: none !important; }
+.ncv40-hero-content,
+.ncv40-hero-actions,
+.ncv40-hero-badge { /* legacy hooks no longer used after unified migration */ }
+
+/* ── Hard kill: legacy .ncv40-hero descendants must not override unified hero ── */
+.ncv40-hero h1,
+.ncv40-hero p,
+.ncv40-hero .ncv40-hero-badge,
+.ncv40-hero .ncv40-hero-btn{
+  all:revert;
+}
+.ncv40-hero{
+  background:transparent !important;
+  color:inherit !important;
+  margin-bottom:0 !important;
+  display:block !important;
+  padding:0 !important;
+  box-shadow:none !important;
+  grid-template-columns:none !important;
 }

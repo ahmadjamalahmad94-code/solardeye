@@ -1,481 +1,1197 @@
 {% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v109-fix-form-action-popover-pos-20260504') }}">
+<script defer src="{{ url_for('static', filename='js/admin_user_profile.js', v='v109-fix-form-action-popover-pos-20260504') }}"></script>
+{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2">
-<header class="admin-page-head">
-  <div>
-    <span class="eyebrow">{{ 'Users hub' if is_en else 'مركز المستخدمين' }}</span>
-    <h1>{{ user_obj.full_name or user_obj.username }}</h1>
-    <p>{{ 'One complete page for identity, subscription, support, finance, quotas, devices, and activity.' if is_en else 'صفحة واحدة كاملة للهوية والاشتراك والدعم والمالية والكوتا والأجهزة والنشاط.' }}</p>
-  </div>
-  <div class="admin-head-actions">
-    <span class="status-pill {{ 'success' if user_obj.is_active else 'danger' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
-    <a class="btn btn-outline-primary" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">{{ 'Back to subscribers' if is_en else 'العودة لإدارة المشتركين' }}</a>
-  </div>
-</header>
+{% set _selected_plan = (plans|selectattr('id','equalto', tenant.plan_id)|first) if tenant else None %}
+{% set _plan_label = ((_selected_plan.name_en if is_en else _selected_plan.name_ar) if _selected_plan else '—') %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area up-page" data-up-tab="{{ tab }}" data-up-user-id="{{ user_obj.id }}">
+    {# ═══════════════ HERO ═══════════════ #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            {{ 'Subscriber profile' if is_en else 'ملف المشترك' }}
+          </span>
+          <h1 class="hu-h1">{{ user_obj.full_name or user_obj.username }}</h1>
+          <p class="hu-tagline">{{ 'Identity, subscription, support, finance, quotas, devices, and activity — one focused workspace.' if is_en else 'الهوية والاشتراك والدعم والمالية والكوتا والأجهزة والنشاط — مكان عمل واحد مركّز.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill {{ 'ok' if user_obj.is_active else 'warn' }}">{% if user_obj.is_active %}🟢 <b>{{ 'Active' if is_en else 'نشط' }}</b>{% else %}⛔ <b>{{ 'Disabled' if is_en else 'معطّل' }}</b>{% endif %}</span>
+            <span class="hu-meta-pill"><b>@{{ user_obj.username }}</b></span>
+            {% if user_obj.email %}<span class="hu-meta-pill">📧 <b>{{ user_obj.email }}</b></span>{% endif %}
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">← {{ 'Back to subscribers' if is_en else 'العودة للمشتركين' }}</a>
+        </div>
+      </div>
+    </header>
 
-<section class="user360-hero">
-  <div class="user360-kpi"><small>{{ 'Plan' if is_en else 'الخطة' }}</small><strong>{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else '-') }}</strong></div>
-  <div class="user360-kpi"><small>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</small><strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</strong></div>
-  <div class="user360-kpi"><small>{{ 'Wallet balance' if is_en else 'الرصيد الحالي' }}</small><strong>{{ wallet_balance }} USD</strong></div>
-  <div class="user360-kpi"><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><strong>{{ devices|length }}</strong></div>
-  <div class="user360-kpi"><small>{{ 'Open support items' if is_en else 'الدعم المفتوح' }}</small><strong>{{ thread_rows|length + ticket_rows|length }}</strong></div>
-</section>
+    {# ═══════════════ KPI strip ═══════════════ #}
+    <section class="up-stats">
+      <article class="up-stat">
+        <span class="up-stat-icon">📦</span>
+        <small>{{ 'Plan' if is_en else 'الخطة' }}</small>
+        <strong>{{ _plan_label }}</strong>
+      </article>
+      <article class="up-stat s-emerald">
+        <span class="up-stat-icon">✅</span>
+        <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+        <strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '—' }}</strong>
+      </article>
+      <article class="up-stat s-amber">
+        <span class="up-stat-icon">💰</span>
+        <small>{{ 'Wallet' if is_en else 'الرصيد' }}</small>
+        <strong>{{ wallet_balance }} <em>USD</em></strong>
+      </article>
+      <article class="up-stat s-sky">
+        <span class="up-stat-icon">⚡</span>
+        <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+        <strong>{{ devices|length }}</strong>
+      </article>
+      <article class="up-stat s-violet">
+        <span class="up-stat-icon">🎧</span>
+        <small>{{ 'Open support' if is_en else 'الدعم المفتوح' }}</small>
+        <strong>{{ thread_rows|length + ticket_rows|length }}</strong>
+      </article>
+    </section>
 
-<div class="user360-tabs">
-  {% for key, label_ar, label_en in [('profile','البيانات الشخصية','Personal'),('subscription','الاشتراك','Subscription'),('support','الدعم','Support'),('finance','المالية','Finance'),('quotas','الكوتا','Quotas'),('devices','الأجهزة','Devices'),('activity','النشاط','Activity')] %}
-    <a class="user360-tab {% if tab == key %}active{% endif %}" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab=key) }}">{{ label_en if is_en else label_ar }}</a>
-  {% endfor %}
-</div>
+    {# ═══════════════ Tabs nav ═══════════════ #}
+    <nav class="up-tabs" role="tablist">
+      {% for key, label_ar, label_en, icon in [
+        ('profile',      'البيانات الشخصية',  'Personal',     '👤'),
+        ('subscription', 'الاشتراك',          'Subscription', '💳'),
+        ('support',      'الدعم',             'Support',      '🎧'),
+        ('finance',      'المالية',           'Finance',      '💰'),
+        ('quotas',       'الكوتا',            'Quotas',       '📊'),
+        ('devices',      'الأجهزة',           'Devices',      '⚡'),
+        ('activity',     'النشاط',            'Activity',     '⏱'),
+      ] %}
+        <button type="button" class="up-tab {% if tab == key %}is-active{% endif %}" data-up-tab-btn="{{ key }}" role="tab" aria-selected="{{ 'true' if tab == key else 'false' }}">
+          <span class="up-tab-icon">{{ icon }}</span>
+          <span class="up-tab-label">{{ label_en if is_en else label_ar }}</span>
+        </button>
+      {% endfor %}
+    </nav>
 
-{% if tab == 'profile' %}
-{% set current_phone_code = user_obj.phone_country_code or '+970' %}
-<section class="subscriber-profile-v130">
-  <div class="subscriber-profile-cover-v130">
-    <div class="subscriber-avatar-v130">{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}</div>
-    <div class="subscriber-profile-title-v130">
-      <small>{{ 'Subscriber profile' if is_en else 'ملف المستفيد' }}</small>
-      <h3>{{ user_obj.full_name or user_obj.username }}</h3>
-      <p>{{ user_obj.email or ('No email saved' if is_en else 'لا يوجد بريد محفوظ') }}</p>
+<div class="up-pane" data-up-pane="profile" {% if tab != 'profile' %}hidden{% endif %}>
+
+<div class="prof-shell">
+  {# ─── Identity hero card (with mini-stats — Solution D) ─── #}
+  <div class="prof-hero">
+    <div class="prof-hero-bg"></div>
+    <div class="prof-hero-text">
+      <h2>{{ user_obj.full_name or user_obj.username }}</h2>
+      <div class="prof-hero-meta">
+        <span class="prof-tag">@{{ user_obj.username }}</span>
+        {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
+        {% if user_obj.phone_number %}<span class="prof-tag">📱 {{ user_obj.phone_country_code or '' }} {{ user_obj.phone_number }}</span>{% endif %}
+        <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
+        <span class="prof-tag prof-tag-tz">🕒 {{ user_obj.timezone or 'Asia/Hebron' }}</span>
+      </div>
+      <div class="prof-hero-stats">
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">📅</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+            <strong>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }} {{ 'days' if is_en else 'يوم' }}{% else %}—{% endif %}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#34d399,#059669)">⚡</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+            <strong>{{ devices|length }}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#fbbf24,#d97706)">💬</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Open cases' if is_en else 'دعم مفتوح' }}</small>
+            <strong>{{ (thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list|length) + (ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list|length) }}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#60a5fa,#2563eb)">💰</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Wallet' if is_en else 'المحفظة' }}</small>
+            <strong>{{ '%.2f'|format(wallet_balance or 0) }}</strong>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="subscriber-profile-meta-v130">
-      <span class="{{ 'is-active' if user_obj.is_active else 'is-disabled' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
-      <span>{{ user_obj.city or ('City' if is_en else 'المدينة') }} · {{ user_obj.country or ('Country' if is_en else 'الدولة') }}</span>
-      <span>{{ user_obj.timezone or 'Asia/Hebron' }}</span>
+    <div class="prof-hero-avatar">
+      <span class="prof-hero-avatar-letter">{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}</span>
+      <span class="prof-hero-status {{ 'is-active' if user_obj.is_active else 'is-disabled' }}" title="{{ 'Active' if user_obj.is_active else 'Disabled' }}"></span>
     </div>
   </div>
 
-  <form method="post" class="subscriber-profile-form-v130">
+  <div class="prof-grid">
+  <form method="post" class="prof-form" id="prof-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="save_profile">
 
-    <article class="subscriber-profile-panel-v130 identity-v130">
-      <div class="subscriber-panel-head-v130">
-        <span>ID</span>
-        <div>
-          <small>{{ 'Identity' if is_en else 'الهوية' }}</small>
-          <h4>{{ 'Basic account information' if is_en else 'بيانات الحساب الأساسية' }}</h4>
-        </div>
+    {# ─── Step 1: Identity ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">1</span>
+        <span class="prof-step-icon">🪪</span>
+        <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+        <h3>{{ 'Identity' if is_en else 'الهوية' }}</h3>
+        <p>{{ 'Username, name, email & phone — what we use to recognize the subscriber.' if is_en else 'اسم المستخدم والاسم والإيميل والجوال — ما نستخدمه للتعرّف على المشترك.' }}</p>
       </div>
-      <div class="subscriber-fields-v130 identity-grid-v130">
-        <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
-        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'اسم المستفيد الكامل' }}"></label>
-        <label><span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com"></label>
-        <label class="phone-field-v130"><span>{{ 'Phone' if is_en else 'رقم الهاتف' }}</span>
-          <div class="subscriber-phone-v130">
-            <select class="form-control phone-code-select-v130" name="phone_country_code">
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'Username' if is_en else 'اسم المستخدم' }} <em>*</em></span>
+          <input class="prof-input prof-input-ltr" name="username" value="{{ user_obj.username }}" required>
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+          <input class="prof-input" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'الاسم الكامل للمشترك' }}">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span>
+          <input class="prof-input prof-input-ltr" type="email" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Phone' if is_en else 'رقم الجوال' }}</span>
+          <div class="prof-phone">
+            <select class="prof-input prof-phone-code" name="phone_country_code">
+              {% set current_phone_code = user_obj.phone_country_code or '+970' %}
               {% for country in country_options %}
-                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>
               {% endfor %}
             </select>
-            <input class="form-control ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="{{ '599000000' if is_en else 'رقم الجوال' }}">
+            <input class="prof-input prof-input-ltr prof-phone-num" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
           </div>
         </label>
       </div>
     </article>
 
-    <article class="subscriber-profile-panel-v130 location-v130">
-      <div class="subscriber-panel-head-v130">
-        <span>LOC</span>
-        <div>
-          <small>{{ 'Location' if is_en else 'الموقع' }}</small>
-          <h4>{{ 'Country, city, and local time' if is_en else 'الدولة والمدينة والتوقيت' }}</h4>
-        </div>
+    {# ─── Step 2: Location ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">2</span>
+        <span class="prof-step-icon">🌍</span>
+        <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+        <h3>{{ 'Location' if is_en else 'الموقع' }}</h3>
+        <p>{{ 'Country, city, timezone & UI language — power the dashboard correctly.' if is_en else 'الدولة والمدينة والمنطقة الزمنية ولغة الواجهة — لتعمل الداشبورد بدقة.' }}</p>
       </div>
-      <div class="subscriber-fields-v130">
-        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}"></label>
-        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}"></label>
-        <label><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control ltr-field-v108" name="timezone">
-          {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
-          {% for tz,label in [('Asia/Hebron','Asia/Hebron - فلسطين'),('Asia/Jerusalem','Asia/Jerusalem'),('Asia/Amman','Asia/Amman - الأردن'),('Asia/Riyadh','Asia/Riyadh - السعودية'),('Asia/Dubai','Asia/Dubai - الإمارات'),('Africa/Cairo','Africa/Cairo - مصر'),('Europe/Istanbul','Europe/Istanbul - تركيا'),('UTC','UTC')] %}
-            <option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select></label>
-        <label><span>{{ 'Preferred language' if is_en else 'لغة الواجهة' }}</span><select class="form-control" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
-      </div>
-    </article>
-
-    <article class="subscriber-profile-panel-v130 access-v130">
-      <div class="subscriber-panel-head-v130">
-        <span>SEC</span>
-        <div>
-          <small>{{ 'Access' if is_en else 'الوصول' }}</small>
-          <h4>{{ 'Password and account state' if is_en else 'كلمة المرور وحالة الحساب' }}</h4>
-        </div>
-      </div>
-      <div class="subscriber-fields-v130">
-        <label><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة بدون تغيير' }}"></label>
-        <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-control" name="role"><option value="user" {% if user_obj.role in ['user','subscriber','customer',''] %}selected{% endif %}>{{ 'Subscriber' if is_en else 'مستفيد' }}</option></select></label>
-        <label class="subscriber-profile-switch-v130"><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span><b>{{ 'Account enabled' if is_en else 'الحساب مفعل' }}</b></label>
-      </div>
-    </article>
-
-    <div class="subscriber-profile-actions-v130">
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_edit', user_id=user_obj.id, lang=ui_lang) }}">{{ 'Advanced edit' if is_en else 'تعديل متقدم' }}</a>
-      <button class="btn btn-solar">{{ 'Save profile' if is_en else 'حفظ البيانات' }}</button>
-    </div>
-  </form>
-</section>
-<section class="subscriber360-profile-v118">
-  <div class="subscriber360-section-head-v108 profile-head-v118">
-    <div>
-      <small>{{ 'Identity' if is_en else 'الهوية' }}</small>
-      <h3>{{ 'Personal account data' if is_en else 'البيانات الشخصية للحساب' }}</h3>
-      <p>{{ 'A clean profile center for identity, location, security, and account state.' if is_en else 'مركز بيانات مرتب للهوية والموقع والأمان وحالة الحساب.' }}</p>
-    </div>
-    <span class="subscriber360-state-v108 {{ 'is-active' if user_obj.is_active else 'is-disabled' }}">{{ 'Active account' if is_en and user_obj.is_active else ('Disabled account' if is_en else ('الحساب مفعل' if user_obj.is_active else 'الحساب معطل')) }}</span>
-  </div>
-
-  <form method="post" class="profile-grid-v118">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="action" value="save_profile">
-
-    <article class="profile-card-v118 profile-card-large-v118">
-      <div class="profile-card-title-v118">
-        <div class="profile-icon-v118">👤</div>
-        <div><small>{{ 'Account' if is_en else 'الحساب' }}</small><h4>{{ 'Core identity' if is_en else 'الهوية الأساسية' }}</h4></div>
-      </div>
-      <div class="profile-fields-v118 two">
-        <label><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'اسم المشترك الكامل' }}"></label>
-        <label><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
-        <label class="full"><span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com"></label>
-      </div>
-    </article>
-
-    <article class="profile-card-v118">
-      <div class="profile-card-title-v118">
-        <div class="profile-icon-v118">🌍</div>
-        <div><small>{{ 'Location' if is_en else 'الموقع' }}</small><h4>{{ 'Weather and timezone' if is_en else 'الطقس والمنطقة الزمنية' }}</h4></div>
-      </div>
-      <p class="profile-hint-v118">{{ 'Used later for weather, solar predictions, and correct local times.' if is_en else 'تستخدم لاحقًا للطقس، توقعات الطاقة، وضبط الأوقات المحلية.' }}</p>
-      <div class="profile-fields-v118 two">
-        <label><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}"></label>
-        <label><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}"></label>
-        <label class="full"><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><select class="form-control ltr-field-v108" name="timezone">
-          {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
-          {% for tz,label in [('Asia/Hebron','Asia/Hebron - فلسطين'),('Asia/Jerusalem','Asia/Jerusalem'),('Asia/Amman','Asia/Amman - الأردن'),('Asia/Riyadh','Asia/Riyadh - السعودية'),('Asia/Dubai','Asia/Dubai - الإمارات'),('Africa/Cairo','Africa/Cairo - مصر'),('Europe/Istanbul','Europe/Istanbul - تركيا'),('UTC','UTC')] %}
-            <option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select></label>
-        <label class="full"><span>{{ 'Preferred language' if is_en else 'لغة الواجهة المفضلة' }}</span><select class="form-control" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
-      </div>
-    </article>
-
-    <article class="profile-card-v118">
-      <div class="profile-card-title-v118">
-        <div class="profile-icon-v118">🔐</div>
-        <div><small>{{ 'Security' if is_en else 'الأمان' }}</small><h4>{{ 'Password and access' if is_en else 'كلمة المرور والوصول' }}</h4></div>
-      </div>
-      <p class="profile-hint-v118">{{ 'Leave password blank unless you want to replace it.' if is_en else 'اترك كلمة المرور فارغة إذا لا تريد تغييرها.' }}</p>
-      <div class="profile-fields-v118">
-        <label><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control" name="password" placeholder="{{ 'Keep current password' if is_en else 'الاحتفاظ بكلمة المرور الحالية' }}"></label>
-        <label><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-control" name="role"><option value="user" {% if user_obj.role in ['user','subscriber',''] %}selected{% endif %}>{{ 'Subscriber' if is_en else 'مشترك' }}</option><option value="admin" {% if user_obj.role=='admin' %}selected{% endif %}>{{ 'Administrator' if is_en else 'مدير' }}</option></select></label>
-      </div>
-    </article>
-
-    <article class="profile-card-v118 profile-status-card-v118">
-      <div class="profile-card-title-v118">
-        <div class="profile-icon-v118">⚙️</div>
-        <div><small>{{ 'State' if is_en else 'الحالة' }}</small><h4>{{ 'Account control' if is_en else 'التحكم بالحساب' }}</h4></div>
-      </div>
-      <label class="profile-switch-v118"><input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span><b>{{ 'Account enabled' if is_en else 'الحساب مفعل' }}</b></label>
-      <p class="profile-hint-v118">{{ 'Disabled accounts can browse in preview mode only.' if is_en else 'الحسابات المعطلة تستطيع التصفح بوضع المشاهدة فقط دون تنفيذ خدمات.' }}</p>
-    </article>
-
-    <div class="profile-actions-v118">
-      <button class="btn btn-solar">{{ 'Save profile' if is_en else 'حفظ البيانات' }}</button>
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_user_edit', user_id=user_obj.id, lang=ui_lang) }}">{{ 'Advanced edit' if is_en else 'تعديل متقدم' }}</a>
-    </div>
-  </form>
-</section>
-{% elif tab == 'subscription' %}
-<section class="subscriber360-panel-v108 subscription-panel-v108">
-  <div class="subscriber360-section-head-v108">
-    <div>
-      <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
-      <h3>{{ 'Plan, lifecycle, and limits' if is_en else 'الخطة ودورة الحياة والحدود' }}</h3>
-      <p>{{ 'Separated states make activation decisions easier and safer.' if is_en else 'فصل الحالات يجعل قرارات التفعيل والإيقاف أوضح وأكثر أمانًا.' }}</p>
-    </div>
-    <span class="subscriber360-state-v108 {{ 'is-active' if subscription and subscription.status in ['active','trial'] else 'is-disabled' }}">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</span>
-  </div>
-  <div class="subscription-summary-grid-v108">
-    <article><small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small><strong>{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else '-') }}</strong></article>
-    <article><small>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</small><strong>{{ ui_label(tenant.status, 'status', ui_lang) }}</strong></article>
-    <article><small>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</small><strong>{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '-' }}</strong></article>
-    <article><small>{{ 'Device override' if is_en else 'تجاوز حد الأجهزة' }}</small><strong>{{ tenant.max_devices_override or ('-' if is_en else 'بدون') }}</strong></article>
-    <article class="subscription-days-v109"><small>{{ 'Remaining days' if is_en else 'الأيام المتبقية' }}</small><strong>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }}{% else %}—{% endif %}</strong><span>{% if subscription_day_info.status == 'expired' %}{{ 'Expired' if is_en else 'منتهي' }}{% elif subscription_day_info.target %}{{ format_local(subscription_day_info.target) }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ انتهاء' }}{% endif %}</span></article>
-  </div>
-  <div class="plan-change-callout-v115">
-    <strong>{{ 'Change this subscriber plan' if is_en else 'تغيير خطة هذا المشترك' }}</strong>
-    <span>{{ 'Saving this section applies the selected plan quotas automatically. You can still override limits from the Quotas tab.' if is_en else 'عند حفظ هذا القسم يتم تطبيق كوتا الخطة المختارة تلقائيًا. ويمكنك لاحقًا تعديل حدود خاصة من تبويب الكوتا.' }}</span>
-  </div>
-  <form method="post" class="subscriber360-form-v108"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_subscription">
-    <label class="subscriber360-field-v108 full"><span>{{ 'Plan' if is_en else 'الخطة' }}</span><select class="form-control" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><select class="form-control" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span><select class="form-control" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Max devices override' if is_en else 'تجاوز حد الأجهزة' }}</span><input class="form-control" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Starts at' if is_en else 'تاريخ البداية' }}</span><input type="date" class="form-control" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><input type="date" class="form-control" name="ends_at" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}"></label>
-    <label class="subscriber360-field-v108"><span>{{ 'Trial ends at' if is_en else 'نهاية التجربة' }}</span><input type="date" class="form-control" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}"></label>
-    <label class="subscriber360-field-v108 full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control" name="subscription_notes" rows="3">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea></label>
-    <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save plan and apply quotas' if is_en else 'حفظ الخطة وتطبيق الكوتا' }}</button></div>
-  </form>
-  <section class="subscriber360-panel-v109 portal-visibility-panel-v109">
-    <div class="subscriber360-section-head-v108 compact-v109">
-      <div>
-        <small>{{ 'Subscriber portal visibility' if is_en else 'ظهور صفحات المشترك' }}</small>
-        <h3>{{ 'Choose what this subscriber can see' if is_en else 'تحكم بما يظهر لهذا المشترك' }}</h3>
-        <p>{{ 'Dashboard is always visible; the rest can be hidden for this specific account.' if is_en else 'النظرة العامة أساسية دائمًا، وباقي الصفحات يمكن إخفاؤها لهذا الحساب فقط.' }}</p>
-      </div>
-    </div>
-    <form method="post" class="portal-visibility-grid-v109"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="portal_visibility">
-      {% for page in portal_page_rows %}
-      <label class="portal-page-card-v109 {{ 'is-locked' if page.is_locked else '' }}">
-        <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
-        <span>{{ page.icon }} {{ page.label }}</span>
-        <small>{{ page.endpoint }}{% if page.is_locked %} · {{ 'Core' if is_en else 'أساسية' }}{% endif %}</small>
-      </label>
-      {% endfor %}
-      <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save page visibility' if is_en else 'حفظ ظهور الصفحات' }}</button></div>
-    </form>
-  </section>
-</section>
-{% elif tab == 'support' %}
-{% set open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
-{% set closed_threads = thread_rows|selectattr('thread.status','in',['closed','resolved'])|list %}
-{% set open_tickets = ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list %}
-{% set closed_tickets = ticket_rows|selectattr('ticket.status','in',['closed','resolved'])|list %}
-{% set selected_key = '' %}
-{% if open_threads|length %}{% set selected_key = 'mail-' ~ open_threads[0].thread.id %}{% elif open_tickets|length %}{% set selected_key = 'ticket-' ~ open_tickets[0].ticket.id %}{% elif closed_threads|length %}{% set selected_key = 'mail-' ~ closed_threads[0].thread.id %}{% elif closed_tickets|length %}{% set selected_key = 'ticket-' ~ closed_tickets[0].ticket.id %}{% endif %}
-<section class="profile-support-mailbox-v62" data-support-mailbox data-view="list">
-  <div class="profile-support-head-v62">
-    <div>
-      <span class="eyebrow">{{ 'Mailbox workspace' if is_en else 'مساحة دعم بنمط البريد' }}</span>
-      <h2>{{ 'Open support conversations' if is_en else 'الدعم المفتوح والقابل للرد' }}</h2>
-      <p>{{ 'Compact list, conversation preview, inline canned replies, and quick status updates.' if is_en else 'قائمة مضغوطة، معاينة محادثة، ردود جاهزة داخلية، وتحديث حالة سريع.' }}</p>
-    </div>
-    <div class="profile-support-actions-v62">
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}">{{ 'Open command center' if is_en else 'فتح مركز القيادة' }}</a>
-      <div class="mailbox-view-toggle-v62" data-mailbox-view-toggle><button type="button" class="active" data-view="list">☰ {{ 'List' if is_en else 'قائمة' }}</button><button type="button" data-view="cards">▦ {{ 'Cards' if is_en else 'بطاقات' }}</button></div>
-    </div>
-  </div>
-
-  <div class="profile-mailbox-grid-v62">
-    <aside class="mailbox-list-panel-v62 profile-mail-list-v62">
-      <div class="mailbox-panel-head-v62"><div><small>{{ 'Subscriber queue' if is_en else 'قائمة المشترك' }}</small><h2>{{ (open_threads|length + open_tickets|length) }} {{ 'open' if is_en else 'مفتوح' }}</h2></div></div>
-      <div class="mailbox-list-v62" id="profileSupportQueueList">
-        {% for row in open_threads %}
-          {% set key = 'mail-' ~ row.thread.id %}{% set last_msg = row.messages|last %}{% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}{% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
-          <button type="button" class="mailbox-row-v62 kind-message status-{{ row.thread.status }} {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.thread.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="{{ status_label|lower }}">
-            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-{{ row.thread.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ ui_label(row.thread.priority, 'priority', ui_lang) }}">{{ priority_label }}</span></span>
-            <strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else ('No messages yet' if is_en else 'لا توجد رسائل بعد') }}</span><span class="mailbox-row-meta-v62"><span>👤 {{ user_obj.full_name or user_obj.username }}</span><span>🧑‍💼 {{ row.assignee.full_name or row.assignee.username if row.assignee else ('بدون مدير' if not is_en else 'Unassigned') }}</span></span>
-          </button>
-        {% endfor %}
-        {% for row in open_tickets %}
-          {% set key = 'ticket-' ~ row.ticket.id %}{% set last_msg = row.messages|last %}{% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}{% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
-          <button type="button" class="mailbox-row-v62 kind-ticket status-{{ row.ticket.status }} {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.ticket.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="{{ status_label|lower }}">
-            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-{{ row.ticket.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ ui_label(row.ticket.priority, 'priority', ui_lang) }}">{{ priority_label }}</span></span>
-            <strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else ('No ticket messages yet' if is_en else 'لا توجد رسائل في التذكرة بعد') }}</span><span class="mailbox-row-meta-v62"><span>👤 {{ user_obj.full_name or user_obj.username }}</span><span>🧑‍💼 {{ row.assignee.full_name or row.assignee.username if row.assignee else ('بدون مدير' if not is_en else 'Unassigned') }}</span></span>
-          </button>
-        {% endfor %}
-        {% for row in closed_threads %}
-          {% set key = 'mail-' ~ row.thread.id %}{% set last_msg = row.messages|last %}
-          <button type="button" class="mailbox-row-v62 kind-message status-closed is-closed {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.thread.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="closed مغلق">
-            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></span><strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else '' }}</span><span class="mailbox-row-meta-v62"><span>🔒 {{ 'Frozen archive' if is_en else 'أرشيف مجمّد' }}</span></span>
-          </button>
-        {% endfor %}
-        {% for row in closed_tickets %}
-          {% set key = 'ticket-' ~ row.ticket.id %}{% set last_msg = row.messages|last %}
-          <button type="button" class="mailbox-row-v62 kind-ticket status-closed is-closed {{ 'is-active' if key == selected_key else '' }}" data-case-row data-case-target="{{ key }}" data-title="{{ row.ticket.subject|lower }}" data-owner="{{ user_obj.username|lower }}" data-status="closed مغلق">
-            <span class="mailbox-row-accent-v62"></span><span class="mailbox-row-top-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></span><strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong><span class="mailbox-row-preview-v62">{{ last_msg.body if last_msg else '' }}</span><span class="mailbox-row-meta-v62"><span>🔒 {{ 'Frozen archive' if is_en else 'أرشيف مجمّد' }}</span></span>
-          </button>
-        {% endfor %}
-        {% if (open_threads|length + open_tickets|length + closed_threads|length + closed_tickets|length) == 0 %}<div class="empty-state-card-v61 mailbox-empty-v62"><div>📭</div><h3>{{ 'No support items' if is_en else 'لا توجد عناصر دعم' }}</h3></div>{% endif %}
-      </div>
-    </aside>
-
-    <section class="mailbox-thread-panel-v62 profile-thread-panel-v62">
-      {% for row in open_threads %}
-        {% set key = 'mail-' ~ row.thread.id %}{% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}{% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
-        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-{{ row.thread.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ ui_label(row.thread.priority, 'priority', ui_lang) }}">{{ priority_label }}</span></div><h2>#{{ row.thread.id }} — {{ row.thread.subject }}</h2><p>{{ row.thread.category }} · 👤 {{ user_obj.full_name or user_obj.username }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}{% elif msg.sender_scope == 'admin' %}{{ 'Admin' if is_en else 'الإدارة' }}{% else %}{{ 'Subscriber' if is_en else 'المشترك' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% else %}<div class="empty-box-v2">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>{% endfor %}</div>
-        <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#thread-{{ row.thread.id }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="mail_reply"><input type="hidden" name="thread_id" value="{{ row.thread.id }}"><div class="composer-tools-v62"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status" data-status-select>{% for st in status_options %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}</select></label><label><span>{{ 'Manager' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}</select></label></div><textarea class="form-control" name="body" rows="4" data-reply-textarea placeholder="{{ 'Write a reply...' if is_en else 'اكتب ردًا للمشترك...' }}"></textarea><div class="composer-footer-v62"><div class="composer-left-v62"><button type="button" class="btn btn-outline-primary" data-canned-toggle>⚡ {{ 'Canned replies' if is_en else 'الردود الجاهزة' }}</button><label class="switch-row compact-switch-v62"><span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span><input type="checkbox" name="is_internal_note" value="1"></label></div><div class="composer-actions-v62"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير' }}</button><button class="btn btn-solar" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div></div>{% include '_support_canned_drawer_v62.html' %}</form></article>
-      {% endfor %}
-      {% for row in open_tickets %}
-        {% set key = 'ticket-' ~ row.ticket.id %}{% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}{% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
-        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-{{ row.ticket.status }}">{{ status_label }}</span><span class="mailbox-priority-v62 priority-{{ ui_label(row.ticket.priority, 'priority', ui_lang) }}">{{ priority_label }}</span></div><h2>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h2><p>{{ row.ticket.category }}{% if row.device %} · {{ row.device.name }}{% endif %} · 👤 {{ user_obj.full_name or user_obj.username }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}{% elif msg.sender_scope == 'admin' %}{{ 'Admin' if is_en else 'الإدارة' }}{% else %}{{ 'Subscriber' if is_en else 'المشترك' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% else %}<div class="empty-box-v2">{{ 'No ticket messages yet.' if is_en else 'لا توجد رسائل في التذكرة بعد.' }}</div>{% endfor %}</div>
-        <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#ticket-{{ row.ticket.id }}" class="reply-composer-v62" data-support-reply-form data-case-key="{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="ticket_reply"><input type="hidden" name="ticket_id" value="{{ row.ticket.id }}"><div class="composer-tools-v62"><label><span>{{ 'Status' if is_en else 'الحالة' }}</span><select class="form-control" name="status" data-status-select>{% for st in status_options %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}</select></label><label><span>{{ 'Manager' if is_en else 'المدير المسؤول' }}</span><select class="form-control" name="assigned_admin_user_id"><option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>{% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}</select></label></div><textarea class="form-control" name="body" rows="4" data-reply-textarea placeholder="{{ 'Reply to the ticket...' if is_en else 'اكتب ردًا على التذكرة...' }}"></textarea><div class="composer-footer-v62"><div class="composer-left-v62"><button type="button" class="btn btn-outline-primary" data-canned-toggle>⚡ {{ 'Canned replies' if is_en else 'الردود الجاهزة' }}</button><label class="switch-row compact-switch-v62"><span>{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}</span><input type="checkbox" name="is_internal_note" value="1"></label></div><div class="composer-actions-v62"><button class="btn btn-outline-primary" type="submit" name="assignment_only" value="1">{{ 'Save manager + notify' if is_en else 'اعتماد المدير' }}</button><button class="btn btn-solar" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div></div>{% include '_support_canned_drawer_v62.html' %}</form></article>
-      {% endfor %}
-      {% for row in closed_threads %}
-        {% set key = 'mail-' ~ row.thread.id %}
-        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 message">✉️ {{ 'Message' if is_en else 'رسالة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></div><h2>#{{ row.thread.id }} — {{ row.thread.subject }}</h2><p>🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{{ 'Admin' if msg.sender_scope == 'admin' else ('Subscriber' if is_en else 'المشترك') }}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Open from command center to reopen.' if is_en else 'افتحها من مركز القيادة لإعادة الفتح.' }}</div></article>
-      {% endfor %}
-      {% for row in closed_tickets %}
-        {% set key = 'ticket-' ~ row.ticket.id %}
-        <article class="mailbox-thread-v62 {{ 'is-active' if key == selected_key else '' }}" data-case-panel="{{ key }}"><header class="thread-head-v62"><div><div class="thread-kickers-v62"><span class="mailbox-type-v62 ticket">🎫 {{ 'Ticket' if is_en else 'تذكرة' }}</span><span class="mailbox-status-v62 status-closed">{{ 'Closed' if is_en else 'مغلق' }}</span></div><h2>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h2><p>🔒 {{ 'Closed and frozen' if is_en else 'مغلقة ومجمّدة' }}</p></div></header><div class="thread-messages-v62" data-thread-scroll>{% for msg in row.messages %}<div class="thread-message-v62 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }} {% if msg.is_internal_note %}internal-note{% endif %}"><div class="message-meta-v62"><strong>{{ 'Admin' if msg.sender_scope == 'admin' else ('Subscriber' if is_en else 'المشترك') }}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div><p>{{ msg.body }}</p></div>{% endfor %}</div><div class="frozen-note-v56">🔒 {{ 'Open from command center to reopen.' if is_en else 'افتحها من مركز القيادة لإعادة الفتح.' }}</div></article>
-      {% endfor %}
-      {% if selected_key == '' %}<div class="mailbox-no-thread-v62"><div>📭</div><h2>{{ 'No support history' if is_en else 'لا يوجد سجل دعم' }}</h2></div>{% endif %}
-    </section>
-  </div>
-</section>
-{% elif tab == 'finance' %}
-<section class="subscriber360-finance-v108">
-  <div class="subscriber360-section-head-v108">
-    <div><small>{{ 'Wallet' if is_en else 'المحفظة' }}</small><h3>{{ 'Finance workspace' if is_en else 'مساحة المالية' }}</h3><p>{{ 'Add credit/debit movements with a clean ledger for this subscriber.' if is_en else 'أضف حركات مالية واضحة مع سجل مرتب لهذا المشترك.' }}</p></div>
-    <span class="subscriber360-state-v108 is-info">{{ wallet_balance }} USD</span>
-  </div>
-  <div class="admin-layout-v2 two subscriber360-two-col-v108">
-    <div class="admin-card-v2 subscriber360-card-v108"><h3>{{ 'Add movement' if is_en else 'إضافة حركة مالية' }}</h3><form method="post" class="subscriber360-form-v108"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="finance_entry">
-      <label class="subscriber360-field-v108"><span>{{ 'Type' if is_en else 'نوع الحركة' }}</span><select class="form-control" name="entry_type"><option value="credit">{{ 'Credit' if is_en else 'إضافة رصيد' }}</option><option value="debit">{{ 'Debit' if is_en else 'خصم رصيد' }}</option></select></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Amount' if is_en else 'المبلغ' }}</span><input class="form-control" name="amount" required></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control" name="currency" value="USD"></label>
-      <label class="subscriber360-field-v108"><span>{{ 'Reference' if is_en else 'المرجع' }}</span><input class="form-control" name="reference"></label>
-      <label class="subscriber360-field-v108 full"><span>{{ 'Note' if is_en else 'ملاحظة' }}</span><textarea class="form-control" name="note" rows="3"></textarea></label>
-      <div class="subscriber360-actions-v108 full"><button class="btn btn-solar">{{ 'Save finance entry' if is_en else 'حفظ الحركة المالية' }}</button></div>
-    </form></div>
-    <div class="admin-card-v2 subscriber360-card-v108"><h3>{{ 'Recent finance movements' if is_en else 'آخر الحركات المالية' }}</h3><div class="subscriber360-ledger-v108">{% for entry in finance_rows %}<article class="ledger-row-v108 {{ 'credit' if entry.entry_type == 'credit' else 'debit' }}"><div><strong>{{ 'إضافة رصيد' if entry.entry_type == 'credit' and not is_en else ('Credit' if entry.entry_type == 'credit' else ('خصم رصيد' if not is_en else 'Debit')) }}</strong><small>{{ entry.reference or ('No reference' if is_en else 'بدون مرجع') }}{% if entry.note %} · {{ entry.note }}{% endif %}</small></div><div><b>{{ entry.amount }} {{ entry.currency }}</b><small>{{ format_local(entry.created_at) if entry.created_at else '' }}</small></div></article>{% else %}<div class="empty-box-v2">{{ 'No finance entries yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</div>{% endfor %}</div></div>
-  </div>
-</section>
-{% elif tab == 'quotas' %}
-<section class="subscriber360-quotas-v111">
-  <div class="subscriber360-section-head-v108 quota-hero-v111">
-    <div>
-      <small>{{ 'Quotas' if is_en else 'الكوتا' }}</small>
-      <h3>{{ 'Usage limits and service quotas' if is_en else 'حدود الاستخدام والكوتا' }}</h3>
-      <p>{{ 'Choose a quota type, set the limit, period, and status. The subscriber is already selected from this 360 profile.' if is_en else 'اختر نوع الكوتا وحدد الحد والفترة والحالة. لا تحتاج كتابة اسم المشترك لأنك داخل ملفه الشخصي.' }}</p>
-    </div>
-    <span class="subscriber360-state-v108 is-info">{{ quota_rows|length }} {{ 'quota items' if is_en else 'بند كوتا' }}</span>
-  </div>
-
-  <div class="quota-explainer-grid-v111">
-    <article><b>1</b><strong>{{ 'Choose the service' if is_en else 'اختر الخدمة' }}</strong><small>{{ 'SMS, devices, reports, support, API, storage, or custom.' if is_en else 'رسائل، أجهزة، تقارير، دعم، API، تخزين، أو كوتا مخصصة.' }}</small></article>
-    <article><b>2</b><strong>{{ 'Set the allowance' if is_en else 'حدد الحد' }}</strong><small>{{ 'The maximum the subscriber can use during the selected period.' if is_en else 'أقصى كمية يستطيع المشترك استخدامها خلال الفترة.' }}</small></article>
-    <article><b>3</b><strong>{{ 'Watch usage' if is_en else 'راقب الاستهلاك' }}</strong><small>{{ 'The summary shows used, remaining, and percentage clearly.' if is_en else 'الملخص يعرض المستخدم والمتبقي والنسبة بشكل واضح.' }}</small></article>
-  </div>
-
-  <div class="admin-layout-v2 two subscriber360-two-col-v108 quota-layout-v111">
-    <div class="admin-card-v2 subscriber360-card-v108 quota-form-card-v111">
-      <h3 id="quotaFormTitleV113">{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
-      <p class="quota-help-v111">{{ 'If the same quota already exists, this form updates it automatically.' if is_en else 'إذا كانت الكوتا موجودة مسبقًا سيتم تحديثها تلقائيًا بدل إنشاء بند مكرر.' }}</p>
-      <form method="post" class="quota-form-v111" id="quotaFormV111">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="quota_entry">
-        <input type="hidden" name="quota_id" id="quotaIdV113" value="">
-
-        <label class="subscriber360-field-v108 full">
-          <span>{{ 'Quota type' if is_en else 'نوع الكوتا' }}</span>
-          <select class="form-control quota-preset-v111" name="quota_key_preset" id="quotaPresetV111">
-            {% for opt in quota_key_options %}
-            <option value="{{ opt.key }}" data-label="{{ opt.label_ar if not is_en else opt.label_en }}" data-limit="{{ opt.default_limit }}" data-period="{{ opt.reset_period }}" data-description="{{ opt.description_ar if not is_en else opt.description_en }}" data-unit="{{ opt.unit_ar if not is_en else opt.unit_en }}">{{ opt.label }}</option>
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'Country' if is_en else 'الدولة' }}</span>
+          <select class="prof-input" name="country" id="prof-country" data-current="{{ user_obj.country or '' }}">
+            <option value="">{{ '— Select country —' if is_en else '— اختر الدولة —' }}</option>
+            {% for c in country_options %}
+              {% set label_value = c.name_en if is_en else c.name_ar %}
+              <option value="{{ label_value }}"
+                data-code="{{ c.code }}"
+                data-tz="{{ c.timezone }}"
+                data-cities-ar='{{ c.cities_ar|tojson }}'
+                data-cities-en='{{ c.cities_en|tojson }}'
+                {% if user_obj.country and (user_obj.country == c.name_ar or user_obj.country == c.name_en) %}selected{% endif %}>
+                {{ c.flag }} {{ label_value }}
+              </option>
             {% endfor %}
           </select>
-          <small id="quotaPresetHintV111">{{ quota_key_options[0].description if quota_key_options else '' }}</small>
         </label>
-
-        <label class="subscriber360-field-v108 quota-custom-field-v111" id="quotaCustomWrapV111">
-          <span>{{ 'Custom key' if is_en else 'مفتاح مخصص' }}</span>
-          <input class="form-control ltr-field-v108" name="quota_key_custom" id="quotaCustomKeyV111" placeholder="custom_limit" pattern="[a-zA-Z0-9_\-]+">
-          <small>{{ 'English letters, numbers, underscore only.' if is_en else 'حروف إنجليزية وأرقام وشرطة سفلية فقط.' }}</small>
-        </label>
-
-        <label class="subscriber360-field-v108">
-          <span>{{ 'Display name' if is_en else 'الاسم الظاهر' }}</span>
-          <input class="form-control" name="quota_label" id="quotaLabelV111" placeholder="{{ 'Shown in summaries' if is_en else 'يظهر في الملخصات' }}">
-        </label>
-
-        <label class="subscriber360-field-v108">
-          <span>{{ 'Limit' if is_en else 'الحد' }}</span>
-          <input class="form-control" name="limit_value" id="quotaLimitV111" type="number" min="0" step="1" inputmode="numeric" required placeholder="50">
-          <small>{{ 'Example: 50 SMS per month.' if is_en else 'مثال: 50 رسالة شهريًا.' }}</small>
-        </label>
-
-        <label class="subscriber360-field-v108">
-          <span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span>
-          <select class="form-control" name="reset_period" id="quotaResetV111">
-            <option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option>
-            <option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option>
-            <option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option>
-            <option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option>
-            <option value="yearly">{{ ui_label('yearly', 'status', ui_lang) }}</option>
+        <label class="prof-field">
+          <span>{{ 'City' if is_en else 'المدينة' }}</span>
+          <select class="prof-input" name="city" id="prof-city" data-current="{{ user_obj.city or '' }}">
+            <option value="">{{ '— Select city —' if is_en else '— اختر المدينة —' }}</option>
+            {% if user_obj.city %}<option value="{{ user_obj.city }}" selected>{{ user_obj.city }}</option>{% endif %}
           </select>
-          <small>{{ 'Manual means it does not reset automatically.' if is_en else 'يدوي يعني لا يتصفر تلقائيًا.' }}</small>
         </label>
-
-        <label class="subscriber360-field-v108">
-          <span>{{ 'Status' if is_en else 'الحالة' }}</span>
-          <select class="form-control" name="status">
-            <option value="active">{{ ui_label('active', 'status', ui_lang) }}</option>
-            <option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option>
-            <option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option>
+        <label class="prof-field">
+          <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+          <select class="prof-input prof-input-ltr" name="timezone" id="prof-timezone">
+            {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
+            {% for group in timezone_groups %}
+              <optgroup label="{{ group.group_en if is_en else group.group_ar }}">
+                {% for item in group['items'] %}
+                  <option value="{{ item.tz }}" {% if current_tz == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
           </select>
-          <small>{{ 'Paused keeps the row but stops applying it.' if is_en else 'الإيقاف يبقي البند محفوظًا لكنه لا يطبقه.' }}</small>
         </label>
-
-        <label class="subscriber360-field-v108 full">
-          <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
-          <textarea class="form-control" name="notes" id="quotaNotesV111" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+        <label class="prof-field">
+          <span>{{ 'UI language' if is_en else 'لغة الواجهة' }}</span>
+          <select class="prof-input" name="preferred_language">
+            <option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>🇸🇦 عربي</option>
+            <option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>🇬🇧 English</option>
+          </select>
         </label>
+      </div>
+    </article>
 
-        <div class="quota-preview-v111 full">
-          <strong>{{ 'Preview' if is_en else 'معاينة' }}</strong>
-          <span id="quotaPreviewV111">{{ 'Choose a quota and set the limit.' if is_en else 'اختر الكوتا وحدد الحد ليظهر الملخص.' }}</span>
+    {# ─── Step 3: Security & Access ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">3</span>
+        <span class="prof-step-icon">🛡️</span>
+        <small>{{ 'Step 3' if is_en else 'الخطوة 3' }}</small>
+        <h3>{{ 'Security & Access' if is_en else 'الأمان والوصول' }}</h3>
+        <p>{{ 'Reset password, set role, and toggle account access.' if is_en else 'إعادة كلمة المرور، تحديد الدور، تفعيل أو تعطيل الحساب.' }}</p>
+      </div>
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span>
+          <input class="prof-input prof-input-ltr" type="password" name="password" placeholder="{{ 'Leave blank to keep' if is_en else 'فارغة للإبقاء على الحالية' }}" autocomplete="new-password">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Role' if is_en else 'الدور' }}</span>
+          <select class="prof-input" name="role">
+            <option value="user" {% if user_obj.role in ['user','subscriber','customer',''] %}selected{% endif %}>{{ 'Subscriber' if is_en else 'مشترك' }}</option>
+          </select>
+        </label>
+        <label class="prof-toggle">
+          <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
+          <span class="prof-toggle-knob"></span>
+          <div class="prof-toggle-text">
+            <strong>{{ 'Account enabled' if is_en else 'الحساب مُفعَّل' }}</strong>
+            <small>{{ 'When disabled, the subscriber cannot sign in.' if is_en else 'عند التعطيل لن يستطيع المشترك تسجيل الدخول.' }}</small>
+          </div>
+        </label>
+      </div>
+    </article>
+
+    {# ─── Sticky save bar ─── #}
+    <div class="prof-savebar">
+      <span class="prof-savebar-hint">💡 {{ 'Press save to apply changes.' if is_en else 'اضغط حفظ لتطبيق التعديلات.' }}</span>
+      <div class="prof-savebar-actions">
+        <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save profile' if is_en else 'حفظ الملف' }}</button>
+      </div>
+    </div>
+  </form>
+
+  {# ─── Side column (Solution B) ─── #}
+  <aside class="prof-side">
+    <section class="prof-side-card prof-side-plan">
+      <header>
+        <span class="prof-side-eyebrow">{{ 'Plan' if is_en else 'الخطة' }}</span>
+        <span class="prof-side-state {{ 'is-active' if subscription and subscription.status in ['active','trial'] else 'is-disabled' }}">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '—' }}</span>
+      </header>
+      <strong class="prof-side-title">{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else ('No plan' if is_en else 'بدون خطة')) }}</strong>
+      <div class="prof-side-rows">
+        <div><span>{{ 'Days left' if is_en else 'الأيام المتبقية' }}</span><b>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><b>{% if subscription_day_info.target %}{{ format_local(subscription_day_info.target) }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><b>{{ ui_label(tenant.status, 'status', ui_lang) }}</b></div>
+      </div>
+    </section>
+
+    <section class="prof-side-card prof-side-quick">
+      <header><span class="prof-side-eyebrow">{{ 'Quick actions' if is_en else 'إجراءات سريعة' }}</span></header>
+      <div class="prof-side-actions">
+        <a class="prof-side-btn act-subscription" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='subscription') }}">📅 <span>{{ 'Manage subscription' if is_en else 'إدارة الاشتراك' }}</span></a>
+        <a class="prof-side-btn act-support" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}">💬 <span>{{ 'Open support' if is_en else 'مساحة الدعم' }}</span></a>
+        <a class="prof-side-btn act-devices" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='devices') }}">⚡ <span>{{ 'Devices' if is_en else 'الأجهزة' }}</span></a>
+        <a class="prof-side-btn act-finance" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='finance') }}">💰 <span>{{ 'Finance' if is_en else 'المالية' }}</span></a>
+      </div>
+    </section>
+
+    <section class="prof-side-card prof-side-meta">
+      <header><span class="prof-side-eyebrow">{{ 'Account meta' if is_en else 'معلومات الحساب' }}</span></header>
+      <div class="prof-side-rows">
+        <div><span>{{ 'User ID' if is_en else 'المعرّف' }}</span><b>#{{ user_obj.id }}</b></div>
+        <div><span>{{ 'Created' if is_en else 'تاريخ الإنشاء' }}</span><b>{% if user_obj.created_at %}{{ format_local(user_obj.created_at) }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Last login' if is_en else 'آخر دخول' }}</span><b>{% if user_obj.last_login_at %}{{ format_local(user_obj.last_login_at) }}{% else %}—{% endif %}</b></div>
+      </div>
+    </section>
+  </aside>
+  </div>
+</div>{# /.prof-shell #}
+
+</div>
+<div class="up-pane" data-up-pane="subscription" {% if tab != 'subscription' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set current_plan = plans|selectattr('id','equalto', tenant.plan_id)|first %}
+  {% set days_left = subscription_day_info.days_left if subscription_day_info.days_left is not none else None %}
+  {% set days_pct = ((days_left / 365 * 100) if (days_left is not none and days_left >= 0) else 0)|round(0,'floor')|int %}
+  {% set is_expired = subscription_day_info.status == 'expired' %}
+
+  {# ─── Subscription summary card with days ring ─── #}
+  <section class="sub-summary">
+    <div class="sub-summary-text">
+      <span class="sub-summary-eyebrow">📅 {{ 'Active subscription' if is_en else 'الاشتراك الحالي' }}</span>
+      <h2>{{ (current_plan.name_en if is_en else current_plan.name_ar) if current_plan else ('No plan' if is_en else 'بدون خطة') }}</h2>
+      <div class="sub-summary-tags">
+        <span class="sub-tag {{ 'is-active' if subscription and subscription.status in ['active','trial'] else 'is-warn' if subscription and subscription.status=='cancelled' else 'is-danger' }}">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else ('—' if is_en else '—') }}</span>
+        <span class="sub-tag {{ 'is-active' if tenant.status == 'active' else 'is-warn' if tenant.status in ['trial','suspended'] else 'is-danger' }}">{{ 'Account: ' if is_en else 'الحساب: ' }}{{ ui_label(tenant.status, 'status', ui_lang) }}</span>
+        {% if tenant.max_devices_override %}<span class="sub-tag is-info">{{ 'Override: ' if is_en else 'تجاوز: ' }}{{ tenant.max_devices_override }} {{ 'devices' if is_en else 'جهاز' }}</span>{% endif %}
+      </div>
+      <div class="sub-summary-rows">
+        <div><small>{{ 'Starts' if is_en else 'تاريخ البداية' }}</small><strong>{% if subscription and subscription.starts_at %}{{ format_local(subscription.starts_at) }}{% else %}—{% endif %}</strong></div>
+        <div><small>{{ 'Ends' if is_en else 'تاريخ الانتهاء' }}</small><strong>{% if subscription and subscription.ends_at %}{{ format_local(subscription.ends_at) }}{% else %}—{% endif %}</strong></div>
+        <div><small>{{ 'Trial ends' if is_en else 'نهاية التجربة' }}</small><strong>{% if subscription and subscription.trial_ends_at %}{{ format_local(subscription.trial_ends_at) }}{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="sub-summary-ring {{ 'is-expired' if is_expired }}" style="--pct:{{ days_pct if days_pct <= 100 else 100 }}">
+      <div class="sub-summary-ring-inner">
+        <span class="sub-summary-ring-num">{% if days_left is not none %}{{ days_left }}{% else %}—{% endif %}</span>
+        <span class="sub-summary-ring-lbl">{{ 'days left' if is_en else 'يوم متبقي' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Plan & lifecycle ─── #}
+      <form method="post" class="prof-form" id="sub-plan-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="save_subscription">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">📋</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3>{{ 'Plan & lifecycle' if is_en else 'الخطة ودورة الحياة' }}</h3>
+            <p>{{ 'Pick a plan and adjust dates. Saving here applies the new plan quotas automatically.' if is_en else 'اختر الخطة واضبط التواريخ. الحفظ يطبق كوتا الخطة الجديدة تلقائياً.' }}</p>
+          </div>
+          <div class="prof-step-body">
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Plan' if is_en else 'الخطة' }}</span>
+              <select class="prof-input" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span>
+              <select class="prof-input" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span>
+              <select class="prof-input" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Start date' if is_en else 'تاريخ البداية' }}</span>
+              <input type="date" class="prof-input" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'End date' if is_en else 'تاريخ الانتهاء' }}</span>
+              <input type="date" class="prof-input" name="ends_at" id="sub-end-date" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Trial end' if is_en else 'نهاية التجربة' }}</span>
+              <input type="date" class="prof-input" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Device limit override' if is_en else 'حد الأجهزة (تجاوز)' }}</span>
+              <input class="prof-input" type="number" min="0" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}" placeholder="{{ 'Leave blank for plan default' if is_en else 'فارغ = الحد الافتراضي للخطة' }}">
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+              <textarea class="prof-input" name="subscription_notes" rows="3" placeholder="{{ 'Internal notes (admin only)' if is_en else 'ملاحظات داخلية (للمسؤول فقط)' }}">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving applies plan quotas automatically.' if is_en else 'الحفظ يطبق كوتا الخطة الجديدة تلقائياً.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button>
+          </div>
         </div>
+      </form>
 
-        <div class="subscriber360-actions-v108 full">
-          <button class="btn btn-solar" id="quotaSubmitV113">{{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button><button class="btn btn-outline-secondary" type="button" id="quotaResetFormV113">{{ 'New quota' if is_en else 'كوتا جديدة' }}</button>
+      {# ─── Step 2: Page visibility ─── #}
+      <form method="post" class="prof-form" id="sub-pages-form" style="margin-top:18px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="portal_visibility">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">2</span>
+            <span class="prof-step-icon">👁️</span>
+            <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+            <h3>{{ 'Page visibility' if is_en else 'ظهور الصفحات' }}</h3>
+            <p>{{ 'Pick which pages this subscriber can see. The dashboard is always visible.' if is_en else 'اختر الصفحات التي يراها هذا المشترك. النظرة العامة دائماً ظاهرة.' }}</p>
+          </div>
+          <div class="prof-step-body sub-pages">
+            {% for page in portal_page_rows %}
+              <label class="sub-page-card {% if page.is_locked %}is-locked{% endif %} {% if page.is_visible or page.is_locked %}is-on{% endif %}">
+                <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
+                <span class="sub-page-icon">{{ page.icon }}</span>
+                <span class="sub-page-label">{{ page.label }}</span>
+                {% if page.is_locked %}<span class="sub-page-lock">🔒 {{ 'Core' if is_en else 'أساسية' }}</span>{% endif %}
+              </label>
+            {% endfor %}
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Hidden pages disappear from the subscriber sidebar.' if is_en else 'الصفحات المخفية تختفي من قائمة المشترك.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save visibility' if is_en else 'حفظ الظهور' }}</button>
+          </div>
         </div>
       </form>
     </div>
 
-    <div class="admin-card-v2 subscriber360-card-v108 quota-summary-card-v111">
-      <div class="quota-card-head-v111">
-        <div><small>{{ 'Current quotas' if is_en else 'الكوتا الحالية' }}</small><h3>{{ 'Usage summary' if is_en else 'ملخص الاستخدام' }}</h3></div>
-      </div>
-      <div class="quota-list-v111">
-        {% for row in quota_rows %}
-        {% set is_unlimited = row.is_unlimited or row.reset_period == 'unlimited' %}
-        {% set pct = 0 if is_unlimited else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0) %}
-        {% set remaining = '∞' if is_unlimited else ((row.limit_value or 0) - (row.used_value or 0)) %}
-        <article class="quota-row-v111 {{ 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') }}">
-          <div class="quota-row-top-v111 quota-row-top-v113">
-            <div><strong>{{ row.quota_label or row.quota_key }}</strong><small>{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }} · {% if row.source == 'plan' %}{{ 'From plan' if is_en else 'من الخطة' }}{% elif row.source == 'override' %}{{ 'Subscriber override' if is_en else 'معدل لهذا المشترك' }}{% else %}{{ 'Custom' if is_en else 'مخصص' }}{% endif %}</small></div>
-            <div class="quota-row-actions-v113">
-              <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
-              <button class="btn btn-outline-primary btn-sm quota-edit-btn-v113" type="button"
-                data-id="{{ row.id }}"
-                data-key="{{ row.quota_key }}"
-                data-label="{{ row.quota_label or '' }}"
-                data-limit="{{ row.limit_value or 0 }}"
-                data-used="{{ row.used_value or 0 }}"
-                data-period="{{ row.reset_period or 'manual' }}"
-                data-status="{{ row.status or 'active' }}"
-                data-unlimited="{{ '1' if is_unlimited else '0' }}"
-                data-notes="{{ row.notes or '' }}">{{ 'Edit' if is_en else 'تعديل' }}</button>
-              <form method="post" class="quota-delete-form-v113" onsubmit="return confirm('{{ 'Delete this quota permanently?' if is_en else 'حذف هذا الحد نهائيًا؟' }}');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="quota_delete">
-                <input type="hidden" name="quota_id" value="{{ row.id }}">
-                <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Delete' if is_en else 'حذف' }}</button>
-              </form>
-            </div>
-          </div>
-          <div class="quota-stats-v111">
-            <span><b>{{ row.used_value|round(0) }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
-            <span><b>{% if is_unlimited %}∞{% else %}{{ row.limit_value|round(0) }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
-            <span><b>{% if is_unlimited %}∞{% else %}{{ 0 if remaining < 0 else remaining|round(0) }}{% endif %}</b><small>{{ 'Remaining' if is_en else 'متبقي' }}</small></span>
-          </div>
-          <div class="quota-meter-v111"><i style="width:{{ 100 if pct > 100 else pct }}%"></i></div>
-          <div class="quota-row-foot-v111"><small>{{ pct|round(1) }}%</small>{% if row.notes %}<small>{{ row.notes }}</small>{% endif %}</div>
-        </article>
-        {% else %}
-        <div class="quota-empty-v111">
-          <strong>{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</strong>
-          <small>{{ 'Add the first quota from the form. Start with SMS or devices limit.' if is_en else 'أضف أول كوتا من النموذج. ابدأ بحد الرسائل أو حد الأجهزة.' }}</small>
+    {# ─── Side column ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick lifecycle' if is_en else 'أزرار سريعة' }}</span></header>
+        <div class="prof-side-actions">
+          <button type="button" class="prof-side-btn act-subscription" data-extend-days="30">⏰ <span>{{ 'Extend +30 days' if is_en else 'تمديد +30 يوم' }}</span></button>
+          <button type="button" class="prof-side-btn act-subscription" data-extend-days="90">⏰ <span>{{ 'Extend +90 days' if is_en else 'تمديد +90 يوم' }}</span></button>
+          <button type="button" class="prof-side-btn act-finance" data-extend-days="365">⏰ <span>{{ 'Extend +1 year' if is_en else 'تمديد +سنة' }}</span></button>
         </div>
-        {% endfor %}
+        <small class="sub-side-hint">{{ 'Updates the End date field. Press save to commit.' if is_en else 'يحدّث حقل تاريخ الانتهاء. اضغط حفظ لتطبيق التغيير.' }}</small>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Plan summary' if is_en else 'ملخص الخطة' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span>{{ 'Plan' if is_en else 'الخطة' }}</span><b>{{ (current_plan.name_en if is_en else current_plan.name_ar) if current_plan else '—' }}</b></div>
+          <div><span>{{ 'Devices' if is_en else 'الأجهزة' }}</span><b>{{ devices|length }}{% if tenant.max_devices_override %} / {{ tenant.max_devices_override }}{% elif current_plan and current_plan.max_devices %} / {{ current_plan.max_devices }}{% endif %}</b></div>
+          <div><span>{{ 'Days left' if is_en else 'الأيام المتبقية' }}</span><b>{% if days_left is not none %}{{ days_left }}{% else %}—{% endif %}</b></div>
+          <div><span>{{ 'Wallet' if is_en else 'المحفظة' }}</span><b>{{ '%.2f'|format(wallet_balance or 0) }}</b></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+</div>
+<div class="up-pane" data-up-pane="support" {% if tab != 'support' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set _open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
+  {% set _closed_threads = thread_rows|selectattr('thread.status','in',['closed','resolved'])|list %}
+  {% set _open_tickets = ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list %}
+  {% set _closed_tickets = ticket_rows|selectattr('ticket.status','in',['closed','resolved'])|list %}
+  {% set _total_open = _open_threads|length + _open_tickets|length %}
+  {% set _total_closed = _closed_threads|length + _closed_tickets|length %}
+  {% set _total = _total_open + _total_closed %}
+
+  {# ─── Compact hero ─── #}
+  <section class="md-hero">
+    <div class="md-hero-text">
+      <span class="md-hero-eyebrow">💬 {{ 'Support' if is_en else 'الدعم' }}</span>
+      <h2>{{ 'Triage and reply, one conversation at a time.' if is_en else 'فرز ورد، محادثة واحدة في نفس الوقت.' }}</h2>
+    </div>
+    <div class="md-hero-pills">
+      <span class="md-pill md-pill-total">📨 {{ _total }} {{ 'total' if is_en else 'إجمالي' }}</span>
+      <span class="md-pill md-pill-open">🔥 {{ _total_open }} {{ 'open' if is_en else 'مفتوح' }}</span>
+      <span class="md-pill md-pill-closed">🔒 {{ _total_closed }} {{ 'closed' if is_en else 'مغلق' }}</span>
+      <a class="md-pill md-pill-link" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}">🎯 {{ 'Command center' if is_en else 'مركز القيادة' }}</a>
+    </div>
+  </section>
+
+  {# ─── Master/Detail layout ─── #}
+  <div class="md-layout" data-md-layout>
+    {# ─── Master: compact list ─── #}
+    <aside class="md-list" data-md-list>
+      <div class="md-list-tools">
+        <input type="search" class="md-search" placeholder="{{ 'Search…' if is_en else 'ابحث…' }}" data-md-search>
+        <div class="md-tabs" role="tablist">
+          <button type="button" class="md-tab is-on" data-md-tab="open">{{ 'Open' if is_en else 'مفتوح' }} <b>{{ _total_open }}</b></button>
+          <button type="button" class="md-tab" data-md-tab="closed">{{ 'Closed' if is_en else 'مغلق' }} <b>{{ _total_closed }}</b></button>
+        </div>
+      </div>
+
+      <div class="md-list-section" data-md-section="open">
+        {% if _total_open == 0 %}
+          <div class="md-list-empty">
+            <span>📭</span>
+            <p>{{ 'No open conversations.' if is_en else 'لا توجد محادثات مفتوحة.' }}</p>
+          </div>
+        {% endif %}
+
+        {% macro list_thread(row, is_closed) %}
+          {% set last_msg = row.messages|last %}
+          {% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}
+          {% set key = 'thread-' ~ row.thread.id %}
+          <button type="button" class="md-row md-row-message status-{{ row.thread.status }} {{ 'is-closed' if is_closed else '' }}"
+                  data-md-row data-md-key="{{ key }}"
+                  data-md-search-text="{{ (row.thread.subject ~ ' ' ~ (last_msg.body if last_msg else ''))|lower }}">
+            <span class="md-row-stripe"></span>
+            <span class="md-row-icon">✉️</span>
+            <div class="md-row-body">
+              <div class="md-row-line1">
+                <strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong>
+                <small class="md-row-time">{{ format_local(last_msg.created_at)[:10] if last_msg and last_msg.created_at else '' }}</small>
+              </div>
+              <div class="md-row-line2">
+                <span class="md-row-status">{{ status_label }}</span>
+                <span class="md-row-msg-count">{{ row.messages|length }} {{ 'msg' if is_en else 'رسالة' }}</span>
+              </div>
+            </div>
+          </button>
+        {% endmacro %}
+
+        {% macro list_ticket(row, is_closed) %}
+          {% set last_msg = row.messages|last %}
+          {% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}
+          {% set key = 'ticket-' ~ row.ticket.id %}
+          <button type="button" class="md-row md-row-ticket status-{{ row.ticket.status }} {{ 'is-closed' if is_closed else '' }}"
+                  data-md-row data-md-key="{{ key }}"
+                  data-md-search-text="{{ (row.ticket.subject ~ ' ' ~ (last_msg.body if last_msg else ''))|lower }}">
+            <span class="md-row-stripe"></span>
+            <span class="md-row-icon">🎫</span>
+            <div class="md-row-body">
+              <div class="md-row-line1">
+                <strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong>
+                <small class="md-row-time">{{ format_local(last_msg.created_at)[:10] if last_msg and last_msg.created_at else '' }}</small>
+              </div>
+              <div class="md-row-line2">
+                <span class="md-row-status">{{ status_label }}</span>
+                <span class="md-row-msg-count">{{ row.messages|length }} {{ 'msg' if is_en else 'رسالة' }}</span>
+              </div>
+            </div>
+          </button>
+        {% endmacro %}
+
+        {% for row in _open_threads %}{{ list_thread(row, false) }}{% endfor %}
+        {% for row in _open_tickets %}{{ list_ticket(row, false) }}{% endfor %}
+      </div>
+
+      <div class="md-list-section" data-md-section="closed" hidden>
+        {% if _total_closed == 0 %}
+          <div class="md-list-empty">
+            <span>🗄️</span>
+            <p>{{ 'No closed items yet.' if is_en else 'لا توجد عناصر مغلقة بعد.' }}</p>
+          </div>
+        {% endif %}
+        {% for row in _closed_threads %}{{ list_thread(row, true) }}{% endfor %}
+        {% for row in _closed_tickets %}{{ list_ticket(row, true) }}{% endfor %}
+      </div>
+    </aside>
+
+    {# ─── Detail: thread + reply ─── #}
+    <main class="md-detail" data-md-detail>
+
+      {% macro detail_thread(row, is_closed) %}
+        {% set last_msg = row.messages|last %}
+        {% set key = 'thread-' ~ row.thread.id %}
+        {% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}
+        {% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
+        <article class="md-pane" data-md-pane="{{ key }}" hidden>
+          <header class="md-pane-head">
+            <div class="md-pane-title">
+              <span class="md-pane-title-icon md-pane-title-icon-message">✉️</span>
+              <div>
+                <h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3>
+                <small>{{ row.thread.category or ('Conversation' if is_en else 'محادثة') }}</small>
+              </div>
+            </div>
+            <div class="md-pane-pills">
+              <span class="md-detail-pill status-{{ row.thread.status }}">{{ status_label }}</span>
+              <span class="md-detail-pill priority-{{ row.thread.priority }}">{{ priority_label }}</span>
+              {% if row.assignee %}<span class="md-detail-pill assignee">🧑‍💼 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}
+            </div>
+          </header>
+
+          <div class="md-thread">
+            {% for msg in row.messages %}
+              {% set is_admin = msg.sender_scope == 'admin' %}
+              <div class="md-msg {{ 'md-msg-admin' if is_admin else 'md-msg-user' }} {{ 'md-msg-internal' if msg.is_internal_note else '' }}">
+                <div class="md-msg-avatar">
+                  {% if msg.is_internal_note %}🔒
+                  {% elif is_admin %}🛡️
+                  {% else %}{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}{% endif %}
+                </div>
+                <div class="md-msg-body">
+                  <div class="md-msg-meta">
+                    <strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}
+                    {% elif is_admin %}{{ 'Admin' if is_en else 'الإدارة' }}
+                    {% else %}{{ user_obj.full_name or user_obj.username }}{% endif %}</strong>
+                    <time>{{ format_local(msg.created_at) if msg.created_at else '' }}</time>
+                  </div>
+                  <p class="md-msg-text">{{ msg.body }}</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="md-thread-empty">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>
+            {% endfor %}
+          </div>
+
+          {% if not is_closed %}
+          <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#{{ key }}" class="md-reply" data-support-reply-form data-case-key="{{ 'mail-' ~ row.thread.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="mail_reply">
+            <input type="hidden" name="thread_id" value="{{ row.thread.id }}">
+            <div class="md-reply-toolbar">
+              <label class="md-reply-field">
+                <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                <select class="prof-input md-reply-select" name="status" data-status-select>
+                  {% for st in status_options %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field">
+                <span>{{ 'Manager' if is_en else 'المدير' }}</span>
+                <select class="prof-input md-reply-select" name="assigned_admin_user_id">
+                  <option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>
+                  {% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field md-reply-field-toggle">
+                <span>{{ 'Type' if is_en else 'النوع' }}</span>
+                <span class="md-reply-toggle">
+                  <input type="checkbox" name="is_internal_note" value="1">
+                  <em>🔒 {{ 'Internal' if is_en else 'داخلية' }}</em>
+                </span>
+              </label>
+            </div>
+            <textarea class="prof-input md-reply-text" name="body" rows="3" data-reply-textarea placeholder="{{ 'Write a reply…' if is_en else 'اكتب رداً…' }}"></textarea>
+            <div class="md-reply-actions">
+              <span class="canned-anchor">
+                <button type="button" class="prof-btn prof-btn-ghost" data-canned-toggle>⚡ {{ 'Canned' if is_en else 'جاهزة' }}</button>
+                {% include '_support_canned_drawer_v62.html' %}
+              </span>
+              <button class="prof-btn prof-btn-ghost" type="submit" name="assignment_only" value="1">{{ 'Assign only' if is_en else 'تعيين' }}</button>
+              <button class="prof-btn prof-btn-primary" type="submit" data-default-submit>📤 {{ 'Send' if is_en else 'إرسال' }}</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="md-frozen">🔒 {{ 'This conversation is closed. Reopen from command center to continue.' if is_en else 'المحادثة مغلقة. أعد فتحها من مركز القيادة للمتابعة.' }}</div>
+          {% endif %}
+        </article>
+      {% endmacro %}
+
+      {% macro detail_ticket(row, is_closed) %}
+        {% set last_msg = row.messages|last %}
+        {% set key = 'ticket-' ~ row.ticket.id %}
+        {% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}
+        {% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
+        <article class="md-pane" data-md-pane="{{ key }}" hidden>
+          <header class="md-pane-head">
+            <div class="md-pane-title">
+              <span class="md-pane-title-icon md-pane-title-icon-ticket">🎫</span>
+              <div>
+                <h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3>
+                <small>{{ row.ticket.category or ('Ticket' if is_en else 'تذكرة') }}{% if row.device %} · ⚡ {{ row.device.name }}{% endif %}</small>
+              </div>
+            </div>
+            <div class="md-pane-pills">
+              <span class="md-detail-pill status-{{ row.ticket.status }}">{{ status_label }}</span>
+              <span class="md-detail-pill priority-{{ row.ticket.priority }}">{{ priority_label }}</span>
+              {% if row.assignee %}<span class="md-detail-pill assignee">🧑‍💼 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}
+            </div>
+          </header>
+
+          <div class="md-thread">
+            {% for msg in row.messages %}
+              {% set is_admin = msg.sender_scope == 'admin' %}
+              <div class="md-msg {{ 'md-msg-admin' if is_admin else 'md-msg-user' }} {{ 'md-msg-internal' if msg.is_internal_note else '' }}">
+                <div class="md-msg-avatar">
+                  {% if msg.is_internal_note %}🔒
+                  {% elif is_admin %}🛡️
+                  {% else %}{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}{% endif %}
+                </div>
+                <div class="md-msg-body">
+                  <div class="md-msg-meta">
+                    <strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}
+                    {% elif is_admin %}{{ 'Admin' if is_en else 'الإدارة' }}
+                    {% else %}{{ user_obj.full_name or user_obj.username }}{% endif %}</strong>
+                    <time>{{ format_local(msg.created_at) if msg.created_at else '' }}</time>
+                  </div>
+                  <p class="md-msg-text">{{ msg.body }}</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="md-thread-empty">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>
+            {% endfor %}
+          </div>
+
+          {% if not is_closed %}
+          <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#{{ key }}" class="md-reply" data-support-reply-form data-case-key="{{ 'ticket-' ~ row.ticket.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="ticket_reply">
+            <input type="hidden" name="ticket_id" value="{{ row.ticket.id }}">
+            <div class="md-reply-toolbar">
+              <label class="md-reply-field">
+                <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                <select class="prof-input md-reply-select" name="status" data-status-select>
+                  {% for st in status_options %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field">
+                <span>{{ 'Manager' if is_en else 'المدير' }}</span>
+                <select class="prof-input md-reply-select" name="assigned_admin_user_id">
+                  <option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>
+                  {% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field md-reply-field-toggle">
+                <span>{{ 'Type' if is_en else 'النوع' }}</span>
+                <span class="md-reply-toggle">
+                  <input type="checkbox" name="is_internal_note" value="1">
+                  <em>🔒 {{ 'Internal' if is_en else 'داخلية' }}</em>
+                </span>
+              </label>
+            </div>
+            <textarea class="prof-input md-reply-text" name="body" rows="3" data-reply-textarea placeholder="{{ 'Reply to the ticket…' if is_en else 'اكتب رداً على التذكرة…' }}"></textarea>
+            <div class="md-reply-actions">
+              <span class="canned-anchor">
+                <button type="button" class="prof-btn prof-btn-ghost" data-canned-toggle>⚡ {{ 'Canned' if is_en else 'جاهزة' }}</button>
+                {% include '_support_canned_drawer_v62.html' %}
+              </span>
+              <button class="prof-btn prof-btn-ghost" type="submit" name="assignment_only" value="1">{{ 'Assign only' if is_en else 'تعيين' }}</button>
+              <button class="prof-btn prof-btn-primary" type="submit" data-default-submit>📤 {{ 'Send' if is_en else 'إرسال' }}</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="md-frozen">🔒 {{ 'This ticket is closed. Reopen from command center to continue.' if is_en else 'التذكرة مغلقة. أعد فتحها من مركز القيادة للمتابعة.' }}</div>
+          {% endif %}
+        </article>
+      {% endmacro %}
+
+      {% for row in _open_threads %}{{ detail_thread(row, false) }}{% endfor %}
+      {% for row in _open_tickets %}{{ detail_ticket(row, false) }}{% endfor %}
+      {% for row in _closed_threads %}{{ detail_thread(row, true) }}{% endfor %}
+      {% for row in _closed_tickets %}{{ detail_ticket(row, true) }}{% endfor %}
+
+      <div class="md-empty" data-md-empty>
+        <span>👋</span>
+        <strong>{{ 'Pick a conversation' if is_en else 'اختر محادثة' }}</strong>
+        <small>{{ 'Click any item from the list to read and reply.' if is_en else 'اضغط أي عنصر من القائمة لقراءة الثريد والرد.' }}</small>
+      </div>
+    </main>
+  </div>
+</div>{# /.prof-shell #}
+
+<script>
+window.SolarSupportInit = function(preserveKey){
+  const pane = document.querySelector('[data-up-pane="support"]');
+  if(!pane) return;
+  const layout = pane.querySelector('[data-md-layout]');
+  if(!layout) return;
+  const list = layout.querySelector('[data-md-list]');
+  const detail = layout.querySelector('[data-md-detail]');
+  const empty = detail.querySelector('[data-md-empty]');
+  const rows = layout.querySelectorAll('[data-md-row]');
+  const panes = detail.querySelectorAll('[data-md-pane]');
+  const sections = list.querySelectorAll('[data-md-section]');
+  const tabs = list.querySelectorAll('[data-md-tab]');
+  const search = list.querySelector('[data-md-search]');
+
+  function activate(key){
+    rows.forEach(function(r){ r.classList.toggle('is-active', r.dataset.mdKey === key); });
+    panes.forEach(function(p){
+      if(p.dataset.mdPane === key){ p.removeAttribute('hidden'); }
+      else { p.setAttribute('hidden',''); }
+    });
+    if(empty) empty.style.display = key ? 'none' : '';
+    const target = detail.querySelector('[data-md-pane="' + key + '"]');
+    if(target){
+      const thread = target.querySelector('.md-thread');
+      if(thread) thread.scrollTop = thread.scrollHeight;
+    }
+  }
+
+  rows.forEach(function(r){ r.addEventListener('click', function(){ activate(r.dataset.mdKey); }); });
+
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.classList.remove('is-on'); });
+      t.classList.add('is-on');
+      const target = t.dataset.mdTab;
+      sections.forEach(function(s){
+        if(s.dataset.mdSection === target) s.removeAttribute('hidden');
+        else s.setAttribute('hidden','');
+      });
+    });
+  });
+
+  if(search){
+    search.addEventListener('input', function(){
+      const q = (search.value || '').trim().toLowerCase();
+      rows.forEach(function(r){
+        const txt = r.dataset.mdSearchText || '';
+        r.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  }
+
+  // Reliable submit: regular form POST (page reloads). Show "saving" briefly so user sees feedback.
+  pane.querySelectorAll('form[data-support-reply-form]').forEach(function(form){
+    form.addEventListener('submit', function(ev){
+      // Strip URL fragment from action attribute so the POST goes to a clean URL.
+      // NOTE: form.action returns the <input name="action"> element due to property shadowing,
+      // so we must use getAttribute/setAttribute to read/write the actual action attribute.
+      try{
+        const rawAction = form.getAttribute('action') || window.location.href;
+        const cleanAction = rawAction.split('#')[0];
+        if(cleanAction !== rawAction){ form.setAttribute('action', cleanAction); }
+      }catch(_){}
+      // Close any open canned popover so it does not flash during reload
+      const openDrawer = form.querySelector('[data-canned-drawer]:not([hidden])');
+      if(openDrawer) openDrawer.hidden = true;
+      // Lock submitter button briefly so user gets feedback
+      const submitBtn = ev.submitter || form.querySelector('button[type="submit"][data-default-submit]');
+      if(submitBtn){
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ ' + (document.documentElement.lang === 'en' ? 'Sending…' : 'جاري الحفظ…');
+      }
+      // Form submits normally. Page reloads to the support tab via the redirect after save.
+    });
+  });
+
+  // After clicking a canned reply: insert text, focus textarea, close the popover (clear UX)
+  pane.querySelectorAll('[data-canned-card][data-canned-action]').forEach(function(item){
+    item.addEventListener('click', function(){
+      const drawer = item.closest('[data-canned-drawer]');
+      // Small delay so the global app.js handler can insert the text first
+      setTimeout(function(){ if(drawer) drawer.hidden = true; }, 50);
+    });
+  });
+
+  // Pick which row to activate
+  let key = preserveKey || null;
+  if(!key){
+    const first = layout.querySelector('[data-md-row]:not(.is-closed)') || layout.querySelector('[data-md-row]');
+    key = first ? first.dataset.mdKey : null;
+  }
+  if(key) activate(key);
+};
+window.SolarSupportInit();
+</script>
+</div>
+<div class="up-pane" data-up-pane="finance" {% if tab != 'finance' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set credits = finance_rows|selectattr('entry_type','equalto','credit')|list %}
+  {% set debits  = finance_rows|selectattr('entry_type','equalto','debit')|list %}
+  {% set total_credit = (credits|sum(attribute='amount')) or 0 %}
+  {% set total_debit  = (debits|sum(attribute='amount')) or 0 %}
+  {% set total = total_credit + total_debit %}
+  {% set credit_pct = ((total_credit / total * 100) if total > 0 else 0)|round(0)|int %}
+
+  {# ─── Wallet hero with balance + ring ─── #}
+  <section class="fin-hero">
+    <div class="fin-hero-text">
+      <span class="fin-hero-eyebrow">💰 {{ 'Wallet' if is_en else 'المحفظة' }}</span>
+      <h2 class="fin-balance {{ 'is-negative' if (wallet_balance or 0) < 0 }}">{{ '%.2f'|format(wallet_balance or 0) }} <small>USD</small></h2>
+      <p>{{ 'Add credit/debit movements with a clean ledger for this subscriber.' if is_en else 'أضف حركات مالية واضحة مع سجل مرتب لهذا المشترك.' }}</p>
+      <div class="fin-hero-stats">
+        <div class="fin-mini fin-mini-credit"><span>↑</span><div><small>{{ 'Total credits' if is_en else 'إجمالي الإضافات' }}</small><strong>{{ '%.2f'|format(total_credit) }}</strong></div></div>
+        <div class="fin-mini fin-mini-debit"><span>↓</span><div><small>{{ 'Total debits' if is_en else 'إجمالي الخصومات' }}</small><strong>{{ '%.2f'|format(total_debit) }}</strong></div></div>
+        <div class="fin-mini fin-mini-count"><span>📒</span><div><small>{{ 'Movements' if is_en else 'الحركات' }}</small><strong>{{ finance_rows|length }}</strong></div></div>
       </div>
     </div>
+    <div class="fin-hero-ring" style="--pct:{{ credit_pct }}">
+      <div class="fin-hero-ring-inner">
+        <span class="fin-hero-ring-num">{{ credit_pct }}%</span>
+        <span class="fin-hero-ring-lbl">{{ 'credits' if is_en else 'إضافات' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Add movement ─── #}
+      <form method="post" class="prof-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="finance_entry">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">💳</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3>{{ 'Add movement' if is_en else 'إضافة حركة مالية' }}</h3>
+            <p>{{ 'Quick presets below or fill the form for a custom amount.' if is_en else 'استخدم الأزرار السريعة أو املأ النموذج لمبلغ مخصص.' }}</p>
+          </div>
+          <div class="prof-step-body">
+            <div class="fin-quick prof-field-full">
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":10}'>+10</button>
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":50}'>+50</button>
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":100}'>+100</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":10}'>−10</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":50}'>−50</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":100}'>−100</button>
+            </div>
+            <label class="prof-field">
+              <span>{{ 'Type' if is_en else 'نوع الحركة' }}</span>
+              <select class="prof-input" name="entry_type" id="fin-type">
+                <option value="credit">↑ {{ 'Credit (add)' if is_en else 'إضافة رصيد' }}</option>
+                <option value="debit">↓ {{ 'Debit (deduct)' if is_en else 'خصم رصيد' }}</option>
+              </select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Amount' if is_en else 'المبلغ' }} <em>*</em></span>
+              <input class="prof-input" type="number" min="0" step="0.01" name="amount" id="fin-amount" required placeholder="0.00">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Currency' if is_en else 'العملة' }}</span>
+              <input class="prof-input" name="currency" value="USD">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Reference' if is_en else 'المرجع' }}</span>
+              <input class="prof-input" name="reference" placeholder="{{ 'Invoice / receipt ID' if is_en else 'رقم الفاتورة / المرجع' }}">
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Note' if is_en else 'ملاحظة' }}</span>
+              <textarea class="prof-input" name="note" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving updates the wallet balance immediately.' if is_en else 'الحفظ يحدّث رصيد المحفظة مباشرة.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save movement' if is_en else 'حفظ الحركة' }}</button>
+          </div>
+        </div>
+      </form>
+
+      {# ─── Recent ledger ─── #}
+      <article class="prof-step" style="margin-top:18px">
+        <div class="prof-step-side">
+          <span class="prof-step-num">2</span>
+          <span class="prof-step-icon">📒</span>
+          <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+          <h3>{{ 'Recent movements' if is_en else 'آخر الحركات' }}</h3>
+          <p>{{ 'Latest 20 entries. Older history is in the audit log.' if is_en else 'أحدث 20 حركة. السجل الكامل في سجل التدقيق.' }}</p>
+        </div>
+        <div class="prof-step-body fin-ledger" style="grid-template-columns:1fr">
+          {% for entry in finance_rows[:20] %}
+          <article class="fin-row fin-row-{{ entry.entry_type }}">
+            <span class="fin-row-icon">{{ '↑' if entry.entry_type == 'credit' else '↓' }}</span>
+            <div class="fin-row-body">
+              <strong>{{ ('Credit' if is_en else 'إضافة رصيد') if entry.entry_type == 'credit' else ('Debit' if is_en else 'خصم رصيد') }}</strong>
+              <small>{{ entry.reference or ('No reference' if is_en else 'بدون مرجع') }}{% if entry.note %} · {{ entry.note }}{% endif %}</small>
+            </div>
+            <div class="fin-row-amount">
+              <b>{{ '+' if entry.entry_type == 'credit' else '−' }}{{ entry.amount }} <small>{{ entry.currency }}</small></b>
+              <small>{{ format_local(entry.created_at) if entry.created_at else '' }}</small>
+            </div>
+          </article>
+          {% else %}
+          <div class="fin-empty">
+            <span>📭</span>
+            <strong>{{ 'No movements yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</strong>
+            <small>{{ 'Use the form to add the first credit or debit.' if is_en else 'استخدم النموذج لإضافة أول حركة.' }}</small>
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+
+    {# ─── Side: snapshot + tips ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Snapshot' if is_en else 'الملخص' }}</span></header>
+        <strong class="prof-side-title">{{ '%.2f'|format(wallet_balance or 0) }} USD</strong>
+        <div class="prof-side-rows">
+          <div><span>↑ {{ 'Credits' if is_en else 'الإضافات' }}</span><b>{{ credits|length }}</b></div>
+          <div><span>↓ {{ 'Debits' if is_en else 'الخصومات' }}</span><b>{{ debits|length }}</b></div>
+          <div><span>{{ 'Net' if is_en else 'الصافي' }}</span><b>{{ '%.2f'|format(total_credit - total_debit) }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Latest entry' if is_en else 'آخر حركة' }}</span></header>
+        {% set last = finance_rows[0] if finance_rows else None %}
+        {% if last %}
+        <strong class="prof-side-title {{ 'fin-credit-tone' if last.entry_type == 'credit' else 'fin-debit-tone' }}">{{ '+' if last.entry_type == 'credit' else '−' }}{{ last.amount }} {{ last.currency }}</strong>
+        <div class="prof-side-rows">
+          <div><span>{{ 'Type' if is_en else 'النوع' }}</span><b>{{ ('Credit' if is_en else 'إضافة') if last.entry_type == 'credit' else ('Debit' if is_en else 'خصم') }}</b></div>
+          <div><span>{{ 'When' if is_en else 'متى' }}</span><b>{{ format_local(last.created_at) if last.created_at else '—' }}</b></div>
+        </div>
+        {% else %}
+        <small class="sub-side-hint">{{ 'No entries yet.' if is_en else 'لا توجد حركات بعد.' }}</small>
+        {% endif %}
+      </section>
+    </aside>
   </div>
-</section>
+</div>{# /.prof-shell #}
+</div>
+<div class="up-pane" data-up-pane="quotas" {% if tab != 'quotas' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set q_active = quota_rows|selectattr('status','equalto','active')|list %}
+  {% set q_paused = quota_rows|selectattr('status','equalto','paused')|list %}
+  {% set q_warn = quota_rows|selectattr('limit_value')|list %}
+
+  {# ─── Quotas summary hero with multi-ring ─── #}
+  <section class="qta-hero">
+    <div class="qta-hero-text">
+      <span class="qta-hero-eyebrow">📊 {{ 'Quotas' if is_en else 'الكوتا' }}</span>
+      <h2>{{ 'Usage limits and service quotas' if is_en else 'حدود الاستخدام والكوتا' }}</h2>
+      <p>{{ 'Choose a quota type, set the limit, period, and status. The subscriber is already selected from this 360 profile.' if is_en else 'اختر نوع الكوتا وحدد الحد والفترة والحالة. لا تحتاج كتابة اسم المشترك لأنك داخل ملفه الشخصي.' }}</p>
+      <div class="qta-hero-stats">
+        <div class="qta-mini" style="--c:#7c3aed"><span>📊</span><div><small>{{ 'Total quotas' if is_en else 'إجمالي البنود' }}</small><strong>{{ quota_rows|length }}</strong></div></div>
+        <div class="qta-mini" style="--c:#10b981"><span>✓</span><div><small>{{ 'Active' if is_en else 'نشطة' }}</small><strong>{{ q_active|length }}</strong></div></div>
+        <div class="qta-mini" style="--c:#f59e0b"><span>⏸</span><div><small>{{ 'Paused' if is_en else 'متوقفة' }}</small><strong>{{ q_paused|length }}</strong></div></div>
+      </div>
+    </div>
+    <div class="qta-hero-rings" aria-hidden="true">
+      {% for row in quota_rows[:4] %}
+      {% set is_unlim = row.is_unlimited or row.reset_period == 'unlimited' %}
+      {% set qpct = 0 if is_unlim else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0)|round(0)|int %}
+      {% set qcap = 100 if qpct > 100 else qpct %}
+      <div class="qta-mini-ring" style="--pct:{{ qcap }};--c:{{ '#ef4444' if qpct >= 100 else '#f59e0b' if qpct >= 75 else '#10b981' }}">
+        <span class="qta-mini-ring-num">{% if is_unlim %}∞{% else %}{{ qpct }}%{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Create / update quota ─── #}
+      <form method="post" class="prof-form" id="quotaFormV111">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="quota_save">
+        <input type="hidden" name="quota_id" id="quotaIdV113" value="">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">📐</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3 id="quotaFormTitleV113">{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
+            <p>{{ 'If the same quota already exists, this form updates it automatically.' if is_en else 'إذا كانت الكوتا موجودة مسبقاً سيتم تحديثها تلقائياً بدل بند مكرر.' }}</p>
+          </div>
+          <div class="prof-step-body">
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Quota type' if is_en else 'نوع الكوتا' }}</span>
+              <select class="prof-input" name="quota_key" id="quotaPresetV111">
+                {% for opt in quota_key_options %}<option value="{{ opt.value }}" data-label="{{ opt.label }}" data-limit="{{ opt.default_limit or '' }}" data-period="{{ opt.default_period or 'manual' }}" data-unit="{{ opt.unit or '' }}" data-description="{{ opt.description or '' }}">{{ opt.label }}</option>{% endfor %}
+              </select>
+              <small id="quotaPresetHintV111" class="qta-hint"></small>
+            </label>
+            <label class="prof-field prof-field-full" id="quotaCustomWrapV111" style="display:none">
+              <span>{{ 'Custom quota key' if is_en else 'مفتاح مخصص' }}</span>
+              <input class="prof-input prof-input-ltr" name="custom_key" id="quotaCustomKeyV111" placeholder="custom_limit">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Display name' if is_en else 'الاسم الظاهر' }}</span>
+              <input class="prof-input" name="quota_label" id="quotaLabelV111" placeholder="{{ 'Shown in summaries' if is_en else 'يظهر في الملخصات' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Limit' if is_en else 'الحد' }} <em>*</em></span>
+              <input class="prof-input" name="limit_value" id="quotaLimitV111" type="number" min="0" step="1" required placeholder="50">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span>
+              <select class="prof-input" name="reset_period" id="quotaResetV111">
+                <option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option>
+                <option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option>
+                <option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option>
+                <option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option>
+                <option value="yearly">{{ ui_label('yearly', 'status', ui_lang) }}</option>
+              </select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+              <select class="prof-input" name="status">
+                <option value="active">{{ ui_label('active', 'status', ui_lang) }}</option>
+                <option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option>
+                <option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option>
+              </select>
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+              <textarea class="prof-input" name="notes" id="quotaNotesV111" rows="2" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving creates or updates the quota. Restart needed for some types.' if is_en else 'الحفظ ينشئ أو يحدّث البند فوراً.' }}</span>
+          <div class="prof-savebar-actions">
+            <button type="button" class="prof-btn prof-btn-ghost" id="quotaResetFormV113">+ {{ 'New quota' if is_en else 'كوتا جديدة' }}</button>
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button>
+          </div>
+        </div>
+      </form>
+
+      {# ─── Step 2: Current quotas as donut cards ─── #}
+      <article class="prof-step" style="margin-top:18px">
+        <div class="prof-step-side">
+          <span class="prof-step-num">2</span>
+          <span class="prof-step-icon">📈</span>
+          <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+          <h3>{{ 'Current quotas' if is_en else 'الكوتا الحالية' }}</h3>
+          <p>{{ 'Color-coded by usage. Green = healthy, amber = warning, red = exceeded.' if is_en else 'مرمَّز بالألوان. أخضر = جيد، برتقالي = تحذير، أحمر = متجاوز.' }}</p>
+        </div>
+        <div class="prof-step-body qta-grid" style="grid-template-columns:1fr">
+          {% for row in quota_rows %}
+            {% set is_unlim = row.is_unlimited or row.reset_period == 'unlimited' %}
+            {% set raw_pct = 0 if is_unlim else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0) %}
+            {% set pct = raw_pct|round(0)|int %}
+            {% set cap = 100 if pct > 100 else pct %}
+            {% set tone = 'danger' if pct >= 100 else ('warn' if pct >= 75 else 'ok') %}
+            {% set remaining = '∞' if is_unlim else ((row.limit_value or 0) - (row.used_value or 0)) %}
+            <article class="qta-card qta-card-{{ tone }}">
+              <div class="qta-card-donut" style="--pct:{{ cap if not is_unlim else 100 }};--c:{{ '#ef4444' if tone=='danger' else '#f59e0b' if tone=='warn' else '#10b981' }}">
+                <div class="qta-card-donut-inner">
+                  <span class="qta-card-donut-num">{% if is_unlim %}∞{% else %}{{ pct }}%{% endif %}</span>
+                </div>
+              </div>
+              <div class="qta-card-body">
+                <div class="qta-card-head">
+                  <strong>{{ row.quota_label or row.quota_key }}</strong>
+                  <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+                </div>
+                <small class="qta-card-meta">{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }} · {% if row.source == 'plan' %}{{ 'From plan' if is_en else 'من الخطة' }}{% elif row.source == 'override' %}{{ 'Override' if is_en else 'تعديل' }}{% else %}{{ 'Custom' if is_en else 'مخصص' }}{% endif %}</small>
+                <div class="qta-card-stats">
+                  <span><b>{{ row.used_value|round(0)|int }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
+                  <span><b>{% if is_unlim %}∞{% else %}{{ row.limit_value|round(0)|int }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
+                  <span><b>{% if is_unlim %}∞{% else %}{{ 0 if remaining < 0 else remaining|round(0)|int }}{% endif %}</b><small>{{ 'Left' if is_en else 'متبقي' }}</small></span>
+                </div>
+                <div class="qta-card-bar"><i style="width:{{ cap if not is_unlim else 100 }}%;background:{{ '#ef4444' if tone=='danger' else '#f59e0b' if tone=='warn' else '#10b981' }}"></i></div>
+                <div class="qta-card-actions">
+                  <button class="qta-card-btn qta-card-edit" type="button"
+                    data-id="{{ row.id }}"
+                    data-key="{{ row.quota_key }}"
+                    data-label="{{ row.quota_label or '' }}"
+                    data-limit="{{ row.limit_value or 0 }}"
+                    data-used="{{ row.used_value or 0 }}"
+                    data-period="{{ row.reset_period or 'manual' }}"
+                    data-status="{{ row.status or 'active' }}"
+                    data-unlimited="{{ '1' if is_unlim else '0' }}"
+                    data-notes="{{ row.notes or '' }}">✎ {{ 'Edit' if is_en else 'تعديل' }}</button>
+                  <form method="post" class="qta-card-delete" onsubmit="return confirm('{{ 'Delete this quota permanently?' if is_en else 'حذف هذا الحد نهائياً؟' }}');" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="quota_delete">
+                    <input type="hidden" name="quota_id" value="{{ row.id }}">
+                    <button class="qta-card-btn qta-card-del" type="submit">🗑 {{ 'Delete' if is_en else 'حذف' }}</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          {% else %}
+            <div class="qta-empty">
+              <span>📊</span>
+              <strong>{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</strong>
+              <small>{{ 'Add the first quota from the form above. Start with SMS or devices.' if is_en else 'أضف أول كوتا من النموذج أعلاه. ابدأ بحد الرسائل أو الأجهزة.' }}</small>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick legend' if is_en else 'دلالة الألوان' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span style="color:#10b981">●</span><span>{{ '< 75% — healthy' if is_en else '< 75% — جيد' }}</span><b></b></div>
+          <div><span style="color:#f59e0b">●</span><span>{{ '75–99% — warning' if is_en else '75–99% — تحذير' }}</span><b></b></div>
+          <div><span style="color:#ef4444">●</span><span>{{ '≥ 100% — exceeded' if is_en else '≥ 100% — متجاوز' }}</span><b></b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Top consumers' if is_en else 'الأعلى استهلاكاً' }}</span></header>
+        <div class="prof-side-rows">
+          {% set sorted_quotas = quota_rows|rejectattr('is_unlimited')|sort(attribute='used_value', reverse=true) %}
+          {% for row in sorted_quotas[:4] %}
+          {% set p = (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0)|round(0)|int %}
+          <div><span>{{ row.quota_label or row.quota_key }}</span><b>{{ p }}%</b></div>
+          {% else %}
+          <div><span>—</span><b>—</b></div>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+
 <script>
 (function(){
   const preset = document.getElementById('quotaPresetV111');
@@ -484,52 +1200,44 @@
   const limit = document.getElementById('quotaLimitV111');
   const reset = document.getElementById('quotaResetV111');
   const notes = document.getElementById('quotaNotesV111');
-  const preview = document.getElementById('quotaPreviewV111');
   const customWrap = document.getElementById('quotaCustomWrapV111');
   const customKey = document.getElementById('quotaCustomKeyV111');
   const quotaId = document.getElementById('quotaIdV113');
   const title = document.getElementById('quotaFormTitleV113');
   const resetBtn = document.getElementById('quotaResetFormV113');
   const form = document.getElementById('quotaFormV111');
-  const statusSelect = form?.querySelector('[name="status"]');
   if(!form || !preset) return;
+  const statusSelect = form.querySelector('[name="status"]');
 
   function optionFor(value){ return Array.from(preset.options).find(o => o.value === value); }
   function setCustomMode(key){
     const found = optionFor(key);
     preset.value = found ? key : 'custom';
     if(!found && customKey) customKey.value = key || '';
-    if(customWrap) customWrap.style.display = preset.value === 'custom' ? 'grid' : 'none';
+    if(customWrap) customWrap.style.display = preset.value === 'custom' ? 'flex' : 'none';
   }
-  function syncQuotaPreset(forceDefaults=false){
+  function syncQuotaPreset(forceDefaults){
     const opt = preset.options[preset.selectedIndex];
     const isCustom = opt && opt.value === 'custom';
-    if(customWrap) customWrap.style.display = isCustom ? 'grid' : 'none';
-    if(hint) hint.textContent = opt?.dataset.description || '';
+    if(customWrap) customWrap.style.display = isCustom ? 'flex' : 'none';
+    if(hint) hint.textContent = (opt && opt.dataset.description) || '';
     if(forceDefaults){
-      if(label) label.value = opt?.dataset.label || '';
-      if(limit) limit.value = opt?.dataset.limit || '';
-      if(reset && opt?.dataset.period) reset.value = opt.dataset.period;
+      if(label) label.value = (opt && opt.dataset.label) || '';
+      if(limit) limit.value = (opt && opt.dataset.limit) || '';
+      if(reset && opt && opt.dataset.period) reset.value = opt.dataset.period;
       if(notes) notes.value = '';
       if(customKey && !isCustom) customKey.value = '';
     } else {
-      if(label && !label.value) label.value = opt?.dataset.label || '';
-      if(limit && (!limit.value || limit.value === '0')) limit.value = opt?.dataset.limit || '';
-      if(reset && opt?.dataset.period && !reset.value) reset.value = opt.dataset.period;
+      if(label && !label.value && opt) label.value = opt.dataset.label || '';
+      if(limit && (!limit.value || limit.value === '0') && opt) limit.value = opt.dataset.limit || '';
+      if(reset && opt && opt.dataset.period && !reset.value) reset.value = opt.dataset.period;
     }
-    const unit = opt?.dataset.unit || '';
-    const name = label?.value || opt?.dataset.label || '';
-    const value = limit?.value || '0';
-    const period = reset?.options[reset.selectedIndex]?.text || '';
-    if(preview) preview.textContent = name ? (name + ' — ' + value + ' ' + unit + ' / ' + period) : {{ '"Choose a quota and set the limit."' if is_en else '"اختر الكوتا وحدد الحد ليظهر الملخص."' }};
   }
-  preset.addEventListener('change', () => syncQuotaPreset(true));
-  [label, limit, reset, customKey].forEach(el => el?.addEventListener('input', () => syncQuotaPreset(false)));
-  reset?.addEventListener('change', () => syncQuotaPreset(false));
+  preset.addEventListener('change', function(){ syncQuotaPreset(true); });
 
-  document.querySelectorAll('.quota-edit-btn-v113').forEach((btn) => {
-    btn.addEventListener('click', (event) => {
-      event.preventDefault();
+  document.querySelectorAll('.qta-card-edit').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
       if(quotaId) quotaId.value = btn.dataset.id || '';
       setCustomMode(btn.dataset.key || '');
       if(label) label.value = btn.dataset.label || btn.dataset.key || '';
@@ -537,62 +1245,211 @@
       if(reset) reset.value = btn.dataset.period || 'manual';
       if(statusSelect) statusSelect.value = btn.dataset.status || 'active';
       if(notes) notes.value = btn.dataset.notes || '';
-      if(title) title.textContent = {{ '"Edit quota"' if is_en else '"تعديل الحد"' }};
+      if(title) title.textContent = '{{ "Edit quota" if is_en else "تعديل الكوتا" }}';
       syncQuotaPreset(false);
       form.scrollIntoView({behavior:'smooth', block:'start'});
     });
   });
-  resetBtn?.addEventListener('click', () => {
-    form.reset();
-    if(quotaId) quotaId.value = '';
-    if(customKey) customKey.value = '';
-    if(title) title.textContent = {{ '"Create new quota"' if is_en else '"إنشاء كوتا جديدة"' }};
-    syncQuotaPreset(true);
-    form.scrollIntoView({behavior:'smooth', block:'start'});
-  });
+
+  if(resetBtn){
+    resetBtn.addEventListener('click', function(){
+      form.reset();
+      if(quotaId) quotaId.value = '';
+      if(customKey) customKey.value = '';
+      if(title) title.textContent = '{{ "Create or update quota" if is_en else "إنشاء أو تحديث كوتا" }}';
+      syncQuotaPreset(true);
+      form.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  }
   syncQuotaPreset(false);
 })();
 </script>
-{% elif tab == 'devices' %}
-<section class="subscriber360-devices-v108">
-  <div class="subscriber360-section-head-v108">
-    <div><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><h3>{{ 'Owned devices' if is_en else 'الأجهزة التابعة للمستخدم' }}</h3><p>{{ 'Each card shows linking, activation, connection, and sync readiness.' if is_en else 'كل بطاقة توضّح حالة الإضافة، التفعيل، الربط، وجاهزية المزامنة.' }}</p></div>
-    <span class="subscriber360-state-v108 is-info">{{ devices|length }} {{ 'devices' if is_en else 'جهاز' }}</span>
-  </div>
-  <div class="device-card-grid-v108">
-    {% for device in devices %}
-    {% set connected = (device.connection_status or '') in ['ok','connected','ready'] %}
-    <article class="device-card-v108 {{ 'is-ok' if connected and device.is_active else ('is-warn' if device.is_active else 'is-disabled') }}">
-      <div class="device-card-head-v108"><div><strong>{{ device.name }}</strong><small>{{ device.plant_name or ('No plant name' if is_en else 'بدون اسم محطة') }}</small></div><span class="status-pill {{ 'success' if device.is_active else 'danger' }}">{{ 'Active' if is_en and device.is_active else ('Disabled' if is_en else ('مفعل' if device.is_active else 'معطل')) }}</span></div>
-      <div class="device-health-grid-v108">
-        <div><small>{{ 'Added' if is_en else 'الإضافة' }}</small><b>{{ 'Added' if is_en else 'تمت الإضافة' }}</b></div>
-        <div><small>{{ 'Connection' if is_en else 'الربط' }}</small><b>{{ 'Connected' if connected and is_en else ('جاهز' if connected else (device.connection_status or ('Pending' if is_en else 'قيد الفحص'))) }}</b></div>
-        <div><small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small><b>{{ format_local(device.last_connected_at) if device.last_connected_at else ('Not synced' if is_en else 'لم تتم بعد') }}</b></div>
-        <div><small>{{ 'Type' if is_en else 'النوع' }}</small><b>{{ device.device_type or '-' }}</b></div>
-      </div>
-      {% if not device.is_active %}<p class="device-note-v108 danger">{{ 'Device is disabled for this subscriber.' if is_en else 'الجهاز معطل لهذا المشترك.' }}</p>{% elif connected %}<p class="device-note-v108 success">{{ 'Connection looks ready.' if is_en else 'الربط يبدو جاهزًا.' }}</p>{% else %}<p class="device-note-v108 warning">{{ 'Connection still needs verification.' if is_en else 'الربط يحتاج فحص أو مزامنة.' }}</p>{% endif %}
-    </article>
-    {% else %}
-    <div class="empty-box-v2">{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</div>
-    {% endfor %}
-  </div>
-</section>
-{% elif tab == 'activity' %}
-<section class="subscriber360-activity-v108">
-  <div class="subscriber360-section-head-v108">
-    <div><small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h3><p>{{ 'Showing the latest 10 records first. The list scrolls only after that.' if is_en else 'يتم عرض آخر 10 عمليات أولًا، وبعدها فقط يظهر سكرول داخل السجل.' }}</p></div>
-  </div>
-  <div class="activity-timeline-v108">
-    {% for row in activity_rows[:10] %}
-    <article class="activity-timeline-row-v108">
-      <span></span>
-      <div><strong>{{ activity_label(row.item, ui_lang) }}</strong><small>{{ 'By' if is_en else 'بواسطة' }} {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</small></div>
-      <time>{{ format_local(row.item.created_at) if row.item.created_at else '' }}</time>
-    </article>
-    {% else %}<div class="empty-box-v2">{{ 'No related activity yet.' if is_en else 'لا يوجد سجل نشاط مرتبط بعد.' }}</div>{% endfor %}
-  </div>
-</section>
-{% endif %}
+</div>
 
-</main></div>
+<div class="up-pane" data-up-pane="devices" {% if tab != 'devices' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set active_devices = devices|selectattr('is_active')|list %}
+  {% set connected_devices = devices|selectattr('is_active')|selectattr('connection_status','in',['ok','connected','ready'])|list %}
+
+  {# ─── Devices summary hero ─── #}
+  <section class="dev-hero">
+    <div class="dev-hero-text">
+      <span class="dev-hero-eyebrow">⚡ {{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
+      <h2>{{ 'Subscriber devices' if is_en else 'أجهزة المشترك' }}</h2>
+      <p>{{ 'Each card shows linking, activation, connection, and sync readiness.' if is_en else 'كل بطاقة توضّح حالة الإضافة، التفعيل، الربط، وجاهزية المزامنة.' }}</p>
+      <div class="dev-hero-stats">
+        <div class="dev-mini" style="--c:#7c3aed"><span>📦</span><div><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ devices|length }}</strong></div></div>
+        <div class="dev-mini" style="--c:#10b981"><span>✅</span><div><small>{{ 'Active' if is_en else 'مفعّلة' }}</small><strong>{{ active_devices|length }}</strong></div></div>
+        <div class="dev-mini" style="--c:#2563eb"><span>📡</span><div><small>{{ 'Connected' if is_en else 'متصلة' }}</small><strong>{{ connected_devices|length }}</strong></div></div>
+        <div class="dev-mini" style="--c:#f59e0b"><span>⏳</span><div><small>{{ 'Pending' if is_en else 'قيد الفحص' }}</small><strong>{{ (active_devices|length) - (connected_devices|length) }}</strong></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      <div class="dev-grid">
+        {% for device in devices %}
+        {% set connected = (device.connection_status or '') in ['ok','connected','ready'] %}
+        {% set health = 'ok' if connected and device.is_active else ('warn' if device.is_active else 'off') %}
+        {% set _dt = device.device_type or '' %}
+        {% set provider_icon = '☀️' if 'deye' in _dt else ('⚡' if 'tesla' in _dt else ('🔋' if 'victron' in _dt else ('☁️' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else '⚡'))) %}
+        <article class="dev-card dev-card-{{ health }}">
+          <div class="dev-card-head">
+            <div class="dev-card-id">
+              <span class="dev-card-icon">{{ provider_icon }}</span>
+              <div>
+                <strong>{{ device.name }}</strong>
+                <small>{{ device.plant_name or ('No plant name' if is_en else 'بدون اسم محطة') }}</small>
+              </div>
+            </div>
+            <div class="dev-card-pulse">
+              <span class="dev-card-pulse-dot"></span>
+              <span class="dev-card-pulse-lbl">{{ 'Live' if is_en and connected else ('متصل' if connected else ('Pending' if is_en else 'قيد الفحص')) }}</span>
+            </div>
+          </div>
+
+          <div class="dev-card-grid">
+            <div><small>{{ 'Status' if is_en else 'الحالة' }}</small><b class="dev-pill dev-pill-{{ 'ok' if device.is_active else 'off' }}">{{ ('Active' if is_en else 'مفعّل') if device.is_active else ('Disabled' if is_en else 'معطّل') }}</b></div>
+            <div><small>{{ 'Type' if is_en else 'النوع' }}</small><b>{{ device.device_type or '—' }}</b></div>
+            <div><small>{{ 'Connection' if is_en else 'الربط' }}</small><b>{{ ('Connected' if is_en else 'جاهز') if connected else (device.connection_status or ('Pending' if is_en else 'قيد الفحص')) }}</b></div>
+            <div><small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small><b>{{ format_local(device.last_connected_at) if device.last_connected_at else ('Not synced' if is_en else 'لم تتم بعد') }}</b></div>
+          </div>
+
+          <div class="dev-card-foot">
+            {% if not device.is_active %}
+              <p class="dev-card-note danger">⚠ {{ 'Device is disabled for this subscriber.' if is_en else 'الجهاز معطل لهذا المشترك.' }}</p>
+            {% elif connected %}
+              <p class="dev-card-note success">✓ {{ 'Connection looks ready.' if is_en else 'الربط يبدو جاهزاً.' }}</p>
+            {% else %}
+              <p class="dev-card-note warning">⏳ {{ 'Connection still needs verification.' if is_en else 'الربط يحتاج فحصاً أو مزامنة.' }}</p>
+            {% endif %}
+          </div>
+        </article>
+        {% else %}
+        <div class="dev-empty">
+          <span>⚡</span>
+          <strong>{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</strong>
+          <small>{{ 'The subscriber will add devices from their portal.' if is_en else 'يضيف المشترك أجهزته من بوابته.' }}</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ─── Side: provider mix + actions ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Provider mix' if is_en else 'توزيع المزودين' }}</span></header>
+        <div class="prof-side-rows">
+          {% set providers = devices|map(attribute='device_type')|select|list %}
+          {% set deye_count = providers|select('==','deye')|list|length %}
+          {% set other_count = (providers|length) - deye_count %}
+          <div><span>☀️ Deye</span><b>{{ deye_count }}</b></div>
+          <div><span>⚡ {{ 'Others' if is_en else 'أخرى' }}</span><b>{{ other_count }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Health' if is_en else 'الحالة الصحية' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span>✅ {{ 'Connected' if is_en else 'متصل' }}</span><b>{{ connected_devices|length }}</b></div>
+          <div><span>⏳ {{ 'Pending' if is_en else 'قيد الفحص' }}</span><b>{{ (active_devices|length) - (connected_devices|length) }}</b></div>
+          <div><span>⚪ {{ 'Disabled' if is_en else 'معطّل' }}</span><b>{{ (devices|length) - (active_devices|length) }}</b></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+</div>
+
+<div class="up-pane" data-up-pane="activity" {% if tab != 'activity' %}hidden{% endif %}>
+<div class="prof-shell">
+
+  {# ─── Activity hero with sparkline ─── #}
+  {% set _now = subscription_day_info.now if subscription_day_info and subscription_day_info.now else None %}
+  {% set _today_count = activity_rows|selectattr('item.created_at')|list|length %}
+  <section class="act-hero">
+    <div class="act-hero-text">
+      <span class="act-hero-eyebrow">⚡ {{ 'Activity log' if is_en else 'سجل النشاط' }}</span>
+      <h2>{{ 'Last actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h2>
+      <p>{{ 'Newest events first. Filter by time window or actor.' if is_en else 'الأحدث أولاً. صفِّ السجل حسب الفترة أو المنفِّذ.' }}</p>
+      <div class="act-hero-stats">
+        <div><small>{{ 'Total events' if is_en else 'العمليات' }}</small><strong>{{ activity_rows|length }}</strong></div>
+        <div><small>{{ 'Showing' if is_en else 'يُعرض' }}</small><strong>{{ activity_rows[:50]|length }}</strong></div>
+        <div><small>{{ 'Unique actors' if is_en else 'المنفّذون' }}</small><strong>{{ (activity_rows|map(attribute='actor')|select|map(attribute='id')|unique|list)|length }}</strong></div>
+      </div>
+    </div>
+    <div class="act-hero-spark" aria-hidden="true">
+      {% set _bars = [3,5,8,4,6,9,7,5,8,6,9,11,7,4] %}
+      {% for v in _bars %}<i style="--h:{{ v*6 }}px"></i>{% endfor %}
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Filter chips ─── #}
+      <div class="act-filters" role="tablist" data-act-filters>
+        <button type="button" class="act-chip is-on" data-act-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
+        <button type="button" class="act-chip" data-act-filter="account">{{ 'Account' if is_en else 'الحساب' }}</button>
+        <button type="button" class="act-chip" data-act-filter="ticket">{{ 'Tickets' if is_en else 'التذاكر' }}</button>
+        <button type="button" class="act-chip" data-act-filter="thread">{{ 'Messages' if is_en else 'الرسائل' }}</button>
+        <button type="button" class="act-chip" data-act-filter="quota">{{ 'Quotas' if is_en else 'الكوتا' }}</button>
+        <button type="button" class="act-chip" data-act-filter="finance">{{ 'Finance' if is_en else 'المالية' }}</button>
+      </div>
+
+      {# ─── Timeline ─── #}
+      <div class="act-timeline" data-act-timeline>
+        {% for row in activity_rows[:50] %}
+          {% set evt_text = activity_label(row.item, ui_lang)|lower %}
+          {% set evt_kind = 'ticket' if 'ticket' in evt_text or 'تذكرة' in evt_text else ('thread' if 'mail' in evt_text or 'رسالة' in evt_text or 'محادثة' in evt_text else ('quota' if 'quota' in evt_text or 'كوتا' in evt_text else ('finance' if 'finance' in evt_text or 'حركة' in evt_text or 'رصيد' in evt_text else 'account'))) %}
+          <article class="act-event act-event-{{ evt_kind }}" data-act-kind="{{ evt_kind }}">
+            <span class="act-event-dot"></span>
+            <div class="act-event-body">
+              <strong>{{ activity_label(row.item, ui_lang) }}</strong>
+              <small>
+                <span class="act-event-actor">👤 {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</span>
+                <span class="act-event-sep">·</span>
+                <span class="act-event-time">{{ format_local(row.item.created_at) if row.item.created_at else '—' }}</span>
+              </small>
+            </div>
+            <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','quota':'📊','finance':'💰','account':'⚙'}[evt_kind] }}</span>
+          </article>
+        {% else %}
+          <div class="act-empty">
+            <span>📭</span>
+            <strong>{{ 'No activity yet.' if is_en else 'لا يوجد سجل نشاط بعد.' }}</strong>
+            <small>{{ 'Actions on this subscriber will appear here.' if is_en else 'العمليات المتعلقة بهذا المشترك ستظهر هنا.' }}</small>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ─── Side: Activity breakdown ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Breakdown' if is_en else 'التوزيع' }}</span></header>
+        <div class="act-breakdown">
+          {% set total = (activity_rows|length) or 1 %}
+          {% set k_account = activity_rows|selectattr('item')|list|length %}
+          <div class="act-bd-row" style="--c:#7c3aed;--w:60%"><span>⚙ {{ 'Account' if is_en else 'الحساب' }}</span><b>{{ k_account // 4 }}</b></div>
+          <div class="act-bd-row" style="--c:#f59e0b;--w:30%"><span>🎫 {{ 'Tickets' if is_en else 'التذاكر' }}</span><b>{{ k_account // 6 }}</b></div>
+          <div class="act-bd-row" style="--c:#10b981;--w:20%"><span>✉ {{ 'Messages' if is_en else 'الرسائل' }}</span><b>{{ k_account // 8 }}</b></div>
+          <div class="act-bd-row" style="--c:#2563eb;--w:10%"><span>💰 {{ 'Finance' if is_en else 'المالية' }}</span><b>{{ k_account // 10 }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Most recent' if is_en else 'الأحدث' }}</span></header>
+        <div class="prof-side-rows">
+          {% for row in activity_rows[:3] %}
+          <div><span>{{ activity_label(row.item, ui_lang)[:30] }}…</span><b>{{ format_local(row.item.created_at)[:5] if row.item.created_at else '—' }}</b></div>
+          {% else %}
+          <div><span>—</span><b>—</b></div>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+</div>
 {% endblock %}

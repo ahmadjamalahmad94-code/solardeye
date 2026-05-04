@@ -68,4 +68,14 @@
       <p>{{ 'No notifications match your current filters.' if is_en else 'لا توجد إشعارات مطابقة للفلاتر الحالية.' }}</p>
     </div>
   </div>
+
+  {# ── Pagination footer (client-side, 10 per page) ── #}
+  <div class="ncv40-pager" data-ncv40-pager
+       data-label-showing="{{ 'Showing' if is_en else 'عرض' }}"
+       data-label-of="{{ 'of' if is_en else 'من' }}"
+       data-label-prev="{{ 'Prev' if is_en else 'السابق' }}"
+       data-label-next="{{ 'Next' if is_en else 'التالي' }}">
+    <div class="ncv40-pager-info" data-ncv40-pager-info></div>
+    <div class="ncv40-pager-pages" data-ncv40-pager-pages></div>
+  </div>
 </section>

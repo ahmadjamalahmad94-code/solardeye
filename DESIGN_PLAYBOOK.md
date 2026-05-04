@@ -39,10 +39,10 @@
 ### ألوان النص والخلفيات
 
 - Text primary: `#0b1220`
-- Text secondary: `#5e6f8c`
+- Text secondary (muted): `#4a5b78` — مُحدَّث لاجتياز WCAG AA على الأبيض (~6.3:1)
 - Text soft: `#1f2a44`
-- Border: `#e3eaf6`
-- Border stronger: `#cfd9ec`
+- Border: `#e3eaf6` — فواصل خفيفة
+- Border stronger: `#bcc8df` — حدود الإدخالات والفواصل المرئية والـ hover
 - Card background: `#ffffff`
 - Card soft background: `#f9fbff`
 - Page background layers:
@@ -137,9 +137,8 @@ font-family: 'Cairo', 'Inter', system-ui, sans-serif;
 ### على مستوى الصفحة
 
 - Padding الصفحة:
-  - `18px clamp(14px, 2.4vw, 32px) 80px`
-- Gap بين الأقسام الرئيسية:
-  - `22px` أو `30px`
+  - `22px clamp(14px, 2.4vw, 28px) 56px`
+- المسافة بين الأقسام الرئيسية: **`26px`** (موحَّدة وإلزامية)
 
 ### على مستوى الكروت
 
@@ -147,16 +146,32 @@ font-family: 'Cairo', 'Inter', system-ui, sans-serif;
   - `18px 20px`
   - `20px 22px`
 - Gap داخلي بين عناصر الكرت:
-  - `8px`
-  - `10px`
-  - `12px`
-  - `16px`
+  - `8px` / `10px` / `12px` / `16px`
 
-### القاعدة الإلزامية
+### ⚠️ القاعدة الإلزامية للمسافات بين الأقسام
 
+> لا تعتمد على `flex gap` بين الأقسام الرئيسية للصفحة. القواعد العامة في `style.css` (مثل `.app-main > *` و `.content-area > *`) تكسر الـ flex gap بشكل متكرر، فتلتصق الأقسام ببعض. الحل **إجباري ومُوحَّد**: استخدام `margin-block-start` صريح بـ `!important` على كل قسم direct child من حاوية الصفحة.
+
+```css
+.xx-page > .xx-hero    { margin: 0 !important }
+.xx-page > .xx-stats   { margin: 26px 0 0 0 !important }
+.xx-page > .xx-toolbar { margin: 26px 0 0 0 !important }
+.xx-page > .xx-grid    { margin: 26px 0 0 0 !important }
+.xx-page > section,
+.xx-page > header      { margin-block-start: 26px !important }
+.xx-page > :first-child{ margin-block-start: 0 !important }
+```
+
+- المسافة الموحَّدة بين الأقسام: **`26px`**
+- `!important` غير قابلة للتفاوض — بدونها الـ cascade العام يكسر التصميم
+- `:first-child` يُصفِّر margin-top للهيرو لئلا تظهر فجوة فارغة فوقه
+- ممنوع استخدام `margin-bottom` على الأقسام — المسافة يملكها القسم التالي عبر `margin-block-start`
+- لا تعتمد على `flex-gap` للأقسام top-level (للداخل-الكرت OK)
+
+#### مبدأ بسيط:
 - لا تترك الأقسام ملزقة ببعض
 - الصفحة يجب أن تتنفس
-- إذا كان أول Section مريحًا، يجب أن تكون نفس المسافة مطبقة على الباقي
+- نفس مسافة `26px` تطبَّق على كل صفحة في النظام
 
 ## 7. الزوايا والظلال
 
@@ -531,3 +546,177 @@ grid-template-columns: minmax(0, 1fr) 340px;
 - Long integration catalogs must stay inside an internal scroll panel.
 - Device cards and add-device cards must use the same top accent-line treatment used by the reference stat cards.
 - Main sections need explicit visible spacing between them; do not rely only on parent gap when the visual separation is weak.
+
+## 25. صفحات المصادقة (تسجيل الدخول والتسجيل)
+
+صفحات المصادقة تتبع نمط **stage مقسوم**: بطاقة بيضاء طويلة تحوي عمودين — `showcase` بتدرّج لوني على جانب، و `form` على الجانب الآخر. يجب أن تشعر الصفحتان (login و register) متطابقتين بصرياً تماماً.
+
+### 25.1 إيقاع الـ hero — مسافات ثابتة لا توزيع ديناميكي
+
+هذه القاعدة الأهم وغير البديهية:
+
+> صفحة login تستخدم `justify-content:space-between` لأن الفورم فيها يسع 620 px. أما register فالفورم فيها ~1200 px، فلو استخدمنا `space-between` نفسها يتم توزيع الفراغ الفائض على الـ panel الجانبي وتتفكك الأقسام. الحل: نستغني عن `space-between` ونعتمد على **margin-bottom ثابت** بين الأقسام الكبرى — لتبقى الإيقاعية موحَّدة بصرف النظر عن طول الفورم.
+
+```css
+.xx-showcase{ justify-content:flex-start; gap:20px }
+.xx-showcase > .xx-brand        { margin-bottom:80px }  /* فجوة قبل المحتوى */
+.xx-showcase > .xx-showcase-body{ margin-bottom:60px }  /* فجوة قبل بطاقة الإحصاء */
+```
+
+النتيجة: 100 px بين اللوغو والمحتوى، 80 px بين المحتوى وبطاقة الإحصاء — مطابق لتوزيع login داخل 620 px. التدرج اللوني يملأ ما تبقى من الـ panel تلقائياً.
+
+### 25.2 ترتيب أبناء الـ showcase
+
+| البلوك | الكلاس | المحتوى |
+|---|---|---|
+| Brand | `.xx-brand` | أيقونة + اسم المنصة + سطر فرعي |
+| Body  | `.xx-showcase-body` | eyebrow chip + h1 + tagline + شبكة 2×2 من المزايا |
+| Stats | `.xx-stats` | بطاقة من 3 أعمدة بخلفية بيضاء شبه شفافة |
+
+### 25.3 toggle اللغة الواحد
+
+في صفحات المصادقة: استخدم **فقط** الـ pill العام `.xx-lang-toggle` (مثبَّت في زاوية الصفحة). لا تضع toggle ثاني داخل header الفورم — ذلك يضاعف نقاط القرار ويسرق الانتباه.
+
+### 25.4 حقول الإدخال
+
+```css
+.xx-field-input{
+  position:relative; display:flex; align-items:center;
+  background:#fff; border:1px solid var(--xx-line-strong); border-radius:11px;
+  padding-inline-start:38px; padding-inline-end:6px;
+}
+.xx-field-input:focus-within{
+  border-color:var(--xx-amber);
+  box-shadow:0 0 0 3px rgba(245,158,11,.18);
+}
+.xx-field-icon{
+  position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%);
+  color:var(--xx-muted);
+}
+```
+
+أيقونة الحقل تُموضع بـ `inset-inline-start` فتظهر على **اليمين** في RTL وعلى **اليسار** في LTR تلقائياً.
+
+**اتجاه الحقل (input dir):** لا تثبّت `dir="ltr"`. اجعله ديناميكياً ليتبع لغة الصفحة:
+```jinja2
+<input ... dir="{{ 'ltr' if is_en else 'rtl' }}">
+```
+هذا يضع المؤشر في بداية الحقل البصرية بحسب اللغة. خوارزمية bidi تتعامل مع الأحرف اللاتينية المضمَّنة داخل حقل RTL تلقائياً.
+
+### 25.5 رابط "العودة للرئيسية"
+
+لا تضع السهم داخل نفس string النص — bidi قد يموضعه بشكل خاطئ. افصل في `<span>`:
+
+```html
+<a class="xx-back-link" href="...">
+  <span class="xx-back-arrow" aria-hidden="true">{{ '←' if is_en else '→' }}</span>
+  <span>{{ 'Back to home' if is_en else 'العودة للرئيسية' }}</span>
+</a>
+```
+
+اتجاه السهم:
+- LTR: `←` — للخلف باتجاه عكس القراءة
+- RTL: `→` — للخلف باتجاه عكس قراءة العربية
+
+أنميشن hover يحرّك السهم باتجاه "الخلف":
+```css
+.xx-back-link:hover .xx-back-arrow{
+  transform: translateX({{ '-3px' if is_en else '3px' }})
+}
+```
+
+### 25.6 زر التأكيد (Submit)
+
+ثلاثة أبناء بهذا الترتيب: SVG أمن (قفل) → النص → سهم اتجاهي. **بدون إيموجي**.
+
+```html
+<button class="xx-submit" type="submit">
+  <svg class="xx-submit-icon" .../>
+  <span>{{ 'Sign in securely' if is_en else 'دخول آمن' }}</span>
+  <span class="xx-submit-arrow" aria-hidden="true">{{ '→' if is_en else '←' }}</span>
+</button>
+```
+
+السهم بـ `opacity:.85` افتراضياً ويصبح `1` مع `translateX(±4px)` عند hover.
+
+### 25.7 الفاصل "أو تابع باستخدام"
+
+استخدم flexbox، ليس `position:absolute`:
+```css
+.xx-divider{
+  display:flex; align-items:center; gap:.75rem;
+  font-size:.74rem; color:var(--xx-muted); font-weight:800;
+  text-transform:uppercase; letter-spacing:.4px; margin:.4rem 0;
+}
+.xx-divider::before, .xx-divider::after{
+  content:""; flex:1; height:1px; background:var(--xx-line-strong);
+}
+```
+
+### 25.8 معالجة BiDi للنصوص المختلطة
+
+عندما تحتوي جملة عربية على token لاتيني متبوع بفاصلة (مثل `SMS، تيليجرام`)، الفاصلة قد تظهر في الجهة الخاطئة. لفّ الـ token بـ `<bdi>`:
+
+```jinja2
+{{ ('SMS, Telegram, in-app' if is_en else '<bdi>SMS</bdi>، تيليجرام، داخل التطبيق') | safe }}
+```
+
+## 26. الـ Hero الموحَّد (.hu-* shared classes)
+
+**اعتباراً من v95**، كل صفحات الإدارة الداخلية تستخدم نفس الـ hero الفاتح المشترك من `static/css/unified_hero_v1.css` (محمَّل تلقائياً من `base.html`). لا حاجة بعد الآن لتكرار CSS الـ hero في كل صفحة.
+
+### الـ Markup الإلزامي
+
+```html
+<header class="hu-hero">
+  <div class="hu-hero-grid">
+    <div class="hu-hero-text">
+      <span class="hu-eyebrow">
+        <svg .../>اسم القسم
+      </span>
+      <h1 class="hu-h1">عنوان الصفحة</h1>
+      <p class="hu-tagline">الوصف.</p>
+    </div>
+    <div class="hu-hero-cta">
+      <a class="hu-btn hu-btn-ghost">إجراء ثانوي</a>
+      <a class="hu-btn hu-btn-primary">+ إجراء رئيسي</a>
+    </div>
+  </div>
+</header>
+```
+
+### الالتزامات البصرية المقفلة
+
+| الخاصية | القيمة |
+|---|---|
+| `border-radius` | `30px` |
+| `padding` | `32px clamp(28px, 3.2vw, 44px) 36px` |
+| Gradient | فاتح: `#7fb1e6 → #f8d7b6` |
+| لون العنوان | `#1d4ed8` (أزرق مشبع) |
+| لون eyebrow | `#1d4ed8` (داخل pill أبيض) |
+| لون tagline | `#334155` |
+| الزخارف | نقاط أعلى-البداية + موجة SVG في الأسفل |
+
+### أنواع الأزرار
+
+- `.hu-btn-primary` — تدرج أمبر، نص كحلي (الإجراء الرئيسي)
+- `.hu-btn-ghost` — أبيض، نص كحلي ناعم (إجراء ثانوي)
+- `.hu-btn-success` — تدرج أخضر
+- `.hu-btn-danger` — تدرج وردي
+
+كل الأنواع تتغلب على القواعد العامة لـ `<a>` بـ `body main.app-main .hu-btn-* { color: ... !important }`.
+
+### قائمة فحص الترحيل من hero قديم
+
+1. استبدل `<header class="xx-hero">` بـ `<header class="hu-hero xx-hero">` (للحفاظ على أي layout قائم)
+2. استبدل `<h1>` بـ `<h1 class="hu-h1">`
+3. استبدل tagline `<p>` بـ `<p class="hu-tagline">`
+4. استبدل `<span class="xx-eyebrow">` بـ `<span class="hu-eyebrow">` مع أيقونة SVG بداخله
+5. استبدل CTA buttons من `xx-btn-*` إلى `hu-btn-*`
+6. احذف CSS المحلي للـ hero/eyebrow/tagline/buttons من `<style>` الصفحة — صار تابعاً للملف الموحَّد
+
+### متى لا تستخدم الـ Hero الموحَّد
+
+- صفحات marketing/landing عامة (لها هوية بصرية مختلفة)
+- صفحات الـ public site
+- الـ admin/internal فقط هي اللي تستخدم النمط الموحَّد

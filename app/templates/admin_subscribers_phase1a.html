@@ -2,185 +2,946 @@
 {% block title %}{{ 'Subscribers' if (ui_lang or 'ar') == 'en' else 'المشتركون' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set page_dir = 'ltr' if is_en else 'rtl' %}
+
+<style>
+/* ════════════════════════════════════════════════════════════════
+   ADMIN SUBSCRIBERS — unified skin (prefix: as-)
+   Aligned with SOLARDEYE_DESIGN_SYSTEM.md §1, §2 (mandatory margins), §3
+═══════════════════════════════════════════════════════════════════ */
+.as-page{
+  --as-ink:#0b1220;
+  --as-ink-soft:#1f2a44;
+  --as-muted:#4a5b78;
+  --as-line:#e3eaf6;
+  --as-line-strong:#bcc8df;
+  --as-card:#ffffff;
+  --as-amber:#f59e0b;--as-amber-soft:#fbbf24;
+  --as-emerald:#10b981;--as-emerald-soft:#34d399;
+  --as-sky:#2563eb;--as-sky-soft:#60a5fa;
+  --as-violet:#6d3aff;
+  --as-rose:#f43f5e;
+  --as-orange:#f97316;
+  --as-shadow-sm:0 6px 18px rgba(15,23,42,.06);
+  --as-shadow:0 22px 60px rgba(15,23,42,.09);
+  background:
+    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
+    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
+    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%) !important;
+  min-height:100vh;
+  padding:22px clamp(14px,2.4vw,28px) 56px !important;
+  font-family:'Cairo','Inter',system-ui,sans-serif;
+  color:var(--as-ink);
+}
+.as-page *,.as-page *::before,.as-page *::after{box-sizing:border-box}
+
+/* MANDATORY spacing rule per §2 */
+.as-page > .as-hero    { margin: 0 !important }
+.as-page > .as-stats   { margin: 26px 0 0 0 !important }
+.as-page > .as-toolbar { margin: 26px 0 0 0 !important }
+.as-page > .as-board   { margin: 26px 0 0 0 !important }
+.as-page > section,
+.as-page > header      { margin-block-start: 26px !important }
+.as-page > :first-child{ margin-block-start: 0 !important }
+
+/* ── HERO is handled by unified_hero_v1.css (.hu-* classes) ── */
+
+/* ── KPI STATS ───────────────────────────────────────── */
+.as-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+@media (max-width:1100px){.as-stats{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:640px){.as-stats{grid-template-columns:repeat(2,1fr)}}
+.as-stat{
+  position:relative;background:var(--as-card);border:1px solid var(--as-line);
+  border-radius:22px;padding:16px 18px;box-shadow:var(--as-shadow-sm);
+  display:flex;flex-direction:column;gap:6px;
+  transition:transform .15s,box-shadow .15s,border-color .15s;
+  overflow:hidden;
+}
+.as-stat::before{
+  content:"";position:absolute;top:0;inset-inline-start:0;width:100%;height:3px;
+  background:linear-gradient(90deg,var(--as-amber),var(--as-amber-soft));
+}
+.as-stat.s-emerald::before{background:linear-gradient(90deg,var(--as-emerald),var(--as-emerald-soft))}
+.as-stat.s-sky::before{background:linear-gradient(90deg,var(--as-sky),var(--as-sky-soft))}
+.as-stat.s-violet::before{background:linear-gradient(90deg,var(--as-violet),#a78bfa)}
+.as-stat.s-rose::before{background:linear-gradient(90deg,var(--as-rose),#fb7185)}
+.as-stat.s-muted::before{background:linear-gradient(90deg,#94a3b8,#cbd5e1)}
+.as-stat:hover{transform:translateY(-2px);box-shadow:var(--as-shadow);border-color:var(--as-line-strong)}
+.as-stat-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.as-stat-icon{
+  width:34px;height:34px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;
+  background:#fef3c7;color:#b45309;
+}
+.as-stat.s-emerald .as-stat-icon{background:#d1fae5;color:#047857}
+.as-stat.s-sky .as-stat-icon{background:#dbeafe;color:#1d4ed8}
+.as-stat.s-violet .as-stat-icon{background:#ede9fe;color:#5b21b6}
+.as-stat.s-rose .as-stat-icon{background:#ffe4e6;color:#be123c}
+.as-stat.s-muted .as-stat-icon{background:#f1f5fc;color:#64748b}
+.as-stat small{font-size:.72rem;font-weight:900;color:var(--as-muted);letter-spacing:.3px;text-transform:uppercase}
+.as-stat strong{font-size:1.65rem;font-weight:950;color:var(--as-ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.as-stat span{font-size:.74rem;color:var(--as-muted);font-weight:700}
+
+/* ── TOOLBAR ─────────────────────────────────────────── */
+.as-toolbar{
+  background:var(--as-card);border:1px solid var(--as-line);
+  border-radius:22px;padding:12px 16px;box-shadow:var(--as-shadow-sm);
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+}
+.as-search{position:relative;flex:1;min-width:240px}
+.as-search input{
+  width:100%;height:42px;
+  padding-block:0;padding-inline-start:40px;padding-inline-end:14px;
+  border:1px solid var(--as-line-strong);background:#f8fbff;border-radius:11px;
+  font-size:.88rem;font-weight:600;color:var(--as-ink);font-family:inherit;
+  outline:none;transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.as-search input:focus{border-color:var(--as-amber);background:#fff;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.as-search-icon{
+  position:absolute;inset-block-start:50%;inset-inline-start:13px;
+  transform:translateY(-50%);font-size:1rem;color:var(--as-muted);pointer-events:none;
+}
+.as-filter-pills{display:flex;flex-wrap:wrap;gap:6px;background:#f1f5fc;padding:5px;border-radius:12px;border:1px solid var(--as-line)}
+.as-filter-pills button{
+  padding:.45rem .9rem;border-radius:9px;border:none;background:transparent;
+  font-family:inherit;font-size:.8rem;font-weight:900;color:var(--as-muted);cursor:pointer;
+  transition:all .15s;
+}
+.as-filter-pills button:hover{color:var(--as-ink-soft);background:rgba(255,255,255,.6)}
+.as-filter-pills button.active{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
+  box-shadow:0 4px 10px rgba(245,158,11,.22);
+}
+
+/* ── BOARD ──────────────────────────────────────────── */
+.as-board{
+  background:var(--as-card);border:1px solid var(--as-line);
+  border-radius:22px;box-shadow:var(--as-shadow-sm);overflow:hidden;
+}
+.as-board-head{
+  padding:16px 18px;border-bottom:1px solid var(--as-line);
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:linear-gradient(180deg,#fffbf3 0%,#ffffff 100%);
+}
+.as-board-title{display:flex;align-items:center;gap:12px}
+.as-board-title-icon{
+  width:38px;height:38px;border-radius:11px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
+  box-shadow:0 6px 14px rgba(245,158,11,.22);
+}
+.as-board-title-text small{font-size:.66rem;font-weight:900;color:var(--as-muted);text-transform:uppercase;letter-spacing:.3px;display:block}
+.as-board-title-text h2{margin:.15rem 0 0;font-size:1.05rem;font-weight:900;color:var(--as-ink);line-height:1.25}
+.as-board-title-text p{margin:.15rem 0 0;font-size:.75rem;color:var(--as-muted);font-weight:700}
+.as-selected-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#fef3c7;color:#b45309;
+  padding:6px 12px;border-radius:11px;font-size:.78rem;font-weight:900;
+}
+.as-selected-pill strong{font-size:1rem;color:#0b1531;font-variant-numeric:tabular-nums}
+
+/* Action bar */
+.as-action-bar{
+  padding:12px 18px;border-bottom:1px solid var(--as-line);
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:#f8fbff;
+  transition:opacity .15s,background .15s;
+}
+.as-action-bar.is-disabled{opacity:.5}
+.as-action-bar.is-active{background:linear-gradient(135deg,#fffbf3,#fef3c7)}
+.as-action-status{display:flex;flex-direction:column;gap:2px}
+.as-action-status strong{font-size:.92rem;font-weight:950;color:var(--as-ink)}
+.as-action-status small{font-size:.78rem;color:var(--as-muted);font-weight:700}
+.as-action-buttons{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.as-bulk-form{display:inline-flex;margin:0}
+
+/* List head */
+.as-list-head{
+  display:grid;
+  grid-template-columns:60px minmax(110px,1fr) minmax(130px,1.1fr) minmax(140px,1.1fr) minmax(140px,1fr) minmax(120px,.9fr) minmax(70px,.55fr) minmax(70px,.5fr) minmax(95px,.7fr) minmax(110px,.85fr) 50px;
+  gap:10px;align-items:center;justify-items:center;
+  padding:11px 14px;background:#f5f9ff;border-bottom:1px solid var(--as-line);
+  font-size:.62rem;font-weight:900;color:var(--as-muted);text-transform:uppercase;letter-spacing:.3px;
+}
+@media (max-width:1100px){.as-list-head{display:none}}
+.as-list-head > span{text-align:center}
+.as-list-head > span{text-align:center}
+@media (max-width:1100px){.as-list-head{display:none}}
+
+/* Row */
+.as-row{
+  display:grid;
+  grid-template-columns:60px minmax(110px,1fr) minmax(130px,1.1fr) minmax(140px,1.1fr) minmax(140px,1fr) minmax(120px,.9fr) minmax(70px,.55fr) minmax(70px,.5fr) minmax(95px,.7fr) minmax(110px,.85fr) 50px;
+  gap:10px;align-items:center;justify-items:center;
+  padding:13px 14px;border-bottom:1px solid var(--as-line);
+  transition:background .15s;
+  text-align:center;
+}
+@media (max-width:1100px){
+  .as-row{grid-template-columns:auto 1fr;gap:8px;justify-items:start;text-align:start}
+  .as-row > *{justify-self:start;text-align:start}
+}
+.as-row:last-child{border-bottom:none}
+.as-row:hover{background:#f8fbff}
+.as-row.is-selected{background:#fffbf3}
+.as-row.is-selected:hover{background:#fef3c7}
+@media (max-width:1100px){
+  .as-row{grid-template-columns:1fr;gap:8px}
+}
+
+.as-person{display:flex;align-items:center;justify-content:center;gap:11px;text-decoration:none;color:var(--as-ink);min-width:0;text-align:center}
+.as-person-avatar{
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;font-weight:950;
+  box-shadow:0 4px 10px rgba(245,158,11,.20);
+}
+.as-row[data-status="active"] .as-person-avatar{background:linear-gradient(135deg,#34d399,#10b981);color:#04221b;box-shadow:0 4px 10px rgba(16,185,129,.22)}
+.as-row[data-status="trial"] .as-person-avatar{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0b1531}
+.as-row[data-status="expired"] .as-person-avatar,
+.as-row[data-status="suspended"] .as-person-avatar{background:linear-gradient(135deg,#fb7185,#f43f5e);color:#fff;box-shadow:0 4px 10px rgba(244,63,94,.22)}
+.as-row[data-active="disabled"] .as-person-avatar{background:linear-gradient(135deg,#94a3b8,#64748b);color:#fff;box-shadow:none}
+.as-person-text{display:flex;flex-direction:column;gap:1px;min-width:0;align-items:center;text-align:center}
+.as-person-text strong{font-size:.92rem;font-weight:900;color:var(--as-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-person-text small{font-size:.74rem;color:var(--as-muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.as-cell{display:flex;flex-direction:column;gap:2px;min-width:0;align-items:center;text-align:center;justify-content:center;width:100%}
+.as-cell-label{font-size:.62rem;font-weight:900;color:var(--as-muted);text-transform:uppercase;letter-spacing:.3px;display:none}
+@media (max-width:1100px){.as-cell-label{display:block}}
+.as-cell strong{font-size:.85rem;font-weight:900;color:var(--as-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-cell small{font-size:.7rem;color:var(--as-muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Plan card cell */
+.as-plan-card{
+  display:flex;flex-direction:column;gap:1px;min-width:0;
+  padding:8px 12px;border-radius:10px;background:#fffbf3;border:1px solid #fde68a;
+  align-items:center;text-align:center;width:100%;
+}
+.as-plan-card strong{font-size:.85rem;font-weight:900;color:#0b1531;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-plan-card small{font-size:.68rem;color:#b45309;font-weight:800}
+.as-plan-card b{font-size:.66rem;color:var(--as-muted);font-weight:700}
+
+/* Support cell */
+.as-support{
+  display:flex;flex-direction:column;gap:3px;text-decoration:none;color:inherit;min-width:0;
+  align-items:center;text-align:center;width:100%;
+}
+.as-support span{
+  display:inline-flex;align-items:center;gap:.3rem;
+  padding:.2rem .55rem;border-radius:8px;
+  font-size:.7rem;font-weight:800;width:fit-content;
+}
+.as-support span b{font-weight:950}
+.as-support span.mail{background:#dbeafe;color:#1d4ed8}
+.as-support span.ticket{background:#ede9fe;color:#5b21b6}
+.as-support span.total{background:#f1f5fc;color:var(--as-muted)}
+
+/* Pills */
+.as-pill{
+  display:inline-flex;align-items:center;gap:.25rem;
+  padding:.25rem .6rem;border-radius:999px;
+  font-size:.7rem;font-weight:900;letter-spacing:.2px;white-space:nowrap;
+  width:fit-content;
+}
+.as-pill.success{background:#d1fae5;color:#047857}
+.as-pill.warning{background:#fef3c7;color:#b45309}
+.as-pill.danger{background:#ffe4e6;color:#be123c}
+.as-pill.info{background:#dbeafe;color:#1d4ed8}
+.as-pill.muted{background:#f1f5fc;color:var(--as-muted)}
+
+/* Checkbox */
+.as-check{
+  width:22px;height:22px;border-radius:7px;
+  border:2px solid #4a5b78;background:#fff;cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+  position:relative;flex-shrink:0;transition:all .15s;
+  box-shadow:0 0 0 1px rgba(11,21,49,.05);
+}
+.as-check:hover{border-color:#1f2a44;box-shadow:0 0 0 3px rgba(74,91,120,.15)}
+.as-check:checked{background:linear-gradient(135deg,#ffcf4d,#f59e0b);border-color:#f59e0b}
+.as-check:checked::after{
+  content:"";position:absolute;inset:3px 4px;
+  border:solid #0b1531;border-width:0 0 2px 2px;transform:rotate(-45deg);
+  width:8px;height:5px;
+}
+
+.as-empty{padding:40px 20px;text-align:center;color:var(--as-muted);font-size:.9rem;font-weight:700}
+.as-empty span{display:block;font-size:1.8rem;margin-bottom:.5rem}
+
+/* ── DIALOGS ─────────────────────────────────────────── */
+.as-dialog{
+  border:none;border-radius:22px;
+  padding:0;width:min(620px,92vw);max-width:92vw;
+  box-shadow:0 38px 90px rgba(15,23,42,.22);
+  background:var(--as-card);
+}
+.as-dialog::backdrop{background:rgba(11,21,49,.5);backdrop-filter:blur(2px)}
+.as-dialog form{padding:22px 24px;display:flex;flex-direction:column;gap:16px;margin:0}
+.as-dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.as-dialog header small{font-size:.7rem;font-weight:900;color:var(--as-muted);text-transform:uppercase;letter-spacing:.3px}
+.as-dialog header h3{margin:.2rem 0 0;font-size:1.1rem;font-weight:900;color:var(--as-ink)}
+.as-dialog-close{
+  width:32px;height:32px;border-radius:9px;border:none;background:#f5f9ff;
+  color:var(--as-muted);font-size:1.2rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.as-dialog-close:hover{background:#dbeafe;color:var(--as-sky)}
+.as-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.as-mini-grid{grid-template-columns:1fr}}
+.as-mini-panel{
+  display:flex;flex-direction:column;gap:4px;
+  padding:12px 14px;border-radius:13px;
+  background:#f8fbff;border:1px solid var(--as-line);
+}
+.as-mini-panel small{font-size:.7rem;font-weight:900;color:var(--as-muted);text-transform:uppercase;letter-spacing:.3px}
+.as-mini-panel strong{font-size:1rem;font-weight:950;color:var(--as-ink)}
+.as-mini-panel p{margin:0;font-size:.78rem;color:var(--as-muted);font-weight:700}
+.as-mini-panel.highlight{background:linear-gradient(135deg,#fffbf3,#fef3c7);border-color:#fbbf24}
+.as-dialog label{display:flex;flex-direction:column;gap:6px;font-size:.82rem;font-weight:800;color:var(--as-ink-soft)}
+.as-dialog label.full{grid-column:1/-1}
+.as-dialog input[type="text"],
+.as-dialog input[type="number"],
+.as-dialog textarea,
+.as-dialog select{
+  padding:11px 14px;border-radius:11px;
+  border:2px solid #94a3b8;
+  background:#f8fafc;
+  font-family:inherit;font-size:.9rem;font-weight:600;color:var(--as-ink);outline:none;
+  transition:all .15s;
+  width:100%;
+}
+.as-dialog input:hover,
+.as-dialog textarea:hover,
+.as-dialog select:hover{
+  border-color:#64748b;background:#fff;
+}
+.as-dialog input:focus,
+.as-dialog textarea:focus,
+.as-dialog select:focus{
+  border-color:var(--as-amber);background:#fff;
+  box-shadow:0 0 0 4px rgba(245,158,11,.18);
+}
+.as-dialog label{
+  display:flex;flex-direction:column;gap:7px;
+  font-size:.84rem;font-weight:900;color:var(--as-ink-soft);
+}
+.as-dialog label > span:first-child{
+  display:flex;align-items:center;gap:5px;
+  color:#1f2a44;font-weight:900;
+}
+/* Mini-panels: cleaner separation */
+.as-mini-panel{
+  background:linear-gradient(135deg,#f8fbff,#f1f5fc);
+  border:1px solid #cbd5e1;
+}
+.as-mini-panel.highlight{
+  background:linear-gradient(135deg,#fffbf3,#fef3c7);
+  border:1px solid #fbbf24;
+}
+/* Date-presets row */
+.as-presets button{
+  border:2px solid #cbd5e1 !important;
+  background:#f8fafc;font-weight:900;
+}
+.as-presets button:hover{
+  background:#fef3c7;border-color:#f59e0b !important;color:#7c2d12;
+  transform:translateY(-1px);
+}
+.as-presets{display:flex;flex-wrap:wrap;gap:6px}
+.as-presets button{
+  padding:.45rem .85rem;border-radius:10px;border:1px solid var(--as-line-strong);
+  background:#fff;color:var(--as-ink-soft);font-family:inherit;font-size:.78rem;font-weight:800;
+  cursor:pointer;transition:all .15s;
+}
+.as-presets button:hover{border-color:var(--as-amber);color:var(--as-ink);background:#fffbf3}
+.as-dialog footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+
+
+/* Avatar gets colored by status — visual at-a-glance */
+.as-row[data-status="active"] .as-person-avatar{background:linear-gradient(135deg,#34d399,#10b981);color:#04221b;box-shadow:0 4px 10px rgba(16,185,129,.22)}
+.as-row[data-status="trial"] .as-person-avatar{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0b1531;box-shadow:0 4px 10px rgba(245,158,11,.22)}
+.as-row[data-status="expired"] .as-person-avatar,
+.as-row[data-status="suspended"] .as-person-avatar{background:linear-gradient(135deg,#fb7185,#f43f5e);color:#fff;box-shadow:0 4px 10px rgba(244,63,94,.22)}
+.as-row[data-active="disabled"] .as-person-avatar{background:linear-gradient(135deg,#94a3b8,#64748b);color:#fff;box-shadow:0 4px 10px rgba(100,116,139,.18);opacity:.85}
+
+/* ── Pagination ── */
+.as-pager{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:14px 18px;border-top:1px solid var(--as-line);
+  background:#f8fbff;flex-wrap:wrap;
+}
+.as-pager-info{font-size:.78rem;color:var(--as-muted);font-weight:800}
+.as-pager-info b{color:var(--as-ink);font-weight:950}
+.as-pager-pages{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.as-pager-btn{
+  min-width:32px;height:32px;padding:0 10px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--as-line-strong);background:#fff;color:var(--as-ink-soft);
+  border-radius:9px;font-size:.8rem;font-weight:900;
+  cursor:pointer;transition:all .15s;font-family:inherit;
+}
+.as-pager-btn:hover{border-color:var(--as-amber);color:var(--as-ink);background:#fffbf3}
+.as-pager-btn.is-active{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;border-color:transparent;
+  box-shadow:0 4px 10px rgba(245,158,11,.22);
+}
+.as-pager-btn:disabled{opacity:.4;cursor:not-allowed;background:#f1f5fc}
+.as-pager-ellipsis{padding:0 4px;color:var(--as-muted);font-weight:900}
+
+
+/* ── Days remaining — circular progress ring (replaces plain number) ── */
+.as-days-ring{
+  --ring-size:54px;
+  --ring-thickness:5px;
+  --ring-pct:0;
+  --ring-color:#10b981;
+  --ring-bg:#e2e8f0;
+  position:relative;
+  width:var(--ring-size);height:var(--ring-size);
+  border-radius:50%;
+  background:conic-gradient(var(--ring-color) calc(var(--ring-pct) * 1%), var(--ring-bg) 0%);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  animation:asRingFill .8s cubic-bezier(.16,1,.3,1) both;
+}
+.as-days-ring::before{
+  content:"";position:absolute;inset:var(--ring-thickness);
+  background:#fff;border-radius:50%;
+  box-shadow:inset 0 1px 3px rgba(15,23,42,.05);
+}
+.as-days-ring-num{
+  position:relative;z-index:1;
+  font-size:.95rem;font-weight:950;color:#0b1220;
+  line-height:1;font-variant-numeric:tabular-nums;
+}
+.as-days-ring-icon{
+  position:relative;z-index:1;
+  font-size:1.2rem;line-height:1;
+}
+/* Tier colors */
+.as-days-ring.tier-expired { --ring-color:#94a3b8; --ring-pct:100 }
+.as-days-ring.tier-critical{
+  --ring-color:#dc2626;
+  animation: asRingFill .8s cubic-bezier(.16,1,.3,1) both,
+             asRingPulseStrong 1s ease-in-out infinite .8s;
+}
+.as-days-ring.tier-low{
+  --ring-color:#ef4444;
+  animation: asRingFill .8s cubic-bezier(.16,1,.3,1) both,
+             asRingPulse 1.6s ease-in-out infinite 1s;
+}
+.as-days-ring.tier-medium { --ring-color:#f59e0b }
+.as-days-ring.tier-good   { --ring-color:#10b981 }
+.as-days-ring.tier-great  { --ring-color:#059669 }
+.as-days-ring.tier-premium{
+  --ring-color:#7c3aed; --ring-pct:100;
+  background:conic-gradient(from 0deg, #7c3aed, #a78bfa, #ffd66e, #7c3aed);
+  animation: asRingFill .8s cubic-bezier(.16,1,.3,1) both,
+             asRingSpin 5s linear infinite 1s;
+}
+.as-days-ring.tier-premium::before{background:#fffbf3}
+.as-days-ring.tier-premium .as-days-ring-icon{
+  animation: asStarPulse 2s ease-in-out infinite;
+}
+.as-days-ring.tier-open{ --ring-color:#fbbf24 }
+@keyframes asRingPulseStrong{
+  0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.65)}
+  50%{box-shadow:0 0 0 10px rgba(220,38,38,0)}
+}
+@keyframes asRingSpin{
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
+}
+@keyframes asStarPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.18) rotate(8deg)}
+}
+/* Meta label colors per tier */
+.as-days-meta.tier-expired { color:#475569 }
+.as-days-meta.tier-critical{ color:#991b1b; font-weight:900 }
+.as-days-meta.tier-low     { color:#b91c1c; font-weight:900 }
+.as-days-meta.tier-medium  { color:#b45309 }
+.as-days-meta.tier-good    { color:#047857 }
+.as-days-meta.tier-great   { color:#065f46; font-weight:900 }
+.as-days-meta.tier-premium { color:#5b21b6; font-weight:900 }
+.as-days-meta.tier-open    { color:#b45309 }
+
+@keyframes asRingFill{
+  from{--ring-pct:0;opacity:0;transform:scale(.7)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes asRingPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}
+  50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}
+}
+@property --ring-pct{syntax:'<number>';inherits:false;initial-value:0}
+
+.as-days-cell{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+}
+.as-days-meta{
+  font-size:.66rem;color:var(--as-muted);font-weight:800;
+  white-space:nowrap;
+}
+.as-days-meta.is-warning{color:#b45309}
+.as-days-meta.is-danger{color:#be123c;font-weight:900}
+</style>
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 subscribers-page-v71 subscribers-redesign-v116">
-    <header class="admin-page-head subscribers-hero-v71">
-      <div>
-        <span class="eyebrow">{{ 'Subscribers CRM' if is_en else 'إدارة المشتركين' }}</span>
-        <h1>{{ 'Subscribers, plans, lifecycle, and quick actions' if is_en else 'المشتركون والخطط ودورة الحياة والإجراءات السريعة' }}</h1>
-        <p>{{ 'Select a subscriber, review the data, then apply precise lifecycle actions from clean menus.' if is_en else 'اختر المشترك، راجع بياناته، ثم نفّذ إجراءات دقيقة من قوائم نظيفة بدون تزاحم.' }}</p>
+  <main class="app-main content-area as-page" dir="{{ page_dir }}">
+
+    {# ═══════════════ HERO ═══════════════ #}
+    <header class="hu-hero as-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {{ 'Subscribers CRM' if is_en else 'إدارة المشتركين' }}
+          </span>
+          <h1 class="hu-h1">{{ 'Subscribers, plans, lifecycle, and quick actions' if is_en else 'المشتركون والخطط ودورة الحياة والإجراءات السريعة' }}</h1>
+          <p class="hu-tagline">{{ 'Select a subscriber, review the data, then apply precise lifecycle actions from clean menus.' if is_en else 'اختر المشترك، راجع بياناته، ثم نفّذ إجراءات دقيقة من قوائم نظيفة بدون تزاحم.' }}</p>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">👤 {{ 'System users' if is_en else 'مستخدمو النظام' }}</a>
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
+          <a class="hu-btn hu-btn-primary" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">+ {{ 'New subscriber' if is_en else 'مشترك جديد' }}</a>
+        </div>
       </div>
     </header>
 
-    <section class="subscriber-action-strip-v108 admin-card-v2">
-      <div class="subscriber-action-title-v108">
-        <small>{{ 'Fast actions' if is_en else 'إجراءات سريعة' }}</small>
-        <strong>{{ 'Subscriber operations' if is_en else 'عمليات المشتركين' }}</strong>
+    {# ═══════════════ KPI STATS ═══════════════ #}
+    <section class="as-stats">
+      <article class="as-stat">
+        <div class="as-stat-head">
+          <small>{{ 'Total' if is_en else 'الإجمالي' }}</small>
+          <span class="as-stat-icon">👥</span>
+        </div>
+        <strong>{{ stats.total }}</strong>
+        <span>{{ 'subscriber accounts' if is_en else 'حساب مشترك' }}</span>
+      </article>
+      <article class="as-stat s-emerald">
+        <div class="as-stat-head">
+          <small>{{ 'Active' if is_en else 'النشط' }}</small>
+          <span class="as-stat-icon">✅</span>
+        </div>
+        <strong>{{ stats.active }}</strong>
+        <span>{{ 'paid / active' if is_en else 'اشتراكات فعالة' }}</span>
+      </article>
+      <article class="as-stat s-violet">
+        <div class="as-stat-head">
+          <small>{{ 'Trial' if is_en else 'تجريبي' }}</small>
+          <span class="as-stat-icon">⏱</span>
+        </div>
+        <strong>{{ stats.trial }}</strong>
+        <span>{{ 'trial accounts' if is_en else 'حسابات تجربة' }}</span>
+      </article>
+      <article class="as-stat s-rose">
+        <div class="as-stat-head">
+          <small>{{ 'Expired / Suspended' if is_en else 'منتهي / معلق' }}</small>
+          <span class="as-stat-icon">⚠️</span>
+        </div>
+        <strong>{{ stats.expired + stats.suspended }}</strong>
+        <span>{{ 'need attention' if is_en else 'تحتاج متابعة' }}</span>
+      </article>
+      <article class="as-stat s-muted">
+        <div class="as-stat-head">
+          <small>{{ 'Disabled' if is_en else 'معطَّل' }}</small>
+          <span class="as-stat-icon">⛔</span>
+        </div>
+        <strong>{{ stats.disabled }}</strong>
+        <span>{{ 'inactive accounts' if is_en else 'حسابات غير مفعَّلة' }}</span>
+      </article>
+    </section>
+
+    {# ═══════════════ TOOLBAR ═══════════════ #}
+    <section class="as-toolbar">
+      <div class="as-search">
+        <span class="as-search-icon">🔎</span>
+        <input id="subscriberSearchV71" type="search" placeholder="{{ 'Search subscribers…' if is_en else 'ابحث في المشتركين…' }}">
       </div>
-      <div class="subscriber-action-buttons-v108">
-        <a class="btn btn-solar" href="{{ url_for('main.admin_user_create', lang=ui_lang) }}">＋ {{ 'New subscriber' if is_en else 'مشترك جديد' }}</a>
-        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_users_legacy', lang=ui_lang) }}">👤 {{ 'System users' if is_en else 'مستخدمو النظام' }}</a>
-        <a class="btn btn-outline-primary" href="{{ url_for('main.admin_support_command_center', lang=ui_lang) }}">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
-        <a class="btn btn-outline-success" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}" title="{{ 'Create, download, upload, and restore database backups.' if is_en else 'النسخ الاحتياطي: إنشاء، تحميل، رفع، واستعادة قاعدة البيانات.' }}">💾 {{ 'Database Backups' if is_en else 'النسخ الاحتياطي' }}</a>
+      <div class="as-filter-pills" data-subscriber-filter-v71>
+        <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
+        <button type="button" data-filter="active">{{ 'Active' if is_en else 'نشط' }}</button>
+        <button type="button" data-filter="trial">{{ 'Trial' if is_en else 'تجريبي' }}</button>
+        <button type="button" data-filter="expired">{{ 'Expired' if is_en else 'منتهي' }}</button>
+        <button type="button" data-filter="disabled">{{ 'Disabled' if is_en else 'معطَّل' }}</button>
       </div>
     </section>
 
-    <section class="subscriber-kpi-grid-v71">
-      <article><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ stats.total }}</strong><span>{{ 'Subscriber accounts' if is_en else 'حساب مشترك' }}</span></article>
-      <article class="success"><small>{{ 'Active' if is_en else 'النشط' }}</small><strong>{{ stats.active }}</strong><span>{{ 'Paid/active lifecycle' if is_en else 'اشتراكات فعالة' }}</span></article>
-      <article class="warning"><small>{{ 'Trial' if is_en else 'تجريبي' }}</small><strong>{{ stats.trial }}</strong><span>{{ 'Trial accounts' if is_en else 'حسابات تجربة' }}</span></article>
-      <article class="danger"><small>{{ 'Expired/Suspended' if is_en else 'منتهي/معلق' }}</small><strong>{{ stats.expired + stats.suspended }}</strong><span>{{ 'Need attention' if is_en else 'تحتاج متابعة' }}</span></article>
-      <article class="muted"><small>{{ 'Disabled' if is_en else 'معطل' }}</small><strong>{{ stats.disabled }}</strong><span>{{ 'Inactive accounts' if is_en else 'حسابات غير مفعلة' }}</span></article>
-    </section>
+    {# ═══════════════ BOARD ═══════════════ #}
+    <section class="as-board">
 
-    <section class="admin-card-v2 subscribers-table-card-v71 subscribers-command-card-v116 ui-reactive" data-hover-card>
-      <div class="subscriber-toolbar-v71 subscriber-toolbar-v116">
-        <div class="command-search-v61"><span>⌕</span><input id="subscriberSearchV71" type="search" placeholder="{{ 'Search subscribers...' if is_en else 'ابحث في المشتركين...' }}"></div>
-        <div class="subscriber-filter-pills-v71" data-subscriber-filter-v71>
-          <button type="button" class="active" data-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
-          <button type="button" data-filter="active">{{ 'Active' if is_en else 'نشط' }}</button>
-          <button type="button" data-filter="trial">{{ 'Trial' if is_en else 'تجريبي' }}</button>
-          <button type="button" data-filter="expired">{{ 'Expired' if is_en else 'منتهي' }}</button>
-          <button type="button" data-filter="disabled">{{ 'Disabled' if is_en else 'معطل' }}</button>
+      <div class="as-board-head">
+        <div class="as-board-title">
+          <span class="as-board-title-icon">♛</span>
+          <div class="as-board-title-text">
+            <small>{{ 'CRM' if is_en else 'إدارة' }}</small>
+            <h2>{{ 'Subscribers' if is_en else 'المشتركون' }}</h2>
+            <p>{{ 'Manage subscribers, plans, support, and account states' if is_en else 'إدارة المشتركين والخطط والدعم وحالات الحساب' }}</p>
+          </div>
+        </div>
+        <span class="as-selected-pill">
+          <strong id="bulkCountMirrorV116">0</strong>
+          {{ 'selected' if is_en else 'محدَّد' }}
+        </span>
+      </div>
+
+      <div class="as-action-bar is-disabled" id="subscriberBulkBarV116" aria-live="polite">
+        <div class="as-action-status">
+          <strong><span id="bulkCountV116">0</span> {{ 'selected' if is_en else 'محدَّد' }}</strong>
+          <small id="bulkSelectedNameV117">{{ 'Select one subscriber to enable actions' if is_en else 'حدِّد مشتركًا لتفعيل الإجراءات' }}</small>
+        </div>
+        <div class="as-action-buttons">
+          <a class="hu-btn hu-btn-ghost is-sm disabled" href="#" id="bulkProfileV117" data-requires-selected aria-disabled="true">🧾 {{ 'Profile' if is_en else 'فتح الملف' }}</a>
+          <a class="hu-btn hu-btn-ghost is-sm disabled" href="#" id="bulkSupportV117" data-requires-selected aria-disabled="true">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
+          <a class="hu-btn hu-btn-ghost is-sm disabled" href="#" id="bulkSubscriptionV117" data-requires-selected aria-disabled="true">📋 {{ 'Subscription' if is_en else 'قائمة الاشتراك' }}</a>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" data-bulk-open="plan" data-requires-selected disabled>💳 {{ 'Change plan' if is_en else 'تغيير الخطة' }}</button>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" data-bulk-open="extend" data-requires-selected disabled>⏳ {{ 'Add time' if is_en else 'إضافة مدة' }}</button>
+          <form method="post" id="bulkToggleFormV117" class="as-bulk-form" onsubmit="return confirm(this.dataset.confirm || '{{ 'Apply this status change?' if is_en else 'تنفيذ تغيير الحالة؟' }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+            <button class="hu-btn hu-btn-ghost is-sm" type="submit" id="bulkToggleBtnV117" data-requires-selected disabled>🟠 {{ 'Disable / Enable' if is_en else 'تفعيل / تعطيل' }}</button>
+          </form>
+          <form method="post" id="bulkDeleteFormV117" class="as-bulk-form" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+            <button class="hu-btn hu-btn-danger is-sm" type="submit" data-requires-selected disabled>🗑 {{ 'Delete' if is_en else 'حذف' }}</button>
+          </form>
+          <button class="hu-btn hu-btn-ghost is-sm" type="button" id="bulkClearV116" disabled>{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
         </div>
       </div>
 
-      <div class="bulk-action-bar-v116 is-disabled" id="subscriberBulkBarV116" aria-live="polite">
-        <div class="bulk-action-status-v117">
-          <strong><span id="bulkCountV116">0</span> {{ 'selected' if is_en else 'محدد' }}</strong>
-          <small id="bulkSelectedNameV117">{{ 'Select one subscriber to enable actions' if is_en else 'حدد مشتركًا لتفعيل الإجراءات' }}</small>
-        </div>
-        <div class="bulk-action-buttons-v117">
-          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkProfileV117" data-requires-selected aria-disabled="true">🧾 {{ 'Profile' if is_en else 'فتح الملف' }}</a>
-          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkSupportV117" data-requires-selected aria-disabled="true">🧭 {{ 'Support' if is_en else 'الدعم' }}</a>
-          <a class="btn btn-outline-primary btn-sm" href="#" id="bulkSubscriptionV117" data-requires-selected aria-disabled="true">📋 {{ 'Subscription' if is_en else 'قائمة الاشتراك' }}</a>
-          <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="plan" data-requires-selected disabled>💳 {{ 'Change plan' if is_en else 'تغيير الخطة' }}</button>
-          <button class="btn btn-outline-primary btn-sm" type="button" data-bulk-open="extend" data-requires-selected disabled>⏳ {{ 'Add time' if is_en else 'إضافة مدة' }}</button>
-          <form method="post" id="bulkToggleFormV117" class="bulk-inline-form-v117" onsubmit="return confirm(this.dataset.confirm || '{{ 'Apply this status change?' if is_en else 'تنفيذ تغيير الحالة؟' }}')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-            <button class="btn btn-outline-secondary btn-sm" type="submit" id="bulkToggleBtnV117" data-requires-selected disabled>🟠 {{ 'Disable/Enable' if is_en else 'تفعيل/تعطيل' }}</button>
-          </form>
-          <form method="post" id="bulkDeleteFormV117" class="bulk-inline-form-v117" onsubmit="return confirm('{{ 'Permanent delete? A backup will be created first.' if is_en else 'حذف نهائي؟ سيتم إنشاء نسخة احتياطية أولًا.' }}')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
-            <button class="btn btn-outline-danger btn-sm" type="submit" data-requires-selected disabled>🗑️ {{ 'Delete' if is_en else 'حذف' }}</button>
-          </form>
-          <button class="btn btn-outline-secondary btn-sm" type="button" id="bulkClearV116" disabled>{{ 'Clear' if is_en else 'إلغاء التحديد' }}</button>
-        </div>
+      <div class="as-list-head">
+        <span>{{ 'Avatar' if is_en else 'الصورة' }}</span>
+        <span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span>
+        <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+        <span>{{ 'Email' if is_en else 'البريد' }}</span>
+        <span>{{ 'Plan' if is_en else 'الخطة' }}</span>
+        <span>{{ 'Support' if is_en else 'الدعم' }}</span>
+        <span>{{ 'Days' if is_en else 'الأيام' }}</span>
+        <span>{{ 'Devices' if is_en else 'الأجهزة' }}</span>
+        <span>{{ 'Account' if is_en else 'الحساب' }}</span>
+        <span>{{ 'Subscription' if is_en else 'الاشتراك' }}</span>
+        <span><input type="checkbox" id="subscriberSelectAllV140" class="as-check" aria-label="{{ 'Select all' if is_en else 'تحديد الكل' }}"></span>
       </div>
 
-      <div class="subscriber-life-board-v140">
-        <div class="subscriber-life-title-v140">
-          <div><span>♛</span><strong>{{ 'Subscribers' if is_en else 'المشتركين' }}</strong><small>{{ 'Manage subscribers, plans, support, and account states' if is_en else 'إدارة المشتركين والخطط والدعم وحالات الحساب' }}</small></div>
+      {% for row in rows %}
+      {% set status = row.status or 'trial' %}
+      {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
+      {% set plan_price = ((row.plan.price|string) ~ ' ' ~ row.plan.currency) if row.plan else '-' %}
+      {% set end_date = row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '-' %}
+      {% set trial_date = row.subscription.trial_ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.trial_ends_at else '-' %}
+      <article class="as-row" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}" data-support-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}" data-subscription-url="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" data-toggle-url="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" data-delete-url="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
+
+        {# Avatar #}
+        <a class="as-person-link" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
+          <span class="as-person-avatar">{{ (row.user.full_name or row.user.username or 'U')[:1]|upper }}</span>
+        </a>
+
+        {# Username #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Username' if is_en else 'اسم المستخدم' }}</span>
+          <strong>@{{ row.user.username }}</strong>
         </div>
-        <div class="subscriber-life-header-v140">
-          <span>{{ 'Subscriber' if is_en else 'المستخدم' }}</span>
-          <span>{{ 'Plan' if is_en else 'الخطة' }}</span>
-          <span>{{ 'Support' if is_en else 'الدعم' }}</span>
-          <span>{{ 'Lifecycle' if is_en else 'دورة الحياة' }}</span>
-          <span>{{ 'Devices' if is_en else 'الأجهزة' }}</span>
-          <span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span>
-          <span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span>
-          <span><input type="checkbox" id="subscriberSelectAllV140" aria-label="{{ 'Select all subscribers' if is_en else 'تحديد كل المستفيدين' }}"></span>
+
+        {# Full name #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Full name' if is_en else 'الاسم' }}</span>
+          <strong>{{ row.user.full_name or row.user.username }}</strong>
         </div>
-        {% for row in rows %}
-        {% set status = row.status or 'trial' %}
-        {% set plan_name = (row.plan.name_en if is_en and row.plan else (row.plan.name_ar if row.plan else '-')) %}
-        {% set plan_price = ((row.plan.price|string) ~ ' ' ~ row.plan.currency) if row.plan else '-' %}
-        {% set end_date = row.subscription.ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.ends_at else '-' %}
-        {% set trial_date = row.subscription.trial_ends_at.strftime('%Y-%m-%d') if row.subscription and row.subscription.trial_ends_at else '-' %}
-        <article class="subscriber-life-row-v140" data-subscriber-row-v71 data-user-id="{{ row.user.id }}" data-user-name="{{ row.user.full_name or row.user.username }}" data-current-plan="{{ plan_name }}" data-current-plan-id="{{ row.plan.id if row.plan else '' }}" data-current-plan-price="{{ plan_price }}" data-current-plan-devices="{{ row.plan.max_devices if row.plan else '-' }}" data-current-end="{{ end_date }}" data-profile-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}" data-support-url="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}" data-subscription-url="{{ url_for('main.admin_subscriber_activate', user_id=row.user.id, lang=ui_lang) }}" data-toggle-url="{{ url_for('main.admin_user_toggle', user_id=row.user.id, lang=ui_lang) }}" data-delete-url="{{ url_for('main.admin_user_delete', user_id=row.user.id, lang=ui_lang) }}" data-current-trial="{{ trial_date }}" data-status="{{ status }}" data-active="{{ 'active' if row.user.is_active else 'disabled' }}" data-search="{{ (row.user.full_name or '')|lower }} {{ row.user.username|lower }} {{ (row.user.email or '')|lower }} {{ plan_name|lower }} {{ status }}">
-          <a class="life-user-v140" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang) }}">
-            <span class="life-avatar-v140">{{ (row.user.full_name or row.user.username or 'U')[:1] }}</span>
-            <strong>{{ row.user.full_name or row.user.username }}</strong>
-              <small>@{{ row.user.username }}{% if row.user.email %} · {{ mask_email(row.user.email) }}{% endif %}</small>
-          </a>
-          <div class="life-plan-card-v140">
-            <span class="life-icon-v140">♕</span>
+
+        {# Email #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Email' if is_en else 'البريد' }}</span>
+          <small>{% if row.user.email %}{{ mask_email(row.user.email) }}{% else %}—{% endif %}</small>
+        </div>
+
+        {# Plan #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Plan' if is_en else 'الخطة' }}</span>
+          <div class="as-plan-card">
             <strong>{{ plan_name }}</strong>
-            <small>{{ 'Price' if is_en else 'السعر' }}: {{ plan_price }}</small>
+            <small>{{ plan_price }}</small>
             <b>{{ 'Devices' if is_en else 'الأجهزة' }}: {{ row.plan.max_devices if row.plan else '-' }}</b>
           </div>
-          <a class="life-support-v140" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">
-            <span class="mail"><b>{{ row.open_message_count or 0 }}</b> {{ 'messages' if is_en else 'رسائل' }}</span>
-            <span class="ticket"><b>{{ row.open_ticket_count or 0 }}</b> {{ 'tickets' if is_en else 'تذاكر' }}</span>
-            <span class="total"><b>{{ (row.open_message_count or 0) + (row.open_ticket_count or 0) }}</b> {{ 'open' if is_en else 'مفتوح' }}</span>
-          </a>
-          <div class="life-days-v140"><span>▣</span><strong>{% if row.days_left is not none %}{{ row.days_left }}{% else %}—{% endif %}</strong><small>{% if row.days_left is not none %}{{ 'days left' if is_en else 'يوم متبقي' }}{% else %}{{ 'No end date' if is_en else 'بدون تاريخ' }}{% endif %}</small></div>
-          <div class="life-devices-v140"><span>▯</span><strong>{{ row.device_count }}</strong></div>
-          <div class="life-account-v140"><span class="{{ 'on' if row.user.is_active else 'off' }}">{{ 'Active account' if is_en and row.user.is_active else ('الحساب نشط' if row.user.is_active else ('Disabled account' if is_en else 'الحساب معطل')) }}</span></div>
-          <div class="life-status-v140"><span class="{{ 'on' if status in ['active','trial'] else 'off' }}">{{ ui_label(status, 'status', ui_lang) }}</span></div>
-          <div class="life-controls-v140">
-            <input type="checkbox" class="subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}">
-          </div>
-        </article>
-        {% else %}
-        <div class="empty-box-v2">{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
-        {% endfor %}
-      </div>
+        </div>
 
+        {# Support #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Support' if is_en else 'الدعم' }}</span>
+          <a class="as-support" href="{{ url_for('main.admin_user_profile', user_id=row.user.id, lang=ui_lang, tab='support') }}">
+            <span class="mail">✉ <b>{{ row.open_message_count or 0 }}</b> {{ 'mail' if is_en else 'رسائل' }}</span>
+            <span class="ticket">🎫 <b>{{ row.open_ticket_count or 0 }}</b> {{ 'tickets' if is_en else 'تذاكر' }}</span>
+          </a>
+        </div>
+
+        {# Days left — 10-tier expressive ring #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Days left' if is_en else 'الأيام المتبقية' }}</span>
+          {% if row.days_left is not none %}
+            {% set d = row.days_left|int %}
+            {%- if d <= 0 -%}
+              {% set tier = 'expired'  %}{% set pct = 100 %}{% set icon = '⛔' %}
+              {% set label_ar = 'انتهى' %}{% set label_en = 'expired' %}
+            {%- elif d == 1 -%}
+              {% set tier = 'critical' %}{% set pct = 3   %}{% set icon = None %}
+              {% set label_ar = 'يوم واحد فقط!' %}{% set label_en = 'one day left!' %}
+            {%- elif d <= 3 -%}
+              {% set tier = 'critical' %}{% set pct = (d * 10)|int %}{% set icon = None %}
+              {% set label_ar = 'أيام معدودة' %}{% set label_en = 'just days' %}
+            {%- elif d <= 7 -%}
+              {% set tier = 'low'      %}{% set pct = (d / 30 * 100)|int %}{% set icon = None %}
+              {% set label_ar = 'آخر أسبوع' %}{% set label_en = 'final week' %}
+            {%- elif d <= 14 -%}
+              {% set tier = 'low'      %}{% set pct = (d / 30 * 100)|int %}{% set icon = None %}
+              {% set label_ar = 'أسبوعان' %}{% set label_en = 'two weeks' %}
+            {%- elif d <= 30 -%}
+              {% set tier = 'medium'   %}{% set pct = (d / 30 * 100)|int %}{% set icon = None %}
+              {% set label_ar = 'خلال الشهر' %}{% set label_en = 'this month' %}
+            {%- elif d <= 60 -%}
+              {% set tier = 'good'     %}{% set pct = (d / 90 * 100)|int %}{% set icon = None %}
+              {% set label_ar = 'مريح' %}{% set label_en = 'comfortable' %}
+            {%- elif d <= 90 -%}
+              {% set tier = 'good'     %}{% set pct = (d / 90 * 100)|int %}{% set icon = None %}
+              {% set label_ar = 'ممتاز' %}{% set label_en = 'excellent' %}
+            {%- elif d <= 180 -%}
+              {% set tier = 'great'    %}{% set pct = 95 %}{% set icon = None %}
+              {% set label_ar = 'طويل الأمد' %}{% set label_en = 'long-term' %}
+            {%- else -%}
+              {% set tier = 'premium'  %}{% set pct = 100 %}{% set icon = '⭐' %}
+              {% set label_ar = 'فاخر طويل' %}{% set label_en = 'premium long' %}
+            {%- endif -%}
+            <div class="as-days-cell">
+              <div class="as-days-ring tier-{{ tier }}" style="--ring-pct:{{ pct }}" title="{{ d }} {{ 'days left' if is_en else 'يوم متبقّي' }}">
+                {% if icon %}
+                  <span class="as-days-ring-icon">{{ icon }}</span>
+                {% else %}
+                  <span class="as-days-ring-num">{{ d }}</span>
+                {% endif %}
+              </div>
+              <span class="as-days-meta tier-{{ tier }}">{{ label_en if is_en else label_ar }}</span>
+            </div>
+          {% else %}
+            <div class="as-days-cell">
+              <div class="as-days-ring tier-open" style="--ring-pct:50">
+                <span class="as-days-ring-icon">∞</span>
+              </div>
+              <span class="as-days-meta tier-open">{{ 'open-ended' if is_en else 'مفتوح' }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+        {# Devices #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Devices' if is_en else 'الأجهزة' }}</span>
+          <strong>⚡ {{ row.device_count }}</strong>
+        </div>
+
+        {# Account status #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Account' if is_en else 'الحساب' }}</span>
+          <span class="as-pill {{ 'success' if row.user.is_active else 'danger' }}">
+            {{ ('Active' if row.user.is_active else 'Disabled') if is_en else ('نشط' if row.user.is_active else 'معطَّل') }}
+          </span>
+        </div>
+
+        {# Subscription status #}
+        <div class="as-cell">
+          <span class="as-cell-label">{{ 'Subscription' if is_en else 'الاشتراك' }}</span>
+          <span class="as-pill {{ 'success' if status == 'active' else ('warning' if status == 'trial' else ('danger' if status in ['expired','suspended'] else 'muted')) }}">
+            {{ ui_label(status, 'status', ui_lang) }}
+          </span>
+        </div>
+
+        {# Checkbox #}
+        <div>
+          <input type="checkbox" class="as-check subscriber-check-v116" aria-label="{{ 'Select subscriber' if is_en else 'تحديد المشترك' }}">
+        </div>
+      </article>
+      {% else %}
+      <div class="as-empty"><span>👥</span>{{ 'No subscribers yet.' if is_en else 'لا يوجد مشتركون بعد.' }}</div>
+      {% endfor %}
+
+      <div class="as-pager" id="subscriberPager">
+        <div class="as-pager-info" data-pager-info></div>
+        <div class="as-pager-pages" data-pager-pages></div>
+      </div>
     </section>
   </main>
 </div>
 
-<dialog class="modal-v116" id="planModalV116">
+{# ═══════════════ DIALOGS ═══════════════ #}
+<dialog class="as-dialog modal-v116" id="planModalV116">
   <form method="post" id="planFormV116">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="days" id="planDaysV116" value="30">
-    <header><div><small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small><h3>{{ 'Change subscriber plan' if is_en else 'تغيير خطة المشترك' }}</h3></div><button type="button" data-close-modal>×</button></header>
-    <div class="modal-grid-v116 two">
-      <section class="mini-panel-v116"><small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small><strong id="currentPlanNameV116">-</strong><p id="currentPlanDetailsV116">-</p></section>
-      <section class="mini-panel-v116"><small>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}</small><strong id="currentPlanEndV116">-</strong><p>{{ 'The new plan will apply its default quotas automatically.' if is_en else 'الخطة الجديدة ستطبق حدود الكوتا الخاصة بها تلقائيًا.' }}</p></section>
+    <header>
+      <div>
+        <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+        <h3>{{ 'Change subscriber plan' if is_en else 'تغيير خطة المشترك' }}</h3>
+      </div>
+      <button type="button" class="as-dialog-close" data-close-modal>×</button>
+    </header>
+    <div class="as-mini-grid">
+      <div class="as-mini-panel">
+        <small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small>
+        <strong id="currentPlanNameV116">-</strong>
+        <p id="currentPlanDetailsV116">-</p>
+      </div>
+      <div class="as-mini-panel">
+        <small>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}</small>
+        <strong id="currentPlanEndV116">-</strong>
+        <p>{{ 'The new plan will apply its default quotas automatically.' if is_en else 'الخطة الجديدة ستُطبِّق حدود الكوتا الخاصة بها تلقائيًا.' }}</p>
+      </div>
     </div>
-    <label class="full"><span>{{ 'New plan' if is_en else 'الخطة الجديدة' }}</span><select class="form-select form-select-lg" name="plan_id" id="planSelectV116">{% for p in plans %}<option value="{{ p.id }}" data-price="{{ p.price }} {{ p.currency }}" data-devices="{{ p.max_devices }}" data-days="{{ p.duration_days_default or 30 }}">{{ p.name_en if is_en else p.name_ar }} — {{ p.price }} {{ p.currency }} — {{ p.max_devices }} {{ 'devices' if is_en else 'أجهزة' }}</option>{% endfor %}</select></label>
-    <div class="mini-panel-v116 highlight" id="newPlanPreviewV116">{{ 'Choose a plan to preview details.' if is_en else 'اختر خطة لعرض تفاصيلها.' }}</div>
-    <footer><button class="btn btn-outline-secondary" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button><button class="btn btn-solar" type="submit">{{ 'Apply plan and quotas' if is_en else 'تطبيق الخطة والكوتا' }}</button></footer>
+    <label class="full">
+      <span>{{ 'New plan' if is_en else 'الخطة الجديدة' }}</span>
+      <select name="plan_id" id="planSelectV116">
+        {% for p in plans %}
+          <option value="{{ p.id }}" data-price="{{ p.price }} {{ p.currency }}" data-devices="{{ p.max_devices }}" data-days="{{ p.duration_days_default or 30 }}">{{ p.name_en if is_en else p.name_ar }} — {{ p.price }} {{ p.currency }} — {{ p.max_devices }} {{ 'devices' if is_en else 'أجهزة' }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="as-mini-panel highlight" id="newPlanPreviewV116">{{ 'Choose a plan to preview details.' if is_en else 'اختر خطة لعرض تفاصيلها.' }}</div>
+    <footer>
+      <button class="hu-btn hu-btn-ghost is-sm" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+      <button class="hu-btn hu-btn-primary is-sm" type="submit">{{ 'Apply plan and quotas' if is_en else 'تطبيق الخطة والكوتا' }}</button>
+    </footer>
   </form>
 </dialog>
 
-<dialog class="modal-v116" id="extendModalV116">
+<dialog class="as-dialog modal-v116" id="extendModalV116">
   <form method="post" id="extendFormV116">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <header><div><small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small><h3>{{ 'Add subscription time' if is_en else 'إضافة مدة للاشتراك' }}</h3></div><button type="button" data-close-modal>×</button></header>
-    <div class="mini-panel-v116"><small>{{ 'Subscriber' if is_en else 'المشترك' }}</small><strong id="extendUserNameV116">-</strong><p><span>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}: </span><span id="extendCurrentEndV116">-</span></p></div>
-    <div class="duration-presets-v116">
+    <header>
+      <div>
+        <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+        <h3>{{ 'Add subscription time' if is_en else 'إضافة مدة للاشتراك' }}</h3>
+      </div>
+      <button type="button" class="as-dialog-close" data-close-modal>×</button>
+    </header>
+    <div class="as-mini-panel">
+      <small>{{ 'Subscriber' if is_en else 'المشترك' }}</small>
+      <strong id="extendUserNameV116">-</strong>
+      <p><span>{{ 'Current end date' if is_en else 'تاريخ الانتهاء الحالي' }}: </span><span id="extendCurrentEndV116">-</span></p>
+    </div>
+    <div class="as-presets">
       <button type="button" data-unit="days" data-amount="7">+7 {{ 'days' if is_en else 'أيام' }}</button>
       <button type="button" data-unit="days" data-amount="30">+30 {{ 'days' if is_en else 'يوم' }}</button>
       <button type="button" data-unit="months" data-amount="3">+3 {{ 'months' if is_en else 'شهور' }}</button>
       <button type="button" data-unit="years" data-amount="1">+1 {{ 'year' if is_en else 'سنة' }}</button>
       <button type="button" data-unit="trial_days" data-amount="7">+7 {{ 'trial days' if is_en else 'أيام تجريبية' }}</button>
     </div>
-    <div class="modal-grid-v116 two"><label><span>{{ 'Amount' if is_en else 'العدد' }}</span><input class="form-control form-control-lg" type="number" name="amount" id="extendAmountV116" value="30" min="1"></label><label><span>{{ 'Unit' if is_en else 'الوحدة' }}</span><select class="form-select form-select-lg" name="unit" id="extendUnitV116"><option value="days">{{ 'Days' if is_en else 'أيام' }}</option><option value="months">{{ 'Months' if is_en else 'شهور' }}</option><option value="years">{{ 'Years' if is_en else 'سنوات' }}</option><option value="trial_days">{{ 'Trial days' if is_en else 'أيام تجريبية' }}</option></select></label></div>
-    <label class="full"><span>{{ 'Notes' if is_en else 'ملاحظات' }}</span><textarea class="form-control" name="notes" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea></label>
-    <div class="mini-panel-v116 highlight" id="extendPreviewV116">{{ 'The new date will be calculated after saving.' if is_en else 'سيتم احتساب التاريخ الجديد بعد الحفظ.' }}</div>
-    <footer><button class="btn btn-outline-secondary" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button><button class="btn btn-solar" type="submit">{{ 'Add time' if is_en else 'إضافة المدة' }}</button></footer>
+    <div class="as-mini-grid">
+      <label>
+        <span>{{ 'Amount' if is_en else 'العدد' }}</span>
+        <input type="number" name="amount" id="extendAmountV116" value="30" min="1">
+      </label>
+      <label>
+        <span>{{ 'Unit' if is_en else 'الوحدة' }}</span>
+        <select name="unit" id="extendUnitV116">
+          <option value="days">{{ 'Days' if is_en else 'أيام' }}</option>
+          <option value="months">{{ 'Months' if is_en else 'شهور' }}</option>
+          <option value="years">{{ 'Years' if is_en else 'سنوات' }}</option>
+          <option value="trial_days">{{ 'Trial days' if is_en else 'أيام تجريبية' }}</option>
+        </select>
+      </label>
+    </div>
+    <label class="full">
+      <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+      <textarea name="notes" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+    </label>
+    <div class="as-mini-panel highlight" id="extendPreviewV116">{{ 'The new date will be calculated after saving.' if is_en else 'سيتم احتساب التاريخ الجديد بعد الحفظ.' }}</div>
+    <footer>
+      <button class="hu-btn hu-btn-ghost is-sm" type="button" data-close-modal>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+      <button class="hu-btn hu-btn-primary is-sm" type="submit">{{ 'Add time' if is_en else 'إضافة المدة' }}</button>
+    </footer>
   </form>
 </dialog>
 
 <script>
 (function(){
   const isEn = {{ 'true' if is_en else 'false' }};
+  const PAGE_SIZE = 10;
+
   const search = document.getElementById('subscriberSearchV71');
-  const rows = Array.from(document.querySelectorAll('[data-subscriber-row-v71]'));
+  const allRows = Array.from(document.querySelectorAll('[data-subscriber-row-v71]'));
   const buttons = Array.from(document.querySelectorAll('[data-subscriber-filter-v71] button'));
   let filter = 'all';
-  function apply(){
+  let currentPage = 1;
+
+  function rowMatchesFilter(row){
     const q = (search && search.value || '').toLowerCase().trim();
-    rows.forEach(row => {
-      const status = row.dataset.status || '';
-      const active = row.dataset.active || '';
-      const matchFilter = filter === 'all' || status === filter || active === filter;
-      const matchSearch = !q || (row.dataset.search || '').includes(q);
-      row.style.display = matchFilter && matchSearch ? '' : 'none';
-    });
+    const status = row.dataset.status || '';
+    const active = row.dataset.active || '';
+    const matchFilter = filter === 'all' || status === filter || active === filter;
+    const matchSearch = !q || (row.dataset.search || '').includes(q);
+    return matchFilter && matchSearch;
   }
-  search && search.addEventListener('input', apply);
-  buttons.forEach(btn => btn.addEventListener('click', () => { filter = btn.dataset.filter || 'all'; buttons.forEach(b => b.classList.toggle('active', b === btn)); apply(); }));
+  function filteredRows(){ return allRows.filter(rowMatchesFilter); }
+
+  // ── Pagination ──
+  const pagerHost = document.getElementById('subscriberPager');
+  const pagerInfo = pagerHost && pagerHost.querySelector('[data-pager-info]');
+  const pagerPages = pagerHost && pagerHost.querySelector('[data-pager-pages]');
+  function pageWindow(cur, total){
+    if(total<=7) return Array.from({length:total},(_,i)=>i+1);
+    const out=[1];const l=Math.max(2,cur-1),r=Math.min(total-1,cur+1);
+    if(l>2)out.push('…');for(let p=l;p<=r;p++)out.push(p);if(r<total-1)out.push('…');out.push(total);return out;
+  }
+  function applyPagination(){
+    const filtered = filteredRows();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if(currentPage>totalPages) currentPage=totalPages;
+    if(currentPage<1) currentPage=1;
+    const startIdx = (currentPage-1)*PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    allRows.forEach(r => r.style.display='none');
+    filtered.slice(startIdx, endIdx).forEach(r => r.style.display='');
+    if(pagerHost){
+      if(filtered.length === 0){ pagerHost.style.display='none'; return; }
+      pagerHost.style.display='';
+      if(pagerInfo){
+        pagerInfo.innerHTML = (isEn?'Showing ':'عرض ') + '<b>' + (startIdx+1) + '–' + Math.min(endIdx,filtered.length) + '</b> ' + (isEn?'of':'من') + ' <b>' + filtered.length + '</b>';
+      }
+      if(pagerPages){
+        pagerPages.innerHTML = '';
+        const prev = document.createElement('button');
+        prev.type='button'; prev.className='as-pager-btn'; prev.textContent = isEn?'Prev':'السابق';
+        prev.disabled = currentPage<=1;
+        prev.addEventListener('click', () => { currentPage--; applyPagination(); });
+        pagerPages.appendChild(prev);
+        pageWindow(currentPage, totalPages).forEach(p => {
+          if(p === '…'){ const sep=document.createElement('span'); sep.className='as-pager-ellipsis'; sep.textContent='…'; pagerPages.appendChild(sep); return; }
+          const btn = document.createElement('button');
+          btn.type='button';
+          btn.className = 'as-pager-btn' + (p===currentPage ? ' is-active' : '');
+          btn.textContent = String(p);
+          btn.addEventListener('click', () => { currentPage = p; applyPagination(); });
+          pagerPages.appendChild(btn);
+        });
+        const next = document.createElement('button');
+        next.type='button'; next.className='as-pager-btn'; next.textContent = isEn?'Next':'التالي';
+        next.disabled = currentPage>=totalPages;
+        next.addEventListener('click', () => { currentPage++; applyPagination(); });
+        pagerPages.appendChild(next);
+      }
+    }
+  }
+
+  function apply(){ currentPage = 1; applyPagination(); }
+  if(search) search.addEventListener('input', apply);
+  buttons.forEach(btn => btn.addEventListener('click', () => {
+    filter = btn.dataset.filter || 'all';
+    buttons.forEach(b => b.classList.toggle('active', b === btn));
+    apply();
+  }));
 
   const checks = Array.from(document.querySelectorAll('.subscriber-check-v116'));
   const selectAll = document.getElementById('subscriberSelectAllV140');
   const bulkBar = document.getElementById('subscriberBulkBarV116');
   const bulkCount = document.getElementById('bulkCountV116');
+  const bulkCountMirror = document.getElementById('bulkCountMirrorV116');
   const selectedName = document.getElementById('bulkSelectedNameV117');
   const clearBtn = document.getElementById('bulkClearV116');
   const profileLink = document.getElementById('bulkProfileV117');
@@ -205,17 +966,32 @@
     const n = rowsSel.length;
     const row = rowsSel[0];
     if (bulkCount) bulkCount.textContent = n;
-    if (bulkBar) bulkBar.classList.toggle('is-disabled', n === 0);
-    if (bulkBar) bulkBar.classList.toggle('is-active', n > 0);
-    checks.forEach(c => c.closest('[data-subscriber-row-v71]')?.classList.toggle('is-selected', c.checked));
-    const one = n === 1;
-    if(selectedName){
-      selectedName.textContent = n === 0 ? (isEn ? 'Select one subscriber to enable actions' : 'حدد مشتركًا لتفعيل الإجراءات') : (n === 1 ? (isEn ? 'Selected: ' : 'المحدد: ') + (row.dataset.userName || '-') : (isEn ? 'Multiple selected — choose one for detailed actions' : 'تم تحديد أكثر من مشترك — اختر مشتركًا واحدًا للإجراءات التفصيلية'));
+    if (bulkCountMirror) bulkCountMirror.textContent = n;
+    if (bulkBar) {
+      bulkBar.classList.toggle('is-disabled', n === 0);
+      bulkBar.classList.toggle('is-active', n > 0);
     }
-    [profileLink, supportLink, subscriptionLink].forEach(el => setDisabled(el, !one));
+    checks.forEach(c => {
+      const r = c.closest('[data-subscriber-row-v71]');
+      if(r) r.classList.toggle('is-selected', c.checked);
+    });
+    const one = n === 1;
+    const any = n > 0;
+    if(selectedName){
+      selectedName.textContent = n === 0
+        ? (isEn ? 'Select one or more subscribers' : 'حدِّد مشتركاً أو أكثر لتفعيل الإجراءات')
+        : (n === 1
+            ? (isEn ? 'Selected: ' : 'المحدَّد: ') + (row.dataset.userName || '-')
+            : (isEn ? n + ' subscribers selected — only group actions enabled' : 'تم تحديد ' + n + ' مشتركين — تتفعّل الإجراءات الجماعية فقط'));
+    }
+    // Profile/Support/Subscription/ChangePlan/AddTime: single only
+    setDisabled(profileLink, !one);
+    setDisabled(supportLink, !one);
+    setDisabled(subscriptionLink, !one);
     document.querySelectorAll('[data-bulk-open]').forEach(el => setDisabled(el, !one));
-    document.querySelectorAll('#bulkToggleFormV117 button, #bulkDeleteFormV117 button').forEach(el => setDisabled(el, !one));
-    setDisabled(clearBtn, n === 0);
+    // Toggle/Delete: any
+    document.querySelectorAll('#bulkToggleFormV117 button, #bulkDeleteFormV117 button').forEach(el => setDisabled(el, !any));
+    setDisabled(clearBtn, !any);
     if(one){
       profileLink.href = row.dataset.profileUrl || '#';
       supportLink.href = row.dataset.supportUrl || '#';
@@ -225,23 +1001,31 @@
       const active = row.dataset.active === 'active';
       if(toggleBtn){ toggleBtn.innerHTML = active ? (isEn ? '🟠 Disable' : '🟠 تعطيل') : (isEn ? '🟢 Enable' : '🟢 تفعيل'); }
       if(toggleForm){ toggleForm.dataset.confirm = active ? (isEn ? 'Disable this subscriber?' : 'تعطيل هذا المشترك؟') : (isEn ? 'Enable this subscriber?' : 'تفعيل هذا المشترك؟'); }
+    }else if(any){
+      // Multi: bulk verbiage
+      [profileLink, supportLink, subscriptionLink].forEach(el => { if(el) el.href = '#'; });
+      if(toggleBtn) toggleBtn.innerHTML = isEn ? '🟠 Toggle all' : '🟠 تفعيل/تعطيل الكل';
     }else{
       [profileLink, supportLink, subscriptionLink].forEach(el => { if(el) el.href = '#'; });
       if(toggleForm) toggleForm.removeAttribute('action');
       if(deleteForm) deleteForm.removeAttribute('action');
-      if(toggleBtn) toggleBtn.innerHTML = isEn ? '🟠 Disable/Enable' : '🟠 تفعيل/تعطيل';
+      if(toggleBtn) toggleBtn.innerHTML = isEn ? '🟠 Disable / Enable' : '🟠 تفعيل / تعطيل';
     }
   }
+  // Allow multi-select (no exclusivity)
   checks.forEach(c=>c.addEventListener('change', updateBulk));
-  selectAll?.addEventListener('change', ()=>{
-    rows.filter(row => row.style.display !== 'none').forEach(row => {
+  if(selectAll) selectAll.addEventListener('change', ()=>{
+    allRows.forEach(row => {
+      if(row.style.display === 'none') return;
       const check = row.querySelector('.subscriber-check-v116');
       if(check) check.checked = selectAll.checked;
     });
     updateBulk();
   });
-  clearBtn?.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); updateBulk(); });
-  [profileLink, supportLink, subscriptionLink].forEach(a=>a?.addEventListener('click', (e)=>{ if(a.getAttribute('aria-disabled') === 'true') e.preventDefault(); }));
+  if(clearBtn) clearBtn.addEventListener('click', ()=>{ checks.forEach(c=>c.checked=false); if(selectAll) selectAll.checked=false; updateBulk(); });
+  [profileLink, supportLink, subscriptionLink].forEach(a => {
+    if(a) a.addEventListener('click', (e)=>{ if(a.getAttribute('aria-disabled') === 'true') e.preventDefault(); });
+  });
 
   const planModal = document.getElementById('planModalV116');
   const planForm = document.getElementById('planFormV116');
@@ -251,9 +1035,13 @@
   const currentEnd = document.getElementById('currentPlanEndV116');
   const newPreview = document.getElementById('newPlanPreviewV116');
   const planDays = document.getElementById('planDaysV116');
-  function updatePlanPreview(){ const opt = planSelect?.selectedOptions?.[0]; if(!opt || !newPreview) return; if(planDays) planDays.value = opt.dataset.days || '30';
-    newPreview.textContent = (isEn ? 'New plan: ' : 'الخطة الجديدة: ') + opt.textContent + ' · ' + (isEn ? 'default duration ' : 'المدة الافتراضية ') + (opt.dataset.days || '30') + (isEn ? ' days' : ' يوم'); }
-  planSelect?.addEventListener('change', updatePlanPreview);
+  function updatePlanPreview(){
+    const opt = planSelect && planSelect.selectedOptions && planSelect.selectedOptions[0];
+    if(!opt || !newPreview) return;
+    if(planDays) planDays.value = opt.dataset.days || '30';
+    newPreview.textContent = (isEn ? 'New plan: ' : 'الخطة الجديدة: ') + opt.textContent + ' · ' + (isEn ? 'default duration ' : 'المدة الافتراضية ') + (opt.dataset.days || '30') + (isEn ? ' days' : ' يوم');
+  }
+  if(planSelect) planSelect.addEventListener('change', updatePlanPreview);
   function openPlan(row){
     planForm.action = '/admin/subscribers/' + row.dataset.userId + '/activate?lang={{ ui_lang }}';
     if(currentName) currentName.textContent = row.dataset.currentPlan || '-';
@@ -271,8 +1059,12 @@
   const extendAmount = document.getElementById('extendAmountV116');
   const extendUnit = document.getElementById('extendUnitV116');
   const extendPreview = document.getElementById('extendPreviewV116');
-  function updateExtendPreview(){ if(!extendPreview) return; extendPreview.textContent = (isEn ? 'Will add ' : 'سيتم إضافة ') + (extendAmount.value || '0') + ' ' + extendUnit.options[extendUnit.selectedIndex].textContent + (isEn ? ' to this subscriber.' : ' لهذا المشترك.'); }
-  extendAmount?.addEventListener('input', updateExtendPreview); extendUnit?.addEventListener('change', updateExtendPreview);
+  function updateExtendPreview(){
+    if(!extendPreview) return;
+    extendPreview.textContent = (isEn ? 'Will add ' : 'سيتم إضافة ') + (extendAmount.value || '0') + ' ' + extendUnit.options[extendUnit.selectedIndex].textContent + (isEn ? ' to this subscriber.' : ' لهذا المشترك.');
+  }
+  if(extendAmount) extendAmount.addEventListener('input', updateExtendPreview);
+  if(extendUnit) extendUnit.addEventListener('change', updateExtendPreview);
   function openExtend(row){
     extendForm.action = '/admin/subscribers/' + row.dataset.userId + '/extend?lang={{ ui_lang }}';
     if(extendName) extendName.textContent = row.dataset.userName || '-';
@@ -281,9 +1073,25 @@
     extendModal.showModal();
   }
 
-  document.querySelectorAll('[data-bulk-open]').forEach(btn=>btn.addEventListener('click', ()=>{ const rows = selectedRows(); if(rows.length !== 1){ alert(isEn ? 'Select exactly one subscriber for this action.' : 'حدد مشتركًا واحدًا فقط لهذا الإجراء.'); return; } btn.dataset.bulkOpen === 'plan' ? openPlan(rows[0]) : openExtend(rows[0]); }));
-  document.querySelectorAll('[data-close-modal]').forEach(btn=>btn.addEventListener('click', ()=>btn.closest('dialog').close()));
-  document.querySelectorAll('.duration-presets-v116 button').forEach(btn=>btn.addEventListener('click', ()=>{ extendAmount.value = btn.dataset.amount; extendUnit.value = btn.dataset.unit; updateExtendPreview(); }));
+  document.querySelectorAll('[data-bulk-open]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const rs = selectedRows();
+    if(rs.length !== 1){ alert(isEn ? 'Select exactly one subscriber for this action.' : 'حدِّد مشتركاً واحداً فقط لهذا الإجراء.'); return; }
+    btn.dataset.bulkOpen === 'plan' ? openPlan(rs[0]) : openExtend(rs[0]);
+  }));
+  document.querySelectorAll('[data-close-modal]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const d = btn.closest('dialog');
+    if(d) d.close();
+  }));
+  document.querySelectorAll('.as-presets button').forEach(btn=>btn.addEventListener('click', ()=>{
+    extendAmount.value = btn.dataset.amount;
+    extendUnit.value = btn.dataset.unit;
+    updateExtendPreview();
+  }));
+  document.querySelectorAll('.as-dialog').forEach(dialog => dialog.addEventListener('click', event => { if(event.target === dialog) dialog.close(); }));
+
+  // Init
+  applyPagination();
+  updateBulk();
 })();
 </script>
 {% endblock %}

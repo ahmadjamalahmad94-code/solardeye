@@ -7,654 +7,1110 @@
 {% set login_cta_text = ('Dashboard' if is_en else 'لوحة التحكم') if is_logged else ('Login' if is_en else 'تسجيل الدخول') %}
 {% set next_lang = 'ar' if is_en else 'en' %}
 {% set lang_toggle_text = 'العربية' if is_en else 'English' %}
-{% block title %}{{ landing.site_name_en if is_en else landing.site_name_ar }}{% endblock %}
-{% block body %}
+{% set site_name = landing.site_name_en if is_en else landing.site_name_ar %}
+{% block title %}{{ site_name }}{% endblock %}
+
+{% block extra_head %}
 <style>
-/* ════════════════════════════════════════════════════════════════════════
-   LANDING — unified light theme override (lp-*) layered over legacy
-   .landing-*-v10529 classes. HTML structure unchanged.
-═══════════════════════════════════════════════════════════════════════════ */
-.landing-v10529{
-  --lp-ink:#0b1220;
-  --lp-ink-soft:#1f2a44;
-  --lp-muted:#5e6f8c;
-  --lp-line:#e3eaf6;
-  --lp-line-strong:#cfd9ec;
-  --lp-card:#fff;
-  --lp-amber:#f59e0b;
-  --lp-amber-soft:#fbbf24;
-  --lp-emerald:#10b981;
-  --lp-sky:#2563eb;
-  --lp-rose:#f43f5e;
-  --lp-violet:#6d3aff;
-  background:
-    radial-gradient(1100px 480px at 12% -5%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% 0%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
+/* ════════════════════════════════════════════════════════════════════
+   LIGHT EDITORIAL — Sky meets amber, clean and luminous
+═══════════════════════════════════════════════════════════════════════ */
+.lhx{
+  --bg:#f5f8ff;
+  --bg-1:#eef3fb;
+  --bg-card:#ffffff;
+  --bg-elev:#fafcff;
+  --border:#e3eaf6;
+  --border-strong:#cfd9ec;
+  --ink:#0b1220;
+  --ink-soft:#1f2a44;
+  --muted:#5e6f8c;
+  --muted-soft:#7e8aa3;
+  --amber:#f59e0b;
+  --amber-soft:#fbbf24;
+  --amber-glow:rgba(245,158,11,.32);
+  --cyan:#0891b2;
+  --emerald:#059669;
+  --rose:#e11d48;
+  --violet:#7c3aed;
+  --shadow-sm:0 6px 18px rgba(15,23,42,.06);
+  --shadow:0 22px 60px rgba(15,23,42,.09);
+  --shadow-lg:0 30px 80px rgba(15,23,42,.14);
   font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--lp-ink);
-  padding:0;margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  padding:0;overflow-x:hidden;
 }
-.landing-v10529 *,.landing-v10529 *::before,.landing-v10529 *::after{box-sizing:border-box}
+.lhx *,.lhx *::before,.lhx *::after{box-sizing:border-box}
+.lhx::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 600px at 8% -5%,rgba(124,58,237,.08),transparent 55%),radial-gradient(800px 500px at 92% 5%,rgba(8,145,178,.06),transparent 55%),radial-gradient(1200px 700px at 50% 110%,rgba(245,158,11,.06),transparent 55%)}
+.lhx > *{position:relative;z-index:1}
 
-/* NAV */
-.landing-nav-v10529{
-  display:flex;align-items:center;justify-content:space-between;gap:1rem;
-  padding:14px clamp(16px,3vw,40px);
-  background:rgba(255,255,255,.85);backdrop-filter:saturate(160%) blur(14px);
-  border-bottom:1px solid var(--lp-line);
-  position:sticky;top:0;z-index:50;
-}
-.landing-brand-v10529{
-  display:inline-flex;align-items:center;gap:.55rem;text-decoration:none;
-  color:var(--lp-ink);font-weight:950;font-size:1.05rem;
-}
-.landing-brand-v10529 span{
-  width:38px;height:38px;border-radius:11px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  display:inline-flex;align-items:center;justify-content:center;font-size:1.15rem;
-  box-shadow:0 6px 14px rgba(245,158,11,.30);
-}
-.landing-nav-v10529 nav{display:flex;gap:.6rem;flex-wrap:wrap}
-.landing-nav-v10529 nav a{
-  padding:.45rem .8rem;border-radius:10px;
-  font-size:.84rem;font-weight:800;color:var(--lp-ink-soft);text-decoration:none;
-  transition:all .15s;
-}
-.landing-nav-v10529 nav a:hover{background:#f1f5fc;color:var(--lp-sky)}
-@media (max-width:980px){.landing-nav-v10529 nav{display:none}}
-.landing-nav-actions-v10529{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
-.landing-lang-toggle-v10532{
-  display:inline-flex;align-items:center;gap:.35rem;
-  background:#f1f5fc;color:var(--lp-ink-soft);
-  padding:.42rem .8rem;border-radius:999px;
-  font-size:.78rem;font-weight:900;text-decoration:none;
-  border:1px solid var(--lp-line);transition:all .15s;
-}
-.landing-lang-toggle-v10532:hover{background:#fff;box-shadow:0 6px 14px rgba(15,23,42,.10)}
+/* ── NAV ───────────────────────────────────────────────────────────── */
+.lhx-nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:18px clamp(16px,3vw,40px);background:rgba(255,255,255,.85);backdrop-filter:blur(18px) saturate(160%);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.lhx-brand{display:inline-flex;align-items:center;gap:.7rem;text-decoration:none;color:var(--ink);font-weight:950;font-size:1.06rem;letter-spacing:.2px}
+.lhx-brand-mark{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#fde68a,#f59e0b);color:#1a1306;display:inline-flex;align-items:center;justify-content:center;font-size:1.25rem;box-shadow:0 8px 24px var(--amber-glow);position:relative;overflow:hidden}
+.lhx-brand-mark::before{content:"";position:absolute;inset:-50%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.5),transparent);animation:lhx-spin 4s linear infinite}
+.lhx-brand-mark > *{position:relative;z-index:1}
+@keyframes lhx-spin{to{transform:rotate(360deg)}}
+.lhx-nav-links{display:flex;gap:.3rem;flex-wrap:wrap}
+.lhx-nav-links a{padding:.5rem .95rem;border-radius:11px;font-size:.86rem;font-weight:700;color:var(--ink-soft);text-decoration:none;transition:all .18s;letter-spacing:.2px}
+.lhx-nav-links a:hover{background:var(--bg-1);color:var(--amber)}
+@media (max-width:980px){.lhx-nav-links{display:none}}
+.lhx-nav-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.lhx-lang{display:inline-flex;align-items:center;gap:.35rem;background:var(--bg-1);color:var(--ink-soft);padding:.5rem .9rem;border-radius:999px;font-size:.78rem;font-weight:800;text-decoration:none;border:1px solid var(--border);transition:all .15s}
+.lhx-lang:hover{background:var(--bg-card);box-shadow:0 6px 14px rgba(15,23,42,.08)}
+.lhx-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.65rem 1.3rem;border-radius:12px;font-size:.86rem;font-weight:900;font-family:inherit;text-decoration:none;border:none;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.2px}
+.lhx-btn-primary{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#1a1306;box-shadow:0 14px 32px var(--amber-glow),inset 0 1px 0 rgba(255,255,255,.5)}
+.lhx-btn-primary:hover{transform:translateY(-2px);box-shadow:0 22px 44px var(--amber-glow)}
+.lhx-btn-ghost{background:var(--bg-card);color:var(--ink);border:1px solid var(--border-strong)}
+.lhx-btn-ghost:hover{background:var(--bg-elev);border-color:var(--amber)}
 
-.landing-btn{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.55rem 1.05rem;border-radius:12px;
-  font-size:.84rem;font-weight:900;font-family:inherit;
-  text-decoration:none;border:1px solid transparent;cursor:pointer;
-  transition:all .15s;
-}
-.landing-btn.ghost{background:#fff;color:var(--lp-ink-soft);border-color:var(--lp-line)}
-.landing-btn.ghost:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(15,23,42,.10);background:#f5f9ff}
-.landing-btn.gold{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  box-shadow:0 10px 24px rgba(245,158,11,.30);
-}
-.landing-btn.gold:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(245,158,11,.42)}
-.landing-btn.outline{background:#fff;color:var(--lp-sky);border-color:#bfdbfe}
-.landing-btn.outline:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(37,99,235,.18);background:#f5f9ff}
-.landing-btn.big{padding:.85rem 1.5rem;font-size:.95rem;border-radius:14px}
+/* ── HERO ──────────────────────────────────────────────────────────── */
+.lhx-hero{position:relative;padding:0 clamp(20px,4vw,60px) 0;overflow:hidden;background:linear-gradient(180deg,#0e3b86 0%,#3aa7ff 55%,#ffd66e 100%);color:#fff;display:flex;flex-direction:column;min-height:100vh}
+.lhx-hero-stars{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(1px 1px at 8% 18%,#fff,transparent),radial-gradient(1px 1px at 22% 32%,#fff,transparent),radial-gradient(2px 2px at 38% 12%,#fff,transparent),radial-gradient(1px 1px at 56% 38%,#fff,transparent),radial-gradient(1px 1px at 72% 22%,#fff,transparent),radial-gradient(2px 2px at 84% 14%,#fff,transparent),radial-gradient(1px 1px at 16% 52%,#fff,transparent),radial-gradient(1px 1px at 92% 46%,#fff,transparent);opacity:.45}
+.lhx-hero-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 0%,transparent 70%)}
+.lhx-hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,110,.5) 0%,rgba(255,214,110,.18) 30%,transparent 70%);top:-120px;right:-150px;filter:blur(40px);pointer-events:none;animation:lhx-glow-drift 8s ease-in-out infinite}
+[dir="ltr"] .lhx-hero-glow{right:auto;left:-150px}
+@keyframes lhx-glow-drift{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,-30px)}}
+.lhx-hero-inner{position:relative;z-index:5;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,420px);gap:clamp(28px,4vw,56px);align-items:center;padding:clamp(40px,5vw,60px) 0 clamp(28px,3vw,40px);width:100%;flex:1}
+@media (max-width:1024px){.lhx-hero-inner{grid-template-columns:1fr}}
+.lhx-hero-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.4rem}
+.lhx-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:999px;font-size:.74rem;font-weight:900;letter-spacing:.4px;border:1px solid rgba(255,255,255,.30);background:rgba(255,255,255,.16);backdrop-filter:blur(10px);color:#fff}
+.lhx-pill.live{background:rgba(52,211,153,.22);border-color:rgba(52,211,153,.45)}
+.lhx-pill.mobile{background:rgba(255,255,255,.22)}
+.lhx-pill.trial{background:rgba(255,207,77,.95);color:#0b1531;border-color:transparent}
+.lhx-pill .lhx-dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 0 rgba(16,185,129,.7);animation:lhx-pulse 2s infinite}
+@keyframes lhx-pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.6)}70%{box-shadow:0 0 0 12px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+.lhx-hero h1{font-size:clamp(2.2rem,5vw,4.4rem);font-weight:950;line-height:1.15;letter-spacing:-1.2px;margin:0 0 1.2rem;color:#fff;text-shadow:0 4px 30px rgba(11,21,49,.30)}
+.lhx-hero h1 em{font-style:normal;background:linear-gradient(135deg,#fde68a,#fbbf24,#f59e0b);background-clip:text;-webkit-background-clip:text;color:transparent;display:inline-block}
+.lhx-hero-sub{font-size:clamp(1.02rem,1.4vw,1.25rem);line-height:1.6;color:rgba(255,255,255,.94);max-width:580px;margin:0 0 1.4rem;font-weight:500;text-shadow:0 2px 12px rgba(11,21,49,.28)}
+.lhx-hero-cta{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:2rem}
+.lhx-hero-meta{display:flex;flex-wrap:wrap;gap:1rem 2rem;font-size:.86rem;color:rgba(255,255,255,.92);font-weight:600}
+.lhx-hero-meta span{display:inline-flex;align-items:center;gap:.45rem}
+.lhx-hero-meta b{color:#fff;font-weight:900;font-variant-numeric:tabular-nums}
+.lhx-hero-meta{align-items:center}
+.lhx-hero-meta .lhx-pill{font-size:.74rem;padding:.4rem .85rem}
+.lhx-hero-card{background:rgba(255,255,255,.96);backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.6);border-radius:28px;padding:6px;box-shadow:0 40px 100px rgba(11,21,49,.32),inset 0 1px 0 rgba(255,255,255,.8);position:relative;overflow:hidden}
+.lhx-hero-card-inner{background:linear-gradient(180deg,#fff,#fafcff);border-radius:22px;padding:20px 22px;border:1px solid var(--border)}
+.lhx-hero-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.lhx-hero-card-head small{display:block;font-size:.68rem;font-weight:900;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.lhx-hero-card-head h3{margin:0;font-size:1.1rem;font-weight:900;color:var(--ink)}
+.lhx-hero-card-status{display:inline-flex;align-items:center;gap:.35rem;background:#ecfff4;color:#0f7a3b;border:1px solid #bbe3c8;padding:.32rem .7rem;border-radius:999px;font-size:.72rem;font-weight:900}
+.lhx-hero-card-status i{font-style:normal;width:6px;height:6px;border-radius:50%;background:#10b981;animation:lhx-pulse 2s infinite}
+.lhx-mini-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.lhx-mini-kpi{background:linear-gradient(180deg,#fafcff,#f3f7fd);border:1px solid var(--border);border-radius:14px;padding:11px 13px;position:relative;overflow:hidden}
+.lhx-mini-kpi::before{content:"";position:absolute;inset:0 0 auto 0;height:2px}
+.lhx-mini-kpi.solar::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+.lhx-mini-kpi.battery::before{background:linear-gradient(90deg,#34d399,#10b981)}
+.lhx-mini-kpi.home::before{background:linear-gradient(90deg,#fb7185,#f43f5e)}
+.lhx-mini-kpi small{display:block;font-size:.64rem;font-weight:900;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
+.lhx-mini-kpi strong{display:block;font-size:1.4rem;font-weight:950;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.5px}
+.lhx-mini-kpi span{display:block;font-size:.7rem;color:var(--muted);font-weight:700;margin-top:3px}
+.lhx-hero-chart-wrap{background:#fafcff;border-radius:12px;padding:8px;border:1px solid var(--border);height:100px;position:relative}
+.lhx-hero-card-bar{display:flex;justify-content:space-between;margin-top:9px;font-size:.74rem;color:var(--muted);font-weight:700}
+.lhx-hero-card-bar b{color:var(--ink);font-weight:900}
 
-/* HERO */
-.landing-hero-v10529{
-  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
-  gap:clamp(20px,3vw,40px);align-items:center;
-  padding:clamp(40px,6vw,80px) clamp(20px,4vw,60px);
-}
-@media (max-width:980px){.landing-hero-v10529{grid-template-columns:1fr;text-align:start}}
-.landing-hero-copy-v10529{display:flex;flex-direction:column;gap:1rem}
-.landing-eyebrow-v10529{
-  display:inline-flex;align-items:center;gap:.4rem;align-self:flex-start;
-  font-size:.75rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
-  color:#b45309;background:rgba(245,158,11,.14);
-  padding:.35rem .85rem;border-radius:999px;
-  border:1px solid rgba(245,158,11,.28);
-}
-.landing-hero-copy-v10529 h1{
-  font-size:clamp(1.85rem,4vw,3.1rem);font-weight:950;
-  margin:0;line-height:1.15;color:var(--lp-ink);
-  letter-spacing:-.02em;
-}
-.landing-hero-copy-v10529 p{
-  margin:0;font-size:clamp(.95rem,1.4vw,1.1rem);line-height:1.65;
-  color:var(--lp-muted);font-weight:600;max-width:60ch;
-}
-.landing-hero-actions-v10529{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:.4rem}
-.landing-pills-v10529{
-  display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.5rem;
-}
-.landing-pills-v10529 span{
-  font-size:.78rem;font-weight:800;color:var(--lp-ink-soft);
-  background:#fff;border:1px solid var(--lp-line);
-  padding:.4rem .8rem;border-radius:999px;
-  display:inline-flex;align-items:center;gap:.3rem;
-  box-shadow:0 4px 12px rgba(15,23,42,.05);
-}
+/* ── SECTION FRAME ─────────────────────────────────────────────────── */
+.lhx-section{padding:clamp(60px,8vw,120px) clamp(20px,4vw,60px);position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.lhx-section-inner{max-width:1280px;margin:0 auto;position:relative;z-index:1}
+.lhx-section-header{text-align:center;margin-bottom:48px;max-width:720px;margin-inline-start:auto;margin-inline-end:auto}
+.lhx-section-num{display:inline-block;font-family:'Cairo',monospace;font-size:.78rem;font-weight:900;letter-spacing:3px;color:var(--amber);text-transform:uppercase;padding:.45rem .9rem;border:1px solid rgba(245,158,11,.30);border-radius:999px;background:rgba(245,158,11,.08);margin-bottom:1rem}
+.lhx-section-title{font-size:clamp(1.8rem,3.6vw,3.2rem);font-weight:950;line-height:1.18;letter-spacing:-.8px;margin:0 0 1rem;color:var(--ink)}
+.lhx-section-title em{font-style:normal;background:linear-gradient(135deg,#fbbf24,#f59e0b);background-clip:text;-webkit-background-clip:text;color:transparent}
+.lhx-section-sub{color:var(--muted);font-size:1.05rem;line-height:1.7;font-weight:500;margin:0}
 
-/* HERO ART (mock dashboard preview) */
-.landing-art-v10529{
-  position:relative;height:480px;
-  display:flex;align-items:center;justify-content:center;
-}
-@media (max-width:980px){.landing-art-v10529{height:380px}}
-.landing-art-glow-v10529{
-  position:absolute;inset:10% 5%;border-radius:48px;
-  background:linear-gradient(135deg,rgba(58,167,255,.30),rgba(255,214,110,.30));
-  filter:blur(60px);z-index:0;
-}
-.landing-dashboard-v10529{
-  position:relative;z-index:2;
-  width:100%;max-width:480px;
-  background:#fff;border:1px solid var(--lp-line);border-radius:24px;
-  padding:18px 20px;box-shadow:0 30px 70px rgba(15,23,42,.18);
-  display:flex;flex-direction:column;gap:14px;
-}
-.dash-head-v10529{
-  display:flex;align-items:center;gap:.45rem;font-weight:950;color:var(--lp-ink);
-  font-size:.92rem;border-bottom:1px solid var(--lp-line);padding-bottom:10px;
-}
-.dash-head-v10529 span{width:9px;height:9px;border-radius:50%;background:var(--lp-line-strong)}
-.dash-head-v10529 span:nth-child(1){background:#f43f5e}
-.dash-head-v10529 span:nth-child(2){background:#fbbf24}
-.dash-head-v10529 span:nth-child(3){background:#10b981}
-.dash-head-v10529 strong{margin-inline-start:auto;font-size:.84rem;color:var(--lp-muted);font-weight:800}
-.dash-kpis-v10529{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
-.dash-kpis-v10529>div{
-  display:flex;flex-direction:column;gap:2px;
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--lp-line);border-radius:12px;padding:.65rem .75rem;
-}
-.dash-kpis-v10529 small{font-size:.62rem;color:var(--lp-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px}
-.dash-kpis-v10529 b{font-size:1.18rem;font-weight:950;color:var(--lp-ink);font-variant-numeric:tabular-nums;line-height:1.1}
-.dash-kpis-v10529 em{font-size:.66rem;color:var(--lp-muted);font-weight:700;font-style:normal}
-.dash-chart-v10529{
-  height:90px;display:flex;align-items:flex-end;gap:6px;
-  background:linear-gradient(180deg,#f8fbff,#fff);
-  border:1px solid var(--lp-line);border-radius:12px;padding:10px;position:relative;
-}
-.dash-chart-v10529 i{
-  flex:1;background:linear-gradient(180deg,#3aa7ff,#2563eb);
-  border-radius:4px 4px 0 0;animation:lpBar 1.4s ease-in-out infinite alternate;
-}
-.dash-chart-v10529 i:nth-child(1){height:35%}
-.dash-chart-v10529 i:nth-child(2){height:55%}
-.dash-chart-v10529 i:nth-child(3){height:80%;background:linear-gradient(180deg,#fbbf24,#f59e0b)}
-.dash-chart-v10529 i:nth-child(4){height:65%}
-.dash-chart-v10529 i:nth-child(5){height:48%}
-.dash-chart-v10529 i:nth-child(6){height:30%}
-.dash-chart-v10529 b{
-  position:absolute;inset-inline-start:8px;top:8px;
-  font-size:.62rem;color:var(--lp-muted);font-weight:900;
-}
-.dash-chart-v10529 b::before{content:"📈"}
-@keyframes lpBar{from{opacity:.85}to{opacity:1}}
-.dash-status-v10529{
-  display:flex;justify-content:space-between;align-items:center;
-  background:#d1fae5;color:#047857;border:1px solid #a7f3d0;
-  border-radius:11px;padding:.5rem .85rem;
-  font-size:.78rem;font-weight:800;
-}
-.dash-status-v10529 strong{font-weight:950}
+/* ── STATS STRIP ──────────────────────────────────────────────────── */
+.lhx-stats{padding:clamp(40px,5vw,72px) clamp(20px,4vw,60px) 0}
+.lhx-stats-inner{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:36px;text-align:center;position:relative;padding:48px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0))}
+.lhx-stat strong{display:block;font-size:clamp(2rem,3.4vw,3rem);font-weight:950;background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#f59e0b 100%);background-clip:text;-webkit-background-clip:text;color:transparent;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-1.5px;margin-bottom:.6rem}
+.lhx-stat span{display:block;font-size:.86rem;color:var(--muted);font-weight:700;letter-spacing:.4px}
 
-/* Floating accents */
-.landing-alert-v10529,.landing-weather-v10529,.landing-phone-v10529,.landing-device-strip-v10529{
-  position:absolute;background:#fff;border:1px solid var(--lp-line);
-  border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.12);
-  padding:10px 14px;z-index:3;
-}
-.landing-alert-v10529{top:6%;inset-inline-start:-8px;display:flex;flex-direction:column;gap:2px;min-width:140px}
-.landing-alert-v10529 span{font-size:1.2rem}
-.landing-alert-v10529 strong{font-size:.82rem;font-weight:900;color:#b45309}
-.landing-alert-v10529 small{font-size:.7rem;color:var(--lp-muted);font-weight:700}
-.landing-weather-v10529{top:8%;inset-inline-end:-12px;display:flex;flex-direction:column;gap:2px;min-width:120px}
-.landing-weather-v10529 small{font-size:.66rem;color:var(--lp-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px}
-.landing-weather-v10529 strong{font-size:1.4rem;font-weight:950;color:var(--lp-ink);line-height:1}
-.landing-weather-v10529 span{font-size:.74rem;font-weight:800;color:var(--lp-ink-soft)}
-.landing-phone-v10529{
-  bottom:6%;inset-inline-end:-16px;display:flex;flex-direction:column;gap:6px;min-width:170px;
-}
-.landing-phone-v10529 strong{font-size:.78rem;font-weight:900;color:var(--lp-ink);text-transform:uppercase;letter-spacing:.4px}
-.landing-phone-v10529 span{font-size:.74rem;font-weight:700;color:var(--lp-ink-soft)}
-.landing-device-strip-v10529{
-  bottom:8%;inset-inline-start:-8px;display:flex;gap:8px;
-  padding:8px 12px;
-}
-.landing-device-strip-v10529 em{
-  font-size:1.05rem;font-style:normal;
-  width:30px;height:30px;border-radius:8px;background:#f1f5fc;
-  display:inline-flex;align-items:center;justify-content:center;
-}
-@media (max-width:980px){
-  .landing-alert-v10529,.landing-weather-v10529,.landing-phone-v10529,.landing-device-strip-v10529{display:none}
-}
+/* ── ENERGY FLOW ──────────────────────────────────────────────────── */
+.lhx-flow-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:0;margin:24px auto 0;padding:8px}
+.lhx-flow-step{flex:1 1 130px;max-width:200px;min-width:120px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 8px;gap:10px}
+.lhx-flow-illus{width:100px;height:100px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:24px;border:1px solid var(--border);box-shadow:0 14px 30px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .25s, box-shadow .25s, border-color .25s}
+.lhx-flow-step:hover .lhx-flow-illus{transform:translateY(-6px) scale(1.06);border-color:var(--amber);box-shadow:0 22px 44px rgba(245,158,11,.20)}
+.lhx-flow-illus svg{width:78%;height:78%}
+.lhx-flow-step strong{font-size:1rem;font-weight:900;color:var(--ink);margin-top:6px;line-height:1.2}
+.lhx-flow-step p{font-size:.82rem;color:var(--muted);font-weight:500;line-height:1.55;margin:0;max-width:160px}
+.lhx-flow-arrow{flex:0 0 36px;height:100px;display:flex;align-items:center;justify-content:center;position:relative}
+.lhx-flow-arrow span{display:block;width:100%;height:2px;background:repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 6px,transparent 6px,transparent 12px);position:relative;animation:lhx-flow-arrow-move 1s linear infinite;background-size:12px 2px}
+@keyframes lhx-flow-arrow-move{from{background-position:0 0}to{background-position:-12px 0}}
+.lhx-flow-arrow::after{content:"◄";position:absolute;font-size:.92rem;color:var(--amber);font-weight:900;text-shadow:0 0 8px var(--amber-glow);inset-inline-end:-2px;top:50%;transform:translateY(-50%)}
+[dir="ltr"] .lhx-flow-arrow::after{content:"►";inset-inline-end:-2px}
+@media (max-width:980px){.lhx-flow-row{gap:4px}.lhx-flow-step{flex:1 1 28%;max-width:32%}.lhx-flow-arrow{display:none}}
+@media (max-width:560px){.lhx-flow-step{flex:1 1 45%;max-width:48%}}
 
-/* SECTIONS */
-.landing-section-v10529{
-  padding:clamp(40px,5vw,72px) clamp(20px,4vw,60px);
-}
-.landing-section-title-v10529{display:flex;flex-direction:column;align-items:center;gap:.5rem;text-align:center;margin-bottom:2rem}
-.landing-section-title-v10529.start{align-items:flex-start;text-align:start}
-.landing-section-title-v10529 h2{
-  font-size:clamp(1.45rem,3vw,2.2rem);font-weight:950;
-  margin:0;line-height:1.2;color:var(--lp-ink);letter-spacing:-.015em;
-}
-.landing-section-title-v10529 span{
-  width:60px;height:4px;border-radius:2px;
-  background:linear-gradient(90deg,#ffcf4d,#f59e0b);
-}
-.landing-section-title-v10529 p{
-  margin:.4rem 0 0;font-size:.95rem;color:var(--lp-muted);font-weight:600;
-  max-width:70ch;line-height:1.6;
-}
+/* ── 9 PHASES SOLAR CLOCK — clock face stays dark, section is light ── */
+.lhx-clock{padding:clamp(60px,8vw,120px) clamp(20px,4vw,60px);position:relative;background:linear-gradient(180deg,rgba(245,158,11,.04),rgba(58,167,255,.04));min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.lhx-clock-inner{max-width:1280px;margin:0 auto}
+.lhx-clock-grid{display:grid;grid-template-columns:auto 1fr;gap:clamp(28px,4vw,56px);align-items:center;position:relative}
+@media(max-width:980px){.lhx-clock-grid{grid-template-columns:1fr;justify-items:center}}
+.lhx-clock-svg{width:clamp(280px,35vw,440px);height:auto;display:block;filter:drop-shadow(0 30px 60px rgba(11,21,49,.20))}
+.lhx-clock-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:580px}
+@media (max-width:540px){.lhx-clock-list{grid-template-columns:repeat(2,1fr)}}
+.lhx-phase-pill{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid var(--border);transition:all .2s;box-shadow:var(--shadow-sm)}
+.lhx-phase-pill:hover{background:var(--bg-elev);transform:translateY(-2px);border-color:var(--border-strong);box-shadow:0 14px 30px rgba(15,23,42,.10)}
+.lhx-phase-pill.active{background:linear-gradient(135deg,#fff8e1,#fef3c7);border-color:var(--amber);box-shadow:0 14px 30px var(--amber-glow)}
+.lhx-phase-pill .icon{font-size:1.5rem;line-height:1;flex-shrink:0}
+.lhx-phase-pill strong{display:block;font-size:.86rem;font-weight:900;color:var(--ink);line-height:1.2}
+.lhx-phase-pill span{display:block;font-size:.72rem;color:var(--muted);font-weight:600;line-height:1.3;margin-top:2px}
 
-/* FEATURES GRID */
-.feature-grid-v10529{
-  display:grid;gap:18px;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-}
-.feature-card-v10529{
-  position:relative;background:var(--lp-card);
-  border:1px solid var(--lp-line);border-radius:22px;
-  padding:24px 22px;box-shadow:0 6px 18px rgba(15,23,42,.06);
-  display:flex;flex-direction:column;gap:.6rem;
-  transition:all .2s;overflow:hidden;
-}
-.feature-card-v10529:hover{transform:translateY(-3px);box-shadow:0 22px 50px rgba(15,23,42,.10);border-color:var(--lp-line-strong)}
-.feature-card-v10529::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:4px;
-  background:linear-gradient(90deg,#ffcf4d,#f59e0b);
-  border-radius:22px 22px 0 0;
-}
-.feature-card-v10529:nth-child(2)::before{background:linear-gradient(90deg,#10b981,#34d399)}
-.feature-card-v10529:nth-child(3)::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.feature-card-v10529:nth-child(4)::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
-.feature-card-v10529 i{
-  font-size:1.85rem;width:54px;height:54px;border-radius:14px;
-  background:rgba(245,158,11,.12);color:#b45309;
-  display:inline-flex;align-items:center;justify-content:center;font-style:normal;
-  margin-bottom:.2rem;
-}
-.feature-card-v10529:nth-child(2) i{background:rgba(16,185,129,.12);color:#047857}
-.feature-card-v10529:nth-child(3) i{background:rgba(37,99,235,.12);color:#1d4ed8}
-.feature-card-v10529:nth-child(4) i{background:rgba(109,58,255,.12);color:#5b21b6}
-.feature-card-v10529 h3{font-size:1.05rem;font-weight:950;color:var(--lp-ink);margin:0;line-height:1.3}
-.feature-card-v10529 p{margin:0;font-size:.88rem;color:var(--lp-muted);font-weight:600;line-height:1.55}
+/* ── COMPARISON ───────────────────────────────────────────────────── */
+.lhx-vs-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:center;max-width:1100px;margin:0 auto}
+@media(max-width:880px){.lhx-vs-grid{grid-template-columns:1fr;gap:16px}.lhx-vs-divider{display:none !important}}
+.lhx-vs-col{padding:28px;border-radius:24px;display:flex;flex-direction:column;gap:14px}
+.lhx-vs-col.bad{background:linear-gradient(180deg,#fff1f2,#fee2e2);border:1px solid #fecaca}
+.lhx-vs-col.good{background:linear-gradient(180deg,#ecfdf5,#d1fae5);border:1px solid #a7f3d0;box-shadow:0 22px 50px rgba(16,185,129,.16)}
+.lhx-vs-col h4{margin:0 0 4px;font-size:1.15rem;font-weight:950}
+.lhx-vs-col.bad h4{color:#991b1b}
+.lhx-vs-col.good h4{color:#065f46}
+.lhx-vs-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.lhx-vs-list li{display:flex;gap:12px;align-items:flex-start;font-size:.94rem;line-height:1.6;color:var(--ink-soft);font-weight:500}
+.lhx-vs-list li::before{flex-shrink:0;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.86rem;font-weight:900;margin-top:1px}
+.lhx-vs-col.bad li::before{content:"✕";background:#fee2e2;color:#dc2626}
+.lhx-vs-col.good li::before{content:"✓";background:#d1fae5;color:#059669}
+.lhx-vs-divider{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#0e3b86,#3aa7ff);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:950;font-size:1.05rem;letter-spacing:1px;box-shadow:0 22px 50px rgba(14,59,134,.30);justify-self:center}
 
-/* SPLIT (devices) */
-.landing-split-v10529{
-  display:grid;gap:32px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;
-}
-@media (max-width:980px){.landing-split-v10529{grid-template-columns:1fr}}
-.devices-copy-v10529{display:flex;flex-direction:column;gap:.85rem}
-.landing-lead-v10529{font-size:.95rem;color:var(--lp-muted);font-weight:600;line-height:1.65;margin:0}
-.device-tags-v10529{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
-.device-tags-v10529 span{
-  font-size:.78rem;font-weight:800;color:var(--lp-ink-soft);
-  background:#fff;border:1px solid var(--lp-line);
-  padding:.4rem .85rem;border-radius:999px;
-}
-.dynamic-card-v10529{
-  background:var(--lp-card);border:1px solid var(--lp-line);
-  border-radius:22px;padding:22px 24px;
-  box-shadow:0 22px 50px rgba(15,23,42,.10);
-  display:flex;flex-direction:column;gap:14px;
-}
-.dynamic-card-v10529 h3{font-size:1.05rem;font-weight:950;color:var(--lp-ink);margin:0}
-.dynamic-card-v10529 label{font-size:.74rem;color:var(--lp-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px}
-.fake-select-v10529{
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.08));
-  border:1px solid rgba(245,158,11,.28);border-radius:12px;
-  padding:.7rem 1rem;font-size:.92rem;font-weight:900;color:var(--lp-ink);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.fake-select-v10529::after{content:"⌄";color:#b45309;font-size:1.1rem}
-.dynamic-card-v10529>div{display:flex;flex-direction:column;gap:.4rem}
-.dynamic-card-v10529>div span{
-  font-size:.82rem;font-weight:700;color:var(--lp-ink-soft);
-  padding:.55rem .85rem;border-radius:11px;
-  background:#f8fbff;border:1px solid var(--lp-line);
-}
+/* ── PILLARS ────────────────────────────────────────────────────────── */
+.lhx-pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media (max-width:880px){.lhx-pillars-grid{grid-template-columns:1fr}}
+.lhx-pillar{background:#fff;border:1px solid var(--border);border-radius:24px;padding:32px 28px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);transition:transform .25s, box-shadow .25s, border-color .25s}
+.lhx-pillar:hover{transform:translateY(-6px);border-color:var(--border-strong);box-shadow:0 30px 60px rgba(15,23,42,.10)}
+.lhx-pillar::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;opacity:.95}
+.lhx-pillar.mission::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+.lhx-pillar.vision::before{background:linear-gradient(90deg,#3aa7ff,#0e3b86)}
+.lhx-pillar.promise::before{background:linear-gradient(90deg,#34d399,#10b981)}
+.lhx-pillar-icon{font-size:1.6rem;width:56px;height:56px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px}
+.lhx-pillar.mission .lhx-pillar-icon{background:linear-gradient(135deg,#fef3c7,#fed7aa);color:#92400e}
+.lhx-pillar.vision .lhx-pillar-icon{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af}
+.lhx-pillar.promise .lhx-pillar-icon{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46}
+.lhx-pillar h3{margin:0 0 10px;font-size:1.3rem;font-weight:950;color:var(--ink);letter-spacing:-.3px}
+.lhx-pillar p{margin:0;color:var(--muted);font-size:.96rem;line-height:1.7;font-weight:500}
 
-/* WORKFLOW */
-.landing-workflow-v10529{position:relative}
-.workflow-track-v10530{display:none}
-.workflow-grid-v10529{
-  display:grid;gap:18px;grid-template-columns:repeat(3,minmax(0,1fr));
-  position:relative;
-}
-@media (max-width:760px){.workflow-grid-v10529{grid-template-columns:1fr}}
-.workflow-grid-v10529 article{
-  position:relative;background:var(--lp-card);
-  border:1px solid var(--lp-line);border-radius:22px;
-  padding:26px 22px;
-  box-shadow:0 6px 18px rgba(15,23,42,.06);
-  display:flex;flex-direction:column;gap:.55rem;align-items:flex-start;
-  transition:all .2s;
-}
-.workflow-grid-v10529 article:hover{transform:translateY(-3px);box-shadow:0 22px 50px rgba(15,23,42,.10);border-color:var(--lp-line-strong)}
-.workflow-grid-v10529 article b{
-  position:absolute;top:-18px;inset-inline-start:24px;
-  width:36px;height:36px;border-radius:50%;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1rem;font-weight:950;
-  box-shadow:0 8px 18px rgba(245,158,11,.30);
-}
-.workflow-grid-v10529 article i{
-  font-size:1.65rem;font-style:normal;
-  width:50px;height:50px;border-radius:14px;
-  background:rgba(37,99,235,.12);color:#1d4ed8;
-  display:inline-flex;align-items:center;justify-content:center;margin-top:.3rem;
-}
-.workflow-grid-v10529 article:nth-child(1) i{background:rgba(245,158,11,.12);color:#b45309}
-.workflow-grid-v10529 article:nth-child(2) i{background:rgba(16,185,129,.12);color:#047857}
-.workflow-grid-v10529 article h3{font-size:1.05rem;font-weight:950;color:var(--lp-ink);margin:0}
-.workflow-grid-v10529 article p{margin:0;font-size:.88rem;color:var(--lp-muted);font-weight:600;line-height:1.55}
+/* ── PLANS ──────────────────────────────────────────────────────────── */
+.lhx-plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:22px;max-width:1180px;margin:0 auto}
+.lhx-plan{background:#fff;border:1px solid var(--border);border-radius:28px;padding:34px 28px 28px;display:flex;flex-direction:column;gap:18px;transition:transform .25s, box-shadow .25s, border-color .25s;position:relative;overflow:visible;box-shadow:var(--shadow-sm)}
+.lhx-plan:hover{transform:translateY(-6px);border-color:var(--border-strong);box-shadow:0 32px 70px rgba(15,23,42,.12)}
+.lhx-plan.featured{border:2px solid var(--amber);background:linear-gradient(180deg,#fff,#fffaf0);box-shadow:0 30px 80px var(--amber-glow);transform:scale(1.04)}
+.lhx-plan.featured:hover{transform:scale(1.04) translateY(-6px)}
+.lhx-plan.featured::before{content:"";position:absolute;inset:-2px;border-radius:28px;background:linear-gradient(135deg,transparent,rgba(245,158,11,.4),transparent);z-index:-1;animation:lhx-plan-glow 4s linear infinite;pointer-events:none}
+@keyframes lhx-plan-glow{0%,100%{opacity:.6}50%{opacity:1}}
+.lhx-plan-badge{position:absolute;top:-16px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#fde68a,#f59e0b);color:#1a1306;padding:.5rem 1.2rem;border-radius:999px;font-size:.78rem;font-weight:950;letter-spacing:.5px;box-shadow:0 14px 30px var(--amber-glow),inset 0 1px 0 rgba(255,255,255,.5);white-space:nowrap;z-index:10;border:3px solid #fff}
+.lhx-plan h3{font-size:1.6rem;font-weight:950;color:var(--ink);margin:0;letter-spacing:-.3px}
+.lhx-plan-sub{color:var(--muted);font-size:.94rem;line-height:1.6;margin:0;font-weight:500}
+.lhx-plan-price{display:flex;align-items:baseline;gap:.5rem;margin:6px 0;padding-bottom:18px;border-bottom:1px dashed var(--border-strong)}
+.lhx-plan-price strong{font-size:3rem;font-weight:950;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1}
+.lhx-plan.featured .lhx-plan-price strong{background:linear-gradient(135deg,#f59e0b,#d97706);background-clip:text;-webkit-background-clip:text;color:transparent}
+.lhx-plan-price small{font-size:.88rem;color:var(--muted);font-weight:800}
+.lhx-plan-bullets{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:11px}
+.lhx-plan-bullets li{display:flex;gap:.65rem;align-items:flex-start;font-size:.94rem;color:var(--ink-soft);line-height:1.55;font-weight:500}
+.lhx-plan-bullets li::before{content:"✓";display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border-radius:50%;background:#d1fae5;color:#059669;font-size:.84rem;font-weight:900;margin-top:1px}
+.lhx-plan-cta{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.95rem 1.2rem;border-radius:14px;font-size:.94rem;font-weight:900;text-decoration:none;background:#fff;color:var(--ink);border:1px solid var(--border-strong);transition:all .15s}
+.lhx-plan-cta:hover{background:var(--bg-elev);border-color:var(--amber)}
+.lhx-plan.featured .lhx-plan-cta{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#1a1306;border-color:transparent;box-shadow:0 16px 36px var(--amber-glow)}
+.lhx-plan.featured .lhx-plan-cta:hover{transform:translateY(-2px);box-shadow:0 22px 48px var(--amber-glow)}
 
-/* PRODUCT MOCK */
-.product-v10529{
-  display:grid;gap:32px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center;
-}
-@media (max-width:980px){.product-v10529{grid-template-columns:1fr}}
-.mockup-v10529{
-  position:relative;background:#fff;border:1px solid var(--lp-line);
-  border-radius:24px;padding:18px;box-shadow:0 30px 70px rgba(15,23,42,.14);
-  display:grid;grid-template-columns:120px 1fr;gap:12px;min-height:300px;
-}
-.mock-sidebar-v10529{
-  background:linear-gradient(180deg,#f8fbff,#eef3fb);
-  border:1px solid var(--lp-line);border-radius:14px;
-}
-.mock-body-v10529{display:flex;flex-direction:column;gap:10px}
-.mock-body-v10529 span{
-  height:40px;border-radius:11px;
-  background:linear-gradient(180deg,#fff,#f7faff);border:1px solid var(--lp-line);
-}
-.mock-body-v10529 b{
-  flex:1;border-radius:11px;
-  background:linear-gradient(135deg,rgba(58,167,255,.18),rgba(255,214,110,.18));
-  border:1px solid var(--lp-line);
-}
-.mockup-v10529 i{
-  position:absolute;inset:30% -10% auto auto;width:60px;height:60px;border-radius:18px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
-  box-shadow:0 14px 30px rgba(245,158,11,.40);
-}
-.product-v10529 h2{font-size:clamp(1.45rem,3vw,2.1rem);font-weight:950;color:var(--lp-ink);margin:0 0 .8rem}
-.product-v10529 p{font-size:.95rem;color:var(--lp-muted);font-weight:600;line-height:1.65;margin:0 0 1.2rem}
-.product-points-v10529{display:flex;flex-wrap:wrap;gap:.5rem}
-.product-points-v10529 span{
-  font-size:.82rem;font-weight:800;color:var(--lp-ink-soft);
-  background:#fff;border:1px solid var(--lp-line);
-  padding:.5rem .85rem;border-radius:999px;
-  display:inline-flex;align-items:center;gap:.3rem;
-  box-shadow:0 4px 12px rgba(15,23,42,.05);
+/* ── FINAL CTA ─────────────────────────────────────────────────────── */
+.lhx-cta-final{padding:clamp(60px,8vw,100px) clamp(20px,4vw,60px);min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.lhx-cta-final-card{max-width:1280px;margin:0 auto;background:linear-gradient(135deg,#fde68a 0%,#f59e0b 50%,#ec4899 100%);border-radius:36px;padding:clamp(40px,5vw,72px) clamp(28px,4vw,56px);color:#1a1306;position:relative;overflow:hidden;box-shadow:0 50px 120px var(--amber-glow)}
+.lhx-cta-final-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(420px 240px at 12% 12%,rgba(255,255,255,.30),transparent 60%),radial-gradient(380px 220px at 88% 88%,rgba(0,0,0,.16),transparent 60%);z-index:1}
+.lhx-cta-final-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center;position:relative;z-index:2}
+@media(max-width:880px){.lhx-cta-final-grid{grid-template-columns:1fr;gap:32px;text-align:center}}
+.lhx-cta-final h2{font-size:clamp(1.9rem,3.6vw,3rem);font-weight:950;line-height:1.2;margin:0 0 .9rem;color:#1a1306;letter-spacing:-.4px}
+.lhx-cta-final p{font-size:1.08rem;color:#3a2706;margin:0 0 1.6rem;line-height:1.7;font-weight:600}
+.lhx-cta-final-actions{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1.4rem}
+@media(max-width:880px){.lhx-cta-final-actions{justify-content:center}}
+.lhx-cta-final-actions .lhx-btn-primary{background:#1a1306;color:#fde68a;box-shadow:0 14px 32px rgba(0,0,0,.28)}
+.lhx-cta-final-actions .lhx-btn-primary:hover{background:#000;color:#fbbf24}
+.lhx-cta-final-actions .lhx-btn-ghost{background:rgba(255,255,255,.36);color:#1a1306;border-color:rgba(0,0,0,.18)}
+.lhx-cta-final-actions .lhx-btn-ghost:hover{background:rgba(255,255,255,.55)}
+.lhx-cta-final-trust{display:flex;flex-wrap:wrap;gap:.8rem 1.6rem;font-size:.86rem;color:#3a2706;font-weight:700}
+@media(max-width:880px){.lhx-cta-final-trust{justify-content:center}}
+.lhx-cta-final-trust span{display:inline-flex;align-items:center;gap:.4rem}
+.lhx-cta-final-phones{position:relative;display:flex;justify-content:center;align-items:center;min-height:300px}
+.lhx-phone{position:absolute;width:150px;height:300px;background:linear-gradient(180deg,#0a0f1f,#1a2342);border-radius:26px;border:6px solid #1a1306;box-shadow:0 32px 70px rgba(0,0,0,.55);overflow:hidden;display:flex;flex-direction:column;padding:14px 8px}
+.lhx-phone::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:46px;height:5px;background:#000;border-radius:3px;z-index:5}
+.lhx-phone-head{font-size:.55rem;color:rgba(255,255,255,.5);text-align:center;margin:6px 0 8px;font-weight:900;letter-spacing:1px}
+.lhx-phone-stat{background:linear-gradient(180deg,rgba(251,191,36,.16),rgba(251,191,36,.04));border:1px solid rgba(251,191,36,.30);border-radius:10px;padding:7px 9px;margin-bottom:6px;font-size:.55rem}
+.lhx-phone-stat strong{display:block;font-size:1rem;font-weight:950;color:#fbbf24;line-height:1;margin-top:2px}
+.lhx-phone-stat span{display:block;color:rgba(255,255,255,.6);font-size:.5rem;margin-top:2px}
+.lhx-phone-bar{margin-top:auto;height:60px;background:linear-gradient(180deg,transparent,rgba(251,191,36,.30));border-radius:10px;position:relative;overflow:hidden}
+.lhx-phone-bar::before{content:"";position:absolute;inset:auto 0 0 0;height:60%;background:linear-gradient(180deg,#fbbf24,#f59e0b);border-radius:0 0 10px 10px;opacity:.7;clip-path:polygon(0 60%,15% 30%,30% 50%,45% 10%,60% 25%,75% 5%,90% 20%,100% 0,100% 100%,0 100%)}
+.lhx-phone.left{transform:rotate(-8deg) translate(-32%,4px);z-index:1;opacity:.85}
+.lhx-phone.center{z-index:3;transform:scale(1.05)}
+.lhx-phone.right{transform:rotate(8deg) translate(32%,4px);z-index:1;opacity:.85}
+@media(max-width:480px){.lhx-phone{width:118px;height:236px}.lhx-phone.left{transform:rotate(-6deg) translate(-26%,4px)}.lhx-phone.right{transform:rotate(6deg) translate(26%,4px)}}
+
+/* ── RICH FOOTER ──────────────────────────────────────────────────── */
+.lhx-footer{padding:0;background:linear-gradient(180deg,#0c1426 0%,#0a1020 100%);color:#cbd5e1;position:relative;overflow:hidden}
+.lhx-footer::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px 420px at 10% 0%,rgba(124,58,237,.10),transparent 60%),radial-gradient(700px 420px at 90% 100%,rgba(245,158,11,.10),transparent 60%)}
+.lhx-footer > *{position:relative;z-index:1}
+/* Main footer columns */
+.lhx-footer-main{padding:clamp(40px,5vw,72px) clamp(20px,4vw,60px) 32px}
+.lhx-footer-grid{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:36px}
+@media (max-width:760px){.lhx-footer-grid{grid-template-columns:1fr;gap:28px}}
+.lhx-footer-col h4{margin:0 0 16px;font-size:.86rem;font-weight:900;color:#fff;letter-spacing:1.5px;text-transform:uppercase;position:relative;padding-bottom:10px}
+.lhx-footer-col h4::after{content:"";position:absolute;inset-inline-start:0;bottom:0;width:32px;height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);border-radius:2px}
+.lhx-footer-col ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.lhx-footer-col li a,.lhx-footer-col a.lhx-foot-link{color:#94a3b8;text-decoration:none;font-size:.88rem;font-weight:600;display:inline-flex;align-items:center;gap:.4rem;transition:color .15s, transform .15s;line-height:1.5}
+.lhx-footer-col a:hover{color:#fbbf24;transform:translateX(-2px)}
+[dir="ltr"] .lhx-footer-col a:hover{transform:translateX(2px)}
+/* Brand column extras */
+.lhx-footer-brand-row{display:inline-flex;align-items:center;gap:.7rem;margin-bottom:14px;text-decoration:none;color:#fff}
+.lhx-footer-brand-row .lhx-brand-mark{width:38px;height:38px;font-size:1.1rem}
+.lhx-footer-brand-row strong{font-size:1.05rem;font-weight:950}
+.lhx-footer-about-text{color:#94a3b8;font-size:.92rem;line-height:1.75;margin:0 0 18px;font-weight:500;max-width:380px}
+.lhx-footer-social{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:18px}
+.lhx-footer-social a{width:42px;height:42px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:#cbd5e1;border:1px solid rgba(255,255,255,.12);text-decoration:none;font-weight:900;font-size:.95rem;transition:all .15s}
+.lhx-footer-social a:hover{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#1a1306;border-color:transparent;transform:translateY(-2px);box-shadow:0 12px 24px var(--amber-glow)}
+/* Bottom row */
+.lhx-footer-bottom{padding:24px clamp(20px,4vw,60px);background:rgba(0,0,0,.30);border-top:1px solid rgba(255,255,255,.08)}
+.lhx-footer-bottom-inner{max-width:1280px;margin:0 auto;text-align:center}
+.lhx-footer-copyright{color:#64748b;font-size:.84rem;font-weight:600}
+
+
+
+/* ── HERO TEXT — bigger and more focused ──────────────────────────── */
+.lhx-hero-text h1{margin:0 0 1.2rem !important}
+.lhx-hero-text .lhx-hero-sub{margin:0 0 1.8rem !important}
+.lhx-hero-cta{margin-bottom:0 !important}
+.lhx-btn-lg{padding:.85rem 1.6rem !important;font-size:.94rem !important;border-radius:14px !important}
+
+/* ── HERO BOTTOM STRIP — real-time conditions ─────────────────────── */
+.lhx-hero-strip{position:relative;z-index:5;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:rgba(255,255,255,.10);backdrop-filter:blur(18px) saturate(180%);border:1px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;padding:14px clamp(14px,3vw,28px);box-shadow:0 -10px 40px rgba(11,21,49,.25)}
+@media (max-width:880px){.lhx-hero-strip{grid-template-columns:repeat(2,1fr);gap:14px;border-radius:20px 20px 0 0}}
+@media (max-width:480px){.lhx-hero-strip{grid-template-columns:1fr;gap:10px}}
+.lhx-strip-item{display:flex;align-items:center;gap:.75rem;color:#fff;padding:0 12px;border-inline-end:1px solid rgba(255,255,255,.16);min-width:0}
+.lhx-strip-item:last-child{border-inline-end:none}
+@media (max-width:880px){.lhx-strip-item{border-inline-end:none}.lhx-strip-item:nth-child(odd){border-inline-end:1px solid rgba(255,255,255,.16)}}
+@media (max-width:480px){.lhx-strip-item{border-inline-end:none !important;border-bottom:1px solid rgba(255,255,255,.10);padding-bottom:10px}}
+.lhx-strip-clickable{cursor:pointer;border-radius:12px;transition:background .15s}
+.lhx-strip-clickable:hover{background:rgba(255,255,255,.10)}
+.lhx-strip-icon{width:38px;height:38px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);font-size:1.05rem;flex-shrink:0;border:1px solid rgba(255,255,255,.24)}
+.lhx-strip-icon .lhx-dot{width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:lhx-pulse 2s infinite}
+.lhx-strip-item small{display:block;font-size:.7rem;color:rgba(255,255,255,.78);font-weight:800;letter-spacing:.4px;margin-bottom:2px}
+.lhx-strip-item strong{display:block;font-size:.92rem;color:#fff;font-weight:900;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Remove old hero-meta styling (we no longer use it) */
+.lhx-hero-meta{display:none}
+.lhx-hero-pills{display:none}
+
+
+/* ── RTL/BIDI FIXES — keep numbers/times/prices in correct direction ── */
+/* Time and clock displays — always LTR */
+#lhxClock,#lhxClockTime,#lhxSunrise,#lhxSunset{direction:ltr !important;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums}
+
+/* All numeric KPI strong values — isolated LTR */
+.lhx-mini-kpi strong,
+.lhx-mini-kpi span,
+.lhx-stat strong,
+.lhx-footer-stat strong,
+.lhx-strip-item strong,
+.lhx-hero-meta b,
+.lhx-hero-card-bar b,
+.lhx-pill strong{
+  direction:ltr;
+  unicode-bidi:isolate;
+  display:inline-block;
+  font-variant-numeric:tabular-nums;
 }
 
-/* PRICING */
-.plans-grid-v10529{
-  display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-}
-.plan-card-v10529{
-  position:relative;background:var(--lp-card);
-  border:1px solid var(--lp-line);border-radius:24px;
-  padding:30px 26px 26px;box-shadow:0 6px 18px rgba(15,23,42,.06);
-  display:flex;flex-direction:column;gap:.85rem;
-  transition:all .2s;
-}
-.plan-card-v10529:hover{transform:translateY(-3px);box-shadow:0 22px 50px rgba(15,23,42,.10);border-color:var(--lp-line-strong)}
-.plan-card-v10529.featured{border-color:rgba(245,158,11,.40);box-shadow:0 0 0 3px rgba(245,158,11,.10),0 22px 50px rgba(15,23,42,.10)}
-.plan-card-v10529.featured::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:6px;
-  border-radius:24px 24px 0 0;
-  background:linear-gradient(90deg,#ffcf4d,#f59e0b);
-}
-.plan-card-v10529>b{
-  position:absolute;top:14px;inset-inline-end:14px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:.66rem;font-weight:900;
-  padding:.25rem .65rem;border-radius:999px;letter-spacing:.3px;
-  box-shadow:0 6px 14px rgba(245,158,11,.30);
-}
-.plan-card-v10529 h3{font-size:1.2rem;font-weight:950;color:var(--lp-ink);margin:0}
-.plan-card-v10529 p{font-size:.84rem;color:var(--lp-muted);font-weight:600;margin:0;line-height:1.5}
-.plan-card-v10529 strong{
-  font-size:2.1rem;font-weight:950;color:var(--lp-ink);
-  font-variant-numeric:tabular-nums;line-height:1;
-  display:inline-flex;align-items:baseline;gap:.3rem;
-}
-.plan-card-v10529 strong small{font-size:.78rem;color:var(--lp-muted);font-weight:700;letter-spacing:0}
-.plan-card-v10529 ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem}
-.plan-card-v10529 ul li{
-  font-size:.86rem;color:var(--lp-ink-soft);font-weight:700;
-  display:flex;align-items:center;gap:.5rem;
-}
-.plan-card-v10529 ul li::before{content:"✓";color:#047857;font-weight:950;flex-shrink:0}
-.plan-card-v10529 a{
-  margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
-  padding:.75rem 1rem;border-radius:13px;
-  background:#fff;color:var(--lp-ink-soft);
-  border:1px solid var(--lp-line);
-  font-size:.88rem;font-weight:900;text-decoration:none;
-  transition:all .15s;
-}
-.plan-card-v10529 a:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(15,23,42,.10);background:#f5f9ff}
-.plan-card-v10529.featured a{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;border-color:transparent;
-  box-shadow:0 10px 24px rgba(245,158,11,.30);
-}
-.plan-card-v10529.featured a:hover{box-shadow:0 14px 32px rgba(245,158,11,.42)}
+/* Plan price numbers — consistent LTR */
+.lhx-plan-price strong{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.lhx-plan-price small{unicode-bidi:isolate}
+.lhx-plan-price{unicode-bidi:isolate}
 
-/* TRUST ROW */
-.trust-row-v10529{
-  display:flex;flex-wrap:wrap;justify-content:center;gap:.7rem 1rem;
-  padding:24px clamp(20px,4vw,60px);
-  background:rgba(255,255,255,.6);border-top:1px solid var(--lp-line);border-bottom:1px solid var(--lp-line);
-}
-.trust-row-v10529 span{
-  font-size:.84rem;font-weight:800;color:var(--lp-ink-soft);
-  display:inline-flex;align-items:center;gap:.35rem;
-}
+/* Phone mockup stats */
+.lhx-phone-stat strong{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums}
 
-/* FAQ */
-.faq-grid-v10529{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-.faq-grid-v10529 details{
-  background:var(--lp-card);border:1px solid var(--lp-line);
-  border-radius:16px;padding:.9rem 1.1rem;
-  box-shadow:0 4px 12px rgba(15,23,42,.04);
-  transition:all .15s;
-}
-.faq-grid-v10529 details:hover{border-color:var(--lp-line-strong);box-shadow:0 8px 20px rgba(15,23,42,.08)}
-.faq-grid-v10529 details[open]{border-color:rgba(245,158,11,.30)}
-.faq-grid-v10529 summary{
-  cursor:pointer;font-size:.92rem;font-weight:900;color:var(--lp-ink);
-  list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.5rem;
-}
-.faq-grid-v10529 summary::-webkit-details-marker{display:none}
-.faq-grid-v10529 summary::after{
-  content:"+";font-size:1.3rem;color:var(--lp-amber);font-weight:900;
-  transition:transform .15s;
-}
-.faq-grid-v10529 details[open] summary::after{transform:rotate(45deg)}
-.faq-grid-v10529 details p{margin:.5rem 0 0;font-size:.86rem;color:var(--lp-muted);font-weight:600;line-height:1.6}
+/* SVG flow node values (8.4 kW etc) */
+.lhx-flow-node-val,.lhx-flow-node-sub{direction:ltr;unicode-bidi:isolate}
 
-/* FINAL CTA */
-.final-cta-v10529{
-  margin:32px clamp(20px,4vw,60px);
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-  color:#fff;border-radius:28px;
-  padding:36px clamp(24px,4vw,48px);
-  display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
-  box-shadow:0 30px 70px rgba(15,23,42,.18);
-  position:relative;overflow:hidden;isolation:isolate;
-}
-.final-cta-v10529::before{
-  content:"";position:absolute;inset:0;z-index:-1;
-  background:radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%);
-}
-.final-cta-v10529 h2{font-size:clamp(1.3rem,2.6vw,1.85rem);font-weight:950;margin:0 0 .5rem;line-height:1.25;text-shadow:0 4px 14px rgba(11,21,49,.22)}
-.final-cta-v10529 p{margin:0;font-size:.92rem;color:rgba(255,255,255,.92);font-weight:600;line-height:1.5;max-width:60ch}
+/* Phase chip — phase + clock combo */
+.lhx-pill.live strong{unicode-bidi:isolate}
 
-/* FOOTER */
-.footer-v10529{
-  display:grid;gap:24px;
-  grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr));
-  padding:40px clamp(20px,4vw,60px) 24px;
-  border-top:1px solid var(--lp-line);background:#fff;
-}
-@media (max-width:880px){.footer-v10529{grid-template-columns:1fr 1fr}}
-@media (max-width:520px){.footer-v10529{grid-template-columns:1fr}}
-.footer-v10529 h3{font-size:1.05rem;font-weight:950;color:var(--lp-ink);margin:0 0 .55rem;display:flex;align-items:center;gap:.4rem}
-.footer-v10529 h4{font-size:.78rem;font-weight:900;color:var(--lp-ink-soft);text-transform:uppercase;letter-spacing:.4px;margin:0 0 .55rem}
-.footer-v10529 p{margin:0 0 .85rem;font-size:.86rem;color:var(--lp-muted);font-weight:600;line-height:1.6;max-width:42ch}
-.footer-v10529 a{display:block;font-size:.86rem;color:var(--lp-ink-soft);font-weight:700;text-decoration:none;padding:.25rem 0;transition:color .15s}
-.footer-v10529 a:hover{color:var(--lp-sky)}
-.socials-v10529{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}
-.socials-v10529 a{
-  width:36px;height:36px;border-radius:10px;
-  background:#f1f5fc;color:var(--lp-ink-soft);
-  display:inline-flex;align-items:center;justify-content:center;
-  font-size:.92rem;font-weight:900;
-  transition:all .15s;
-}
-.socials-v10529 a:hover{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;transform:translateY(-1px)}
-.footer-v10529 small{
-  grid-column:1/-1;text-align:center;
-  font-size:.78rem;color:var(--lp-muted);font-weight:700;
-  padding-top:14px;border-top:1px solid var(--lp-line);margin-top:14px;
-}
+/* Strip items — small label always normal flow, strong number always isolated */
+.lhx-strip-item small{unicode-bidi:plaintext}
+
+/* ── BODY RESET — kill ALL gap above hero (aggressive) ────────────── */
+html,body{margin:0 !important;padding:0 !important}
+body{background:#0e3b86 !important}
+body.theme-saas,body.saas-only,body.heavy-v70,body.heavy-v71,body.heavy-v72,body.heavy-v721,body.heavy-v80,body.heavy-v90,body.heavy-v100{background:#0e3b86 !important;padding:0 !important;margin:0 !important}
+.dev-build-badge-v11{display:none !important}
+.flash-stack-v61{position:fixed !important;top:90px;inset-inline-end:20px;z-index:200}
+.account-preview-banner-v107{display:none !important}
+.notification-bell-wrap{z-index:200}
+.lhx{margin:0;padding:0;display:block}
+.lhx-hero{margin:0 !important;padding-top:0 !important}
+
+/* ── NAV SEAMLESS WITH HERO ───────────────────────────────────────── */
+.lhx-nav{background:rgba(255,255,255,.10) !important;backdrop-filter:blur(18px) saturate(180%);border-bottom:1px solid rgba(255,255,255,.16) !important}
+.lhx-nav .lhx-brand{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.30)}
+.lhx-nav-links a{color:rgba(255,255,255,.88) !important}
+.lhx-nav-links a:hover{background:rgba(255,255,255,.18) !important;color:#fff !important}
+.lhx-lang{background:rgba(255,255,255,.18) !important;color:#fff !important;border-color:rgba(255,255,255,.30) !important}
+.lhx-lang:hover{background:rgba(255,255,255,.30) !important}
+.lhx-nav .lhx-btn-ghost{background:rgba(255,255,255,.18) !important;color:#fff !important;border-color:rgba(255,255,255,.30) !important}
+.lhx-nav .lhx-btn-ghost:hover{background:rgba(255,255,255,.30) !important}
+
+.lhx-nav.scrolled{background:rgba(255,255,255,.94) !important;border-bottom:1px solid var(--border) !important;box-shadow:0 8px 24px rgba(15,23,42,.10)}
+.lhx-nav.scrolled .lhx-brand{color:var(--ink);text-shadow:none}
+.lhx-nav.scrolled .lhx-nav-links a{color:var(--ink-soft) !important}
+.lhx-nav.scrolled .lhx-nav-links a:hover{background:var(--bg-1) !important;color:var(--amber) !important}
+.lhx-nav.scrolled .lhx-lang{background:var(--bg-1) !important;color:var(--ink-soft) !important;border-color:var(--border) !important}
+.lhx-nav.scrolled .lhx-btn-ghost{background:#fff !important;color:var(--ink) !important;border-color:var(--border-strong) !important}
+
+/* ── WEATHER FX LAYER — clouds, rain, lightning, snow ─────────────── */
+.lhx-weather-fx{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+
+/* Clouds (drift across) */
+.lhx-cloud-layer{position:absolute;inset:0;opacity:0;transition:opacity 1.5s ease}
+.lhx[data-weather="cloudy"] .lhx-cloud-layer,
+.lhx[data-weather="rainy"] .lhx-cloud-layer,
+.lhx[data-weather="storm"] .lhx-cloud-layer,
+.lhx[data-weather="snowy"] .lhx-cloud-layer{opacity:1}
+.lhx-cloud{position:absolute;width:240px;height:80px;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(255,255,255,.55),transparent 60%),radial-gradient(ellipse 40% 60% at 30% 60%,rgba(255,255,255,.45),transparent 60%),radial-gradient(ellipse 35% 50% at 70% 60%,rgba(255,255,255,.50),transparent 60%);filter:blur(6px);animation:lhx-cloud-drift 38s linear infinite}
+.lhx-cloud.c1{top:12%;inset-inline-start:-25%;animation-duration:42s}
+.lhx-cloud.c2{top:32%;inset-inline-start:-35%;animation-duration:55s;animation-delay:6s;width:300px;height:90px}
+.lhx-cloud.c3{top:18%;inset-inline-start:-45%;animation-duration:48s;animation-delay:12s;width:200px;height:70px}
+.lhx-cloud.c4{top:42%;inset-inline-start:-30%;animation-duration:50s;animation-delay:18s;width:260px;height:80px;opacity:.8}
+.lhx[data-weather="storm"] .lhx-cloud{background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(60,70,90,.85),transparent 60%),radial-gradient(ellipse 40% 60% at 30% 60%,rgba(40,50,70,.75),transparent 60%),radial-gradient(ellipse 35% 50% at 70% 60%,rgba(50,60,80,.80),transparent 60%);filter:blur(8px)}
+.lhx[data-weather="rainy"] .lhx-cloud{background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(120,135,160,.75),transparent 60%),radial-gradient(ellipse 40% 60% at 30% 60%,rgba(100,115,140,.70),transparent 60%),radial-gradient(ellipse 35% 50% at 70% 60%,rgba(110,125,150,.72),transparent 60%);filter:blur(7px)}
+@keyframes lhx-cloud-drift{from{transform:translateX(0)}to{transform:translateX(160vw)}}
+[dir="rtl"] .lhx-cloud{animation-direction:reverse}
+
+/* Rain droplets */
+.lhx-rain-layer{position:absolute;inset:0;opacity:0;transition:opacity 1s ease}
+.lhx[data-weather="rainy"] .lhx-rain-layer,
+.lhx[data-weather="storm"] .lhx-rain-layer{opacity:1}
+.lhx-rain-layer span{position:absolute;width:2px;height:18px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.7));border-radius:1px;top:-20px;animation:lhx-rain 1.2s linear infinite}
+@keyframes lhx-rain{0%{transform:translateY(-30px) translateX(0);opacity:0}10%{opacity:1}90%{opacity:.6}100%{transform:translateY(110vh) translateX(-12px);opacity:0}}
+
+/* Lightning flash */
+.lhx-lightning{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 25%,rgba(255,255,255,.95) 0%,rgba(200,220,255,.5) 30%,transparent 70%);opacity:0;mix-blend-mode:screen;pointer-events:none}
+.lhx[data-weather="storm"] .lhx-lightning{animation:lhx-bolt 7s infinite}
+@keyframes lhx-bolt{0%,87%,100%{opacity:0}88%{opacity:1}89%{opacity:.3}90%{opacity:.95}91%{opacity:0}}
+
+/* Snow */
+.lhx-snow-layer{position:absolute;inset:0;opacity:0;transition:opacity 1s ease}
+.lhx[data-weather="snowy"] .lhx-snow-layer{opacity:1}
+.lhx-snow-layer span{position:absolute;width:6px;height:6px;background:#fff;border-radius:50%;top:-20px;box-shadow:0 0 4px rgba(255,255,255,.6);animation:lhx-snow 8s linear infinite;opacity:.9}
+@keyframes lhx-snow{0%{transform:translateY(-20px) translateX(0)}50%{transform:translateY(50vh) translateX(20px)}100%{transform:translateY(110vh) translateX(-10px)}}
+
+/* Sun ray (sunny) */
+.lhx-sun-ray{position:absolute;top:8%;inset-inline-end:8%;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(255,247,206,.65) 0%,rgba(255,214,110,.40) 30%,transparent 70%);filter:blur(8px);opacity:0;transition:opacity 1.5s ease;pointer-events:none;animation:lhx-sun-pulse-fx 5s ease-in-out infinite}
+.lhx[data-weather="sunny"] .lhx-sun-ray,
+.lhx[data-weather="dawn"] .lhx-sun-ray,
+.lhx[data-weather="sunset"] .lhx-sun-ray{opacity:1}
+@keyframes lhx-sun-pulse-fx{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.1) rotate(180deg)}}
+
+/* Hero gradient changes per weather */
+.lhx[data-weather="sunny"] .lhx-hero{background:linear-gradient(180deg,#0e3b86 0%,#3aa7ff 55%,#ffd66e 100%)}
+.lhx[data-weather="cloudy"] .lhx-hero{background:linear-gradient(180deg,#475569 0%,#64748b 55%,#94a3b8 100%)}
+.lhx[data-weather="rainy"] .lhx-hero{background:linear-gradient(180deg,#1e293b 0%,#475569 55%,#64748b 100%)}
+.lhx[data-weather="storm"] .lhx-hero{background:linear-gradient(180deg,#0f172a 0%,#1e293b 55%,#334155 100%)}
+.lhx[data-weather="night"] .lhx-hero{background:linear-gradient(180deg,#020617 0%,#0f172a 55%,#1e1b4b 100%)}
+.lhx[data-weather="dawn"] .lhx-hero{background:linear-gradient(180deg,#312e81 0%,#7c3aed 55%,#fbbf24 100%)}
+.lhx[data-weather="sunset"] .lhx-hero{background:linear-gradient(180deg,#1e1b4b 0%,#dc2626 55%,#fbbf24 100%)}
+.lhx[data-weather="snowy"] .lhx-hero{background:linear-gradient(180deg,#475569 0%,#64748b 55%,#cbd5e1 100%)}
+.lhx-hero{transition:background 2s ease}
+
+/* Stars (only at night) */
+.lhx[data-weather="night"] .lhx-hero-stars{opacity:.85 !important}
+.lhx[data-weather!="night"] .lhx-hero-stars{opacity:0}
+.lhx[data-weather="dawn"] .lhx-hero-stars{opacity:.5}
+
+/* Weather pill in hero */
+.lhx-pill.weather{background:rgba(255,255,255,.20);border-color:rgba(255,255,255,.35);color:#fff;cursor:pointer}
+.lhx-pill.weather:hover{background:rgba(255,255,255,.30)}
+
+
+
+@media (prefers-reduced-motion: reduce){
+  .lhx-hero-glow,.lhx-brand-mark::before,.lhx-flow-arrow span,.lhx-plan.featured::before{animation:none}
+  .lhx-pill .lhx-dot,.lhx-hero-card-status i,}
 </style>
-<main class="landing-v10529" dir="{{ 'ltr' if is_en else 'rtl' }}">
-  <header class="landing-nav-v10529">
-    <a class="landing-brand-v10529" href="{{ url_for('main.index', lang=ui_lang) }}">{% if landing.site_logo %}<img src="{{ landing.site_logo }}" alt="{{ landing.site_name_en if is_en else landing.site_name_ar }}" style="height:34px;width:auto;object-fit:contain;border-radius:8px;">{% else %}<span>⚡</span>{% endif %}<strong>{{ landing.site_name_en if is_en else landing.site_name_ar }}</strong></a>
-    <nav>
-      <a href="#features">{{ 'Features' if is_en else 'المزايا' }}</a>
-      <a href="#workflow">{{ 'How it works' if is_en else 'كيف تعمل' }}</a>
-      <a href="#devices">{{ 'Devices' if is_en else 'الأجهزة' }}</a>
-      <a href="#pricing">{{ 'Plans' if is_en else 'الباقات' }}</a>
-      <a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a>
+{% endblock %}
+
+{% block body %}
+<div class="lhx" id="lhxRoot" data-phase="morning" dir="{{ 'ltr' if is_en else 'rtl' }}">
+
+  <header class="lhx-hero" id="lhxHero">
+    <span class="lhx-hero-grid" aria-hidden="true"></span>
+    <span class="lhx-hero-stars" aria-hidden="true"></span>
+    <span class="lhx-hero-glow" aria-hidden="true"></span>
+    <span class="lhx-sun-ray" aria-hidden="true"></span>
+    <div class="lhx-weather-fx" aria-hidden="true">
+      <div class="lhx-cloud-layer">
+        <span class="lhx-cloud c1"></span>
+        <span class="lhx-cloud c2"></span>
+        <span class="lhx-cloud c3"></span>
+        <span class="lhx-cloud c4"></span>
+      </div>
+      <div class="lhx-rain-layer" id="lhxRainLayer"></div>
+      <div class="lhx-snow-layer" id="lhxSnowLayer"></div>
+      <span class="lhx-lightning"></span>
+    </div>
+
+    <nav class="lhx-nav">
+      <a href="{{ url_for('main.index', lang=ui_lang) }}" class="lhx-brand">
+        <span class="lhx-brand-mark"><span>⚡</span></span>
+        <span>{{ site_name }}</span>
+      </a>
+      <div class="lhx-nav-links">
+        <a href="#flow">{{ 'How it works' if is_en else 'كيف تعمل' }}</a>
+        <a href="#clock">{{ 'Solar clock' if is_en else 'الساعة الشمسية' }}</a>
+        <a href="#why">{{ 'Why us' if is_en else 'لماذا نحن' }}</a>
+        <a href="#plans">{{ 'Plans' if is_en else 'الباقات' }}</a>
+      </div>
+      <div class="lhx-nav-actions">
+        <a class="lhx-lang" href="{{ url_for('main.index', lang=next_lang) }}">🌐 {{ lang_toggle_text }}</a>
+        <a class="lhx-btn lhx-btn-ghost" href="{{ login_cta_url }}">{{ login_cta_text }}</a>
+        <a class="lhx-btn lhx-btn-primary" href="{{ primary_cta_url }}">⚡ {{ primary_cta_text }}</a>
+      </div>
     </nav>
-    <div class="landing-nav-actions-v10529">
-      <a class="landing-lang-toggle-v10532" href="{{ url_for('energy.index', lang=next_lang) }}" aria-label="{{ 'Switch to Arabic' if is_en else 'Switch to English' }}">🌐 {{ lang_toggle_text }}</a>
-      <a class="landing-btn ghost" href="{{ login_cta_url }}">👤 {{ login_cta_text }}</a>
-      <a class="landing-btn gold" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a>
+
+    <div class="lhx-hero-inner">
+      <div class="lhx-hero-text">
+        <h1>{{ landing.hero_title_en if is_en else landing.hero_title_ar }}</h1>
+        <p class="lhx-hero-sub">{{ landing.hero_subtitle_en if is_en else landing.hero_subtitle_ar }}</p>
+        <div class="lhx-hero-cta">
+          <a class="lhx-btn lhx-btn-primary lhx-btn-lg" href="{{ primary_cta_url }}">⚡ {{ 'Start free 14-day trial' if is_en else 'ابدأ تجربتك المجانية · 14 يوماً' }}</a>
+          <a class="lhx-btn lhx-btn-ghost lhx-btn-lg" href="#flow">▶ {{ 'See how it works' if is_en else 'شاهد كيف تعمل' }}</a>
+        </div>
+      </div>
+
+      <div class="lhx-hero-card" aria-label="{{ 'Live demo dashboard' if is_en else 'لوحة تحكم تجريبية حيّة' }}">
+        <div class="lhx-hero-card-inner">
+          <div class="lhx-hero-card-head">
+            <div>
+              <small>{{ 'LIVE PREVIEW' if is_en else 'معاينة حيّة' }}</small>
+              <h3>{{ 'Today production' if is_en else 'إنتاج اليوم' }}</h3>
+            </div>
+            <span class="lhx-hero-card-status"><i></i>{{ 'Live' if is_en else 'مباشر' }}</span>
+          </div>
+          <div class="lhx-mini-kpis">
+            <div class="lhx-mini-kpi solar"><small>☀️ {{ 'Solar' if is_en else 'شمسي' }}</small><strong id="lhxKpiSolar">0</strong><span>kW</span></div>
+            <div class="lhx-mini-kpi battery"><small>🔋 {{ 'Battery' if is_en else 'بطارية' }}</small><strong id="lhxKpiBattery">0</strong><span>%</span></div>
+            <div class="lhx-mini-kpi home"><small>🏠 {{ 'Home' if is_en else 'منزل' }}</small><strong id="lhxKpiHome">0</strong><span>kW</span></div>
+          </div>
+          <div class="lhx-hero-chart-wrap"><canvas id="lhxHeroChart"></canvas></div>
+          <div class="lhx-hero-card-bar">
+            <span>⚡ <b id="lhxKpiToday">0.00</b> kWh {{ 'today' if is_en else 'اليوم' }}</span>
+            <span>📈 <b id="lhxKpiEff">0%</b> {{ 'efficiency' if is_en else 'كفاءة' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real-time strip at the bottom of hero -->
+    <div class="lhx-hero-strip" aria-label="{{ 'Real-time conditions' if is_en else 'الحالة اللحظية' }}">
+      <div class="lhx-strip-item">
+        <span class="lhx-strip-icon"><span class="lhx-dot"></span></span>
+        <div><small>{{ 'Now' if is_en else 'الآن' }}</small><strong id="lhxPhaseLabel">{{ 'Morning' if is_en else 'صباح' }} · <span id="lhxClock">--:--</span></strong></div>
+      </div>
+      <div class="lhx-strip-item lhx-strip-clickable" id="lhxWeatherPill" title="{{ 'Click to refresh' if is_en else 'اضغط للتحديث' }}">
+        <span class="lhx-strip-icon" id="lhxWeatherIcon">☀️</span>
+        <div><small>{{ 'Weather' if is_en else 'الطقس' }}</small><strong id="lhxWeatherLabel">{{ 'Sunny' if is_en else 'مشمس' }}</strong></div>
+      </div>
+      <div class="lhx-strip-item">
+        <span class="lhx-strip-icon">🌅</span>
+        <div><small>{{ 'Sunrise' if is_en else 'الشروق' }}</small><strong id="lhxSunrise">06:12</strong></div>
+      </div>
+      <div class="lhx-strip-item">
+        <span class="lhx-strip-icon">🌇</span>
+        <div><small>{{ 'Sunset' if is_en else 'الغروب' }}</small><strong id="lhxSunset">18:48</strong></div>
+      </div>
     </div>
   </header>
 
-  <section class="landing-hero-v10529">
-    <div class="landing-hero-copy-v10529">
-      <span class="landing-eyebrow-v10529">{{ landing.hero_badge_en if is_en else landing.hero_badge_ar }}</span>
-      <h1>{{ landing.hero_title_en if is_en else landing.hero_title_ar }}</h1>
-      <p>{{ landing.hero_subtitle_en if is_en else landing.hero_subtitle_ar }}</p>
-      <div class="landing-hero-actions-v10529">
-        <a class="landing-btn gold big" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a>
-        <a class="landing-btn outline big" href="#pricing">{{ landing.hero_secondary_en if is_en else landing.hero_secondary_ar }}</a>
+  <section class="lhx-stats" aria-label="{{ 'Key statistics' if is_en else 'أرقام رئيسية' }}">
+    <div class="lhx-stats-inner">
+      <div class="lhx-stat"><strong id="stHomes">0</strong><span>{{ 'Connected homes' if is_en else 'منزل متصل' }}</span></div>
+      <div class="lhx-stat"><strong id="stEnergy">0</strong><span>{{ 'MWh produced' if is_en else 'ميجاواط ساعة' }}</span></div>
+      <div class="lhx-stat"><strong id="stCO2">0</strong><span>{{ 'Tons CO₂ saved' if is_en else 'طن CO₂ موفّر' }}</span></div>
+      <div class="lhx-stat"><strong id="stUptime">0</strong><span>{{ '% Uptime' if is_en else '% موثوقية' }}</span></div>
+    </div>
+  </section>
+
+  <section class="lhx-section" id="flow">
+    <div class="lhx-section-inner">
+      <div class="lhx-section-header">
+        <span class="lhx-section-num">01 · {{ 'ENERGY FLOW' if is_en else 'تدفّق الطاقة' }}</span>
+        <h2 class="lhx-section-title">{{ 'How does energy flow' if is_en else 'كيف تتدفّق الطاقة' }} <em>{{ 'in your home?' if is_en else 'في منزلك؟' }}</em></h2>
+        <p class="lhx-section-sub">{{ 'From the sun to your home then to the grid… every step monitored in real time.' if is_en else 'من الشمس إلى منزلك ثم إلى الشبكة… كل شيء تحت المراقبة.' }}</p>
       </div>
-      <div class="landing-pills-v10529">
-        <span>🔔 {{ 'Smart alerts' if is_en else 'تنبيهات ذكية' }}</span>
-        <span>🔌 {{ 'Multi-device' if is_en else 'تعدد الأجهزة' }}</span>
-        <span>📊 {{ 'Clear reports' if is_en else 'تقارير واضحة' }}</span>
-        <span>💬 {{ 'Support' if is_en else 'دعم ومراسلات' }}</span>
+      <div class="lhx-flow-row">
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs><radialGradient id="sunIll" cx="45%" cy="40%" r="55%"><stop offset="0%" stop-color="#fff7ce"/><stop offset="60%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></radialGradient></defs>
+              <g stroke="#f59e0b" stroke-width="3" stroke-linecap="round">
+                <line x1="50" y1="2" x2="50" y2="14"/><line x1="50" y1="86" x2="50" y2="98"/>
+                <line x1="2" y1="50" x2="14" y2="50"/><line x1="86" y1="50" x2="98" y2="50"/>
+                <line x1="16" y1="16" x2="25" y2="25"/><line x1="75" y1="75" x2="84" y2="84"/>
+                <line x1="16" y1="84" x2="25" y2="75"/><line x1="75" y1="25" x2="84" y2="16"/>
+              </g>
+              <circle cx="50" cy="50" r="22" fill="url(#sunIll)" stroke="#f59e0b" stroke-width="1.5"/>
+              <circle cx="50" cy="50" r="22" fill="none" stroke="#fff7ce" stroke-width="2" opacity=".5"><animate attributeName="r" values="22;28;22" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0;.5" dur="3s" repeatCount="indefinite"/></circle>
+            </svg>
+          </div>
+          <strong>{{ 'Sun' if is_en else 'الشمس' }}</strong>
+          <p>{{ 'Clean, free energy source' if is_en else 'مصدر الطاقة النظيف والمجاني' }}</p>
+        </div>
+        <div class="lhx-flow-arrow" aria-hidden="true"><span></span></div>
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs><linearGradient id="panelIll" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1e3a8a"/></linearGradient></defs>
+              <g transform="rotate(-12 50 50)">
+                <rect x="14" y="22" width="72" height="56" rx="3" fill="url(#panelIll)" stroke="#1e293b" stroke-width="1.5"/>
+                <line x1="14" y1="40" x2="86" y2="40" stroke="#60a5fa" stroke-width=".8" opacity=".7"/>
+                <line x1="14" y1="58" x2="86" y2="58" stroke="#60a5fa" stroke-width=".8" opacity=".7"/>
+                <line x1="38" y1="22" x2="38" y2="78" stroke="#60a5fa" stroke-width=".8" opacity=".7"/>
+                <line x1="62" y1="22" x2="62" y2="78" stroke="#60a5fa" stroke-width=".8" opacity=".7"/>
+                <rect x="14" y="22" width="35" height="22" fill="#60a5fa" opacity=".22"/>
+              </g>
+              <line x1="44" y1="78" x2="40" y2="92" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="56" y1="78" x2="60" y2="92" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="32" y1="92" x2="68" y2="92" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <strong>{{ 'Solar panels' if is_en else 'الألواح الشمسية' }}</strong>
+          <p>{{ 'Convert sunlight into electricity' if is_en else 'تحوّل ضوء الشمس إلى كهرباء' }}</p>
+        </div>
+        <div class="lhx-flow-arrow" aria-hidden="true"><span></span></div>
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs><linearGradient id="invIll" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#cbd5e1"/></linearGradient></defs>
+              <rect x="22" y="14" width="56" height="78" rx="6" fill="url(#invIll)" stroke="#334155" stroke-width="1.5"/>
+              <rect x="28" y="22" width="44" height="20" rx="3" fill="#0f172a"/>
+              <rect x="32" y="26" width="14" height="3" fill="#34d399"/>
+              <rect x="32" y="32" width="22" height="3" fill="#fbbf24"/>
+              <rect x="32" y="38" width="10" height="2" fill="#60a5fa"/>
+              <circle cx="62" cy="32" r="2.5" fill="#34d399"><animate attributeName="opacity" values="1;.3;1" dur="2s" repeatCount="indefinite"/></circle>
+              <rect x="30" y="50" width="40" height="36" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>
+              <line x1="36" y1="58" x2="64" y2="58" stroke="#64748b" stroke-width="1"/>
+              <line x1="36" y1="64" x2="60" y2="64" stroke="#64748b" stroke-width="1"/>
+              <line x1="36" y1="70" x2="56" y2="70" stroke="#64748b" stroke-width="1"/>
+              <line x1="36" y1="76" x2="62" y2="76" stroke="#64748b" stroke-width="1"/>
+              <circle cx="74" cy="84" r="2" fill="#fbbf24"/>
+            </svg>
+          </div>
+          <strong>{{ 'Inverter' if is_en else 'الانفرتر' }}</strong>
+          <p>{{ 'Converts DC into AC current' if is_en else 'يحوّل التيار المستمر إلى متناوب' }}</p>
+        </div>
+        <div class="lhx-flow-arrow" aria-hidden="true"><span></span></div>
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs><linearGradient id="batBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0fdf4"/><stop offset="100%" stop-color="#a7f3d0"/></linearGradient><linearGradient id="batCharge" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
+              <rect x="36" y="6" width="28" height="8" rx="2" fill="#10b981"/>
+              <rect x="22" y="14" width="56" height="80" rx="8" fill="url(#batBody)" stroke="#10b981" stroke-width="2"/>
+              <rect x="28" y="50" width="44" height="38" rx="4" fill="url(#batCharge)"/>
+              <text x="50" y="40" text-anchor="middle" font-family="Cairo,sans-serif" font-size="14" font-weight="900" fill="#065f46">82%</text>
+              <line x1="50" y1="56" x2="50" y2="68" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+              <polygon points="46,66 54,66 50,76" fill="#fff"/>
+            </svg>
+          </div>
+          <strong>{{ 'Battery' if is_en else 'البطارية' }}</strong>
+          <p>{{ 'Stores surplus for later use' if is_en else 'تخزّن الفائض لاستعماله عند الحاجة' }}</p>
+        </div>
+        <div class="lhx-flow-arrow" aria-hidden="true"><span></span></div>
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs><linearGradient id="houseRoof" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#e11d48"/></linearGradient><linearGradient id="houseWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff1f2"/><stop offset="100%" stop-color="#fecdd3"/></linearGradient></defs>
+              <polygon points="14,46 50,16 86,46" fill="url(#houseRoof)" stroke="#9f1239" stroke-width="1.5"/>
+              <rect x="20" y="46" width="60" height="42" fill="url(#houseWall)" stroke="#9f1239" stroke-width="1.5"/>
+              <rect x="44" y="62" width="14" height="26" fill="#9f1239"/>
+              <circle cx="55" cy="76" r="1.2" fill="#fbbf24"/>
+              <rect x="26" y="54" width="12" height="12" fill="#fef3c7" stroke="#fbbf24" stroke-width="1"><animate attributeName="opacity" values="1;.7;1" dur="3s" repeatCount="indefinite"/></rect>
+              <line x1="32" y1="54" x2="32" y2="66" stroke="#fbbf24" stroke-width=".8"/>
+              <line x1="26" y1="60" x2="38" y2="60" stroke="#fbbf24" stroke-width=".8"/>
+              <rect x="62" y="54" width="12" height="12" fill="#fef3c7" stroke="#fbbf24" stroke-width="1"/>
+              <line x1="68" y1="54" x2="68" y2="66" stroke="#fbbf24" stroke-width=".8"/>
+              <line x1="62" y1="60" x2="74" y2="60" stroke="#fbbf24" stroke-width=".8"/>
+              <rect x="58" y="22" width="22" height="14" rx="1" fill="#1e3a8a" transform="rotate(-30 69 29)" stroke="#0f172a" stroke-width=".8"/>
+            </svg>
+          </div>
+          <strong>{{ 'Home' if is_en else 'المنزل' }}</strong>
+          <p>{{ 'Powers your devices by priority' if is_en else 'يشغّل الأجهزة حسب الأولوية' }}</p>
+        </div>
+        <div class="lhx-flow-arrow" aria-hidden="true"><span></span></div>
+        <div class="lhx-flow-step">
+          <div class="lhx-flow-illus">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="30" y1="86" x2="50" y2="14" stroke="#6d3aff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="70" y1="86" x2="50" y2="14" stroke="#6d3aff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="38" y1="58" x2="62" y2="58" stroke="#6d3aff" stroke-width="2"/>
+              <line x1="35" y1="68" x2="65" y2="68" stroke="#6d3aff" stroke-width="2"/>
+              <line x1="32" y1="78" x2="68" y2="78" stroke="#6d3aff" stroke-width="2"/>
+              <line x1="44" y1="36" x2="56" y2="36" stroke="#6d3aff" stroke-width="2"/>
+              <line x1="40" y1="48" x2="60" y2="48" stroke="#6d3aff" stroke-width="2"/>
+              <line x1="20" y1="38" x2="44" y2="36" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <line x1="80" y1="38" x2="56" y2="36" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <line x1="14" y1="26" x2="44" y2="36" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <line x1="86" y1="26" x2="56" y2="36" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <line x1="30" y1="86" x2="70" y2="86" stroke="#475569" stroke-width="2"/>
+            </svg>
+          </div>
+          <strong>{{ 'Grid' if is_en else 'الشبكة' }}</strong>
+          <p>{{ 'Used when needed or to export surplus' if is_en else 'تُستخدم عند الحاجة أو لتصدير الفائض' }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lhx-clock" id="clock">
+    <div class="lhx-clock-inner">
+      <div class="lhx-section-header">
+        <span class="lhx-section-num">02 · {{ 'PHASE INTELLIGENCE' if is_en else 'ذكاء اللحظة' }}</span>
+        <h2 class="lhx-section-title">{{ 'Nine moments.' if is_en else 'تسع لحظات.' }} <em>{{ 'Nine smarter decisions.' if is_en else 'تسع قرارات أذكى.' }}</em></h2>
+        <p class="lhx-section-sub">{{ 'A 24-hour solar cycle. The pointer shows your local moment now. Each phase gets its own tuning.' if is_en else 'دورة شمسية 24 ساعة. المؤشّر يعرض لحظتك الآن. كل مرحلة لها ضبط خاص.' }}</p>
+      </div>
+      <div class="lhx-clock-grid">
+        <svg class="lhx-clock-svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" id="lhxClockSvg">
+          <defs><radialGradient id="clockBg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1e3a8a"/><stop offset="100%" stop-color="#020617"/></radialGradient></defs>
+          <circle cx="160" cy="160" r="155" fill="url(#clockBg)" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+          <g transform="translate(160,160)" id="lhxClockWedges"></g>
+          <text x="160" y="40" text-anchor="middle" font-size="11" font-weight="900" fill="rgba(255,255,255,.6)" font-family="Cairo">0 🌙</text>
+          <text x="280" y="166" text-anchor="middle" font-size="11" font-weight="900" fill="rgba(255,255,255,.6)" font-family="Cairo">6</text>
+          <text x="160" y="295" text-anchor="middle" font-size="11" font-weight="900" fill="rgba(255,255,255,.6)" font-family="Cairo">12 ☀️</text>
+          <text x="40" y="166" text-anchor="middle" font-size="11" font-weight="900" fill="rgba(255,255,255,.6)" font-family="Cairo">18</text>
+          <circle cx="160" cy="160" r="58" fill="#070b18" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+          <text x="160" y="148" text-anchor="middle" font-size="11" font-weight="900" fill="rgba(255,255,255,.6)" letter-spacing="2" font-family="Cairo">NOW</text>
+          <text x="160" y="178" text-anchor="middle" font-size="22" font-weight="950" fill="#fff" font-family="Cairo" id="lhxClockTime">--:--</text>
+          <text x="160" y="200" text-anchor="middle" font-size="11" font-weight="800" fill="#fbbf24" font-family="Cairo" id="lhxClockPhase">—</text>
+          <g transform="translate(160,160)" id="lhxClockPointer">
+            <line x1="0" y1="0" x2="0" y2="-130" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="0" cy="-130" r="9" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+            <circle cx="0" cy="-130" r="14" fill="none" stroke="#fbbf24" stroke-width="2" opacity=".4"><animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".4;0;.4" dur="2s" repeatCount="indefinite"/></circle>
+          </g>
+        </svg>
+        <div class="lhx-clock-list">
+          <div class="lhx-phase-pill" data-phase="night"><span class="icon">🌌</span><div><strong>{{ 'Night' if is_en else 'الليل' }}</strong><span>{{ 'Battery first' if is_en else 'البطارية أولاً' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="dawn"><span class="icon">🌒</span><div><strong>{{ 'Dawn' if is_en else 'الفجر' }}</strong><span>{{ 'Pre-sunrise' if is_en else 'قبل الشروق' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="sunrise"><span class="icon">🌅</span><div><strong>{{ 'Sunrise' if is_en else 'الشروق' }}</strong><span>{{ 'First wave' if is_en else 'الموجة الأولى للإنتاج' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="morning"><span class="icon">☀️</span><div><strong>{{ 'Morning' if is_en else 'الصباح' }}</strong><span>{{ 'Ramp-up' if is_en else 'صعود الإنتاج' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="noon"><span class="icon">🔆</span><div><strong>{{ 'Noon' if is_en else 'الظهيرة' }}</strong><span>{{ 'Peak window' if is_en else 'نافذة الذروة' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="afternoon"><span class="icon">🌤️</span><div><strong>{{ 'Afternoon' if is_en else 'العصر' }}</strong><span>{{ 'Steady high' if is_en else 'استقرار عالٍ' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="pre_sunset"><span class="icon">🌇</span><div><strong>{{ 'Pre-sunset' if is_en else 'الأصيل' }}</strong><span>{{ 'Load shifting' if is_en else 'نقل الأحمال' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="sunset"><span class="icon">🌆</span><div><strong>{{ 'Sunset' if is_en else 'الغروب' }}</strong><span>{{ 'Battery handover' if is_en else 'تسليم للبطارية' }}</span></div></div>
+          <div class="lhx-phase-pill" data-phase="dusk"><span class="icon">🌙</span><div><strong>{{ 'Dusk' if is_en else 'الشفق' }}</strong><span>{{ 'Conservation' if is_en else 'وضع التوفير' }}</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lhx-section" id="why">
+    <div class="lhx-section-inner">
+      <div class="lhx-section-header">
+        <span class="lhx-section-num">03 · {{ 'WHY US' if is_en else 'لماذا نحن' }}</span>
+        <h2 class="lhx-section-title">{{ 'Smarter than' if is_en else 'أذكى من' }} <em>{{ 'traditional monitoring' if is_en else 'المتابعة التقليدية' }}</em></h2>
+        <p class="lhx-section-sub">{{ 'A side-by-side comparison: see what changes when intelligence joins your energy.' if is_en else 'مقارنة جنباً إلى جنب: شاهد ما يتغيّر عندما ينضمّ الذكاء إلى طاقتك.' }}</p>
+      </div>
+      <div class="lhx-vs-grid">
+        <div class="lhx-vs-col bad">
+          <h4>{{ 'Traditional monitoring' if is_en else 'المتابعة التقليدية' }}</h4>
+          <ul class="lhx-vs-list">
+            <li>{{ 'Snapshots every 15 minutes — never live' if is_en else 'قراءات كل 15 دقيقة — ليست لحظية' }}</li>
+            <li>{{ 'Alerts only after a problem occurs' if is_en else 'تنبيهات فقط بعد حدوث المشكلة' }}</li>
+            <li>{{ 'Random tariff and load decisions' if is_en else 'قرارات تعرفة وأحمال عشوائية' }}</li>
+            <li>{{ 'Hard to predict failures in advance' if is_en else 'صعوبة اكتشاف الأعطال مبكراً' }}</li>
+            <li>{{ 'Ignores weather and seasonal patterns' if is_en else 'لا تراعي الطقس والتغيّرات المستقبلية' }}</li>
+          </ul>
+        </div>
+        <div class="lhx-vs-divider">VS</div>
+        <div class="lhx-vs-col good">
+          <h4>{{ 'Our smart platform' if is_en else 'منصّتنا الذكية' }}</h4>
+          <ul class="lhx-vs-list">
+            <li>{{ 'High-precision live monitoring, second by second' if is_en else 'مراقبة لحظية بدقة عالية، ثانية بثانية' }}</li>
+            <li>{{ 'Predictive alerts before any problem hits' if is_en else 'تنبيهات استباقية قبل حدوث أي مشكلة' }}</li>
+            <li>{{ 'Auto-recommendations to lower bills' if is_en else 'توصيات ذكية تلقائية لتقليل الفواتير' }}</li>
+            <li>{{ 'Instant fault detection and live alerts' if is_en else 'كشف فوري للأعطال مع إشعار مباشر' }}</li>
+            <li>{{ 'AI decisions based on weather + 9-phase context' if is_en else 'قرارات مبنية على الطقس وذكاء 9 مراحل' }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lhx-section" id="pillars">
+    <div class="lhx-section-inner">
+      <div class="lhx-section-header">
+        <span class="lhx-section-num">04 · {{ 'OUR ESSENCE' if is_en else 'جوهرنا' }}</span>
+        <h2 class="lhx-section-title">{{ 'Mission, Vision,' if is_en else 'مهمّة، رؤية،' }} <em>{{ 'Promise.' if is_en else 'وعد.' }}</em></h2>
+      </div>
+      <div class="lhx-pillars-grid">
+        <article class="lhx-pillar mission"><span class="lhx-pillar-icon">🎯</span><h3>{{ 'Mission' if is_en else 'مهمّتنا' }}</h3><p>{{ landing.mission_en if is_en else landing.mission_ar }}</p></article>
+        <article class="lhx-pillar vision"><span class="lhx-pillar-icon">🌅</span><h3>{{ 'Vision' if is_en else 'رؤيتنا' }}</h3><p>{{ landing.vision_en if is_en else landing.vision_ar }}</p></article>
+        <article class="lhx-pillar promise"><span class="lhx-pillar-icon">🤝</span><h3>{{ 'Promise' if is_en else 'وعدنا' }}</h3><p>{{ landing.promise_en if is_en else landing.promise_ar }}</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="lhx-section" id="plans">
+    <div class="lhx-section-inner">
+      <div class="lhx-section-header">
+        <span class="lhx-section-num">05 · {{ 'PRICING' if is_en else 'الباقات' }}</span>
+        <h2 class="lhx-section-title">{{ 'Pick the plan' if is_en else 'اختر الباقة' }} <em>{{ 'that grows with you' if is_en else 'التي تنمو معك' }}</em></h2>
+        <p class="lhx-section-sub">{{ 'Simple monthly pricing. Cancel anytime. All plans include the smart 9-phase intelligence engine.' if is_en else 'تسعير بسيط. ألغِ في أي وقت. كل الباقات تشمل محرّك الذكاء بـ 9 مراحل.' }}</p>
+      </div>
+      <div class="lhx-plans-grid">
+        {% for plan in landing_plans %}
+        <article class="lhx-plan {% if plan.featured %}featured{% endif %}">
+          {% if plan.featured and plan.badge %}<span class="lhx-plan-badge">★ {{ plan.badge }}</span>{% endif %}
+          <h3>{{ plan.name }}</h3>
+          <p class="lhx-plan-sub">{{ plan.subtitle }}</p>
+          <div class="lhx-plan-price"><strong>{{ plan.price|int if (plan.price|float == plan.price|int) else plan.price }}</strong><small>{{ plan.currency }} / {{ plan.duration_days }} {{ 'day' if is_en else 'يوماً' }}</small></div>
+          <ul class="lhx-plan-bullets">{% for bullet in plan.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
+          <a class="lhx-plan-cta" href="{{ primary_cta_url }}">{{ ('Get started' if is_en else 'ابدأ الآن') if plan.featured else ('Choose plan' if is_en else 'اختر هذه الباقة') }} →</a>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="lhx-cta-final" id="join">
+    <div class="lhx-cta-final-card">
+      <div class="lhx-cta-final-grid">
+        <div>
+          <h2>{{ 'Ready to take full control of your energy?' if is_en else 'جاهز لتحكم كامل بطاقتك؟' }}</h2>
+          <p>{{ 'Join thousands of homeowners and businesses managing their solar setups smarter — every day.' if is_en else 'انضمّ إلى آلاف المنازل والشركات التي تدير أنظمتها الشمسية بذكاء — كل يوم.' }}</p>
+          <div class="lhx-cta-final-actions">
+            <a class="lhx-btn lhx-btn-primary" href="{{ primary_cta_url }}">⚡ {{ 'Start free trial' if is_en else 'ابدأ تجربتك المجانية' }}</a>
+            <a class="lhx-btn lhx-btn-ghost" href="#plans">💎 {{ 'View plans' if is_en else 'شاهد الباقات' }}</a>
+          </div>
+          <div class="lhx-cta-final-trust">
+            <span>✓ <b>{{ '14 days free' if is_en else '14 يوماً مجاناً' }}</b></span>
+            <span>✓ {{ 'No credit card needed' if is_en else 'لا تحتاج بطاقة ائتمان' }}</span>
+            <span>✓ {{ 'Cancel anytime' if is_en else 'إلغاء في أي وقت' }}</span>
+          </div>
+        </div>
+        <div class="lhx-cta-final-phones" aria-hidden="true">
+          <div class="lhx-phone left">
+            <div class="lhx-phone-head">{{ 'BATTERY' if is_en else 'البطارية' }}</div>
+            <div class="lhx-phone-stat"><span>SOC</span><strong>82%</strong></div>
+            <div class="lhx-phone-stat"><span>{{ 'Cycles' if is_en else 'الدورات' }}</span><strong>247</strong></div>
+            <div class="lhx-phone-bar"></div>
+          </div>
+          <div class="lhx-phone center">
+            <div class="lhx-phone-head">{{ 'SOLAR' if is_en else 'الشمسي' }}</div>
+            <div class="lhx-phone-stat"><span>{{ 'Now' if is_en else 'الآن' }}</span><strong>5.6 kW</strong></div>
+            <div class="lhx-phone-stat"><span>{{ 'Today' if is_en else 'اليوم' }}</span><strong>13.2 kWh</strong></div>
+            <div class="lhx-phone-bar"></div>
+          </div>
+          <div class="lhx-phone right">
+            <div class="lhx-phone-head">{{ 'HOME' if is_en else 'المنزل' }}</div>
+            <div class="lhx-phone-stat"><span>{{ 'Load' if is_en else 'الحمل' }}</span><strong>2.9 kW</strong></div>
+            <div class="lhx-phone-stat"><span>{{ 'Saved' if is_en else 'موفّر' }}</span><strong>$42</strong></div>
+            <div class="lhx-phone-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="lhx-footer">
+    <div class="lhx-footer-main">
+      <div class="lhx-footer-grid">
+        <!-- Brand column -->
+        <div class="lhx-footer-col lhx-footer-brand-col">
+          <a href="{{ url_for('main.index', lang=ui_lang) }}" class="lhx-footer-brand-row">
+            <span class="lhx-brand-mark"><span>⚡</span></span>
+            <strong>{{ site_name }}</strong>
+          </a>
+          <p class="lhx-footer-about-text">{{ landing.footer_about_en if is_en else landing.footer_about_ar }}</p>
+          {% if landing.social_facebook or landing.social_instagram or landing.social_x or landing.social_linkedin or landing.social_telegram or landing.social_whatsapp %}
+          <div class="lhx-footer-social">
+            {% if landing.social_facebook %}<a href="{{ landing.social_facebook }}" target="_blank" rel="noopener" aria-label="Facebook">f</a>{% endif %}
+            {% if landing.social_instagram %}<a href="{{ landing.social_instagram }}" target="_blank" rel="noopener" aria-label="Instagram">◎</a>{% endif %}
+            {% if landing.social_x %}<a href="{{ landing.social_x }}" target="_blank" rel="noopener" aria-label="X">𝕏</a>{% endif %}
+            {% if landing.social_linkedin %}<a href="{{ landing.social_linkedin }}" target="_blank" rel="noopener" aria-label="LinkedIn">in</a>{% endif %}
+            {% if landing.social_telegram %}<a href="{{ landing.social_telegram }}" target="_blank" rel="noopener" aria-label="Telegram">✈</a>{% endif %}
+            {% if landing.social_whatsapp %}<a href="{{ landing.social_whatsapp }}" target="_blank" rel="noopener" aria-label="WhatsApp">☎</a>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Quick links to real sections -->
+        <div class="lhx-footer-col">
+          <h4>{{ 'Explore' if is_en else 'تصفّح' }}</h4>
+          <ul>
+            <li><a href="#flow">⚡ {{ 'Energy flow' if is_en else 'تدفّق الطاقة' }}</a></li>
+            <li><a href="#clock">🧠 {{ 'Solar clock' if is_en else 'الساعة الشمسية' }}</a></li>
+            <li><a href="#why">🆚 {{ 'Why us' if is_en else 'لماذا نحن' }}</a></li>
+            <li><a href="#pillars">🎯 {{ 'About' if is_en else 'عنّا' }}</a></li>
+            <li><a href="#plans">💎 {{ 'Plans' if is_en else 'الباقات' }}</a></li>
+          </ul>
+        </div>
+
+        <!-- Account links -->
+        <div class="lhx-footer-col">
+          <h4>{{ 'Account' if is_en else 'الحساب' }}</h4>
+          <ul>
+            <li><a href="{{ login_cta_url }}">🔐 {{ login_cta_text }}</a></li>
+            <li><a href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a></li>
+            <li><a href="{{ url_for('main.index', lang=next_lang) }}">🌐 {{ lang_toggle_text }}</a></li>
+          </ul>
+        </div>
       </div>
     </div>
 
-    <div class="landing-art-v10529" aria-hidden="true">
-      <div class="landing-art-glow-v10529"></div>
-      <div class="landing-dashboard-v10529">
-        <div class="dash-head-v10529"><span></span><span></span><span></span><strong>{{ 'Energy Board' if is_en else 'لوحة الطاقة' }}</strong></div>
-        <div class="dash-kpis-v10529"><div><small>{{ 'Today' if is_en else 'إنتاج اليوم' }}</small><b>12.4</b><em>kWh</em></div><div><small>{{ 'Usage' if is_en else 'الاستهلاك' }}</small><b>7.6</b><em>kWh</em></div><div><small>{{ 'Efficiency' if is_en else 'الكفاءة' }}</small><b>92%</b><em>{{ 'great' if is_en else 'ممتاز' }}</em></div></div>
-        <div class="dash-chart-v10529"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
-        <div class="dash-status-v10529"><span>{{ 'System status' if is_en else 'حالة النظام' }}</span><strong>{{ 'Good' if is_en else 'جيد' }}</strong></div>
+    <div class="lhx-footer-bottom">
+      <div class="lhx-footer-bottom-inner">
+        <div class="lhx-footer-copyright">{{ landing.copyright_en if is_en else landing.copyright_ar }}</div>
       </div>
-      <div class="landing-alert-v10529"><span>⚠️</span><strong>{{ 'High alert' if is_en else 'تنبيه عالي' }}</strong><small>{{ 'Temperature rising' if is_en else 'ارتفاع درجة الحرارة' }}</small></div>
-      <div class="landing-weather-v10529"><small>{{ 'Weather now' if is_en else 'الطقس الآن' }}</small><strong>24°</strong><span>☀️ {{ 'Clear' if is_en else 'صافي' }}</span></div>
-      <div class="landing-phone-v10529"><strong>{{ 'Alerts' if is_en else 'التنبيهات' }}</strong><span>🟠 {{ 'High voltage' if is_en else 'جهد عالٍ' }}</span><span>🔴 {{ 'Connection lost' if is_en else 'انقطاع اتصال' }}</span><span>🟢 {{ 'Synced' if is_en else 'تمت المزامنة' }}</span></div>
-      <div class="landing-device-strip-v10529"><em>▣</em><em>🔋</em><em>▤</em><em>☀️</em><em>📡</em><em>☁️</em></div>
     </div>
-  </section>
-
-  <section id="features" class="landing-section-v10529 landing-features-polished-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'Everything you need to manage energy in one place' if is_en else 'كل ما تحتاجه لإدارة الطاقة في مكان واحد' }}</h2><span></span></div>
-    <div class="feature-grid-v10529">
-      {% set features = [
-        ('🔔','Smart alerts','تنبيهات ذكية','Instant notifications for changes or issues via app, SMS, and Telegram.','تنبيهات فورية عند أي تغيير أو مشكلة عبر التطبيق و SMS و Telegram.'),
-        ('🔌','Device management','إدارة وتعدد الأجهزة','Add and monitor multiple devices from one clear account.','اربط جميع أجهزتك وتابع الحالة والأداء من مكان واحد.'),
-        ('📊','Clear reports','تقارير وإحصائيات','Readable reports that help you understand usage and performance.','تقارير واضحة تساعدك تفهم الاستهلاك والأداء وتتخذ قرارات أفضل.'),
-        ('💬','Support and messaging','دعم ومراسلات','Fast direct communication with support inside the platform.','تواصل مباشر وسريع مع فريق الدعم داخل المنصة.')
-      ] %}
-      {% for icon,en_title,ar_title,en_text,ar_text in features %}
-      <article class="feature-card-v10529"><i>{{ icon }}</i><h3>{{ en_title if is_en else ar_title }}</h3><p>{{ en_text if is_en else ar_text }}</p></article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section id="devices" class="landing-section-v10529 landing-split-v10529 landing-devices-polished-v10529">
-    <div class="devices-copy-v10529"><div class="landing-section-title-v10529 start"><h2>{{ 'One system that supports all your energy devices' if is_en else 'نظام واحد يدعم كل أجهزتك' }}</h2><span></span></div><p class="landing-lead-v10529">{{ 'Connect energy assets safely, with forms that adapt to each device type instead of forcing one template on everyone.' if is_en else 'اربط أجهزة وأنظمة الطاقة بسهولة وأمان، مع حقول تتغير حسب نوع الجهاز بدل إجبار كل جهاز على نفس النموذج.' }}</p><div class="device-tags-v10529"><span>{{ 'Inverter' if is_en else 'محول طاقة' }}</span><span>{{ 'Battery' if is_en else 'بطارية' }}</span><span>{{ 'Electric meter' if is_en else 'عداد كهرباء' }}</span><span>{{ 'Solar panel' if is_en else 'لوح شمسي' }}</span><span>{{ 'Gateway' if is_en else 'بوابة اتصال' }}</span><span>{{ 'Cloud device' if is_en else 'جهاز سحابي' }}</span></div></div>
-    <div class="dynamic-card-v10529"><h3>{{ 'Dynamic fields by device type' if is_en else 'حقول ذكية حسب نوع الجهاز' }}</h3><label>{{ 'Device type' if is_en else 'نوع الجهاز' }}</label><div class="fake-select-v10529">{{ 'Energy inverter' if is_en else 'محول طاقة' }}</div><div><span>{{ 'Power' if is_en else 'القدرة' }} · 10.0 kW</span><span>{{ 'Model' if is_en else 'الموديل' }} · 550 V</span><span>{{ 'Serial' if is_en else 'الرقم' }} · INV-2024-001</span></div></div>
-  </section>
-
-  <section id="workflow" class="landing-section-v10529 landing-workflow-v10529 landing-workflow-final-v10530">
-    <div class="landing-section-title-v10529"><h2>{{ 'Start in minutes' if is_en else 'كيف تبدأ خلال دقائق؟' }}</h2><span></span><p>{{ 'Three simple steps to connect your device and open a professional monitoring board.' if is_en else 'ثلاث خطوات بسيطة تربط جهازك وتفتح لوحة متابعة احترافية.' }}</p></div>
-    <div class="workflow-track-v10530" aria-hidden="true"><span></span></div>
-    <div class="workflow-grid-v10529 workflow-grid-final-v10530">
-      <article><b>1</b><i>👤</i><h3>{{ 'Create your account' if is_en else 'أنشئ حسابك' }}</h3><p>{{ 'Register and set your timezone and city.' if is_en else 'سجّل بياناتك واختر المنطقة الزمنية والمدينة.' }}</p></article>
-      <article><b>2</b><i>🔌</i><h3>{{ 'Add your device' if is_en else 'أضف جهازك' }}</h3><p>{{ 'Choose the type and fill only the needed fields.' if is_en else 'اختر نوع الجهاز وأدخل الحقول المطلوبة فقط.' }}</p></article>
-      <article><b>3</b><i>🔔</i><h3>{{ 'Monitor and get alerts' if is_en else 'راقب وتنبّه' }}</h3><p>{{ 'Follow performance, reports, and alerts from one board.' if is_en else 'تابع الأداء والتنبيهات والتقارير من لوحة واحدة.' }}</p></article>
-    </div>
-  </section>
-
-  <section class="landing-section-v10529 product-v10529">
-    <div class="mockup-v10529"><div class="mock-sidebar-v10529"></div><div class="mock-body-v10529"><span></span><span></span><span></span><b></b></div><i></i></div>
-    <div><h2>{{ 'One interface to manage everything' if is_en else 'واجهة واحدة لإدارة كل شيء' }}</h2><p>{{ landing.mission_en if is_en else landing.mission_ar }}</p><div class="product-points-v10529"><span>🧭 {{ 'Status view' if is_en else 'عرض الحالة' }}</span><span>👥 {{ 'Subscribers' if is_en else 'إدارة المشتركين' }}</span><span>🎯 {{ 'Quotas and plans' if is_en else 'الكوتا والخطط' }}</span><span>❤️ {{ 'Sync and health' if is_en else 'المزامنة والخدمات' }}</span></div></div>
-  </section>
-
-  <section id="pricing" class="landing-section-v10529">
-    <div class="landing-section-title-v10529"><h2>{{ 'Choose the right plan' if is_en else 'اختر الباقة المناسبة لاحتياجاتك' }}</h2><span></span></div>
-    <div class="plans-grid-v10529">
-      {% for plan in landing_plans %}
-      <article class="plan-card-v10529 {{ 'featured' if plan.featured else '' }}">
-        {% if plan.featured %}<b>{{ plan.badge }}</b>{% endif %}
-        <h3>{{ plan.name }}</h3>
-        <p>{{ plan.subtitle }}</p>
-        <strong>{{ plan.currency }} {{ '%.0f'|format(plan.price) if plan.price == plan.price|int else plan.price }}<small>{{ '/mo' if is_en else '/شهريًا' }}</small></strong>
-        <ul>{% for bullet in plan.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
-        <a href="{{ primary_cta_url }}">{{ primary_cta_text }}</a>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="trust-row-v10529 trust-row-final-v10532">
-    <span>🎨 {{ 'Professional bilingual interface' if is_en else 'واجهة عربية وإنجليزية احترافية' }}</span>
-    <span>🛡️ {{ 'Flexible roles and permissions' if is_en else 'صلاحيات وتحكم مرن' }}</span>
-    <span>👁️ {{ 'Safe view-only mode' if is_en else 'وضع مشاهدة آمن' }}</span>
-    <span>📈 {{ 'Built to scale' if is_en else 'قابلية توسع عالية' }}</span>
-    <span>🔔 {{ 'Reliable alerts that stay visible' if is_en else 'تنبيهات مستقرة لا تضيع' }}</span>
-  </section>
-
-  <section id="faq" class="landing-section-v10529 faq-section-v10529 faq-final-v10532">
-    <div class="landing-section-title-v10529"><h2>{{ 'Frequently asked questions' if is_en else 'الأسئلة الشائعة' }}</h2><span></span></div>
-    <div class="faq-grid-v10529">
-      <details><summary>{{ 'Can I add more than one device?' if is_en else 'هل أستطيع إضافة أكثر من جهاز؟' }}</summary><p>{{ 'Yes. Depending on the plan and quota, you can add multiple devices and connect them to the platform.' if is_en else 'نعم، حسب الخطة والكوتا المحددة يمكن إضافة أكثر من جهاز وربطه بالمنصة.' }}</p></details>
-      <details><summary>{{ 'Can alerts reach my phone and Telegram?' if is_en else 'هل يمكن ربط التنبيهات بالهاتف و Telegram؟' }}</summary><p>{{ 'Yes. The platform supports SMS and Telegram with clear quota controls.' if is_en else 'نعم، المنصة تدعم SMS و Telegram مع كوتا وتحكم واضح.' }}</p></details>
-      <details><summary>{{ 'Can I change my plan later?' if is_en else 'هل أستطيع تغيير الخطة لاحقًا؟' }}</summary><p>{{ 'Yes. Plans can be changed from the admin panel and new limits are applied automatically.' if is_en else 'نعم، يمكن تغيير الخطة من لوحة الإدارة وتطبيق الحدود الجديدة تلقائيًا.' }}</p></details>
-      <details><summary>{{ 'Can permissions be customized per subscriber?' if is_en else 'هل يمكن تخصيص الصلاحيات لكل مشترك؟' }}</summary><p>{{ 'Yes. Pages, permissions, and services can be controlled for each subscriber.' if is_en else 'نعم، يمكن التحكم بظهور الصفحات والصلاحيات والخدمات لكل مشترك.' }}</p></details>
-    </div>
-  </section>
-
-  <section class="final-cta-v10529"><div><h2>{{ 'Start today and give your energy a professional command center' if is_en else 'ابدأ اليوم وامنح طاقتك لوحة قيادة احترافية' }}</h2><p>{{ landing.promise_en if is_en else landing.promise_ar }}</p></div><a class="landing-btn gold big" href="{{ primary_cta_url }}">🚀 {{ primary_cta_text }}</a></section>
-
-  <footer class="footer-v10529">
-    <div><h3>{% if landing.site_logo %}<img src="{{ landing.site_logo }}" alt="{{ landing.site_name_en if is_en else landing.site_name_ar }}" style="height:32px;width:auto;object-fit:contain;vertical-align:middle;margin-inline-end:8px;">{% endif %}{{ landing.site_name_en if is_en else landing.site_name_ar }} {% if not landing.site_logo %}⚡{% endif %}</h3><p>{{ landing.footer_about_en if is_en else landing.footer_about_ar }}</p><div class="socials-v10529">
-      {% if landing.social_facebook %}<a href="{{ landing.social_facebook }}" target="_blank" rel="noopener">f</a>{% endif %}
-      {% if landing.social_instagram %}<a href="{{ landing.social_instagram }}" target="_blank" rel="noopener">◎</a>{% endif %}
-      {% if landing.social_x %}<a href="{{ landing.social_x }}" target="_blank" rel="noopener">𝕏</a>{% endif %}
-      {% if landing.social_linkedin %}<a href="{{ landing.social_linkedin }}" target="_blank" rel="noopener">in</a>{% endif %}
-      {% if landing.social_telegram %}<a href="{{ landing.social_telegram }}" target="_blank" rel="noopener">✈</a>{% endif %}
-      {% if landing.social_whatsapp %}<a href="{{ landing.social_whatsapp }}" target="_blank" rel="noopener">☎</a>{% endif %}
-    </div></div>
-    <div><h4>{{ 'Platform' if is_en else 'المنصة' }}</h4><a href="#features">{{ 'Features' if is_en else 'المزايا' }}</a><a href="#pricing">{{ 'Plans' if is_en else 'الباقات' }}</a><a href="{{ landing_register_url }}">{{ 'Create account' if is_en else 'إنشاء حساب' }}</a></div>
-    <div><h4>{{ 'Resources' if is_en else 'الموارد' }}</h4><a href="#devices">{{ 'Devices' if is_en else 'الأجهزة' }}</a><a href="#faq">{{ 'FAQ' if is_en else 'الأسئلة الشائعة' }}</a><a href="{{ landing_login_url }}">{{ 'Login' if is_en else 'تسجيل الدخول' }}</a></div>
-    <div><h4>{{ 'Policies' if is_en else 'السياسات' }}</h4><a href="#">{{ 'Privacy policy' if is_en else 'سياسة الخصوصية' }}</a><a href="#">{{ 'Terms and conditions' if is_en else 'الشروط والأحكام' }}</a><a href="#">{{ 'Acceptable use policy' if is_en else 'سياسة الاستخدام' }}</a></div>
-    <small>{{ (landing.copyright_en or '© 2026 All rights reserved.') if is_en else (landing.copyright_ar or '© 2026 جميع الحقوق محفوظة.') }}</small>
   </footer>
-</main>
+</div>
+
+<script>
+(function(){
+  function detectPhase(d){
+    var t = d.getHours() + d.getMinutes()/60;
+    if (t < 5)    return {key:'night',     icon:'🌌', ar:'ليل',    en:'Night'};
+    if (t < 6)    return {key:'dawn',      icon:'🌒', ar:'فجر',    en:'Dawn'};
+    if (t < 7.5)  return {key:'sunrise',   icon:'🌅', ar:'شروق',   en:'Sunrise'};
+    if (t < 11)   return {key:'morning',   icon:'☀️', ar:'صباح',   en:'Morning'};
+    if (t < 13.5) return {key:'noon',      icon:'🔆', ar:'ظهيرة',  en:'Noon'};
+    if (t < 16)   return {key:'afternoon', icon:'🌤️', ar:'عصر',    en:'Afternoon'};
+    if (t < 18)   return {key:'pre_sunset',icon:'🌇', ar:'أصيل',   en:'Pre-sunset'};
+    if (t < 19)   return {key:'sunset',    icon:'🌆', ar:'غروب',   en:'Sunset'};
+    if (t < 20.5) return {key:'dusk',      icon:'🌙', ar:'شفق',    en:'Dusk'};
+    return                {key:'night',    icon:'🌌', ar:'ليل',    en:'Night'};
+  }
+  var lang = document.documentElement.lang || 'ar';
+  var isEn = lang === 'en';
+  var wedges = [
+    {key:'night',start:0,end:5,color:'#1e1b4b'},{key:'dawn',start:5,end:6,color:'#7c3aed'},
+    {key:'sunrise',start:6,end:7.5,color:'#f97316'},{key:'morning',start:7.5,end:11,color:'#3aa7ff'},
+    {key:'noon',start:11,end:13.5,color:'#fbbf24'},{key:'afternoon',start:13.5,end:16,color:'#0ea5e9'},
+    {key:'pre_sunset',start:16,end:18,color:'#ea580c'},{key:'sunset',start:18,end:19,color:'#dc2626'},
+    {key:'dusk',start:19,end:20.5,color:'#4c1d95'},{key:'night',start:20.5,end:24,color:'#1e1b4b'}
+  ];
+  function polar(h, r){ var a=(h/24)*2*Math.PI - Math.PI/2; return [Math.cos(a)*r, Math.sin(a)*r]; }
+  function arcPath(start, end, rOuter, rInner){
+    var [x1,y1]=polar(start,rOuter), [x2,y2]=polar(end,rOuter);
+    var [x3,y3]=polar(end,rInner), [x4,y4]=polar(start,rInner);
+    var large = (end-start) > 12 ? 1 : 0;
+    return 'M '+x1+' '+y1+' A '+rOuter+' '+rOuter+' 0 '+large+' 1 '+x2+' '+y2+' L '+x3+' '+y3+' A '+rInner+' '+rInner+' 0 '+large+' 0 '+x4+' '+y4+' Z';
+  }
+  var ws = document.getElementById('lhxClockWedges');
+  if (ws){
+    wedges.forEach(function(w){
+      var p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', arcPath(w.start, w.end, 145, 85));
+      p.setAttribute('fill', w.color);
+      p.setAttribute('opacity', '.45');
+      p.setAttribute('data-phase', w.key);
+      ws.appendChild(p);
+    });
+  }
+  function tick(){
+    var d = new Date();
+    var p = detectPhase(d);
+    var t = d.getHours() + d.getMinutes()/60;
+    var root = document.getElementById('lhxRoot'); if (root) root.setAttribute('data-phase', p.key);
+    var l = document.getElementById('lhxPhaseLabel'); if (l) l.textContent = isEn ? p.en : p.ar;
+    var c = document.getElementById('lhxClock'); if (c) c.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var ct = document.getElementById('lhxClockTime'); if (ct) ct.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var cp = document.getElementById('lhxClockPhase'); if (cp) cp.textContent = (isEn ? p.en : p.ar).toUpperCase();
+    var ptr = document.getElementById('lhxClockPointer');
+    if (ptr) ptr.setAttribute('transform', 'translate(160,160) rotate('+ ((t/24)*360) +')');
+    document.querySelectorAll('.lhx-phase-pill').forEach(function(el){
+      el.classList.toggle('active', el.getAttribute('data-phase') === p.key);
+    });
+    document.querySelectorAll('#lhxClockWedges path').forEach(function(el){
+      var act = el.getAttribute('data-phase') === p.key;
+      el.setAttribute('opacity', act ? '.95' : '.45');
+    });
+  }
+  tick(); setInterval(tick, 30000);
+  function animateCount(el, target, decimals, duration){
+    if (!el) return;
+    var start = 0, t0 = performance.now();
+    decimals = decimals || 0; duration = duration || 1800;
+    function step(now){
+      var p = Math.min((now - t0) / duration, 1);
+      var ease = 1 - Math.pow(1 - p, 3);
+      var v = start + (target - start) * ease;
+      el.textContent = decimals ? v.toFixed(decimals) : Math.round(v).toLocaleString();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var phase = detectPhase(new Date()).key;
+  var mocks = {
+    night:{solar:'0.0',battery:62,home:'1.8',today:'12.40',eff:88},dawn:{solar:'0.4',battery:64,home:'2.1',today:'12.40',eff:88},
+    sunrise:{solar:'2.1',battery:66,home:'2.4',today:'12.60',eff:89},morning:{solar:'5.6',battery:74,home:'2.9',today:'13.20',eff:91},
+    noon:{solar:'8.2',battery:88,home:'3.4',today:'15.80',eff:94},afternoon:{solar:'7.4',battery:92,home:'3.6',today:'17.10',eff:93},
+    pre_sunset:{solar:'4.1',battery:90,home:'3.8',today:'18.40',eff:90},sunset:{solar:'1.2',battery:88,home:'3.9',today:'18.60',eff:88},
+    dusk:{solar:'0.2',battery:84,home:'3.4',today:'18.60',eff:87}
+  };
+  var m = mocks[phase] || mocks.morning;
+  setTimeout(function(){
+    animateCount(document.getElementById('lhxKpiSolar'), parseFloat(m.solar), 1);
+    animateCount(document.getElementById('lhxKpiBattery'), m.battery);
+    animateCount(document.getElementById('lhxKpiHome'), parseFloat(m.home), 1);
+    animateCount(document.getElementById('lhxKpiToday'), parseFloat(m.today), 2);
+    animateCount(document.getElementById('lhxKpiEff'), m.eff);
+    animateCount(document.getElementById('stHomes'), 1247);
+    animateCount(document.getElementById('stEnergy'), 12.8, 1);
+    animateCount(document.getElementById('stCO2'), 5642);
+    animateCount(document.getElementById('stUptime'), 99.9, 1);
+  }, 200);
+  function drawChart(){
+    var canvas = document.getElementById('lhxHeroChart');
+    if (!canvas || !window.Chart) return;
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createLinearGradient(0,0,0,120);
+    grad.addColorStop(0,'rgba(245,158,11,.45)');
+    grad.addColorStop(1,'rgba(245,158,11,0)');
+    new Chart(ctx, {type:'line',data:{labels:['6','8','10','12','14','16','18'],datasets:[{data:[0.4,2.1,5.6,8.2,7.4,4.1,1.2],borderColor:'#f59e0b',backgroundColor:grad,borderWidth:3,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:'#f59e0b'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{displayColors:false,callbacks:{label:function(c){return c.parsed.y + ' kW';}}}},scales:{x:{display:false},y:{display:false,beginAtZero:true}},animation:{duration:1800}}});
+  }
+  function tryDraw(n){ if (window.Chart) drawChart(); else if (n>0) setTimeout(function(){tryDraw(n-1);},200); }
+  tryDraw(20);
+
+  // ── REAL WEATHER from user location (IP geolocation + Open-Meteo) ──
+  var weatherLabels = {
+    sunny:    {icon:'☀️', ar:'مشمس',  en:'Sunny'},
+    cloudy:   {icon:'☁️', ar:'غائم',  en:'Cloudy'},
+    rainy:    {icon:'🌧️', ar:'ممطر',  en:'Rainy'},
+    storm:    {icon:'⛈️', ar:'عاصفة', en:'Storm'},
+    sunset:   {icon:'🌇', ar:'غروب',  en:'Sunset'},
+    night:    {icon:'🌙', ar:'ليل',   en:'Night'},
+    dawn:     {icon:'🌅', ar:'فجر',   en:'Dawn'},
+    snowy:    {icon:'❄️', ar:'ثلج',   en:'Snowy'},
+    fog:      {icon:'🌫️', ar:'ضباب',  en:'Fog'}
+  };
+
+  // Map WMO weathercode → our state (https://open-meteo.com/en/docs)
+  function wmoToState(code, isDay){
+    if (!isDay) return 'night';
+    if (code === 0) return 'sunny';
+    if (code >= 1 && code <= 3) return 'cloudy';
+    if (code >= 45 && code <= 48) return 'fog';
+    if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return 'rainy';
+    if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'snowy';
+    if (code >= 95 && code <= 99) return 'storm';
+    return 'sunny';
+  }
+
+  function applyWeatherState(state, locationLabel, temp){
+    var root = document.getElementById('lhxRoot');
+    if (root) root.setAttribute('data-weather', state);
+    var w = weatherLabels[state] || weatherLabels.sunny;
+    var ic = document.getElementById('lhxWeatherIcon'); if (ic) ic.textContent = w.icon;
+    var lb = document.getElementById('lhxWeatherLabel');
+    if (lb){
+      var label = isEn ? w.en : w.ar;
+      if (typeof temp === 'number') label += ' ' + Math.round(temp) + '°';
+      if (locationLabel) label += ' · ' + locationLabel;
+      lb.textContent = label;
+    }
+  }
+
+  // Phase-based override for dawn/sunset windows even when sunny
+  function refinePhase(state){
+    var h = new Date().getHours();
+    if (state === 'sunny' || state === 'cloudy'){
+      if (h >= 5 && h < 7)   return 'dawn';
+      if (h >= 17 && h < 19) return 'sunset';
+    }
+    return state;
+  }
+
+  // Fallback rotation if real weather can't load
+  var fallbackStates = ['sunny','cloudy','rainy','sunset','night','dawn'];
+  var fbIdx = 0;
+  function startFallbackRotation(){
+    function rotate(){
+      applyWeatherState(fallbackStates[fbIdx]);
+      fbIdx = (fbIdx + 1) % fallbackStates.length;
+    }
+    rotate();
+    return setInterval(rotate, 7000);
+  }
+
+  var fallbackTimer = null;
+  function fetchRealWeather(){
+    fetch('https://ipapi.co/json/').then(function(r){return r.json();}).then(function(geo){
+      var lat = geo.latitude, lon = geo.longitude;
+      var city = geo.city || geo.country_name || '';
+      if (typeof lat !== 'number' || typeof lon !== 'number') throw new Error('No geo');
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current_weather=true&timezone=auto';
+      return fetch(url).then(function(r){return r.json();}).then(function(w){
+        if (!w.current_weather) throw new Error('No weather');
+        var code = w.current_weather.weathercode;
+        var isDay = w.current_weather.is_day === 1;
+        var temp = w.current_weather.temperature;
+        var state = refinePhase(wmoToState(code, isDay));
+        if (fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;}
+        applyWeatherState(state, city, temp);
+        // Save for click action (show details)
+        window.__lhxRealWeather = {state:state,city:city,temp:temp,code:code,raw:w.current_weather};
+      });
+    }).catch(function(e){
+      console.log('[lhx] Real weather unavailable, using demo rotation:', e.message || e);
+      if (!fallbackTimer) fallbackTimer = startFallbackRotation();
+    });
+  }
+
+  // Initial sunny state while loading
+  applyWeatherState('sunny');
+  fetchRealWeather();
+  // Refresh every 15 minutes
+  setInterval(fetchRealWeather, 15 * 60 * 1000);
+
+  // Click weather pill — when real weather loaded, clicking refreshes; else cycles demo
+  var wp = document.getElementById('lhxWeatherPill');
+  if (wp) wp.addEventListener('click', function(){
+    if (window.__lhxRealWeather){
+      // Refresh real weather
+      fetchRealWeather();
+    } else if (fallbackTimer){
+      // Just advance demo
+      fbIdx = (fbIdx + 1) % fallbackStates.length;
+      applyWeatherState(fallbackStates[fbIdx]);
+    }
+  });
+
+  // ── BUILD RAIN / SNOW DROPS ──
+  function makeDrops(containerId, count, kind){
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var html = '';
+    for (var i = 0; i < count; i++){
+      var left = Math.random() * 100;
+      var delay = Math.random() * (kind === 'snow' ? 8 : 1.2);
+      var dur = kind === 'snow' ? (6 + Math.random() * 4) : (.8 + Math.random() * .6);
+      html += '<span style="left:'+left.toFixed(2)+'%;animation-delay:-'+delay.toFixed(2)+'s;animation-duration:'+dur.toFixed(2)+'s"></span>';
+    }
+    c.innerHTML = html;
+  }
+  makeDrops('lhxRainLayer', 60, 'rain');
+  makeDrops('lhxSnowLayer', 35, 'snow');
+
+  // ── NAV SCROLL DETECTION ──
+  var nav = document.querySelector('.lhx-nav');
+  var hero = document.querySelector('.lhx-hero');
+  if (nav && hero){
+    function updateNav(){
+      var heroBottom = hero.offsetTop + hero.offsetHeight;
+      if (window.scrollY > heroBottom - 80){
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    }
+    window.addEventListener('scroll', updateNav, {passive:true});
+    updateNav();
+  }
+})();
+</script>
 {% endblock %}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                

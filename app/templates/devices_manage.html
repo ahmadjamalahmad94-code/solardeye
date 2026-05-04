@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set providers = provider_specs or [] %}
@@ -856,7 +857,7 @@
               </div>
               <div class="dm-field">
                 <label>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label>
-                <input name="timezone" value="Asia/Hebron">
+                {{ loc.timezone_select(name='timezone', value='Asia/Hebron', classes='', groups=timezone_groups, lang=ui_lang) }}
               </div>
             </div>
 

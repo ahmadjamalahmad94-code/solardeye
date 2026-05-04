@@ -28,11 +28,11 @@ Every page declares its own scoped variables (using a 2-letter prefix matching t
   /* INK */
   --xx-ink:        #0b1220;   /* primary heading */
   --xx-ink-soft:   #1f2a44;   /* body text, table cells */
-  --xx-muted:      #5e6f8c;   /* labels, sub-text */
+  --xx-muted:      #4a5b78;   /* labels, sub-text — WCAG AA on white (~6.3:1) */
 
   /* LINES */
-  --xx-line:        #e3eaf6;  /* card borders, dividers */
-  --xx-line-strong: #cfd9ec;  /* hover borders */
+  --xx-line:        #e3eaf6;  /* card borders, dividers, faint */
+  --xx-line-strong: #bcc8df;  /* visible dividers, input borders, hover */
 
   /* SURFACES */
   --xx-card:    #ffffff;       /* default card body */
@@ -105,7 +105,28 @@ Every page uses the same gradient + halos so the navigation between them feels c
 .xx-page *,.xx-page *::before,.xx-page *::after{box-sizing:border-box}
 ```
 
-The `gap:24px` on the page is the **canonical inter-section spacing**. Never use margins between top-level sections — let flex-gap do it.
+### MANDATORY: explicit margins for top-level sections (not flex `gap`)
+
+The page wrapper uses `display:flex; flex-direction:column;` for predictable rendering, **but inter-section spacing is enforced with explicit `margin-block-start` on each direct child**, not flex `gap`.
+
+Why: global selectors targeting `.app-main > *`, `.content-area > *`, etc. in `style.css` regularly override flex gap and break vertical rhythm on inner pages. Explicit `!important` margins survive every override.
+
+Canonical pattern (every page must include this block right after the `.xx-page` declaration):
+
+```css
+.xx-page > .xx-hero    { margin: 0 !important }
+.xx-page > .xx-stats   { margin: 26px 0 0 0 !important }
+.xx-page > .xx-toolbar { margin: 26px 0 0 0 !important }
+.xx-page > .xx-grid    { margin: 26px 0 0 0 !important }
+.xx-page > section,
+.xx-page > header      { margin-block-start: 26px !important }
+.xx-page > :first-child{ margin-block-start: 0 !important }
+```
+
+- Standard inter-section margin: **26 px**
+- The `:first-child` reset prevents an empty gap above the hero
+- The `!important` is non-negotiable — without it you will lose to the global cascade
+- Never set `margin-bottom` on individual sections; spacing is owned by the *next* section's `margin-block-start`
 
 ---
 
@@ -804,6 +825,9 @@ When auto-refreshing, dim the metric values via `.is-updating` class so the user
 
 ## 18. Spacing checklist
 
+
+> ⚠️ **Top-level page section spacing is governed by §2's mandatory rule** — explicit `margin-block-start: 26px !important` on each direct child of `.xx-page`, not by flex `gap`. Don't reintroduce `margin-bottom` here. The list below applies to *internal* spacing inside cards/panels.
+
 | Element | Spacing |
 |---|---|
 | Inter-section gap (page level) | `24 px` (set on `.xx-page` flex gap) |
@@ -844,12 +868,46 @@ Font family: `'Cairo','Inter',system-ui,sans-serif` — Cairo first because the 
 
 The product is Arabic-first. Every layout must work in `dir="rtl"`.
 
-Rules:
+**Logical properties (mandatory):**
 - Use `inset-inline-start/end` instead of `left/right` everywhere.
-- Use `margin-inline-start` instead of `margin-left`.
+- Use `margin-inline-start` / `padding-inline-start` instead of physical equivalents.
 - For flex layouts the order automatically flips — don't force `flex-direction: row-reverse`.
 - For drawers: `[dir=rtl] .xx-drawer-panel { left: 0 }` and `transform: translateX(-110%)`.
 - Don't reverse number direction — keep numbers LTR via `direction: ltr` on numeric cells.
+
+**Form input direction (auth pages, settings, anywhere users type):**
+Inputs should follow page direction so the cursor starts at the visual start of the field:
+```jinja2
+<input ... dir="{{ 'ltr' if is_en else 'rtl' }}">
+```
+Don't hard-code `dir="ltr"` — it forces the cursor to the left even in Arabic. The bidi algorithm handles embedded Latin text inside an RTL field correctly on its own.
+
+**Bidirectional Latin tokens inside Arabic strings:**
+When an Arabic sentence contains a Latin token followed by punctuation (e.g. `SMS، تيليجرام`), the comma can render on the wrong side. Wrap the Latin token in `<bdi>`:
+```jinja2
+{{ ('SMS, Telegram, in-app' if is_en else '<bdi>SMS</bdi>، تيليجرام، داخل التطبيق') | safe }}
+```
+
+**Directional arrows (back links, "next" buttons):**
+Don't bake the arrow into the same string as the label — bidi will misplace it. Split into spans and pick the arrow per language:
+```html
+<a class="xx-back-link" href="...">
+  <span class="xx-back-arrow" aria-hidden="true">{{ '←' if is_en else '→' }}</span>
+  <span>{{ 'Back to home' if is_en else 'العودة للرئيسية' }}</span>
+</a>
+```
+- LTR: `←` (back points left, away from forward reading)
+- RTL: `→` (back points right, away from RTL reading flow)
+
+Hover micro-animation matches the direction:
+```css
+.xx-back-link:hover .xx-back-arrow{
+  transform: translateX({{ '-3px' if is_en else '3px' }})
+}
+```
+
+**Submit / CTA buttons with directional arrows:**
+Same pattern — separate `.xx-submit-arrow` span with `{{ '→' if is_en else '←' }}` and a hover translate of `±4px`. Never put both an emoji *and* an arrow on the same button — pick one (or use an SVG icon for security/lock indicators instead of an emoji).
 
 ---
 
@@ -875,8 +933,8 @@ A new page that follows this system looks like:
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <style>
 .np-page{
-  --np-ink:#0b1220; --np-ink-soft:#1f2a44; --np-muted:#5e6f8c;
-  --np-line:#e3eaf6; --np-line-strong:#cfd9ec;
+  --np-ink:#0b1220; --np-ink-soft:#1f2a44; --np-muted:#4a5b78;
+  --np-line:#e3eaf6; --np-line-strong:#bcc8df;
   --np-card:#fff; --np-bg:#eef3fb;
   --np-amber:#f59e0b; --np-emerald:#10b981; --np-sky:#2563eb;
   --np-rose:#f43f5e; --np-violet:#6d3aff;
@@ -887,10 +945,14 @@ A new page that follows this system looks like:
     radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
     radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
     linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;padding:18px clamp(14px,2.4vw,32px) 80px;
+  min-height:100vh;padding:22px clamp(14px,2.4vw,28px) 56px;
   font-family:'Cairo','Inter',system-ui,sans-serif;color:var(--np-ink);
-  display:flex;flex-direction:column;gap:24px;
+  display:flex;flex-direction:column;
 }
+/* MANDATORY — survives global overrides; see §2 */
+.np-page > section,
+.np-page > header { margin-block-start:26px !important }
+.np-page > :first-child { margin-block-start:0 !important }
 .np-hero{ /* … paste hero from §3 … */ }
 .np-stats{ /* … paste from §5 … */ }
 .np-card{ /* … paste from §7 … */ }
@@ -983,7 +1045,8 @@ HERO BG:      linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%)
 PRIMARY CTA:  linear-gradient(135deg,#ffcf4d,#f59e0b)  shadow .28α
 PRIMARY TXT:  #0b1531 (deep navy on amber CTAs)
 LIVE CHIP:    linear-gradient(135deg,#10b981,#34d399)  text #04221b
-LINES:        #e3eaf6  HOVER LINES: #cfd9ec
+LINES:        #e3eaf6  HOVER LINES: #bcc8df
+MUTED TEXT:   #4a5b78 (~6.3:1 on white, AA pass)
 PAGE BG:      sky+amber+violet halos on  #f5f8ff → #eef3fb → #e8eef9
 PHASE ICONS:  🌙 night/dusk · 🌅 dawn · 🌄 sunrise · 🌤️ morning · ☀️ noon · 🌞 afternoon · 🌇 sunset
 ```
@@ -991,3 +1054,200 @@ PHASE ICONS:  🌙 night/dusk · 🌅 dawn · 🌄 sunrise · 🌤️ morning ·
 ---
 
 > **Final note:** every choice in this document was made deliberately. If something feels off when you build a new page against these rules, the answer is almost always *"more breathing room"* — bump a gap from 18 to 24, a padding from 16 to 20, a font from 700 to 800. The system is calibrated to feel airy and legible at the expense of density. Trust it.
+
+---
+
+## 26. Auth pages (login, register) — split-stage hero pattern
+
+Authentication pages use a **split-stage layout**: a tall white card with a gradient `showcase` panel on one side and a `form` panel on the other. Both pages must feel identical — same gradient, same brand block, same eyebrow → title → tagline → feature grid → stats card rhythm.
+
+### 26.1 Stage shell
+
+```css
+.xx-stage{
+  width:100%; max-width:1180px;
+  background:#fff; border:1px solid var(--xx-line);
+  border-radius:32px; overflow:hidden;
+  box-shadow:0 38px 90px rgba(15,23,42,.14);
+  display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  min-height:620px;
+}
+@media (max-width:980px){ .xx-stage{grid-template-columns:1fr} }
+```
+
+### 26.2 Showcase panel (the gradient side)
+
+```css
+.xx-showcase{
+  position:relative;
+  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
+  color:#fff; padding:clamp(28px,3vw,40px);
+  display:flex; flex-direction:column; gap:20px;
+  isolation:isolate; overflow:hidden;
+}
+.xx-showcase::before{
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(420px 240px at 12% 18%, rgba(255,255,255,.18), transparent 60%),
+    radial-gradient(380px 220px at 88% 80%, rgba( 11, 23, 67,.25), transparent 60%);
+}
+.xx-showcase>*{ position:relative; z-index:1 }
+@media (max-width:980px){ .xx-showcase{display:none} }
+```
+
+### 26.3 Hero rhythm — fixed margins, NOT `space-between`
+
+This is the rule that took the longest to get right and is non-obvious:
+
+> **Login uses `justify-content:space-between` because its form fits in 620 px. Register's form is ~1200 px tall, so `space-between` over-distributes and tears the sections apart. The fix: drop `space-between` everywhere and use *fixed* margins between the major sections so the rhythm stays identical regardless of form height.**
+
+```css
+.xx-showcase{ justify-content:flex-start }
+.xx-showcase > .xx-brand        { margin-bottom:80px }  /* gap before content */
+.xx-showcase > .xx-showcase-body{ margin-bottom:60px }  /* gap before stats   */
+```
+
+With the existing `gap:20px`, the visual gaps become 100 px (brand → body) and 80 px (body → stats), matching login's natural distribution. Empty gradient below the stats card is intentional — the gradient fills the rest.
+
+### 26.4 Showcase children
+
+| Block | Class | Purpose |
+|---|---|---|
+| Brand | `.xx-brand` | Logo mark + site name + subtitle |
+| Body  | `.xx-showcase-body` | Eyebrow pill + h1 + tagline + 2×2 feature grid |
+| Stats | `.xx-stats` | 3-column white-translucent card at the bottom |
+
+```css
+.xx-showcase-body{ display:flex; flex-direction:column; gap:1rem }
+.xx-feature-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+                  gap:.6rem; margin-top:.4rem }
+.xx-stats{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem;
+  background:rgba(255,255,255,.92); border-radius:14px; padding:.85rem;
+  box-shadow:0 6px 14px rgba(11,21,49,.10);
+}
+.xx-stat{ display:flex; flex-direction:column; align-items:center; text-align:center }
+.xx-stat strong{ font-size:1.05rem; font-weight:950; color:var(--xx-ink);
+                 font-variant-numeric:tabular-nums; line-height:1.2 }
+.xx-stat small { font-size:.7rem;  color:var(--xx-muted); font-weight:700; margin-top:2px }
+```
+
+### 26.5 Form fields (input pattern)
+
+```css
+.xx-field-input{
+  position:relative; display:flex; align-items:center;
+  background:#fff; border:1px solid var(--xx-line-strong); border-radius:11px;
+  transition:border-color .15s, box-shadow .15s;
+  padding-inline-start:38px; padding-inline-end:6px;
+}
+.xx-field-input:has(.xx-toggle-pw){ padding-inline-end:4px }
+.xx-field-input:focus-within{ border-color:var(--xx-amber);
+                              box-shadow:0 0 0 3px rgba(245,158,11,.18) }
+.xx-field-input.error      { border-color:var(--xx-rose);
+                              box-shadow:0 0 0 3px rgba(244,63,94,.18) }
+.xx-field-icon{
+  position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%);
+  color:var(--xx-muted);
+}
+```
+
+The leading icon uses `inset-inline-start:12px` (logical) so it lands on the **right** in RTL and the **left** in LTR automatically. No `[dir=rtl]` overrides needed.
+
+The trailing eye toggle gets `flex-shrink:0; margin-inline-start:4px` and a `:focus-visible` outline (2 px amber, 2 px offset).
+
+### 26.6 Single language toggle
+
+Auth pages use **only** the global `.xx-lang-toggle` pill (fixed top-right corner). Don't put a second `عربي / English` toggle inside the form header — it duplicates an action that already lives in a known location and steals attention from the form.
+
+### 26.7 Section divider ("or continue with")
+
+Don't position the lines absolutely — flexbox is simpler and adapts:
+```css
+.xx-divider{
+  display:flex; align-items:center; gap:.75rem;
+  font-size:.74rem; color:var(--xx-muted); font-weight:800;
+  text-transform:uppercase; letter-spacing:.4px; margin:.4rem 0;
+}
+.xx-divider::before, .xx-divider::after{
+  content:""; flex:1; height:1px; background:var(--xx-line-strong);
+}
+```
+
+### 26.8 Submit button anatomy
+
+Three children, in this order: SVG security icon → label → directional arrow. No emoji.
+```html
+<button class="xx-submit" type="submit">
+  <svg class="xx-submit-icon" .../>     <!-- lock or shield SVG -->
+  <span>Sign in securely</span>
+  <span class="xx-submit-arrow" aria-hidden="true">→</span>  <!-- ← in RTL -->
+</button>
+```
+The arrow lives at `opacity:.85` baseline and animates to `opacity:1; translateX(±4px)` on hover.
+
+
+---
+
+## 27. Unified Hero (.hu-* shared classes)
+
+> **As of v95**, every page hero uses the same shared `.hu-*` classes loaded from `static/css/unified_hero_v1.css` (auto-included in `base.html`). No more per-page hero CSS duplication.
+
+### Markup pattern
+
+```html
+<header class="hu-hero">
+  <div class="hu-hero-grid">
+    <div class="hu-hero-text">
+      <span class="hu-eyebrow">
+        <svg .../>{{ eyebrow_label }}
+      </span>
+      <h1 class="hu-h1">{{ page_title }}</h1>
+      <p class="hu-tagline">{{ page_description }}</p>
+      <!-- optional meta pills -->
+      <div class="hu-hero-meta">
+        <span class="hu-meta-pill ok">🟢 <b>4</b>/4 healthy</span>
+        <span class="hu-meta-pill warn">⚠️ <b>2</b> open</span>
+      </div>
+    </div>
+    <div class="hu-hero-cta">
+      <a class="hu-btn hu-btn-ghost" href="...">Secondary</a>
+      <a class="hu-btn hu-btn-primary" href="...">+ Primary action</a>
+    </div>
+  </div>
+</header>
+```
+
+### Locked-in visual contract
+
+| Property | Value |
+|---|---|
+| `border-radius` | `30px` |
+| `padding` | `32px clamp(28px,3.2vw,44px) 36px` |
+| Gradient | `linear-gradient(135deg, #7fb1e6, #a9c8ec, #d6dfee, #f1e6d6, #f8d7b6)` |
+| Title color | `#1d4ed8` (saturated blue) |
+| Eyebrow color | `#1d4ed8` (white pill bg) |
+| Tagline color | `#334155` |
+| Decorations | dotted top-start + SVG wave bottom |
+| Tagline accent bar | vertical `linear-gradient(180deg, #3aa7ff, #ffd66e)` |
+
+### Button variants
+
+- `.hu-btn-primary` — amber gradient, dark navy text (PRIMARY CTA)
+- `.hu-btn-ghost` — white bg, ink-soft text (SECONDARY)
+- `.hu-btn-success` — emerald gradient
+- `.hu-btn-danger` — rose gradient
+- All variants resist global `<a>` link styles via `body main.app-main .hu-btn-*` selectors with `!important`.
+
+### Migration checklist when porting an old hero
+
+1. Replace `<header class="xx-hero">` with `<header class="hu-hero xx-hero">` (keep legacy class only if other layout depends on it).
+2. Replace `<h1>` with `<h1 class="hu-h1">`.
+3. Replace tagline `<p>` with `<p class="hu-tagline">`.
+4. Replace `<span class="xx-eyebrow">` with `<span class="hu-eyebrow">` and add an inline SVG icon.
+5. Replace CTA `<a class="xx-btn xx-btn-primary">` with `<a class="hu-btn hu-btn-primary">`.
+6. Remove the page-scoped CSS for hero/eyebrow/tagline/buttons — they're handled globally now.
+
+### When NOT to migrate
+
+The unified hero applies to **admin & internal command pages**. Public-facing landing/marketing pages may keep custom heroes if they need a different gradient or layout. Notification center's previously-dark hero is now unified per the latest spec.

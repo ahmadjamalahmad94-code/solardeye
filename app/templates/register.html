@@ -746,7 +746,15 @@
                   <span class="rg50-field-icon" aria-hidden="true">⏱️</span>
                   <select class="rg50-select" name="timezone" id="rg50Timezone" required dir="ltr">
                     {% set current_tz = form_values.get('timezone','Asia/Hebron') %}
-                    {% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}
+                    {% if timezone_groups %}
+                      {% for group in timezone_groups %}
+                        <optgroup label="{{ group.group_en if is_en else group.group_ar }}">
+                          {% for item in group['items'] %}<option value="{{ item.tz }}" {% if current_tz == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>{% endfor %}
+                        </optgroup>
+                      {% endfor %}
+                    {% else %}
+                      {% for tz in timezone_options %}<option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>{% endfor %}
+                    {% endif %}
                   </select>
                 </span>
               </label>

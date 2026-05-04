@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
@@ -9,7 +9,7 @@ from uuid import uuid4
 from flask import Blueprint
 from werkzeug.utils import secure_filename
 from ..services.energy_integrations import provider_catalog
-from ..services.location_catalog import countries_for_template, timezones_for_template
+from ..services.location_catalog import countries_for_template, timezones_for_template, timezones_grouped_for_template
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -324,6 +324,7 @@ def devices_manage():
         devices_list=devices_list,
         provider_specs=_provider_specs_for_ui(_lang()),
         current_device_id=current_device_id,
+        timezone_groups=timezones_grouped_for_template(),
         ui_lang=_lang(),
     )
 
@@ -392,6 +393,7 @@ def account_profile():
         user_obj=user,
         country_options=country_options,
         timezone_options=timezone_options,
+        timezone_groups=timezones_grouped_for_template(),
         current_phone_code=current_phone_code,
         ui_lang=lang,
     )
@@ -424,6 +426,7 @@ def device_edit(device_id: int):
         device_creds=device_creds,
         device_settings=device_settings,
         provider_specs=_provider_specs_for_ui(_lang()),
+        timezone_groups=timezones_grouped_for_template(),
         ui_lang=_lang(),
     )
 

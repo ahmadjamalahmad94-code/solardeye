@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
-{% block body %}
+{% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_center.css', v='v26-notifications-center-polish-20260429') }}">
+{% endblock %}
+{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}

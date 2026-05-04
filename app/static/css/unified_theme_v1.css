@@ -420,3 +420,638 @@ code{padding:.18rem .42rem !important}
 }
 .app-main p,.app-main label,.app-main small{color:var(--u-ink-soft)}
 .app-main .text-muted{color:var(--u-muted) !important}
+
+/* ════════════════════════════════════════════════════════════════════
+   A11Y — prefers-reduced-motion
+   Disables all SolarDeye animations for users who opted out of motion.
+═══════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep tiny opacity transitions for AJAX swaps so nothing is jarring */
+  #st-content, #rp-content { transition: opacity 0.18s ease !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   A11Y — focus-visible rings
+   Every interactive element gets an unmistakable focus ring.
+═══════════════════════════════════════════════════════════════════════ */
+:focus-visible{
+  outline: 2px solid #f59e0b !important;
+  outline-offset: 2px !important;
+  border-radius: 8px;
+}
+button:focus-visible,
+a:focus-visible,
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible{
+  box-shadow: 0 0 0 3px rgba(245,158,11,.30) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PRINT STYLESHEET
+   Used when the user prints any page. Hides chrome, prints clean.
+═══════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Hide everything that's not the actual content */
+  .app-shell .sidebar,
+  #appShell .sidebar,
+  .sidebar-rebuild,
+  .sidebar-toggle,
+  .dev-build-badge-v11,
+  .flash-stack-v61,
+  .lang-toggle,
+  .lg-lang-toggle,
+  .lg50-lang-toggle,
+  .landing-lang-toggle-v10532,
+  .landing-nav-v10529,
+  .footer-v10529,
+  .st-export-row,
+  .st-refresh-btn,
+  .st-nav-bar,
+  .rp-export-row,
+  .rp-nav-bar,
+  .rp-refresh-btn,
+  .pf-actions,
+  .pf-hero-actions,
+  .lg50-hero-actions,
+  .dm-hero-actions,
+  .dm-add-tile,
+  .sp-modal-backdrop,
+  .lv-hero-actions,
+  .d40-actionbar,
+  [data-bind] button,
+  button.btn,
+  .btn { display: none !important; }
+
+  /* Strip backgrounds for ink-saving */
+  body, body.theme-saas, .app-main, .app-main.content-area,
+  .st-page, .rp-page, .lv-page, .pf-page, .sp-page, .dm-page {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+  }
+  .st-page::before, .rp-page::before, .lv-page::before,
+  .pf-page::before, .sp-page::before, .dm-page::before { display: none !important; }
+
+  /* Hero — flatten gradient to a simple bordered title */
+  .st-hero, .rp-hero, .lv-hero, .pf-hero, .sp-hero, .dm-hero, .d40-hero{
+    background: white !important;
+    color: black !important;
+    border: 2px solid #000 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    padding: 16px 18px !important;
+    page-break-after: avoid;
+  }
+  .st-hero h1, .rp-hero h1, .pf-hero h1, .sp-hero h1, .lv-hero h1, .dm-hero h1, .d40-hero h1{
+    color: black !important;
+    text-shadow: none !important;
+  }
+  .st-hero p, .rp-hero p, .pf-hero p, .lv-hero p, .dm-hero p, .d40-hero p{
+    color: #333 !important;
+  }
+
+  /* Cards — print as outlined boxes */
+  .st-card, .rp-card, .lv-card, .pf-card, .sp-card,
+  .stat-card, .panel-card, .live-hero-card, .feature-card-v10529,
+  .plan-card-v10529, .dm-stat, .pf-stat, .sp-stat,
+  .st-metric, .rp-stat, .lv-hero-card, .lv-kpi {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    color: black !important;
+  }
+
+  /* Tables — high contrast, repeat header on each page */
+  table, .table, .st-table, .rp-table, .lv-hist-table {
+    page-break-inside: auto !important;
+    border-collapse: collapse !important;
+  }
+  table thead, .table thead, .st-table thead, .rp-table thead {
+    display: table-header-group;
+  }
+  table thead th, .table thead th {
+    background: #eee !important;
+    color: black !important;
+    border-bottom: 2px solid #000 !important;
+  }
+  table tbody td, .table tbody td {
+    color: black !important;
+    border-bottom: 1px solid #ccc !important;
+  }
+
+  /* Charts — remind the reader to view onscreen for full detail */
+  .st-chart-wrap, .rp-chart-wrap canvas {
+    page-break-inside: avoid;
+    max-height: 400px;
+  }
+
+  /* Page footer */
+  @page {
+    margin: 18mm 14mm;
+    size: A4;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   COMING-SOON DARK MODE TOGGLE (opt-in via [data-theme=dark] on body)
+   Currently dormant — kept here so any future ?theme=dark switch works
+   without rewriting any page. Activate by adding `data-theme="dark"`
+   on <body> via Flask cookie or JS.
+═══════════════════════════════════════════════════════════════════════ */
+body[data-theme="dark"] {
+  --u-ink:#f1f5ff;
+  --u-ink-soft:#e2e8f0;
+  --u-muted:#94a3b8;
+  --u-line:#1e293b;
+  --u-line-strong:#334155;
+  --u-card:#0f172a;
+}
+body[data-theme="dark"] .stat-card,
+body[data-theme="dark"] .panel-card,
+body[data-theme="dark"] .live-hero-card{
+  background:#0f172a !important;
+  border-color:#1e293b !important;
+  color:#e2e8f0 !important;
+}
+body[data-theme="dark"] .form-control,
+body[data-theme="dark"] .form-select{
+  background:#1e293b !important;
+  border-color:#334155 !important;
+  color:#e2e8f0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   WAVE 3b — ADMIN PAGES UNIFIED OVERRIDE
+   ────────────────────────────────────────────────────────────────────
+   Repaints the generic admin-* classes used across 24 admin templates.
+   Pages with their own scoped CSS files (admin_landing_settings,
+   admin_platform_review, etc.) define stronger selectors and naturally
+   override what's here.
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── ADMIN SHELL ────────────────────────────────────────────────────── */
+.app-main.content-area.admin-shell-v2{
+  background:transparent !important;
+  color:var(--u-ink) !important;
+  padding:18px clamp(14px,2.4vw,32px) 80px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:18px !important;
+}
+
+/* ── ADMIN PAGE HEAD (sky→amber gradient hero) ─────────────────────── */
+header.admin-page-head{
+  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%) !important;
+  color:#fff !important;
+  border:none !important;
+  border-radius:30px !important;
+  padding:clamp(20px,2.5vw,30px) clamp(20px,2.5vw,32px) !important;
+  margin-bottom:0 !important;
+  box-shadow:0 30px 70px rgba(15,23,42,.14) !important;
+  position:relative;overflow:hidden;
+  display:flex;justify-content:space-between;align-items:center;
+  gap:18px;flex-wrap:wrap;
+}
+header.admin-page-head::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
+    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
+}
+header.admin-page-head > *{position:relative;z-index:1}
+header.admin-page-head h1{
+  color:#fff !important;font-weight:950 !important;
+  font-size:clamp(1.35rem,2.4vw,1.85rem) !important;
+  line-height:1.2 !important;margin:.25rem 0 .35rem !important;
+  text-shadow:0 4px 18px rgba(11,21,49,.22);
+}
+header.admin-page-head p{
+  color:rgba(255,255,255,.92) !important;font-weight:600 !important;
+  font-size:.92rem;line-height:1.5;margin:0;
+}
+header.admin-page-head .eyebrow{
+  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+  font-size:.72rem !important;font-weight:900 !important;letter-spacing:.6px;
+  text-transform:uppercase !important;
+  color:#0b1531 !important;background:rgba(255,255,255,.92) !important;
+  padding:.35rem .75rem;border-radius:999px;
+  box-shadow:0 6px 16px rgba(11,21,49,.18);
+}
+header.admin-page-head .admin-head-actions{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+header.admin-page-head .admin-head-actions .btn,
+header.admin-page-head .admin-head-actions a.btn{
+  border-radius:14px !important;font-weight:800 !important;
+  padding:.55rem 1rem !important;
+}
+header.admin-page-head .admin-head-actions .btn-outline-primary{
+  background:rgba(255,255,255,.15) !important;
+  border:1px solid rgba(255,255,255,.45) !important;
+  color:#fff !important;
+}
+header.admin-page-head .admin-head-actions .btn-outline-primary:hover{
+  background:rgba(255,255,255,.30) !important;
+  transform:translateY(-1px);
+}
+header.admin-page-head .admin-head-actions .status-pill{
+  background:rgba(255,255,255,.92) !important;
+  color:#0b1531 !important;
+  font-weight:900 !important;
+  border:none !important;
+  padding:.45rem .9rem !important;
+  border-radius:999px !important;
+  box-shadow:0 6px 16px rgba(11,21,49,.18);
+}
+header.admin-page-head .admin-head-actions .status-pill.success{
+  background:rgba(16,185,129,.95) !important;color:#fff !important;
+}
+header.admin-page-head .admin-head-actions .status-pill.danger{
+  background:rgba(244,63,94,.95) !important;color:#fff !important;
+}
+header.admin-page-head .admin-head-actions .status-pill.warning{
+  background:rgba(245,158,11,.95) !important;color:#0b1531 !important;
+}
+
+/* ── ADMIN KPI GRID + CARDS ────────────────────────────────────────── */
+.admin-kpi-grid-v2{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) !important;
+  gap:14px !important;
+  margin:0 !important;
+}
+.admin-kpi-card{
+  background:#fff !important;
+  border:1px solid var(--u-line) !important;
+  border-radius:22px !important;
+  padding:18px 20px !important;
+  color:var(--u-ink) !important;
+  box-shadow:var(--u-shadow-sm) !important;
+  position:relative;overflow:hidden;
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.admin-kpi-card::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  background:linear-gradient(90deg,#f59e0b,#fbbf24);
+  opacity:.85;
+}
+.admin-kpi-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 22px 50px rgba(15,23,42,.10) !important;
+}
+.admin-kpi-card small{
+  display:block !important;
+  color:var(--u-muted) !important;
+  font-weight:800 !important;
+  font-size:.74rem !important;
+  letter-spacing:.4px;
+  text-transform:uppercase !important;
+  margin:0 0 8px !important;
+}
+.admin-kpi-card strong{
+  display:block !important;
+  font-size:1.65rem !important;
+  font-weight:900 !important;
+  color:var(--u-ink) !important;
+  line-height:1.1 !important;
+  margin:0 0 6px !important;
+}
+.admin-kpi-card span{
+  display:block !important;
+  color:var(--u-muted) !important;
+  font-weight:600 !important;
+  font-size:.82rem !important;
+  line-height:1.5 !important;
+  margin:0 !important;
+}
+
+/* ── ADMIN LAYOUT (1/2-column) ─────────────────────────────────────── */
+.admin-layout-v2{
+  display:grid !important;
+  grid-template-columns:minmax(0,1.6fr) minmax(320px,.95fr) !important;
+  gap:18px !important;
+}
+.admin-layout-v2.single,
+.admin-layout-v2.one{ grid-template-columns:1fr !important; }
+.admin-layout-v2.two{ grid-template-columns:1fr 1fr !important; }
+.admin-stack-v2{ display:grid !important; gap:18px !important; }
+@media (max-width:1100px){
+  .admin-layout-v2,
+  .admin-layout-v2.two{ grid-template-columns:1fr !important; }
+}
+
+/* ── ADMIN CARD ────────────────────────────────────────────────────── */
+.admin-card-v2{
+  background:#fff !important;
+  border:1px solid var(--u-line) !important;
+  border-radius:24px !important;
+  padding:22px !important;
+  box-shadow:var(--u-shadow-sm) !important;
+  color:var(--u-ink) !important;
+}
+.admin-card-v2 h2,
+.admin-card-v2 h3,
+.admin-card-v2 h4{
+  color:var(--u-ink) !important;
+  font-weight:900 !important;
+}
+.admin-card-v2 .section-heading-inline{
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:center !important;
+  gap:16px !important;
+  margin-bottom:14px !important;
+  padding-bottom:12px;
+  border-bottom:1px dashed var(--u-line);
+}
+.admin-card-v2 .section-heading-inline small{
+  display:block !important;
+  color:var(--u-muted) !important;
+  font-weight:800 !important;
+  font-size:.72rem;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+}
+.admin-card-v2 .section-heading-inline h3{
+  margin:0 !important;
+  color:var(--u-ink) !important;
+  font-size:1.25rem !important;
+  font-weight:900 !important;
+}
+
+/* ── ADMIN TABLE ───────────────────────────────────────────────────── */
+.admin-table-v2{
+  width:100% !important;
+  border-collapse:separate !important;
+  border-spacing:0 !important;
+  background:transparent !important;
+  font-size:.92rem;
+}
+.admin-table-v2 thead th{
+  background:linear-gradient(180deg,#f7faff,#eef3fb) !important;
+  color:var(--u-ink) !important;
+  font-weight:900 !important;
+  font-size:.78rem !important;
+  letter-spacing:.4px;
+  text-transform:uppercase !important;
+  padding:12px 14px !important;
+  border-bottom:1px solid var(--u-line) !important;
+  text-align:start;
+}
+.admin-table-v2 tbody td{
+  padding:14px !important;
+  color:var(--u-ink-soft) !important;
+  border-bottom:1px solid var(--u-line) !important;
+  vertical-align:middle !important;
+}
+.admin-table-v2 tbody tr:hover td{
+  background:#f7faff !important;
+}
+.admin-table-v2 tbody tr:last-child td{ border-bottom:none !important; }
+.admin-table-v2 .table-sub{
+  color:var(--u-muted) !important;
+  font-size:.78rem;
+  display:block;
+  margin-top:3px;
+}
+
+/* ── EMPTY STATE / QUICK LINKS / ACTIVITY ──────────────────────────── */
+.admin-card-v2 .empty-box-v2{
+  padding:18px !important;
+  border-radius:18px !important;
+  background:#f7faff !important;
+  color:var(--u-muted) !important;
+  border:1px dashed var(--u-line-strong) !important;
+  text-align:center;
+}
+.quick-links-v2{ display:grid !important; gap:10px !important; margin-top:12px; }
+.quick-links-v2 a{
+  display:flex !important;align-items:center;justify-content:space-between;
+  padding:13px 16px !important;
+  border-radius:16px !important;
+  background:linear-gradient(180deg,#fafcff,#f3f7fd) !important;
+  border:1px solid var(--u-line) !important;
+  color:var(--u-ink) !important;
+  font-weight:800 !important;
+  text-decoration:none !important;
+  transition:transform .18s, box-shadow .18s;
+}
+.quick-links-v2 a:hover{
+  transform:translateY(-2px);
+  box-shadow:0 18px 40px rgba(43,76,131,.08) !important;
+  border-color:var(--u-amber) !important;
+}
+.activity-list-v2{ display:grid !important; gap:10px !important; }
+.activity-item-v2{
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:center !important;
+  gap:12px !important;
+  padding:13px 16px !important;
+  border-radius:16px !important;
+  background:#fafcff !important;
+  border:1px solid var(--u-line) !important;
+  color:var(--u-ink-soft) !important;
+}
+.activity-item-v2 small{
+  display:block !important;
+  color:var(--u-muted) !important;
+  margin-top:4px !important;
+  font-size:.78rem;
+}
+
+/* ── USER 360 PAGE (admin_user_profile) ────────────────────────────── */
+.user360-hero{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr)) !important;
+  gap:14px !important;
+  margin:0 !important;
+}
+.user360-kpi{
+  background:#fff !important;
+  border:1px solid var(--u-line) !important;
+  border-radius:20px !important;
+  padding:16px 18px !important;
+  box-shadow:var(--u-shadow-sm) !important;
+  position:relative;overflow:hidden;
+}
+.user360-kpi::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  background:linear-gradient(90deg,#6d3aff,#3aa7ff);
+  opacity:.85;
+}
+.user360-kpi small{
+  display:block !important;
+  color:var(--u-muted) !important;
+  font-weight:800 !important;
+  font-size:.72rem !important;
+  letter-spacing:.3px;
+  text-transform:uppercase !important;
+  margin-bottom:6px !important;
+}
+.user360-kpi strong{
+  display:block !important;
+  font-size:1.35rem !important;
+  font-weight:900 !important;
+  color:var(--u-ink) !important;
+  line-height:1.2 !important;
+}
+.user360-tabs{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  gap:8px !important;
+  padding:10px !important;
+  background:#fff !important;
+  border:1px solid var(--u-line) !important;
+  border-radius:18px !important;
+  box-shadow:var(--u-shadow-sm) !important;
+  margin:0 !important;
+}
+.user360-tab{
+  flex:1 1 auto;
+  padding:10px 18px !important;
+  border-radius:12px !important;
+  background:transparent !important;
+  color:var(--u-muted) !important;
+  font-weight:800 !important;
+  font-size:.88rem !important;
+  text-decoration:none !important;
+  text-align:center;
+  transition:background .15s, color .15s, transform .15s;
+  border:1px solid transparent !important;
+}
+.user360-tab:hover{
+  background:#f7faff !important;
+  color:var(--u-ink) !important;
+}
+.user360-tab.active{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b) !important;
+  color:#0b1531 !important;
+  box-shadow:0 8px 22px rgba(245,158,11,.30) !important;
+  border-color:transparent !important;
+}
+
+/* ── STATUS PILLS (admin contexts) ─────────────────────────────────── */
+.status-pill{
+  display:inline-flex !important;
+  align-items:center !important;
+  padding:6px 12px !important;
+  border-radius:999px !important;
+  font-weight:800 !important;
+  font-size:.82rem !important;
+  border:1px solid transparent !important;
+}
+.status-pill.success{
+  background:#ecfff4 !important;color:#0f7a3b !important;border-color:#bbe3c8 !important;
+}
+.status-pill.warning{
+  background:#fff8dd !important;color:#8b6a00 !important;border-color:#f1de8a !important;
+}
+.status-pill.danger{
+  background:#fff0f1 !important;color:#be3a4d !important;border-color:#f4bfca !important;
+}
+
+/* ── ADMIN BUTTONS ─────────────────────────────────────────────────── */
+.admin-card-v2 .btn,
+.admin-stack-v2 .btn{
+  border-radius:14px !important;
+  font-weight:800 !important;
+  padding:.55rem 1rem !important;
+  border:1px solid var(--u-line-strong) !important;
+}
+.admin-card-v2 .btn-primary,
+.admin-stack-v2 .btn-primary{
+  background:linear-gradient(135deg,#ffcf4d,#f59e0b) !important;
+  border:none !important;
+  color:#0b1531 !important;
+  box-shadow:0 10px 24px rgba(245,158,11,.28) !important;
+}
+.admin-card-v2 .btn-primary:hover,
+.admin-stack-v2 .btn-primary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 30px rgba(245,158,11,.35) !important;
+}
+.admin-card-v2 .btn-outline-primary,
+.admin-stack-v2 .btn-outline-primary{
+  background:#fff !important;
+  color:var(--u-ink) !important;
+  border:1px solid var(--u-line-strong) !important;
+}
+.admin-card-v2 .btn-outline-primary:hover,
+.admin-stack-v2 .btn-outline-primary:hover{
+  background:#fafcff !important;
+  border-color:var(--u-amber) !important;
+}
+.admin-card-v2 .btn-danger{
+  background:#fff !important;
+  color:#be3a4d !important;
+  border:1px solid #f4bfca !important;
+}
+.admin-card-v2 .btn-danger:hover{
+  background:#fff0f1 !important;
+}
+
+/* ── FORMS INSIDE ADMIN CARDS ──────────────────────────────────────── */
+.admin-card-v2 .form-control,
+.admin-card-v2 .form-select,
+.admin-card-v2 textarea,
+.admin-card-v2 input[type="text"],
+.admin-card-v2 input[type="email"],
+.admin-card-v2 input[type="number"],
+.admin-card-v2 input[type="url"]{
+  background:#fafcff !important;
+  border:1px solid var(--u-line) !important;
+  border-radius:12px !important;
+  padding:.55rem .85rem !important;
+  color:var(--u-ink) !important;
+  font-weight:600;
+  transition:border-color .15s, background .15s;
+}
+.admin-card-v2 .form-control:focus,
+.admin-card-v2 .form-select:focus,
+.admin-card-v2 textarea:focus,
+.admin-card-v2 input:focus{
+  background:#fff !important;
+  border-color:var(--u-amber) !important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.18) !important;
+  outline:none !important;
+}
+.admin-card-v2 label{
+  font-weight:800 !important;
+  color:var(--u-ink-soft) !important;
+  font-size:.85rem !important;
+  margin-bottom:6px !important;
+  display:block;
+}
+
+/* ── HEAVY-V61 / V71 / V90 LEGACY OVERRIDES ───────────────────────── */
+body.heavy-v61 .admin-card-v2,
+body.heavy-v71 .admin-card-v2,
+body.heavy-v90 .admin-card-v2{
+  background:#fff !important;
+  border-color:var(--u-line) !important;
+}
+
+/* ── RESPONSIVE GUARDRAILS ─────────────────────────────────────────── */
+@media (max-width:768px){
+  header.admin-page-head{
+    flex-direction:column;align-items:flex-start !important;
+    padding:18px !important;border-radius:24px !important;
+  }
+  header.admin-page-head .admin-head-actions{ width:100%; }
+  .admin-kpi-grid-v2{ grid-template-columns:1fr !important; }
+  .user360-hero{ grid-template-columns:1fr !important; }
+  .user360-tab{ flex:1 1 100%; }
+  .admin-card-v2{ padding:18px !important; border-radius:20px !important; }
+}

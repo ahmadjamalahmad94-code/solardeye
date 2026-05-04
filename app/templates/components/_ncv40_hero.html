@@ -1,24 +1,25 @@
-{# Notification Center v40 — Hero section #}
-<header class="ncv40-hero">
-  <div class="ncv40-hero-content">
-    <span class="ncv40-hero-badge">{{ 'Live updates' if is_en else 'تحديث مباشر' }}</span>
-    <h1>{{ 'Notification Center' if is_en else 'مركز الإشعارات' }}</h1>
-    <p>
-      {% if is_en %}
-        Track messages, support tickets, and system alerts from one organized hub — sorted, grouped, and ready to act on.
-      {% else %}
-        تابع كل ما هو مهم — الرسائل، التذاكر، وتنبيهات النظام — في مركز واحد منظم، مع تجميع ذكي وأدوات سريعة لاتخاذ القرار.
-      {% endif %}
-    </p>
-  </div>
-  <div class="ncv40-hero-actions">
-    <button type="button" class="ncv40-hero-btn primary" data-ncv40-mark-all>
-      {{ ncv40_icon('check-all') }}
-      <span>{{ 'Mark all read' if is_en else 'تحديد الكل كمقروء' }}</span>
-    </button>
-    <a class="ncv40-hero-btn" href="{{ url_for('main.notifications_settings', lang=ui_lang) }}">
-      {{ ncv40_icon('settings') }}
-      <span>{{ 'Settings' if is_en else 'الإعدادات' }}</span>
-    </a>
+{# Notification Center — Unified hero (uses .hu-* shared classes) #}
+<header class="hu-hero ncv40-hero">
+  <div class="hu-hero-grid">
+    <div class="hu-hero-text">
+      <span class="hu-eyebrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        {{ 'Live updates' if is_en else 'تحديث مباشر' }}
+      </span>
+      <h1 class="hu-h1">{{ 'Notification Center' if is_en else 'مركز الإشعارات' }}</h1>
+      <p class="hu-tagline">
+        {%- if is_en -%}
+          Track messages, support tickets, and system alerts from one organized hub — sorted, grouped, and ready to act on.
+        {%- else -%}
+          تابع كل ما هو مهم — الرسائل، التذاكر، وتنبيهات النظام — في مركز واحد منظم، مع تجميع ذكي وأدوات سريعة لاتخاذ القرار.
+        {%- endif -%}
+      </p>
+    </div>
+    <div class="hu-hero-cta">
+      <button type="button" class="hu-btn hu-btn-primary" data-ncv40-mark-all>
+        {{ ncv40_icon('check-all') }}
+        <span>{{ 'Mark all read' if is_en else 'تحديد الكل كمقروء' }}</span>
+      </button>
+    </div>
   </div>
 </header>

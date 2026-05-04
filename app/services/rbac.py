@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from dataclasses import dataclass
@@ -176,25 +176,12 @@ def available_roles(include_inactive: bool = False):
 
 
 def admin_landing_url(lang: str = 'ar') -> str:
+    # Always send admins to the unified command center first.
+    # Per-area shortcuts live inside the dashboard itself.
     try:
-        from .scope import has_permission
-        if has_permission('can_manage_users'):
-            return url_for('main.admin_subscribers', lang=lang)
-        if has_permission('can_manage_support'):
-            return url_for('main.admin_support_command_center', lang=lang)
-        if has_permission('can_manage_devices'):
-            return url_for('admin_ops.admin_devices_center_v9', lang=lang)
-        if has_permission('can_manage_integrations'):
-            return url_for('integrations.admin_integrations', lang=lang)
-        if has_permission('can_manage_finance'):
-            return url_for('main.admin_finance', lang=lang)
-        if has_permission('can_manage_backups'):
-            return url_for('platform.admin_backups', lang=lang)
-        if has_permission('can_view_logs'):
-            return url_for('admin_ops.admin_services_health_v9', lang=lang)
+        return url_for('main.admin_dashboard', lang=lang)
     except Exception:
-        pass
-    return url_for('main.admin_dashboard', lang=lang)
+        return '/admin/dashboard'
 
 
 def role_label(code: str, lang: str = 'ar') -> str:

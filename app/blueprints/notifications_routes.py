@@ -417,11 +417,25 @@ def _agg_open_url(kind, source_id, ev, lang='ar'):
     return getattr(ev, 'direct_url', None) or url_for('main.notification_center', lang=lang)
 
 
+def _is_admin_like(user) -> bool:
+    if not user:
+        return False
+    if getattr(user, 'is_admin', False):
+        return True
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    return role not in {'', 'user', 'subscriber', 'customer'}
+
+
 def _aggregated_notification_groups(limit=200, include_archived=True):
     user = _active_user()
     if not user:
         return [], {}, []
-    q = NotificationEvent.query.filter_by(target_user_id=user.id)
+    # Admin / staff see ALL platform notifications so they can dispatch to the team.
+    # Subscribers only see notifications targeted at them personally.
+    if _is_admin_like(user):
+        q = NotificationEvent.query
+    else:
+        q = NotificationEvent.query.filter_by(target_user_id=user.id)
     rows = q.order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc()).limit(limit or 300).all()
     buckets = {}
     for ev in rows:

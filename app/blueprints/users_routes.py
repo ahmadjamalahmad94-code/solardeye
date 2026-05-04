@@ -16,7 +16,7 @@ for _legacy_name in dir(_legacy_main):
 
 from ..services.rbac import PERMISSION_KEYS, available_roles, permission_catalog, portal_pages, role_label, role_permissions, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
-from ..services.location_catalog import countries_for_template
+from ..services.location_catalog import countries_for_template, timezones_grouped_for_template
 
 users_bp = Blueprint('users_routes', __name__)
 
@@ -169,6 +169,7 @@ def _admin_staff_profile(user, tab: str):
         assigned_tickets=assigned_tickets,
         activity_rows=_staff_activity_rows(user),
         country_options=_phone_country_options(lang),
+        timezone_groups=timezones_grouped_for_template(),
         ui_lang=lang,
         is_full_admin=(user.role or '').strip().lower() == 'admin',
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
@@ -592,6 +593,7 @@ def admin_user_profile(user_id: int):
         status_options=['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'],
         priority_options=['low', 'normal', 'high', 'urgent'],
         country_options=_phone_country_options(_lang()),
+        timezone_groups=timezones_grouped_for_template(),
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
         activity_label=_activity_summary_label,
@@ -650,43 +652,53 @@ def admin_users_legacy():
             flash('تم تحديث صلاحيات عضو الإدارة.', 'success')
             return redirect(url_for('users_routes.admin_team', lang=_lang()))
         if action == 'send_staff_message':
-            recipient = AppUser.query.filter(AppUser.id.in_(selected_ids)).first()
             subject = (request.form.get('subject') or '').strip()
             body = (request.form.get('body') or '').strip()
             priority = (request.form.get('priority') or 'normal').strip()
-            if not recipient or not _is_staff_account(recipient):
-                flash('اختر عضو إدارة صحيح لإرسال الرسالة.', 'warning')
-                return redirect(url_for('users_routes.admin_team', lang=_lang()))
             if not subject or not body:
                 flash('عنوان الرسالة ونصها مطلوبان.', 'warning')
                 return redirect(url_for('users_routes.admin_team', lang=_lang()))
-            thread = InternalMailThread(
-                created_by_user_id=getattr(actor, 'id', None),
-                assigned_admin_user_id=recipient.id,
-                subject=subject,
-                category='admin_internal',
-                priority=priority if priority in {'normal', 'important', 'urgent'} else 'normal',
-                status='open',
-                last_reply_at=datetime.utcnow(),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.session.add(thread)
-            db.session.flush()
-            db.session.add(InternalMailMessage(
-                thread_id=thread.id,
-                sender_user_id=getattr(actor, 'id', None),
-                sender_scope='admin',
-                is_internal_note=True,
-                body=body,
-            ))
-            try:
-                notify_user(recipient.id, source_type='message', source_id=thread.id, tenant_id=None, title='رسالة داخلية من الإدارة', message=subject, direct_url=url_for('main.admin_user_profile', user_id=recipient.id, lang=_lang(), staff=1, tab='support') + f'#case-mail-{thread.id}')
-            except Exception:
-                pass
+            # Resolve all valid staff recipients from the selection
+            recipients = AppUser.query.filter(AppUser.id.in_(selected_ids)).all()
+            staff_recipients = [r for r in recipients if _is_staff_account(r)]
+            if not staff_recipients:
+                flash('اختر عضو إدارة صحيح لإرسال الرسالة.', 'warning')
+                return redirect(url_for('users_routes.admin_team', lang=_lang()))
+            sent_count = 0
+            thread_ids = []
+            for recipient in staff_recipients:
+                thread = InternalMailThread(
+                    created_by_user_id=getattr(actor, 'id', None),
+                    assigned_admin_user_id=recipient.id,
+                    subject=subject,
+                    category='admin_internal',
+                    priority=priority if priority in {'normal', 'important', 'urgent'} else 'normal',
+                    status='open',
+                    last_reply_at=datetime.utcnow(),
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.session.add(thread)
+                db.session.flush()
+                db.session.add(InternalMailMessage(
+                    thread_id=thread.id,
+                    sender_user_id=getattr(actor, 'id', None),
+                    sender_scope='admin',
+                    is_internal_note=True,
+                    body=body,
+                ))
+                try:
+                    notify_user(recipient.id, source_type='message', source_id=thread.id, tenant_id=None, title='رسالة داخلية من الإدارة', message=subject, direct_url=url_for('main.admin_user_profile', user_id=recipient.id, lang=_lang(), staff=1, tab='support') + f'#case-mail-{thread.id}')
+                except Exception:
+                    pass
+                thread_ids.append(thread.id)
+                sent_count += 1
             db.session.commit()
-            _admin_write_log('staff.message', f'Sent internal staff message #{thread.id}', 'internal_mail_thread', thread.id, {'recipient_user_id': recipient.id})
-            flash('تم إرسال الرسالة الداخلية.', 'success')
+            _admin_write_log('staff.message', f'Sent internal staff message to {sent_count} recipient(s)', 'internal_mail_thread', thread_ids[0] if thread_ids else None, {'recipient_user_ids': [r.id for r in staff_recipients], 'thread_ids': thread_ids})
+            if sent_count == 1:
+                flash('تم إرسال الرسالة الداخلية.', 'success')
+            else:
+                flash(f'تم إرسال الرسالة إلى {sent_count} عضو إدارة.', 'success')
             return redirect(url_for('users_routes.admin_team', lang=_lang()))
         if action not in {'activate', 'disable', 'soft_delete', 'hard_delete', 'remove_staff'}:
             flash('إجراء جماعي غير معروف.', 'warning')
@@ -837,51 +849,57 @@ def admin_user_create():
             target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'users_routes.admin_team'
             return redirect(url_for(target, lang=_lang()))
 
-    return render_template('admin_user_form.html', mode='create', user_obj=None, default_role=default_role, country_options=_phone_country_options(_lang()), ui_lang=_lang())
+    return render_template('admin_user_form.html', mode='create', user_obj=None, default_role=default_role, country_options=_phone_country_options(_lang()), timezone_groups=timezones_grouped_for_template(), ui_lang=_lang())
 
 
-@users_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-def admin_user_edit(user_id: int):
-    guard = _admin_guard()
+@users_bp.route('/admin/users/<int:user_id>/avatar', methods=['POST'])
+def admin_user_avatar_upload(user_id: int):
+    guard = _admin_guard('can_manage_users')
     if guard:
         return guard
-    seed_access_control(commit=True)
     user = AppUser.query.filter_by(id=user_id).first_or_404()
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
-        country = request.form.get('country', '').strip()
-        city = request.form.get('city', '').strip()
-        phone_country_code = request.form.get('phone_country_code', '').strip()
-        phone_number = request.form.get('phone_number', '').strip()
-        role = (request.form.get('role', 'user') or 'user').strip().lower()
-        is_active = request.form.get('is_active') == 'on'
-        other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
-        if not username:
-            flash('اسم المستخدم مطلوب.', 'warning')
-        elif other:
-            flash('اسم المستخدم مستخدم من قبل.', 'danger')
-        else:
-            user.username = username
-            user.full_name = full_name
-            user.email = email
-            user.country = country or None
-            user.city = city or None
-            user.phone_country_code = phone_country_code or None
-            user.phone_number = phone_number or None
-            user.role = role or 'user'
-            user.is_admin = _is_admin_role_code(user.role)
-            user.is_active = is_active
-            if password:
-                user.password_hash = generate_password_hash(password)
-            db.session.commit()
-            flash('تم تحديث المستخدم بنجاح.', 'success')
-            target = 'main.admin_subscribers' if role in {'user', 'subscriber', 'customer'} else 'users_routes.admin_team'
-            return redirect(url_for(target, lang=_lang()))
+    file = request.files.get('avatar')
+    if not file or not file.filename:
+        return jsonify({'ok': False, 'error': 'no file'}), 400
+    # Validate extension
+    ext = (file.filename.rsplit('.', 1)[-1] if '.' in file.filename else '').lower()
+    if ext not in {'png', 'jpg', 'jpeg', 'webp', 'gif'}:
+        return jsonify({'ok': False, 'error': 'invalid format'}), 400
+    # Save to /static/uploads/avatars/<id>.<ext> with cache-busting timestamp
+    import os, time
+    avatars_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+    os.makedirs(avatars_dir, exist_ok=True)
+    # Remove any old avatar file for this user
+    for fname in os.listdir(avatars_dir):
+        if fname.startswith(f'user_{user.id}.'):
+            try: os.remove(os.path.join(avatars_dir, fname))
+            except Exception: pass
+    fname = f'user_{user.id}.{ext}'
+    file.save(os.path.join(avatars_dir, fname))
+    bust = int(time.time())
+    user.profile_image_url = f'/static/uploads/avatars/{fname}?v={bust}'
+    db.session.commit()
+    _admin_write_log('user.avatar_upload', f'Uploaded avatar for user #{user.id}', 'app_user', user.id, {'user_id': user.id})
+    return jsonify({'ok': True, 'url': user.profile_image_url})
 
-    return render_template('admin_user_form.html', mode='edit', user_obj=user, default_role=user.role or 'user', country_options=_phone_country_options(_lang()), ui_lang=_lang())
+
+@users_bp.route('/admin/users/<int:user_id>/avatar/remove', methods=['POST'])
+def admin_user_avatar_remove(user_id: int):
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    user = AppUser.query.filter_by(id=user_id).first_or_404()
+    import os
+    avatars_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+    if os.path.isdir(avatars_dir):
+        for fname in os.listdir(avatars_dir):
+            if fname.startswith(f'user_{user.id}.'):
+                try: os.remove(os.path.join(avatars_dir, fname))
+                except Exception: pass
+    user.profile_image_url = None
+    db.session.commit()
+    _admin_write_log('user.avatar_remove', f'Removed avatar for user #{user.id}', 'app_user', user.id, {'user_id': user.id})
+    return jsonify({'ok': True})
 
 
 @users_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])

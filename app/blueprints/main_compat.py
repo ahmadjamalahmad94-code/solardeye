@@ -22,11 +22,6 @@ def register_main_compat_routes(main_bp):
         from .users_routes import admin_user_create as _impl
         return _impl(*args, **kwargs)
 
-    @main_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-    def admin_user_edit(*args, **kwargs):
-        from .users_routes import admin_user_edit as _impl
-        return _impl(*args, **kwargs)
-
     @main_bp.route('/admin/users/<int:user_id>/toggle', methods=['POST'])
     def admin_user_toggle(*args, **kwargs):
         from .users_routes import admin_user_toggle as _impl

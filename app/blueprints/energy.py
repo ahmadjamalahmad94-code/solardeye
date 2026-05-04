@@ -40,14 +40,106 @@ def admin_dashboard():
     guard = _admin_guard()
     if guard:
         return guard
+
+    # Core counters
     total_users = AppUser.query.filter_by(is_admin=False).count()
     total_tenants = TenantAccount.query.count()
     active_subs = TenantSubscription.query.filter(TenantSubscription.status.in_(['active', 'trial'])).count()
     total_plans = SubscriptionPlan.query.filter_by(is_active=True).count()
     total_devices = AppDevice.query.filter_by(is_active=True).count()
-    recent_subscribers = AppUser.query.filter_by(is_admin=False).order_by(AppUser.created_at.desc()).limit(5).all()
-    heartbeat_rows = ServiceHeartbeat.query.order_by(ServiceHeartbeat.updated_at.desc()).limit(6).all()
-    return render_template('admin_dashboard.html', total_users=total_users, total_tenants=total_tenants, active_subs=active_subs, total_plans=total_plans, total_devices=total_devices, recent_subscribers=recent_subscribers, heartbeat_rows=heartbeat_rows)
+
+    # Lists capped at 20 — UI shows 5 then scrolls
+    recent_subscribers = (
+        AppUser.query.filter_by(is_admin=False)
+        .order_by(AppUser.created_at.desc())
+        .limit(20).all()
+    )
+    heartbeat_rows = (
+        ServiceHeartbeat.query.order_by(ServiceHeartbeat.updated_at.desc())
+        .limit(20).all()
+    )
+    try:
+        recent_admin_activity = (
+            AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc())
+            .limit(20).all()
+        )
+    except Exception:
+        recent_admin_activity = []
+    try:
+        recent_tickets = (
+            SupportTicket.query.order_by(SupportTicket.created_at.desc())
+            .limit(20).all()
+        )
+    except Exception:
+        recent_tickets = []
+    # Aggregate-only pulse (no personal device data)
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    try:
+        signups_today = AppUser.query.filter(
+            AppUser.is_admin == False,
+            AppUser.created_at >= today_start,
+        ).count()
+        signups_week = AppUser.query.filter(
+            AppUser.is_admin == False,
+            AppUser.created_at >= week_start,
+        ).count()
+    except Exception:
+        signups_today = signups_week = 0
+    try:
+        devices_today = AppDevice.query.filter(AppDevice.created_at >= today_start).count()
+        devices_week = AppDevice.query.filter(AppDevice.created_at >= week_start).count()
+    except Exception:
+        devices_today = devices_week = 0
+    try:
+        tickets_resolved_week = SupportTicket.query.filter(
+            SupportTicket.updated_at >= week_start,
+            SupportTicket.status.in_(['resolved', 'closed']),
+        ).count()
+        tickets_opened_week = SupportTicket.query.filter(
+            SupportTicket.created_at >= week_start
+        ).count()
+    except Exception:
+        tickets_resolved_week = tickets_opened_week = 0
+
+    # Health snapshots
+    try:
+        services_ok = ServiceHeartbeat.query.filter(
+            ServiceHeartbeat.status.in_(['ok', 'success'])
+        ).count()
+        services_total = ServiceHeartbeat.query.count()
+    except Exception:
+        services_ok = services_total = 0
+    try:
+        open_tickets = SupportTicket.query.filter(
+            SupportTicket.status.in_(['open', 'pending', 'in_progress'])
+        ).count()
+    except Exception:
+        open_tickets = 0
+
+    return render_template(
+        'admin_dashboard.html',
+        total_users=total_users,
+        total_tenants=total_tenants,
+        active_subs=active_subs,
+        total_plans=total_plans,
+        total_devices=total_devices,
+        services_ok=services_ok,
+        services_total=services_total,
+        open_tickets=open_tickets,
+        recent_subscribers=recent_subscribers,
+        heartbeat_rows=heartbeat_rows,
+        recent_admin_activity=recent_admin_activity,
+        recent_tickets=recent_tickets,
+        signups_today=signups_today,
+        signups_week=signups_week,
+        devices_today=devices_today,
+        devices_week=devices_week,
+        tickets_resolved_week=tickets_resolved_week,
+        tickets_opened_week=tickets_opened_week,
+    )
 
 
 @energy_bp.route('/dashboard')

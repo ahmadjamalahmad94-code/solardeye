@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
 {% block title %}{{ 'Profile' if (ui_lang or 'ar') == 'en' else 'الملف الشخصي' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
@@ -440,18 +441,13 @@
             </label>
             <label class="pf-field">
               <span>{{ 'Country' if is_en else 'الدولة' }}</span>
-              <input class="form-control" name="country" value="{{ user_obj.country or '' }}" list="pfCountryList" placeholder="{{ 'Palestine' if is_en else 'فلسطين' }}">
+              {{ loc.country_select(name='country', value=user_obj.country, classes='form-control', countries=country_options, lang=ui_lang) }}
             </label>
             <label class="pf-field">
               <span>{{ 'City' if is_en else 'المدينة' }}</span>
-              <input class="form-control" name="city" value="{{ user_obj.city or '' }}" placeholder="{{ 'Nablus' if is_en else 'نابلس' }}">
+              {{ loc.city_select(name='city', value=user_obj.city, classes='form-control', lang=ui_lang) }}
             </label>
           </div>
-          <datalist id="pfCountryList">
-            {% for country in country_options %}
-              <option value="{{ country.label }}"></option>
-            {% endfor %}
-          </datalist>
         </section>
 
         <section class="pf-card pf-card-accent-emerald">
@@ -464,12 +460,7 @@
           <div class="pf-fields">
             <label class="pf-field">
               <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-              <select class="form-control ltr-field-v108" name="timezone">
-                {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
-                {% for tz in timezone_options %}
-                  <option value="{{ tz }}" {% if current_tz == tz %}selected{% endif %}>{{ tz }}</option>
-                {% endfor %}
-              </select>
+              {{ loc.timezone_select(name='timezone', value=(user_obj.timezone or 'Asia/Hebron'), classes='form-control ltr-field-v108', groups=timezone_groups, lang=ui_lang) }}
             </label>
             <label class="pf-field">
               <span>{{ 'Preferred language' if is_en else 'لغة الواجهة' }}</span>

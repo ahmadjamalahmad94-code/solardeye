@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import '_location_picker.html' as loc %}
 {% block title %}{{ 'Staff profile' if (ui_lang or 'ar') == 'en' else 'ملف عضو الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
@@ -39,8 +40,8 @@
         <label class="staff-field-username-v127"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
         <label class="staff-field-name-v127"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
         <label class="staff-field-email-v127"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg ltr-field-v108" name="email" value="{{ user_obj.email or '' }}"></label>
-        <label class="staff-field-country-v127"><span>{{ 'Country' if is_en else 'الدولة' }}</span><input class="form-control form-control-lg" name="country" value="{{ user_obj.country or '' }}"></label>
-        <label class="staff-field-city-v127"><span>{{ 'City' if is_en else 'المدينة' }}</span><input class="form-control form-control-lg" name="city" value="{{ user_obj.city or '' }}"></label>
+        <label class="staff-field-country-v127"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='form-control form-control-lg', countries=country_options, lang=ui_lang) }}</label>
+        <label class="staff-field-city-v127"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='form-control form-control-lg', lang=ui_lang) }}</label>
         {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
         <div class="phone-combo-v124 staff-phone-v127">
           <label class="staff-phone-prefix-v127">

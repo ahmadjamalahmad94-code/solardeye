@@ -1,0 +1,59 @@
+{# ════════════════════════════════════════════════════════════════════
+   Solar Eye — Shared location picker macros
+
+   Render any of:
+     {{ loc.country_select(name='country', value=user.country, classes='form-control', countries=country_options, lang=ui_lang) }}
+     {{ loc.city_select(name='city', value=user.city, classes='form-control', lang=ui_lang) }}
+     {{ loc.timezone_select(name='timezone', value=user.timezone, classes='form-control', groups=timezone_groups, lang=ui_lang) }}
+
+   The JS at /static/js/location_picker.js auto-wires them via the
+   data-loc-* hooks (no extra setup required as long as base.html loads it).
+═══════════════════════════════════════════════════════════════════════ #}
+
+{% macro country_select(name='country', value='', classes='', countries=[], lang='ar', required=false, with_flag=true, placeholder=None, id_attr=None) %}
+  {% set is_en = (lang == 'en') %}
+  {% set ph = placeholder if placeholder else ('— Select country —' if is_en else '— اختر الدولة —') %}
+  <select class="{{ classes }}" name="{{ name }}" {% if id_attr %}id="{{ id_attr }}"{% endif %}
+          data-loc-country data-loc-lang="{{ 'en' if is_en else 'ar' }}"
+          {% if required %}required{% endif %}>
+    <option value="">{{ ph }}</option>
+    {% for c in countries %}
+      {% set label_value = c.name_en if is_en else c.name_ar %}
+      <option value="{{ label_value }}"
+        data-code="{{ c.code }}"
+        data-dial="{{ c.dial }}"
+        data-tz="{{ c.timezone }}"
+        data-cities-ar='{{ c.cities_ar|tojson }}'
+        data-cities-en='{{ c.cities_en|tojson }}'
+        {% if value and (value == c.name_ar or value == c.name_en) %}selected{% endif %}>
+        {% if with_flag and c.flag %}{{ c.flag }} {% endif %}{{ label_value }}
+      </option>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+{% macro city_select(name='city', value='', classes='', lang='ar', required=false, placeholder=None, id_attr=None) %}
+  {% set is_en = (lang == 'en') %}
+  {% set ph = placeholder if placeholder else ('— Select city —' if is_en else '— اختر المدينة —') %}
+  <select class="{{ classes }}" name="{{ name }}" {% if id_attr %}id="{{ id_attr }}"{% endif %}
+          data-loc-city data-loc-current="{{ value or '' }}"
+          {% if required %}required{% endif %}>
+    <option value="">{{ ph }}</option>
+    {% if value %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
+  </select>
+{% endmacro %}
+
+{% macro timezone_select(name='timezone', value='Asia/Hebron', classes='', groups=[], lang='ar', required=false, id_attr=None) %}
+  {% set is_en = (lang == 'en') %}
+  <select class="{{ classes }}" name="{{ name }}" {% if id_attr %}id="{{ id_attr }}"{% endif %}
+          data-loc-timezone dir="ltr"
+          {% if required %}required{% endif %}>
+    {% for group in groups %}
+      <optgroup label="{{ group.group_en if is_en else group.group_ar }}">
+        {% for item in group['items'] %}
+          <option value="{{ item.tz }}" {% if value == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endfor %}
+  </select>
+{% endmacro %}
