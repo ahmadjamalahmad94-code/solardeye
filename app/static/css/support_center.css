@@ -1056,3 +1056,459 @@
   .sc-toolbar-group + .sc-toolbar-group::before { display: none; }
   .sc-toolbar form { gap: 8px !important; row-gap: 8px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH PASS v169 — Wrap the inbox/queue rail in a single panel
+   The cases list, filter chips, and new-case button were sitting in raw
+   space with no container. Group them in one bordered "card" with inner
+   sections so the rail feels intentional and matches the right-side
+   detail cards aesthetic.
+═══════════════════════════════════════════════════════════════════════ */
+.sc-inbox-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%) !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: var(--sc-radius) !important;
+  padding: 14px !important;
+  gap: 12px !important;
+  box-shadow: 0 4px 14px -10px rgba(15, 23, 42, .08) !important;
+}
+
+/* Header (search + new button) — separate visually with bottom rule */
+.sc-inbox-head {
+  padding-bottom: 10px !important;
+  border-bottom: 1px dashed #e2e8f0 !important;
+}
+
+/* Filter chips — pill row inside its own subtle plate */
+.sc-inbox-filters {
+  background: #f8fafc !important;
+  border: 1px solid #eef2ff !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  gap: 6px !important;
+}
+.sc-filter-chip {
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  font-size: .78rem !important;
+  font-weight: 700 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.sc-filter-chip:hover { transform: translateY(-1px); border-color: #c7d2fe !important; }
+.sc-filter-chip.is-active {
+  background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 10px -4px rgba(67, 56, 202, .45);
+}
+.sc-filter-chip.is-active b { color: #fff !important; opacity: .9; }
+.sc-filter-chip b {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: .72rem;
+}
+
+/* New case toggle (details/summary) */
+.sc-new-case {
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.sc-new-case:hover { border-color: #c7d2fe !important; }
+.sc-new-case[open] {
+  border-color: #c7d2fe !important;
+  box-shadow: 0 6px 16px -10px rgba(67, 56, 202, .25) !important;
+}
+.sc-new-case summary {
+  cursor: pointer;
+  font-weight: 800 !important;
+  color: #4338ca !important;
+  list-style: none;
+}
+.sc-new-case summary::before { content: '+ '; color: #4f46e5; font-weight: 900; }
+.sc-new-case[open] summary::before { content: '− '; }
+
+/* Inbox list — slight inner card with its own padding */
+.sc-inbox-list {
+  background: #fafbff !important;
+  border: 1px solid #eef2ff !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  gap: 8px !important;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.sc-inbox-list::-webkit-scrollbar { width: 6px; }
+.sc-inbox-list::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 999px; }
+
+/* Inbox cards — borders, hover, and active state */
+.sc-inbox-card {
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 12px !important;
+  transition: all .15s ease;
+}
+.sc-inbox-card:hover {
+  border-color: #c7d2fe !important;
+  background: linear-gradient(135deg, #fafbff, #fff) !important;
+  transform: translateX(-2px);
+}
+[dir="ltr"] .sc-inbox-card:hover { transform: translateX(2px); }
+.sc-inbox-card.is-active {
+  border-color: #4f46e5 !important;
+  background: linear-gradient(135deg, #eef2ff, #fff 70%) !important;
+  box-shadow: 0 6px 16px -10px rgba(67, 56, 202, .35) !important;
+}
+
+/* Mobile: drop max-height and let list grow naturally */
+@media (max-width: 880px) {
+  .sc-inbox-list { max-height: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH PASS v170 — Toast/flash above the sidebar
+   The status update toast (".sc-toast") and the global flash stack
+   were sitting at z-index 60/1100 which is BELOW the rebuilt sidebar
+   (z-index up to 99999). Elevate them above everything.
+═══════════════════════════════════════════════════════════════════════ */
+.sc-toast {
+  z-index: 100000 !important;
+  bottom: 28px !important;
+  inset-inline-end: 28px !important;
+}
+.flash-stack-v61 {
+  z-index: 100000 !important;
+}
+/* On RTL pages the toast was hugging the sidebar edge — push it inwards
+   so it never overlaps the navigation rail. */
+@media (min-width: 980px) {
+  body[dir="rtl"] .sc-toast,
+  body[dir="rtl"] .flash-stack-v61 {
+    inset-inline-end: 90px !important;
+  }
+  body[dir="ltr"] .sc-toast,
+  body[dir="ltr"] .flash-stack-v61 {
+    inset-inline-end: 28px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH PASS v172 — Toast / flash respect actual sidebar width
+   The sidebar is 69px collapsed, 230px expanded. Pinning the toast
+   90px from the inline-end edge worked for collapsed but the toast
+   still slid under the expanded rail. Use the same body-state classes
+   the sidebar uses so the toast always stays clear of the navigation.
+═══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 980px) {
+  body.sd-sidebar-collapsed-v21 .sc-toast,
+  body.sd-sidebar-collapsed-v21 .flash-stack-v61 {
+    inset-inline-end: 90px !important;
+  }
+  body.sd-sidebar-expanded-v21 .sc-toast,
+  body.sd-sidebar-expanded-v21 .flash-stack-v61 {
+    inset-inline-end: 250px !important;
+  }
+}
+/* On smaller screens the sidebar slides off-canvas, so pin near edge */
+@media (max-width: 979px) {
+  .sc-toast,
+  .flash-stack-v61 {
+    inset-inline-end: 12px !important;
+    left: 12px !important;
+    right: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+}
+/* Final guard: keep toast above ALL chrome */
+.sc-toast,
+.flash-stack-v61 {
+  z-index: 100000 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH PASS v175 — Compact toast at top-center (clean override)
+   Earlier attempts left conflicting `inset-inline-*` rules that collapsed
+   the toast to zero width. This block resets every position-related
+   property and uses absolute pixel-based centering (left:50% + transform).
+═══════════════════════════════════════════════════════════════════════ */
+html body .sc-toast,
+html body .flash-stack-v61 {
+  position: fixed !important;
+  top: 18px !important;
+  bottom: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  inset-inline-end: unset !important;
+  inset-inline-start: unset !important;
+  margin: 0 !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: 360px !important;
+  min-width: 220px !important;
+  z-index: 100000 !important;
+  border-radius: 12px !important;
+  text-align: center !important;
+}
+html body .sc-toast {
+  padding: 10px 18px !important;
+  font-size: .88rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, .22) !important;
+}
+html body .flash-stack-v61 {
+  display: grid !important;
+  gap: 8px !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+html body .flash-stack-v61 .flash-toast-v61 {
+  padding: 9px 16px !important;
+  font-size: .86rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, .22) !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+html body .flash-stack-v61 .flash-toast-v61 p {
+  font-size: .86rem !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 720px) {
+  html body .sc-toast,
+  html body .flash-stack-v61 {
+    max-width: calc(100vw - 24px) !important;
+  }
+}
+
+/* v183 — Center support feedback toast in the viewport */
+body:has(.support-center-shell) > .flash-stack-v61,
+body:has(.support-center-shell) > .sc-toast,
+body:has(.support-center-shell) > [data-sc-toast] {
+  position: fixed !important;
+  top: 16px !important;
+  bottom: auto !important;
+  left: 50vw !important;
+  right: auto !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: auto !important;
+  width: max-content !important;
+  min-width: 220px !important;
+  max-width: min(420px, calc(100vw - 28px)) !important;
+  margin: 0 !important;
+  transform: translateX(-50%) !important;
+  text-align: center !important;
+  z-index: 100000 !important;
+}
+
+body:has(.support-center-shell) > .flash-stack-v61 .flash-toast-v61 {
+  justify-content: center !important;
+}
+
+/* v185 — Dedicated viewport layer for exact centering */
+.sc-feedback-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  padding-top: 16px !important;
+  pointer-events: none !important;
+  z-index: 100000 !important;
+}
+.sc-feedback-layer > .sc-toast,
+.sc-feedback-layer > .flash-stack-v61 {
+  position: static !important;
+  inset: auto !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  width: max-content !important;
+  max-width: min(420px, calc(100vw - 28px)) !important;
+  text-align: center !important;
+  pointer-events: auto !important;
+}
+
+/* v186 — Support action dock: redesigned command controls */
+.sc-toolbar {
+  padding: 14px !important;
+  border: 1px solid rgba(203, 213, 225, .82) !important;
+  border-radius: 22px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.98)) !important;
+  box-shadow: 0 18px 48px -30px rgba(15, 23, 42, .32) !important;
+}
+
+.sc-toolbar .sc-action-dock {
+  display: grid !important;
+  grid-template-columns: minmax(170px, .85fr) minmax(260px, 1.25fr) minmax(260px, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+  margin: 0 !important;
+}
+
+.sc-toolbar .sc-toolbar-group {
+  padding: 0 !important;
+  gap: 8px !important;
+  display: flex !important;
+  align-items: stretch !important;
+}
+
+.sc-toolbar .sc-toolbar-group::before {
+  display: none !important;
+}
+
+.sc-toolbar .sc-toolbar-group[data-group="primary"] {
+  grid-column: 1;
+}
+
+.sc-toolbar .sc-toolbar-group[data-group="assign"] {
+  grid-column: 2;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  padding: 8px !important;
+  border-radius: 18px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.sc-toolbar .sc-toolbar-group[data-group="status"],
+.sc-toolbar .sc-toolbar-group[data-group="meta"] {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.sc-toolbar .sc-toolbar-group[data-group="danger"] {
+  min-width: 112px;
+}
+
+.sc-toolbar .sc-select {
+  min-width: 0 !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  border: 0 !important;
+  background: #fff !important;
+  box-shadow: inset 0 0 0 1px #dbe4f0 !important;
+  font-weight: 800 !important;
+}
+
+.sc-toolbar .sc-action-btn {
+  min-height: 44px !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  padding: 10px 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+
+.sc-toolbar .sc-action-btn::before {
+  content: attr(data-action-icon);
+  width: 24px;
+  height: 24px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.7);
+  color: currentColor;
+  font-size: .9rem;
+  flex: 0 0 auto;
+}
+
+.sc-toolbar .sc-action-main {
+  width: 100% !important;
+  min-height: 60px !important;
+  border-radius: 18px !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #2563eb, #4338ca) !important;
+  box-shadow: 0 18px 36px -22px rgba(37, 99, 235, .8) !important;
+}
+
+.sc-toolbar .sc-action-assign {
+  color: #3730a3 !important;
+  background: linear-gradient(135deg, #eef2ff, #ddd6fe) !important;
+}
+
+.sc-toolbar .sc-action-wait {
+  color: #92400e !important;
+  background: linear-gradient(135deg, #fffbeb, #fde68a) !important;
+}
+
+.sc-toolbar .sc-action-urgent {
+  color: #991b1b !important;
+  background: linear-gradient(135deg, #fff1f2, #fecdd3) !important;
+}
+
+.sc-toolbar .sc-action-follow {
+  color: #0f766e !important;
+  background: linear-gradient(135deg, #ecfdf5, #99f6e4) !important;
+}
+
+.sc-toolbar .sc-action-merge {
+  color: #6d28d9 !important;
+  background: linear-gradient(135deg, #f5f3ff, #ddd6fe) !important;
+}
+
+.sc-toolbar .sc-action-close {
+  color: #b91c1c !important;
+  background: linear-gradient(135deg, #fff, #fee2e2) !important;
+  box-shadow: inset 0 0 0 1px #fecaca !important;
+}
+
+.sc-toolbar .sc-action-btn:hover {
+  transform: translateY(-1px) !important;
+  filter: saturate(1.08);
+}
+
+.sc-toolbar .sc-action-btn:active {
+  transform: translateY(0) scale(.99) !important;
+}
+
+@media (max-width: 1180px) {
+  .sc-toolbar .sc-action-dock {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .sc-toolbar .sc-toolbar-group[data-group] {
+    grid-column: auto !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .sc-toolbar .sc-action-dock {
+    grid-template-columns: 1fr !important;
+  }
+  .sc-toolbar .sc-toolbar-group[data-group="status"],
+  .sc-toolbar .sc-toolbar-group[data-group="meta"],
+  .sc-toolbar .sc-toolbar-group[data-group="assign"] {
+    grid-template-columns: 1fr !important;
+  }
+  .sc-toolbar .sc-action-btn,
+  .sc-toolbar .sc-select {
+    width: 100% !important;
+  }
+}

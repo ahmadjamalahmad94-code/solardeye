@@ -35,10 +35,61 @@
   };
 
   /* ────────────────────── Toast ────────────────────── */
+  // Move the toast to <body> directly — otherwise its parent grid/main
+  // container imposes a containing block on `position: fixed` and the
+  // toast renders at the wrong horizontal position regardless of CSS
+  // centering rules.
+  function feedbackLayer() {
+    let layer = document.querySelector('[data-sc-feedback-layer]');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'sc-feedback-layer';
+      layer.dataset.scFeedbackLayer = '1';
+      document.body.appendChild(layer);
+    }
+    layer.style.setProperty('position', 'fixed', 'important');
+    layer.style.setProperty('inset', '0', 'important');
+    layer.style.setProperty('display', 'flex', 'important');
+    layer.style.setProperty('justify-content', 'center', 'important');
+    layer.style.setProperty('align-items', 'flex-start', 'important');
+    layer.style.setProperty('padding-top', '16px', 'important');
+    layer.style.setProperty('pointer-events', 'none', 'important');
+    layer.style.setProperty('z-index', '100000', 'important');
+    return layer;
+  }
+
+  function centerFeedbackNode(el) {
+    if (!el) return;
+    const layer = feedbackLayer();
+    if (el.parentNode !== layer) layer.appendChild(el);
+    el.style.setProperty('position', 'static', 'important');
+    el.style.setProperty('top', 'auto', 'important');
+    el.style.setProperty('bottom', 'auto', 'important');
+    el.style.setProperty('left', 'auto', 'important');
+    el.style.setProperty('right', 'auto', 'important');
+    el.style.setProperty('inset-inline-start', 'auto', 'important');
+    el.style.setProperty('inset-inline-end', 'auto', 'important');
+    el.style.setProperty('margin', '0 auto', 'important');
+    el.style.setProperty('transform', 'none', 'important');
+    el.style.setProperty('width', 'max-content', 'important');
+    el.style.setProperty('max-width', 'min(420px, calc(100vw - 28px))', 'important');
+    el.style.setProperty('text-align', 'center', 'important');
+    el.style.setProperty('pointer-events', 'auto', 'important');
+    el.style.setProperty('z-index', '1', 'important');
+  }
+
   const toastEl = root.querySelector('[data-sc-toast]');
+  centerFeedbackNode(toastEl);
+  document.querySelectorAll('.flash-stack-v61').forEach((stack) => {
+    centerFeedbackNode(stack);
+    stack.style.setProperty('display', 'grid', 'important');
+    stack.style.setProperty('place-items', 'center', 'important');
+  });
+
   let toastTimer = null;
   function toast(message, kind) {
     if (!toastEl) return;
+    centerFeedbackNode(toastEl);
     toastEl.hidden = false;
     toastEl.dataset.kind = kind || 'info';
     toastEl.textContent = message;
@@ -210,12 +261,35 @@
   /* ────────────────────── AJAX: submit any action form ────────────────────── */
   async function submitActionForm(form, triggerBtn) {
     if (!form) return false;
+
+    // Prevent double-submission: if a request is already in flight for this
+    // form, ignore the duplicate trigger. The screenshot showed the same reply
+    // arriving twice (once as reply, once as note) because both submit and
+    // canned-action click handlers fired in sequence.
+    if (form.dataset.submitting === '1') return false;
+    form.dataset.submitting = '1';
+
+    // For reply forms, RE-READ the active reply mode at submit time so a stale
+    // is_internal_note flag from a tab switch can't cause the message to be
+    // saved under the wrong role.
+    if (form.matches('[data-sc-reply-form]')) {
+      const activeTab = form.querySelector('[data-reply-mode].is-active');
+      const noteFlag = form.querySelector('[data-internal-note-input]');
+      if (noteFlag && activeTab) {
+        noteFlag.value = (activeTab.dataset.replyMode === 'internal') ? '1' : '0';
+      }
+    }
+
     const formData = new FormData(form);
     if (triggerBtn && triggerBtn.name) {
       formData.set(triggerBtn.name, triggerBtn.value || '');
     }
     formData.set('format', 'json');
     if (!formData.get('csrf_token')) formData.set('csrf_token', csrfToken());
+
+    // Disable submit-type buttons during the request to defeat fast double-clicks.
+    const submitButtons = Array.from(form.querySelectorAll('button[type="submit"]'));
+    submitButtons.forEach((b) => { b.disabled = true; });
 
     setLoading(true);
     try {
@@ -258,6 +332,8 @@
       return false;
     } finally {
       setLoading(false);
+      submitButtons.forEach((b) => { b.disabled = false; });
+      form.dataset.submitting = '';
     }
   }
 
@@ -365,7 +441,7 @@
     });
   }
 
-  /* ────────────────────── Shortcut: Ctrl/⌘ + K focuses search ────────────────────── */
+  /* Shortcut: Ctrl/Cmd + K focuses search */
   document.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K')) {
       if (!searchInput) return;

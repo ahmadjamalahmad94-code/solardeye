@@ -8,7 +8,7 @@
 {% block title %}{{ 'Support Center' if is_en else 'مركز الدعم' }}{% endblock %}
 
 {% block body %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/support_center.css', v='v23-support-rebuild-20260429') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/support_center.css', v='v186-action-dock-20260505') }}">
 <div class="app-shell has-layout-sidebar sidebar-collapsed support-center-shell" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area support-center-main"
@@ -223,7 +223,7 @@
 
           {# ─── Toolbar — grouped actions, AJAX-aware via JS ─── #}
           <div class="sc-toolbar" data-sc-toolbar>
-            <form method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-sc-action-form>
+            <form class="sc-action-dock" method="post" action="{{ url_for('main.admin_support_command_action', lang=ui_lang, filter=filter_key) }}" data-sc-action-form>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="case_type" value="{{ c.case_type }}">
               <input type="hidden" name="source_id" value="{{ c.source_id }}">
@@ -231,9 +231,9 @@
 
               <div class="sc-toolbar-group" data-group="primary">
                 {% if is_closed %}
-                  <button type="submit" class="sc-btn-v2 primary" name="case_action" value="reopen">{{ 'Reopen' if is_en else 'إعادة فتح' }}</button>
+                  <button type="submit" class="sc-btn-v2 primary sc-action-btn sc-action-main" data-action-icon="R" name="case_action" value="reopen"><span>{{ 'Reopen' if is_en else 'إعادة فتح' }}</span></button>
                 {% else %}
-                  <button type="submit" class="sc-btn-v2 primary" name="case_action" value="start_processing">{{ 'Start processing' if is_en else 'بدء معالجة' }}</button>
+                  <button type="submit" class="sc-btn-v2 primary sc-action-btn sc-action-main" data-action-icon=">" name="case_action" value="start_processing"><span>{{ 'Start processing' if is_en else 'بدء معالجة' }}</span></button>
                 {% endif %}
               </div>
 
@@ -245,21 +245,21 @@
                     <option value="{{ admin.id }}" {% if c.assigned_admin_user_id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="sc-btn-v2" name="case_action" value="assign_admin">{{ 'Assign' if is_en else 'تعيين' }}</button>
+                <button type="submit" class="sc-btn-v2 sc-action-btn sc-action-assign" data-action-icon="@" name="case_action" value="assign_admin"><span>{{ 'Assign' if is_en else 'تعيين' }}</span></button>
               </div>
 
               <div class="sc-toolbar-group" data-group="status">
-                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="waiting_user" title="{{ 'Move to waiting user' if is_en else 'بانتظار المستخدم' }}">{{ 'Waiting user' if is_en else 'بانتظار الرد' }}</button>
-                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="mark_urgent" title="{{ 'Mark urgent' if is_en else 'علامة عاجل' }}">{{ 'Urgent' if is_en else 'عاجل' }}</button>
+                <button type="submit" class="sc-btn-v2 ghost sc-action-btn sc-action-wait" data-action-icon=".." name="case_action" value="waiting_user" title="{{ 'Move to waiting user' if is_en else 'بانتظار المستخدم' }}"><span>{{ 'Waiting user' if is_en else 'بانتظار الرد' }}</span></button>
+                <button type="submit" class="sc-btn-v2 ghost sc-action-btn sc-action-urgent" data-action-icon="!" name="case_action" value="mark_urgent" title="{{ 'Mark urgent' if is_en else 'علامة عاجل' }}"><span>{{ 'Urgent' if is_en else 'عاجل' }}</span></button>
               </div>
 
               <div class="sc-toolbar-group" data-group="meta">
-                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="tag_followup" title="{{ 'Add follow-up note' if is_en else 'علامة متابعة' }}">{{ 'Follow-up' if is_en else 'متابعة' }}</button>
-                <button type="submit" class="sc-btn-v2 ghost" name="case_action" value="merge_note" title="{{ 'Mark for merge review' if is_en else 'تسجيل للدمج' }}">{{ 'Merge' if is_en else 'دمج' }}</button>
+                <button type="submit" class="sc-btn-v2 ghost sc-action-btn sc-action-follow" data-action-icon="+" name="case_action" value="tag_followup" title="{{ 'Add follow-up note' if is_en else 'علامة متابعة' }}"><span>{{ 'Follow-up' if is_en else 'متابعة' }}</span></button>
+                <button type="submit" class="sc-btn-v2 ghost sc-action-btn sc-action-merge" data-action-icon="M" name="case_action" value="merge_note" title="{{ 'Mark for merge review' if is_en else 'تسجيل للدمج' }}"><span>{{ 'Merge' if is_en else 'دمج' }}</span></button>
               </div>
 
               <div class="sc-toolbar-group" data-group="danger">
-                <button type="submit" class="sc-btn-v2 danger" name="case_action" value="close" data-sc-confirm="{{ 'Close this case?' if is_en else 'هل تريد إغلاق الطلب؟' }}">{{ 'Close' if is_en else 'إغلاق' }}</button>
+                <button type="submit" class="sc-btn-v2 danger sc-action-btn sc-action-close" data-action-icon="X" name="case_action" value="close" data-sc-confirm="{{ 'Close this case?' if is_en else 'هل تريد إغلاق الطلب؟' }}"><span>{{ 'Close' if is_en else 'إغلاق' }}</span></button>
               </div>
               {% endif %}
             </form>
@@ -471,5 +471,5 @@
   </main>
 </div>
 
-<script src="{{ url_for('static', filename='js/support_center.js', v='v23-support-rebuild-20260429') }}" defer></script>
+<script src="{{ url_for('static', filename='js/support_center.js', v='v185-toast-layer-center-20260505') }}" defer></script>
 {% endblock %}
