@@ -2372,3 +2372,1180 @@ select.prof-input option{padding:6px 8px}
     inset-inline-end:-180px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCE TAB — payment methods + improved spacing
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Better breathing room in form body */
+.fin-form-body{
+  gap:18px 18px !important;
+  padding:24px 26px !important;
+}
+
+/* Quick preset buttons — slightly larger, cleaner spacing */
+.fin-quick{
+  display:flex !important;flex-wrap:wrap !important;gap:8px !important;
+  margin-bottom:10px;padding-bottom:10px;
+  border-bottom:1px dashed #e3eaf6;
+}
+
+/* Payment method cards grid */
+.fin-methods{
+  display:grid;
+  grid-template-columns:repeat(6, minmax(0,1fr));
+  gap:10px;
+  margin-top:6px;
+}
+@media (max-width:1100px){.fin-methods{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:560px){.fin-methods{grid-template-columns:repeat(2,1fr)}}
+
+.fin-method-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:14px 10px;
+  background:#fff;
+  border:2px solid #e3eaf6;
+  border-radius:14px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all .16s;
+  text-align:center;
+  position:relative;
+}
+.fin-method-card:hover{
+  border-color:#a78bfa;
+  background:linear-gradient(180deg,#faf5ff,#fff);
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(124,58,237,.12);
+}
+.fin-method-card.is-on{
+  border-color:#7c3aed;
+  background:linear-gradient(180deg,#f5f3ff,#fff);
+  box-shadow:0 10px 24px rgba(124,58,237,.20);
+}
+.fin-method-card.is-on::before{
+  content:"✓";
+  position:absolute;
+  top:6px;inset-inline-end:6px;
+  width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,#a78bfa,#7c3aed);
+  color:#fff;font-size:.78rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 8px rgba(124,58,237,.3);
+}
+.fin-method-icon{
+  width:42px;height:42px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;color:#fff;
+  box-shadow:0 6px 14px rgba(15,23,42,.12);
+  margin-bottom:4px;
+}
+.fin-method-card strong{
+  font-size:.84rem;font-weight:900;color:#0b1220;
+}
+.fin-method-card small{
+  font-size:.66rem;font-weight:700;color:#64748b;
+  text-transform:uppercase;letter-spacing:.3px;
+}
+
+/* Method pill in ledger row — colored chip after the type label */
+.fin-method-pill{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:999px;
+  font-size:.66rem;font-weight:900;
+  background:#f1f5f9;color:#475569;border:1px solid #e3eaf6;
+  margin-inline-start:6px;
+  vertical-align:middle;
+}
+.fin-method-pill.method-cash   {background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.fin-method-pill.method-card   {background:#dbeafe;color:#1e40af;border-color:#93c5fd}
+.fin-method-pill.method-bank   {background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+.fin-method-pill.method-paypal {background:#dbeafe;color:#003087;border-color:#93c5fd}
+.fin-method-pill.method-usdt   {background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.fin-method-pill.method-other  {background:#f1f5f9;color:#475569;border-color:#cbd5e1}
+
+/* Better spacing in ledger rows */
+.fin-ledger{
+  padding:24px !important;
+  gap:10px !important;
+}
+.fin-row{
+  padding:14px 16px !important;
+}
+
+/* Hero polish */
+.fin-hero{padding:24px 28px}
+.fin-hero-text h2.fin-balance{font-size:2.4rem !important}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCE v2 — generic .fin-cards (works for methods AND reasons)
+   + reason pill colors + better quick-presets row
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Generic card grid (method + reason) */
+.fin-cards{
+  display:grid;
+  grid-template-columns:repeat(6, minmax(0,1fr));
+  gap:10px;
+  margin-top:8px;
+}
+@media (max-width:1100px){.fin-cards{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:560px){.fin-cards{grid-template-columns:repeat(2,1fr)}}
+
+.fin-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:14px 10px;
+  background:#fff;
+  border:2px solid #e3eaf6;
+  border-radius:14px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all .16s;
+  text-align:center;
+  position:relative;
+  min-height:108px;
+}
+.fin-card:hover{
+  border-color:#a78bfa;
+  background:linear-gradient(180deg,#faf5ff,#fff);
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(124,58,237,.12);
+}
+.fin-card.is-on{
+  border-color:#7c3aed;
+  background:linear-gradient(180deg,#f5f3ff,#fff);
+  box-shadow:0 10px 24px rgba(124,58,237,.20);
+}
+.fin-card.is-on::before{
+  content:"✓";
+  position:absolute;
+  top:6px;inset-inline-end:6px;
+  width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,#a78bfa,#7c3aed);
+  color:#fff;font-size:.78rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 8px rgba(124,58,237,.3);
+}
+.fin-card-icon{
+  width:42px;height:42px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;color:#fff;
+  box-shadow:0 6px 14px rgba(15,23,42,.12);
+  margin-bottom:4px;
+}
+.fin-card strong{font-size:.84rem;font-weight:900;color:#0b1220;line-height:1.15}
+.fin-card small{
+  font-size:.66rem;font-weight:700;color:#64748b;
+  text-transform:uppercase;letter-spacing:.3px;line-height:1.2;
+}
+
+/* Reason pills in ledger — color per debit reason */
+.fin-method-pill.reason-renew-sub   {background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+.fin-method-pill.reason-renew-quota {background:#dbeafe;color:#1e40af;border-color:#93c5fd}
+.fin-method-pill.reason-add-device  {background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.fin-method-pill.reason-refund      {background:#fef3c7;color:#92400e;border-color:#fde68a}
+.fin-method-pill.reason-service     {background:#cffafe;color:#0e7490;border-color:#67e8f9}
+.fin-method-pill.reason-sms         {background:#fce7f3;color:#9d174d;border-color:#f9a8d4}
+.fin-method-pill.reason-penalty     {background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+.fin-method-pill.reason-cash-out    {background:#dcfce7;color:#166534;border-color:#86efac}
+.fin-method-pill.reason-other       {background:#f1f5f9;color:#475569;border-color:#cbd5e1}
+
+/* Improve fin-quick row */
+.fin-quick{
+  display:grid !important;
+  grid-template-columns:repeat(6, minmax(0,1fr)) !important;
+  gap:8px !important;
+  margin:0 0 4px 0;
+  padding:10px;
+  background:linear-gradient(180deg,#f8fafc,#fff);
+  border-radius:12px;
+  border:1px dashed #e3eaf6;
+}
+@media (max-width:760px){.fin-quick{grid-template-columns:repeat(3,1fr) !important}}
+.fin-quick-btn{
+  padding:10px 0;border-radius:10px;
+  border:2px solid;
+  font-family:inherit;font-size:.96rem;font-weight:900;
+  cursor:pointer;transition:all .15s;
+  letter-spacing:.4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCE — 3-column row for type/amount/currency + mandatory 26px gap
+═══════════════════════════════════════════════════════════════════════ */
+
+/* The first 3 fields (type, amount, currency) stay on ONE row — small data */
+.fin-form-body{
+  grid-template-columns:repeat(3, minmax(0,1fr)) !important;
+  gap:18px !important;
+}
+@media (max-width:760px){.fin-form-body{grid-template-columns:repeat(2,1fr) !important}}
+@media (max-width:520px){.fin-form-body{grid-template-columns:1fr !important}}
+
+/* Quick presets always full-width above the 3-col row */
+.fin-form-body > .fin-quick.prof-field-full{grid-column:1 / -1 !important}
+
+/* Method/reason cards full-width row */
+.fin-form-body > [data-fin-credit-section],
+.fin-form-body > [data-fin-debit-section],
+.fin-form-body > [data-fin-sub-quota],
+.fin-form-body > .prof-field-full{grid-column:1 / -1 !important}
+
+/* MANDATORY 26px section spacing — between every prof-step in finance pane */
+[data-up-pane="finance"] .prof-step + .prof-step,
+[data-up-pane="finance"] .prof-savebar + .prof-step,
+[data-up-pane="finance"] .prof-form + .prof-step,
+[data-up-pane="finance"] form + .prof-step{
+  margin-top:26px !important;
+}
+
+/* Between the finance hero and the form */
+[data-up-pane="finance"] .fin-hero + .prof-grid,
+[data-up-pane="finance"] .fin-hero + * .prof-form{margin-top:26px !important}
+
+/* Override any inline margin-top:18px on the prof-step inside finance */
+[data-up-pane="finance"] article.prof-step[style*="margin-top:18px"]{
+  margin-top:26px !important;
+}
+
+/* Match input height with selects in finance form (3-col row) */
+.fin-form-body input.prof-input,
+.fin-form-body select.prof-input{
+  min-height:44px !important;
+  padding:11px 14px !important;
+  font-size:.92rem !important;
+  line-height:1.2 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   QUOTAS — 2-column grid + compact cards + 26px section spacing
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Quota cards in 2-column grid (responsive) */
+.qta-grid{
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(0,1fr)) !important;
+  gap:12px !important;
+}
+@media (max-width:920px){.qta-grid{grid-template-columns:1fr !important}}
+
+/* Compact each card */
+.qta-card{
+  padding:14px 16px !important;
+  gap:14px !important;
+}
+.qta-card-donut{
+  width:68px !important;height:68px !important;
+}
+.qta-card-donut-inner{
+  width:54px !important;height:54px !important;
+}
+.qta-card-donut-num{font-size:.84rem !important}
+.qta-card-head strong{font-size:.86rem !important}
+.qta-card-meta{font-size:.66rem !important}
+.qta-card-stats{gap:10px !important}
+.qta-card-stats b{font-size:.96rem !important}
+.qta-card-stats small{font-size:.6rem !important}
+.qta-card-actions{margin-top:4px !important}
+.qta-card-btn{padding:5px 10px !important;font-size:.7rem !important}
+
+/* Hide the empty hero rings container if any leftover renders */
+.qta-hero-rings{display:none !important}
+
+/* MANDATORY 26px section spacing inside quotas pane */
+[data-up-pane="quotas"] .prof-step + .prof-step,
+[data-up-pane="quotas"] .prof-savebar + .prof-step,
+[data-up-pane="quotas"] form + .prof-step{
+  margin-top:26px !important;
+}
+[data-up-pane="quotas"] article.prof-step[style*="margin-top:18px"]{
+  margin-top:26px !important;
+}
+[data-up-pane="quotas"] .qta-hero + .prof-grid{margin-top:26px !important}
+
+/* Force EXACT height across all 3 fields in finance form (override anything) */
+.fin-form-body > .prof-field > input.prof-input,
+.fin-form-body > .prof-field > select.prof-input{
+  height:46px !important;
+  min-height:46px !important;
+  max-height:46px !important;
+  box-sizing:border-box !important;
+  padding:0 14px !important;
+  font-size:.92rem !important;
+  line-height:1.2 !important;
+  vertical-align:middle;
+  appearance:auto;
+}
+/* Specific override for number input to remove spinner offset */
+.fin-form-body > .prof-field > input[type="number"].prof-input{
+  -moz-appearance:textfield;
+}
+.fin-form-body > .prof-field > input[type="number"].prof-input::-webkit-outer-spin-button,
+.fin-form-body > .prof-field > input[type="number"].prof-input::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DEVICES v2 — Modern device card with provider gradient + live pulse
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Hero (same skeleton, just renamed prefix) */
+.dev2-hero{
+  position:relative;padding:22px 26px;border-radius:22px;
+  background:#fff;border:1px solid #e3eaf6;
+  box-shadow:0 12px 30px rgba(15,23,42,.08);overflow:hidden;
+}
+.dev2-hero::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(420px 200px at 100% 0%, rgba(16,185,129,.10), transparent 70%);
+}
+.dev2-hero > *{position:relative;z-index:1}
+.dev2-hero-text{display:flex;flex-direction:column;gap:8px}
+.dev2-hero-eyebrow{font-size:.72rem;font-weight:900;color:#0e7490;text-transform:uppercase;letter-spacing:.5px}
+.dev2-hero-text h2{margin:0;font-size:1.35rem;font-weight:950;color:#0b1220}
+.dev2-hero-text p{margin:0;font-size:.82rem;color:#4a5b78;line-height:1.5}
+.dev2-hero-stats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;
+  margin-top:8px;padding-top:12px;border-top:1px dashed rgba(16,185,129,.2);
+}
+.dev2-mini{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.7);border:1px solid #e3eaf6}
+.dev2-mini > span{
+  flex-shrink:0;width:34px;height:34px;border-radius:10px;
+  background:var(--c, #7c3aed);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:.92rem;
+  box-shadow:0 4px 10px rgba(0,0,0,.12);
+}
+.dev2-mini > div{display:flex;flex-direction:column;min-width:0}
+.dev2-mini small{font-size:.66rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.dev2-mini strong{font-size:.95rem;font-weight:950;color:#0b1220}
+@media (max-width:760px){.dev2-hero-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* ─── 26px section spacing ─── */
+[data-up-pane="devices"] .dev2-hero + .prof-grid{margin-top:26px !important}
+
+/* ─── Devices grid: 1 column, generous breathing room ─── */
+.dev2-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:1280px){.dev2-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ─── Device card ─── */
+.dev2-card{
+  position:relative;
+  background:#fff;
+  border:1px solid #e3eaf6;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  transition:all .2s;
+  display:flex;flex-direction:column;
+}
+.dev2-card:hover{transform:translateY(-3px);box-shadow:0 18px 38px rgba(15,23,42,.10);border-color:#c4b5fd}
+.dev2-card:hover .dev2-card-actions{opacity:1;transform:translateY(0)}
+
+/* ─── Banner (top section with provider gradient) ─── */
+.dev2-card-banner{
+  position:relative;
+  display:flex;align-items:center;gap:14px;
+  padding:16px 18px;
+  color:#fff;
+  background:linear-gradient(135deg,#64748b,#475569);  /* default = generic */
+  overflow:hidden;
+}
+.dev2-card-banner::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(220px 160px at 90% 0%, rgba(255,255,255,.18), transparent 70%);
+  pointer-events:none;
+}
+.dev2-card-banner > *{position:relative;z-index:1}
+
+/* Provider gradients */
+.dev2-card-banner.prov-deye    {background:linear-gradient(135deg,#f59e0b,#fbbf24)}
+.dev2-card-banner.prov-tesla   {background:linear-gradient(135deg,#0f172a,#3b82f6)}
+.dev2-card-banner.prov-victron {background:linear-gradient(135deg,#0891b2,#06b6d4)}
+.dev2-card-banner.prov-cloud   {background:linear-gradient(135deg,#0ea5e9,#38bdf8)}
+.dev2-card-banner.prov-local   {background:linear-gradient(135deg,#64748b,#94a3b8)}
+.dev2-card-banner.prov-generic {background:linear-gradient(135deg,#7c3aed,#a78bfa)}
+
+.dev2-card-glyph{
+  width:52px;height:52px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.7rem;
+  background:rgba(255,255,255,.22);
+  backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.34);
+  flex-shrink:0;
+}
+.dev2-card-banner-title{flex:1;min-width:0;display:flex;flex-direction:column}
+.dev2-card-banner-title strong{
+  font-size:1.05rem;font-weight:950;color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,.18);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.dev2-card-banner-title small{
+  font-size:.74rem;font-weight:700;color:rgba(255,255,255,.84);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* Live pulse pill (top corner) */
+.dev2-pulse{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:99px;
+  background:rgba(255,255,255,.92);
+  font-size:.66rem;font-weight:900;letter-spacing:.5px;
+  box-shadow:0 4px 10px rgba(0,0,0,.14);
+}
+.dev2-pulse i{
+  width:8px;height:8px;border-radius:50%;
+  background:#94a3b8;
+}
+.dev2-pulse-ok i{
+  background:#10b981;
+  animation:devPulseOk 1.6s ease-in-out infinite;
+}
+.dev2-pulse-warn i{background:#f59e0b;animation:devPulseWarn 2.2s ease-in-out infinite}
+.dev2-pulse-off i{background:#94a3b8}
+.dev2-pulse-ok em{color:#047857;font-style:normal}
+.dev2-pulse-warn em{color:#b45309;font-style:normal}
+.dev2-pulse-off em{color:#6b7280;font-style:normal}
+@keyframes devPulseOk{
+  0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.6)}
+  50%{box-shadow:0 0 0 6px rgba(16,185,129,0)}
+}
+@keyframes devPulseWarn{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.55)}
+  50%{box-shadow:0 0 0 5px rgba(245,158,11,0)}
+}
+
+/* ─── Mid stats strip ─── */
+.dev2-card-stats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;padding:14px 18px;
+  border-bottom:1px dashed #e3eaf6;
+  background:linear-gradient(180deg,#fafbfc,#fff);
+}
+@media (max-width:560px){.dev2-card-stats{grid-template-columns:repeat(2,1fr)}}
+.dev2-stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dev2-stat small{font-size:.62rem;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.dev2-stat strong{
+  font-size:.84rem;font-weight:900;color:#0b1220;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.dev2-stat-status.status-ok{color:#047857}
+.dev2-stat-status.status-warn{color:#b45309}
+.dev2-stat-status.status-off{color:#6b7280}
+.dev2-stat-time{font-variant-numeric:tabular-nums;font-size:.78rem !important}
+
+/* ─── Signal bars ─── */
+.dev2-signal{display:inline-flex;align-items:flex-end;gap:3px;height:18px}
+.dev2-signal i{
+  width:4px;border-radius:2px;background:#e3eaf6;
+  display:block;
+}
+.dev2-signal i.b1{height:6px}
+.dev2-signal i.b2{height:9px}
+.dev2-signal i.b3{height:13px}
+.dev2-signal i.b4{height:17px}
+.dev2-signal[data-bars="1"] i.b1{background:#ef4444}
+.dev2-signal[data-bars="2"] i.b1,
+.dev2-signal[data-bars="2"] i.b2{background:#f59e0b}
+.dev2-signal[data-bars="3"] i.b1,
+.dev2-signal[data-bars="3"] i.b2,
+.dev2-signal[data-bars="3"] i.b3{background:#10b981}
+.dev2-signal[data-bars="4"] i.b1,
+.dev2-signal[data-bars="4"] i.b2,
+.dev2-signal[data-bars="4"] i.b3,
+.dev2-signal[data-bars="4"] i.b4{background:#10b981}
+
+/* ─── Foot section: status note + actions ─── */
+.dev2-card-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 18px;
+}
+.dev2-note{
+  margin:0;padding:6px 12px;border-radius:9px;
+  font-size:.78rem;font-weight:900;
+}
+.dev2-note.success{background:#d1fae5;color:#065f46}
+.dev2-note.warning{background:#fef3c7;color:#92400e}
+.dev2-note.danger {background:#fee2e2;color:#991b1b}
+
+.dev2-card-actions{
+  display:flex;gap:6px;
+  opacity:.85;transform:translateY(0);
+  transition:all .2s;
+}
+.dev2-btn{
+  padding:7px 12px;border-radius:9px;
+  background:#f8fafc;color:#1f2a44;
+  border:1.5px solid #e3eaf6;
+  font-family:inherit;font-size:.74rem;font-weight:900;
+  cursor:pointer;transition:all .15s;
+}
+.dev2-btn:hover{background:#f5f3ff;border-color:#a78bfa;color:#5b21b6;transform:translateY(-1px);box-shadow:0 4px 10px rgba(124,58,237,.14)}
+.dev2-btn-sync:hover{background:#ecfdf5;border-color:#6ee7b7;color:#047857;box-shadow:0 4px 10px rgba(16,185,129,.18)}
+
+/* ─── Empty state ─── */
+.dev2-empty{
+  text-align:center;padding:60px 20px;border-radius:18px;
+  background:#fafbfc;border:2px dashed #e3eaf6;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.dev2-empty > span{font-size:3rem}
+.dev2-empty strong{font-size:1.04rem;font-weight:900;color:#0b1220}
+.dev2-empty small{font-size:.82rem;color:#64748b;font-weight:700}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DEVICES v2 — Service status strip + popup menu + toast
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Services strip (between mid stats and foot) */
+.dev2-services{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 18px;
+  background:#fafbfc;
+  border-bottom:1px dashed #e3eaf6;
+}
+.dev2-services-lbl{
+  font-size:.66rem;font-weight:900;color:#64748b;
+  text-transform:uppercase;letter-spacing:.5px;
+  margin-inline-end:auto;
+}
+.dev2-svc{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 10px;border-radius:99px;
+  font-size:.7rem;font-weight:900;
+  background:#fff;border:1.5px solid #e3eaf6;
+  white-space:nowrap;
+}
+.dev2-svc i{font-style:normal;font-size:.78rem;line-height:1}
+.dev2-svc em{font-style:normal;color:#1f2a44}
+.dev2-svc b{font-weight:900;font-size:.78rem}
+.dev2-svc.svc-ok{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+.dev2-svc.svc-ok b{color:#047857}
+.dev2-svc.svc-warn{background:#fffbeb;border-color:#fde68a;color:#b45309}
+.dev2-svc.svc-warn b{color:#b45309}
+.dev2-svc.svc-fail{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.dev2-svc.svc-fail b{color:#b91c1c}
+
+/* Popup menu trigger (kebab) */
+.dev2-menu-anchor{position:relative;display:inline-block}
+.dev2-menu-trigger{
+  width:34px;height:34px;border-radius:9px;
+  background:#f8fafc;color:#1f2a44;
+  border:1.5px solid #e3eaf6;
+  font-family:inherit;font-size:1.2rem;font-weight:900;
+  cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;justify-content:center;
+  letter-spacing:1px;
+}
+.dev2-menu-trigger:hover{
+  background:#f5f3ff;border-color:#a78bfa;color:#5b21b6;
+  transform:translateY(-1px);box-shadow:0 4px 10px rgba(124,58,237,.16);
+}
+
+/* Popup menu */
+.dev2-menu{
+  position:absolute;
+  bottom:calc(100% + 8px);
+  inset-inline-end:0;
+  z-index:60;
+  width:280px;
+  background:#fff;
+  border:1px solid #e3eaf6;
+  border-radius:14px;
+  box-shadow:0 24px 60px rgba(15,23,42,.18), 0 4px 12px rgba(15,23,42,.08);
+  overflow:hidden;
+  animation:dev2MenuFadeIn .15s ease-out;
+  padding:6px;
+}
+.dev2-menu[hidden]{display:none}
+@keyframes dev2MenuFadeIn{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.dev2-menu-item{
+  display:flex;align-items:center;gap:10px;
+  width:100%;
+  padding:10px 12px;
+  background:transparent;border:none;border-radius:10px;
+  font-family:inherit;text-align:start;cursor:pointer;
+  text-decoration:none;color:inherit;
+  transition:background .12s;
+}
+.dev2-menu-item:hover{background:linear-gradient(135deg,#f5f3ff,#faf5ff)}
+.dev2-menu-icon{
+  flex-shrink:0;width:34px;height:34px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;font-weight:900;
+}
+.dev2-menu-item div{display:flex;flex-direction:column;min-width:0;flex:1}
+.dev2-menu-item strong{font-size:.84rem;font-weight:900;color:#0b1220}
+.dev2-menu-item small{font-size:.7rem;font-weight:700;color:#64748b}
+.dev2-menu-sep{
+  margin:4px 0;border:none;height:1px;background:#e3eaf6;
+}
+.dev2-menu-danger:hover{background:linear-gradient(135deg,#fef2f2,#fff)}
+.dev2-menu-danger strong{color:#b91c1c}
+
+/* Toast notifications */
+.dev2-toast{
+  position:fixed;
+  bottom:24px;
+  inset-inline-start:50%;
+  transform:translateX(-50%) translateY(20px);
+  z-index:9999;
+  padding:12px 20px;border-radius:11px;
+  background:#0b1220;color:#fff;
+  font-family:inherit;font-size:.86rem;font-weight:800;
+  box-shadow:0 14px 40px rgba(15,23,42,.32);
+  opacity:0;
+  transition:all .25s;
+}
+.dev2-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.dev2-toast.success{background:linear-gradient(135deg,#10b981,#34d399);color:#fff}
+.dev2-toast.warning{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#0b1220}
+.dev2-toast.danger {background:linear-gradient(135deg,#ef4444,#f87171);color:#fff}
+.dev2-toast.info   {background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff}
+[dir="rtl"] .dev2-toast{transform:translateX(50%) translateY(20px)}
+[dir="rtl"] .dev2-toast.show{transform:translateX(50%) translateY(0)}
+
+/* Removed old action buttons styling (replaced by menu) */
+.dev2-card-actions{display:none !important}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DEVICES v3 — Restore inline buttons + Edit modal
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Re-enable inline action buttons (override hide rule from v117) */
+.dev2-card-actions{
+  display:flex !important;
+  gap:6px;align-items:center;
+  opacity:.85;
+  transition:opacity .2s;
+}
+.dev2-card:hover .dev2-card-actions{opacity:1}
+
+/* Hide the now-unused popup menu trigger */
+.dev2-menu-anchor, .dev2-menu, .dev2-menu-trigger{display:none !important}
+
+/* Modal */
+.dev2-modal{
+  position:fixed;inset:0;z-index:9000;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  animation:dev2ModalIn .2s ease-out;
+}
+.dev2-modal[hidden]{display:none !important}
+@keyframes dev2ModalIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+.dev2-modal-backdrop{
+  position:absolute;inset:0;
+  background:rgba(15,23,42,.55);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  cursor:pointer;
+}
+.dev2-modal-card{
+  position:relative;z-index:1;
+  width:min(620px,96vw);
+  max-height:90vh;overflow:auto;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 32px 80px rgba(15,23,42,.32), 0 6px 16px rgba(15,23,42,.10);
+  display:flex;flex-direction:column;
+  animation:dev2ModalCardIn .25s ease-out;
+}
+@keyframes dev2ModalCardIn{
+  from{opacity:0;transform:translateY(20px) scale(.98)}
+  to{opacity:1;transform:none}
+}
+.dev2-modal-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:18px 22px;
+  background:linear-gradient(180deg,#faf5ff,#fff);
+  border-bottom:1px solid #ede9fe;
+}
+.dev2-modal-head > div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dev2-modal-eyebrow{font-size:.7rem;font-weight:900;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px}
+.dev2-modal-head h3{margin:0;font-size:1.1rem;font-weight:950;color:#0b1220}
+.dev2-modal-close{
+  flex-shrink:0;
+  width:34px;height:34px;border-radius:9px;
+  background:#f5f3ff;color:#5b21b6;border:1.5px solid #ddd6fe;
+  font-size:1rem;font-weight:900;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.dev2-modal-close:hover{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.dev2-modal-body{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.dev2-modal-hint{
+  margin:0;padding:10px 14px;border-radius:11px;
+  background:#fffbeb;border:1px solid #fde68a;
+  font-size:.78rem;font-weight:700;color:#92400e;line-height:1.5;
+}
+.dev2-modal-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;
+}
+@media (max-width:560px){.dev2-modal-grid{grid-template-columns:1fr}}
+.dev2-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.dev2-field-full{grid-column:1 / -1}
+.dev2-field > span{
+  font-size:.72rem;font-weight:900;color:#1f2a44;
+  display:flex;align-items:center;gap:5px;
+}
+.dev2-field > span em{color:#dc2626;font-style:normal;font-weight:900}
+.dev2-field > input,.dev2-field > select,.dev2-field > textarea{
+  width:100%;
+}
+
+/* Active toggle row inside modal */
+.dev2-toggle{
+  flex-direction:row !important;align-items:center !important;gap:14px !important;
+  padding:14px 16px;border-radius:12px;
+  background:linear-gradient(135deg,#f5f3ff,#fff);
+  border:2px solid #ddd6fe;cursor:pointer;
+}
+.dev2-toggle input{
+  flex-shrink:0;
+  appearance:none;-webkit-appearance:none;
+  width:46px;height:26px;border-radius:999px;
+  background:#cbd5e1;position:relative;cursor:pointer;
+  transition:background .18s;margin:0;
+}
+.dev2-toggle input::after{
+  content:"";position:absolute;top:3px;inset-inline-start:3px;
+  width:20px;height:20px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.22);transition:inset-inline-start .18s;
+}
+.dev2-toggle input:checked{background:linear-gradient(135deg,#10b981,#34d399)}
+.dev2-toggle input:checked::after{inset-inline-start:23px}
+.dev2-toggle > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dev2-toggle strong{font-size:.86rem;font-weight:900;color:#0b1220}
+.dev2-toggle small{font-size:.72rem;color:#5b21b6;font-weight:700}
+
+.dev2-modal-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:14px 22px;
+  border-top:1px solid #e3eaf6;
+  background:#fafbfc;
+}
+.dev2-modal-foot-actions{display:flex;gap:8px}
+
+/* Force services strip into clean 2x2 grid (label above, 4 chips in 2 cols) */
+.dev2-services{
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(0,1fr)) !important;
+  gap:8px 10px !important;
+  align-items:stretch !important;
+  padding:14px 18px !important;
+}
+.dev2-services-lbl{
+  grid-column:1 / -1 !important;
+  margin:0 0 4px 0 !important;
+  display:block;
+  font-size:.66rem;font-weight:900;color:#64748b;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.dev2-svc{
+  width:100% !important;
+  justify-content:flex-start !important;
+  padding:8px 12px !important;
+  border-radius:11px !important;
+}
+.dev2-svc i{font-size:.86rem;flex-shrink:0}
+.dev2-svc em{flex:1;text-align:start}
+.dev2-svc b{flex-shrink:0;font-size:.86rem}
+@media (max-width:520px){.dev2-services{grid-template-columns:1fr !important}}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVITY v2 — clean rows (no dot+badge stacking) + pagination footer
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Hide the legacy dot — only the badge icon shows now */
+.act-event-dot{display:none !important}
+
+/* Reset event row layout — badge first (start side), body fills the rest */
+.act-event{
+  display:flex !important;align-items:center !important;gap:12px !important;
+  padding:12px 14px !important;
+  border-radius:12px;background:#fff;
+  border:1px solid #e3eaf6;
+  position:relative;
+  transition:all .15s;
+}
+.act-event:hover{border-color:#c4b5fd;box-shadow:0 4px 12px rgba(15,23,42,.06)}
+
+/* Badge — bigger icon, single source of visual identity */
+.act-event-badge{
+  flex-shrink:0;
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;
+}
+
+/* Date — keep LTR formatting so digits don't reverse */
+.act-event-time{
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  direction:ltr;display:inline-block;
+}
+.act-event-body small{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+
+/* Pagination footer */
+.act-pager{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:14px;padding:12px 16px;
+  background:#fff;border:1px solid #e3eaf6;border-radius:12px;
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
+}
+.act-pager[hidden]{display:none}
+.act-pager-btn{
+  padding:8px 14px;border-radius:9px;
+  background:#f8fafc;color:#1f2a44;
+  border:1.5px solid #e3eaf6;
+  font-family:inherit;font-size:.78rem;font-weight:900;
+  cursor:pointer;transition:all .15s;
+}
+.act-pager-btn:hover:not(:disabled){
+  background:#f5f3ff;border-color:#a78bfa;color:#5b21b6;
+  transform:translateY(-1px);box-shadow:0 4px 10px rgba(124,58,237,.14);
+}
+.act-pager-btn:disabled{opacity:.4;cursor:not-allowed}
+.act-pager-info{
+  font-size:.8rem;font-weight:800;color:#475569;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+.act-pager-info b{color:#5b21b6;font-weight:900}
+.act-pager-info > span[data-act-range]{
+  font-variant-numeric:tabular-nums;direction:ltr;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVITY v3 — class-based hiding + lush animations
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Hard hide via class (overrides display:flex !important from earlier) */
+.act-event.act-hidden{display:none !important}
+
+/* Stagger entrance animation when shown */
+.act-event.act-show{
+  animation:actSlideIn .42s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes actSlideIn{
+  0%  {opacity:0;transform:translateX(20px) scale(.96)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+[dir="ltr"] .act-event.act-show{animation-name:actSlideInLtr}
+@keyframes actSlideInLtr{
+  0%  {opacity:0;transform:translateX(-20px) scale(.96)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+
+/* Hover micro-interaction on event row */
+.act-event{cursor:default}
+.act-event:hover{
+  transform:translateY(-2px);
+  border-color:#a78bfa;
+  box-shadow:0 8px 18px rgba(124,58,237,.10);
+}
+.act-event:hover .act-event-badge{
+  transform:scale(1.08) rotate(-3deg);
+  box-shadow:0 6px 14px rgba(15,23,42,.16);
+}
+.act-event-badge{transition:transform .22s, box-shadow .22s}
+
+/* Filter chip — subtle bounce when toggled on */
+.act-chip{transition:all .18s cubic-bezier(.22,1,.36,1)}
+.act-chip.is-on{
+  animation:chipPop .35s ease-out;
+}
+@keyframes chipPop{
+  0%  {transform:scale(.92)}
+  50% {transform:scale(1.08)}
+  100%{transform:scale(1)}
+}
+
+/* Sparkline bars rise from bottom on first paint */
+.act-hero-spark i{
+  transform-origin:bottom;
+  transform:scaleY(0);
+  opacity:.4;
+}
+.act-hero-spark i.spark-rise{
+  animation:sparkRise .6s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes sparkRise{
+  0%  {transform:scaleY(0);opacity:.4}
+  100%{transform:scaleY(1);opacity:1}
+}
+/* Continuous gentle wave on the sparkline (after initial rise) */
+.act-hero-spark:hover i{
+  animation:sparkWave 1.6s ease-in-out infinite;
+}
+@keyframes sparkWave{
+  0%,100%{transform:scaleY(1)}
+  50%{transform:scaleY(1.18)}
+}
+
+/* Pager — buttons get a subtle press feedback */
+.act-pager-btn:active:not(:disabled){
+  transform:translateY(0) scale(.97);
+}
+/* Pager fade-in when revealed */
+.act-pager:not([hidden]){
+  animation:pagerFade .3s ease-out;
+}
+@keyframes pagerFade{
+  from{opacity:0;transform:translateY(8px)}
+  to  {opacity:1;transform:translateY(0)}
+}
+
+/* Page number badge — small pulse on change (via JS toggling class is overkill,
+   instead pulse the value when text changes via CSS animation when number element loses focus) */
+.act-pager-info b{
+  display:inline-block;
+  transition:transform .18s;
+}
+.act-pager-info b:hover{transform:scale(1.15)}
+
+/* Subtle focus ring on filter buttons */
+.act-chip:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(124,58,237,.25);
+}
+.act-pager-btn:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(124,58,237,.22);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVITY v3 — color matrix (Kind × Actor) + lush row gradients
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Reset/clean the default border so kind-driven gradient shines through */
+.act-event{
+  border:1.5px solid transparent !important;
+  background:#fff !important;
+  position:relative !important;
+  overflow:hidden;
+  isolation:isolate;
+}
+
+/* Right-side accent (5px gradient stripe) — driven by KIND */
+.act-event::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:8px;bottom:8px;
+  width:5px;
+  border-radius:99px;
+  background:#cbd5e1;
+  z-index:1;
+}
+.act-event-account::before{background:linear-gradient(180deg,#a78bfa,#7c3aed)}
+.act-event-ticket ::before{background:linear-gradient(180deg,#fbbf24,#f59e0b)}
+.act-event-thread ::before{background:linear-gradient(180deg,#34d399,#10b981)}
+.act-event-quota  ::before{background:linear-gradient(180deg,#f87171,#ef4444)}
+.act-event-finance::before{background:linear-gradient(180deg,#60a5fa,#2563eb)}
+
+/* Subtle background tint — driven by ACTOR (the human dimension) */
+.act-actor-admin{
+  background:linear-gradient(135deg,#faf5ff 0%, #fff 60%) !important;
+  border-color:#e9d5ff !important;
+}
+.act-actor-user{
+  background:linear-gradient(135deg,#ecfdf5 0%, #fff 60%) !important;
+  border-color:#a7f3d0 !important;
+}
+.act-actor-system{
+  background:linear-gradient(135deg,#f1f5f9 0%, #fff 60%) !important;
+  border-color:#cbd5e1 !important;
+}
+
+/* Hover deepens the actor tint a bit */
+.act-actor-admin:hover{
+  background:linear-gradient(135deg,#f3e8ff 0%, #faf5ff 70%) !important;
+  border-color:#a78bfa !important;
+}
+.act-actor-user:hover{
+  background:linear-gradient(135deg,#d1fae5 0%, #ecfdf5 70%) !important;
+  border-color:#34d399 !important;
+}
+.act-actor-system:hover{
+  background:linear-gradient(135deg,#e2e8f0 0%, #f1f5f9 70%) !important;
+  border-color:#94a3b8 !important;
+}
+
+/* Actor pill in the meta line — small chip with face/icon */
+.act-actor-pill{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:99px;
+  font-size:.68rem;font-weight:900;
+  border:1px solid;
+  letter-spacing:.2px;
+}
+.act-actor-pill-admin{
+  background:#ede9fe;color:#5b21b6;border-color:#c4b5fd;
+}
+.act-actor-pill-user{
+  background:#d1fae5;color:#047857;border-color:#6ee7b7;
+}
+.act-actor-pill-system{
+  background:#f1f5f9;color:#475569;border-color:#cbd5e1;
+}
+
+/* Add inset padding-start so content doesn't touch the stripe */
+.act-event{padding-inline-start:18px !important}
+.act-event > .act-event-badge{margin-inline-start:0}
+
+/* Kind badge (icon emoji) — keep distinct kind color */
+.act-event-badge-account{background:#ede9fe;color:#6d28d9}
+.act-event-badge-ticket {background:#fef3c7;color:#b45309}
+.act-event-badge-thread {background:#d1fae5;color:#047857}
+.act-event-badge-quota  {background:#fee2e2;color:#b91c1c}
+.act-event-badge-finance{background:#dbeafe;color:#1e40af}
+
+/* Hover lifts the badge with kind-themed shadow */
+.act-event-account:hover .act-event-badge{box-shadow:0 6px 14px rgba(124,58,237,.20)}
+.act-event-ticket:hover  .act-event-badge{box-shadow:0 6px 14px rgba(245,158,11,.22)}
+.act-event-thread:hover  .act-event-badge{box-shadow:0 6px 14px rgba(16,185,129,.22)}
+.act-event-quota:hover   .act-event-badge{box-shadow:0 6px 14px rgba(239,68,68,.22)}
+.act-event-finance:hover .act-event-badge{box-shadow:0 6px 14px rgba(37,99,235,.22)}
+
+/* Time text — make sure no minus visual leaks */
+.act-event-time{
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  direction:ltr !important;
+  unicode-bidi:embed;
+  font-feature-settings:"tnum";
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVITY v4 — bigger, clearer timestamp block on the END side
+═══════════════════════════════════════════════════════════════════════ */
+
+/* New 3-column flex layout: badge | body (action+actor) | timestamp */
+.act-event{
+  display:flex !important;
+  align-items:center !important;
+  gap:14px !important;
+  padding:14px 18px 14px 22px !important;
+  padding-inline-start:22px !important;
+  padding-inline-end:18px !important;
+  min-height:78px;
+}
+
+/* Badge slightly bigger and crisper */
+.act-event-badge{
+  width:44px !important;height:44px !important;
+  border-radius:12px !important;
+  font-size:1.15rem !important;
+  flex-shrink:0;
+}
+
+/* Body — action label larger, actor pill below */
+.act-event-body{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;gap:6px;
+}
+.act-event-body strong{
+  font-size:.95rem;font-weight:900;color:#0b1220;
+  line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* Hide the legacy time-text — we have a dedicated block now */
+.act-event-time, .act-event-sep{display:none !important}
+
+/* Actor pill stays on its own line below the action */
+.act-event-body .act-actor-pill{
+  align-self:flex-start;
+  font-size:.7rem !important;
+  padding:3px 9px !important;
+}
+
+/* The timestamp block (END side) */
+.act-event-when{
+  flex-shrink:0;
+  display:flex;flex-direction:column;align-items:flex-end;
+  gap:1px;
+  padding-inline-start:14px;
+  border-inline-start:1px dashed rgba(124,58,237,.18);
+  min-width:120px;
+  text-align:end;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+  direction:ltr;
+}
+[dir="rtl"] .act-event-when{align-items:flex-start;text-align:start}
+
+.act-when-day{
+  font-size:.68rem;font-weight:800;
+  color:#7c3aed;
+  text-transform:uppercase;letter-spacing:.6px;
+  line-height:1.2;
+}
+.act-when-date{
+  font-size:.86rem;font-weight:900;
+  color:#0b1220;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.act-when-time{
+  font-size:1.4rem;font-weight:950;
+  color:#0b1220;
+  line-height:1;margin-top:2px;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.5px;
+}
+
+/* Color the day pill based on actor (a tiny harmony) */
+.act-actor-admin .act-when-day{color:#7c3aed}
+.act-actor-user  .act-when-day{color:#047857}
+.act-actor-system .act-when-day{color:#64748b}
+
+/* Time tone follows the kind (subtle accent on the big number) */
+.act-event-account .act-when-time{color:#5b21b6}
+.act-event-ticket  .act-when-time{color:#92400e}
+.act-event-thread  .act-when-time{color:#047857}
+.act-event-quota   .act-when-time{color:#b91c1c}
+.act-event-finance .act-when-time{color:#1e40af}
+
+/* On hover, time scales just a tad — feels alive */
+.act-event:hover .act-when-time{
+  transform:scale(1.05);
+  transition:transform .2s;
+}
+.act-when-time{transition:transform .2s}
+
+/* Responsive: on narrow screens, stack timestamp under the body */
+@media (max-width:720px){
+  .act-event{flex-wrap:wrap}
+  .act-event-when{
+    border-inline-start:none;
+    border-top:1px dashed rgba(124,58,237,.18);
+    padding-top:8px;padding-inline-start:0;
+    flex-direction:row;align-items:baseline;gap:10px;
+    min-width:100%;
+  }
+  .act-when-time{font-size:1.1rem}
+}
+
+/* Side card 'Most recent' — date + time pair */
+.act-side-when{
+  display:inline-flex;align-items:baseline;gap:6px;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+}
+.act-side-when em{font-style:normal;display:inline-block}
+.act-side-date{
+  font-size:.7rem;font-weight:800;color:#64748b;
+  letter-spacing:.3px;
+}
+.act-side-time{
+  font-size:.86rem;font-weight:950;color:#0b1220;
+  letter-spacing:.3px;
+}

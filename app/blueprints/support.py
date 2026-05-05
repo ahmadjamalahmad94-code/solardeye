@@ -805,6 +805,13 @@ def admin_support_command_action():
         notify_user(target_user.id, source_type=case_type, source_id=source.id, tenant_id=tenant_id, title='طلب دعم جديد من الإدارة', message=subject, direct_url=portal_case_url(case_type, source.id, _lang()))
         audit_case(case_type, source.id, actor_id, 'case.admin_create', 'Admin created support case from command center', {'target_user_id': target_user.id, 'attachments': len(attachments)}, commit=False)
         db.session.commit()
+        _admin_write_log(
+            f'support.{case_type}.create',
+            f'Created support {case_type} #{source.id} ({subject})',
+            'support_ticket' if case_type == 'ticket' else 'internal_mail_thread',
+            source.id,
+            {'subject': subject, 'target_user_id': target_user.id, 'priority': priority, 'category': category, 'attachments': len(attachments)},
+        )
         return _finish('تم إنشاء طلب الدعم وإشعار المشترك.', 'success', case_type_override=case_type, source_id_override=source.id)
     source = _support_source_for(case_type, source_id)
     if not source:
@@ -825,7 +832,11 @@ def admin_support_command_action():
         has_uploads = _support_has_uploads()
         if has_uploads and not body:
             body = 'تم إرفاق ملف جديد.'
-        is_internal_note = bool(request.form.get('is_internal_note')) or action == 'save_draft'
+        # CRITICAL: the hidden input sends literal '0' or '1' — bool('0') is True
+        # in Python because the string is non-empty. Compare to '1' explicitly so
+        # a normal "Send reply" never gets misclassified as an internal note.
+        _note_raw = (request.form.get('is_internal_note') or '').strip().lower()
+        is_internal_note = (_note_raw in ('1', 'true', 'on', 'yes')) or action == 'save_draft'
         requested_status = (request.form.get('status') or old_status or 'open').strip()
         requested_priority = (request.form.get('priority') or getattr(source, 'priority', None) or 'normal').strip()
         requested_assignee_id = int(request.form.get('assigned_admin_user_id') or 0) or getattr(source, 'assigned_admin_user_id', None) or None
@@ -868,6 +879,14 @@ def admin_support_command_action():
         elif changed and not is_internal_note:
             notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تم تحديث حالة طلب الدعم', message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
         db.session.commit()
+        _log_label = 'reply' if action == 'send_reply' and not is_internal_note else ('draft' if action == 'save_draft' else ('internal_note' if is_internal_note else 'update'))
+        _admin_write_log(
+            f'support.{case_type}.{_log_label}',
+            f'Replied to support {case_type} #{source_id} ({title})' if _log_label == 'reply' else (f'Saved draft on support {case_type} #{source_id} ({title})' if _log_label == 'draft' else (f'Internal note on support {case_type} #{source_id} ({title})' if _log_label == 'internal_note' else f'Updated support {case_type} #{source_id} ({title})')),
+            'support_ticket' if case_type == 'ticket' else 'internal_mail_thread',
+            source_id,
+            {'status': getattr(source, 'status', None), 'priority': getattr(source, 'priority', None), 'internal_note': is_internal_note, 'attachments': len(attachments), 'has_body': bool(body)},
+        )
         return _finish('تم حفظ الرد وتحديث المحادثة.', 'success')
 
     # Each branch records the user-facing message + category in result_message
@@ -963,6 +982,13 @@ def admin_support_command_action():
     if should_notify:
         notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title=notification_title, message=title, direct_url=portal_case_url(case_type, source_id, _lang()))
     db.session.commit()
+    _admin_write_log(
+        f'support.{case_type}.{action}',
+        f'Performed {action} on support {case_type} #{source_id} ({title})',
+        'support_ticket' if case_type == 'ticket' else 'internal_mail_thread',
+        source_id,
+        {'status': getattr(source, 'status', None), 'priority': getattr(source, 'priority', None), 'assignee_id': getattr(source, 'assigned_admin_user_id', None), 'action': action},
+    )
     return _finish(result_message, result_category, extra={
         'new_status': getattr(source, 'status', None),
         'new_priority': getattr(source, 'priority', None),
@@ -990,5 +1016,12 @@ def admin_support_reopen():
     owner_id = _support_owner_id_for_source(case_type, source)
     notify_user(owner_id, source_type=case_type, source_id=source_id, tenant_id=getattr(source, 'tenant_id', None), title='تمت إعادة فتح طلب الدعم', message=getattr(source, 'subject', ''), direct_url=portal_case_url(case_type, source_id, _lang()))
     db.session.commit()
+    _admin_write_log(
+        f'support.{case_type}.reopen',
+        f'Reopened support {case_type} #{source_id} ({getattr(source, "subject", "")})',
+        'support_ticket' if case_type == 'ticket' else 'internal_mail_thread',
+        source_id,
+        {'status': getattr(source, 'status', None)},
+    )
     flash('تمت إعادة فتح الطلب وتسجيل الحركة.', 'success')
     return redirect(url_for('main.admin_support_command_center', lang=_lang()))

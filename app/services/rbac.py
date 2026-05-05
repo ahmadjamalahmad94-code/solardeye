@@ -37,6 +37,104 @@ PERMISSION_CATALOG: tuple[PermissionSpec, ...] = (
 )
 PERMISSION_KEYS = tuple(p.key for p in PERMISSION_CATALOG)
 
+
+# ════════════════════════════════════════════════════════════════════
+# Sub-permissions catalog (granular controls under high-impact parents)
+# ════════════════════════════════════════════════════════════════════
+# Only the four parent permissions that materially change site structure
+# or member access have sub-permissions. The other 9 parents stay binary.
+#
+# Semantics:
+#   • If the parent permission is False  → ALL subs evaluate to False
+#   • If the parent is True and the sub key is NOT present in storage
+#       → the sub evaluates to True (backwards-compatible default: turning
+#         on a parent grants every sub unless the admin explicitly opts out)
+#   • If the sub key IS present in storage → its boolean value wins
+#
+# Storage: sub keys live in the SAME permissions_json dict as parent keys,
+# using dot notation:  permissions_json["users.delete"] = false
+
+
+@dataclass(frozen=True)
+class SubPermissionSpec:
+    key: str            # e.g. "users.delete"  (dot-notation)
+    parent: str         # e.g. "can_manage_users"
+    label_ar: str
+    label_en: str
+    is_dangerous: bool = False  # marks subs that should warn admins
+
+
+SUB_PERMISSION_CATALOG: tuple[SubPermissionSpec, ...] = (
+    # ─── can_manage_users ────────────────────────────────────────
+    SubPermissionSpec('users.view_list',     'can_manage_users', 'عرض القائمة وفتح بروفايل أي حساب',  'View list and open any profile'),
+    SubPermissionSpec('users.edit_data',     'can_manage_users', 'تعديل البيانات الشخصية',             'Edit personal data'),
+    SubPermissionSpec('users.toggle_active', 'can_manage_users', 'تفعيل وتعطيل الحسابات',              'Enable / disable accounts'),
+    SubPermissionSpec('users.reset_password','can_manage_users', 'إعادة تعيين كلمات المرور',           'Reset passwords'),
+    SubPermissionSpec('users.change_role',   'can_manage_users', 'تغيير الدور والصلاحيات الفردية',     'Change role and individual permissions'),
+    SubPermissionSpec('users.delete',        'can_manage_users', 'حذف المستخدمين نهائياً',             'Permanently delete users', is_dangerous=True),
+
+    # ─── can_manage_roles ────────────────────────────────────────
+    SubPermissionSpec('roles.create',              'can_manage_roles', 'إنشاء أدوار جديدة',                'Create new roles'),
+    SubPermissionSpec('roles.edit_permissions',    'can_manage_roles', 'تعديل صلاحيات الأدوار',            'Edit role permissions'),
+    SubPermissionSpec('roles.activate_deactivate', 'can_manage_roles', 'تفعيل وتعطيل الأدوار بدون حذف',    'Activate / deactivate without delete'),
+    SubPermissionSpec('roles.delete',              'can_manage_roles', 'حذف الأدوار نهائياً',              'Delete roles permanently', is_dangerous=True),
+
+    # ─── can_manage_system ───────────────────────────────────────
+    SubPermissionSpec('system.edit_basic',       'can_manage_system', 'إعدادات عامة (اسم الموقع، الشعار)', 'General settings (site name, logo)'),
+    SubPermissionSpec('system.edit_security',    'can_manage_system', 'مفاتيح التشفير وسياسات الأمان',     'Encryption keys and security policies', is_dangerous=True),
+    SubPermissionSpec('system.maintenance_mode', 'can_manage_system', 'تشغيل وإيقاف وضع الصيانة',          'Toggle maintenance mode', is_dangerous=True),
+    SubPermissionSpec('system.toggle_features',  'can_manage_system', 'تشغيل وإيقاف الميزات التجريبية',    'Toggle experimental features'),
+
+    # ─── can_manage_finance ──────────────────────────────────────
+    SubPermissionSpec('finance.view',    'can_manage_finance', 'عرض الكشوفات والمعاملات',  'View statements and transactions'),
+    SubPermissionSpec('finance.credit',  'can_manage_finance', 'إيداع رصيد للمشتركين',     'Credit wallets'),
+    SubPermissionSpec('finance.debit',   'can_manage_finance', 'خصم رصيد من المشتركين',    'Debit wallets'),
+    SubPermissionSpec('finance.refund',  'can_manage_finance', 'استرداد الأموال للمشتركين','Refund subscribers', is_dangerous=True),
+    SubPermissionSpec('finance.coupons', 'can_manage_finance', 'إنشاء قسائم الخصم',         'Create discount coupons'),
+)
+SUB_PERMISSION_KEYS = tuple(s.key for s in SUB_PERMISSION_CATALOG)
+ALL_PERMISSION_KEYS = PERMISSION_KEYS + SUB_PERMISSION_KEYS
+
+# Quick-lookup map: parent → list[SubPermissionSpec]
+SUBS_BY_PARENT: dict[str, tuple[SubPermissionSpec, ...]] = {
+    parent: tuple(s for s in SUB_PERMISSION_CATALOG if s.parent == parent)
+    for parent in PERMISSION_KEYS
+}
+# Quick-lookup map: sub key → SubPermissionSpec
+SUB_PERMISSION_BY_KEY: dict[str, SubPermissionSpec] = {
+    s.key: s for s in SUB_PERMISSION_CATALOG
+}
+
+
+def parent_of_sub(sub_key: str) -> str | None:
+    """Return the parent permission key for a given sub key, or None."""
+    spec = SUB_PERMISSION_BY_KEY.get(sub_key)
+    return spec.parent if spec else None
+
+
+def subs_for_parent(parent_key: str) -> tuple[SubPermissionSpec, ...]:
+    """Return the sub-permissions defined under a parent (empty tuple if none)."""
+    return SUBS_BY_PARENT.get(parent_key, ())
+
+
+def has_sub_permissions(parent_key: str) -> bool:
+    """True if the parent permission has granular sub-permissions defined."""
+    return bool(SUBS_BY_PARENT.get(parent_key))
+
+
+def sub_permission_catalog(lang: str = 'ar') -> list[dict[str, Any]]:
+    """Localized list of sub-permissions for templates / API."""
+    is_en = (lang or 'ar') == 'en'
+    return [
+        {
+            'key': s.key,
+            'parent': s.parent,
+            'label': s.label_en if is_en else s.label_ar,
+            'is_dangerous': s.is_dangerous,
+        }
+        for s in SUB_PERMISSION_CATALOG
+    ]
+
 STAFF_ROLE_PRESETS = (
     {
         'code': 'general_manager', 'name_ar': 'مدير عام', 'name_en': 'General Manager', 'summary_ar': 'إشراف تشغيلي كامل بدون صلاحيات إعدادات النظام الحساسة.', 'summary_en': 'Full operational oversight without sensitive system settings.', 'is_system': True, 'sort_order': 2,
@@ -125,15 +223,46 @@ PORTAL_ENDPOINT_TO_KEY.update({
 
 
 def _parse_permissions(raw: Any) -> dict[str, bool]:
+    """Parse a permissions blob (dict or JSON string) into a clean dict.
+
+    Accepts BOTH parent permission keys (e.g. ``can_manage_users``)
+    and dot-notation sub keys (e.g. ``users.delete``). Anything else
+    is dropped silently to keep storage tight.
+    """
     if isinstance(raw, dict):
-        return {k: bool(v) for k, v in raw.items() if k in PERMISSION_KEYS}
+        return {k: bool(v) for k, v in raw.items() if k in ALL_PERMISSION_KEYS}
     try:
         parsed = json.loads(raw or '{}')
         if isinstance(parsed, dict):
-            return {k: bool(v) for k, v in parsed.items() if k in PERMISSION_KEYS}
+            return {k: bool(v) for k, v in parsed.items() if k in ALL_PERMISSION_KEYS}
     except Exception:
         pass
     return {}
+
+
+def resolve_effective_permission(stored: dict[str, bool], key: str) -> bool:
+    """Resolve a permission key (parent OR sub) against a stored dict.
+
+    Sub-permission semantics:
+      • If the parent is False  → the sub is False (no inheritance bypass)
+      • If the parent is True and the sub key is missing → True (default ON)
+      • If the sub key is explicitly stored → its value wins
+
+    Parent keys just return their stored value (default False).
+    """
+    if key in PERMISSION_KEYS:
+        return bool(stored.get(key, False))
+    if key in SUB_PERMISSION_KEYS:
+        parent = parent_of_sub(key)
+        if not parent:
+            return False
+        if not bool(stored.get(parent, False)):
+            return False
+        # Parent ON → sub defaults to ON unless explicitly set False
+        if key in stored:
+            return bool(stored[key])
+        return True
+    return False
 
 
 def permission_catalog(lang: str = 'ar') -> list[dict[str, str]]:

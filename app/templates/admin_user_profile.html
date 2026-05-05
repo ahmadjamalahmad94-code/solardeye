@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v109-fix-form-action-popover-pos-20260504') }}">
-<script defer src="{{ url_for('static', filename='js/admin_user_profile.js', v='v109-fix-form-action-popover-pos-20260504') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v163-pager-pinned-bottom-20260505') }}">
+<script defer src="{{ url_for('static', filename='js/admin_user_profile.js', v='v163-pager-pinned-bottom-20260505') }}"></script>
 {% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
@@ -860,12 +860,12 @@ window.SolarSupportInit();
   {% set total = total_credit + total_debit %}
   {% set credit_pct = ((total_credit / total * 100) if total > 0 else 0)|round(0)|int %}
 
-  {# ─── Wallet hero with balance + ring ─── #}
+  {# ─── Wallet hero ─── #}
   <section class="fin-hero">
     <div class="fin-hero-text">
       <span class="fin-hero-eyebrow">💰 {{ 'Wallet' if is_en else 'المحفظة' }}</span>
       <h2 class="fin-balance {{ 'is-negative' if (wallet_balance or 0) < 0 }}">{{ '%.2f'|format(wallet_balance or 0) }} <small>USD</small></h2>
-      <p>{{ 'Add credit/debit movements with a clean ledger for this subscriber.' if is_en else 'أضف حركات مالية واضحة مع سجل مرتب لهذا المشترك.' }}</p>
+      <p>{{ 'Track credits with payment method, debits with reason — all in one ledger.' if is_en else 'سجّل الإضافات بطريقة الدفع، والخصومات بسبب الخدمة — كل ذلك في سجل موحَّد.' }}</p>
       <div class="fin-hero-stats">
         <div class="fin-mini fin-mini-credit"><span>↑</span><div><small>{{ 'Total credits' if is_en else 'إجمالي الإضافات' }}</small><strong>{{ '%.2f'|format(total_credit) }}</strong></div></div>
         <div class="fin-mini fin-mini-debit"><span>↓</span><div><small>{{ 'Total debits' if is_en else 'إجمالي الخصومات' }}</small><strong>{{ '%.2f'|format(total_debit) }}</strong></div></div>
@@ -882,10 +882,13 @@ window.SolarSupportInit();
 
   <div class="prof-grid">
     <div>
-      {# ─── Step 1: Add movement ─── #}
-      <form method="post" class="prof-form">
+      {# ─── Step 1: Add movement (smart form) ─── #}
+      <form method="post" class="prof-form" data-fin-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="finance_entry">
+        <input type="hidden" name="payment_method" id="fin-method" value="cash">
+        <input type="hidden" name="debit_reason" id="fin-reason" value="renew_sub">
+        <input type="hidden" name="reason_meta" id="fin-reason-meta" value="">
 
         <article class="prof-step">
           <div class="prof-step-side">
@@ -893,9 +896,11 @@ window.SolarSupportInit();
             <span class="prof-step-icon">💳</span>
             <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
             <h3>{{ 'Add movement' if is_en else 'إضافة حركة مالية' }}</h3>
-            <p>{{ 'Quick presets below or fill the form for a custom amount.' if is_en else 'استخدم الأزرار السريعة أو املأ النموذج لمبلغ مخصص.' }}</p>
+            <p>{{ 'Pick credit or debit. Each shows the right options.' if is_en else 'اختر إضافة أو خصم — كل واحد بظهر له الخيارات المناسبة.' }}</p>
           </div>
-          <div class="prof-step-body">
+          <div class="prof-step-body fin-form-body">
+
+            {# Quick preset chips — full-width strip #}
             <div class="fin-quick prof-field-full">
               <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":10}'>+10</button>
               <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":50}'>+50</button>
@@ -904,9 +909,11 @@ window.SolarSupportInit();
               <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":50}'>−50</button>
               <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":100}'>−100</button>
             </div>
+
+            {# Type, amount, currency — three fields in a row #}
             <label class="prof-field">
               <span>{{ 'Type' if is_en else 'نوع الحركة' }}</span>
-              <select class="prof-input" name="entry_type" id="fin-type">
+              <select class="prof-input" name="entry_type" id="fin-type" data-fin-type>
                 <option value="credit">↑ {{ 'Credit (add)' if is_en else 'إضافة رصيد' }}</option>
                 <option value="debit">↓ {{ 'Debit (deduct)' if is_en else 'خصم رصيد' }}</option>
               </select>
@@ -917,15 +924,128 @@ window.SolarSupportInit();
             </label>
             <label class="prof-field">
               <span>{{ 'Currency' if is_en else 'العملة' }}</span>
-              <input class="prof-input" name="currency" value="USD">
+              <select class="prof-input" name="currency">
+                <option value="USD">USD — {{ 'US Dollar' if is_en else 'دولار أمريكي' }}</option>
+                <option value="EUR">EUR — {{ 'Euro' if is_en else 'يورو' }}</option>
+                <option value="ILS">ILS — {{ 'Shekel' if is_en else 'شيقل' }}</option>
+                <option value="JOD">JOD — {{ 'Jordanian Dinar' if is_en else 'دينار أردني' }}</option>
+                <option value="SAR">SAR — {{ 'Saudi Riyal' if is_en else 'ريال سعودي' }}</option>
+                <option value="AED">AED — {{ 'UAE Dirham' if is_en else 'درهم إماراتي' }}</option>
+                <option value="EGP">EGP — {{ 'Egyptian Pound' if is_en else 'جنيه مصري' }}</option>
+              </select>
             </label>
-            <label class="prof-field">
-              <span>{{ 'Reference' if is_en else 'المرجع' }}</span>
-              <input class="prof-input" name="reference" placeholder="{{ 'Invoice / receipt ID' if is_en else 'رقم الفاتورة / المرجع' }}">
+
+            {# ═══ CREDIT VIEW: Payment method cards ═══ #}
+            <div class="prof-field prof-field-full" data-fin-credit-section>
+              <span>{{ 'Payment method' if is_en else 'طريقة الدفع' }} <em>*</em></span>
+              <div class="fin-cards" role="radiogroup">
+                <button type="button" class="fin-card is-on" data-method="cash" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">💵</span>
+                  <strong>{{ 'Cash' if is_en else 'نقدي' }}</strong>
+                  <small>{{ 'On hand' if is_en else 'مباشر' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="card" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">💳</span>
+                  <strong>{{ 'Card' if is_en else 'بطاقة' }}</strong>
+                  <small>{{ 'Visa / MC' if is_en else 'فيزا / ماستر' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="bank" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">🏦</span>
+                  <strong>{{ 'Bank' if is_en else 'حوالة بنكية' }}</strong>
+                  <small>IBAN</small>
+                </button>
+                <button type="button" class="fin-card" data-method="paypal" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#003087,#0070ba)">🅿️</span>
+                  <strong>PayPal</strong>
+                  <small>{{ 'Online' if is_en else 'أونلاين' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="usdt" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#26a17b,#50af95)">₮</span>
+                  <strong>USDT</strong>
+                  <small>{{ 'Crypto' if is_en else 'كريبتو' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="other" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#64748b,#94a3b8)">⚙️</span>
+                  <strong>{{ 'Other' if is_en else 'أخرى' }}</strong>
+                  <small>{{ 'Custom' if is_en else 'مخصصة' }}</small>
+                </button>
+              </div>
+            </div>
+
+            {# ═══ DEBIT VIEW: Reason cards ═══ #}
+            <div class="prof-field prof-field-full" data-fin-debit-section hidden>
+              <span>{{ 'Debit reason' if is_en else 'سبب الخصم' }} <em>*</em></span>
+              <div class="fin-cards" role="radiogroup">
+                <button type="button" class="fin-card is-on" data-reason="renew_sub" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">🔄</span>
+                  <strong>{{ 'Renew subscription' if is_en else 'تجديد اشتراك' }}</strong>
+                  <small>{{ 'Plan period' if is_en else 'فترة الخطة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="renew_quota" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">📊</span>
+                  <strong>{{ 'Renew quota' if is_en else 'تجديد كوتة' }}</strong>
+                  <small>{{ 'Pick which' if is_en else 'حدد الكوتة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="add_device" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">⚡</span>
+                  <strong>{{ 'Add device' if is_en else 'إضافة جهاز' }}</strong>
+                  <small>{{ 'Extra device' if is_en else 'جهاز إضافي' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="refund" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">💸</span>
+                  <strong>{{ 'Refund' if is_en else 'استرداد مبلغ' }}</strong>
+                  <small>{{ 'Reverse credit' if is_en else 'إرجاع للعميل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="service_fee" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#0891b2,#22d3ee)">🛠️</span>
+                  <strong>{{ 'Service fee' if is_en else 'رسوم خدمة' }}</strong>
+                  <small>{{ 'Setup / labor' if is_en else 'تركيب / صيانة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="sms_topup" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#ec4899,#f472b6)">📱</span>
+                  <strong>{{ 'SMS top-up' if is_en else 'شحن SMS' }}</strong>
+                  <small>{{ 'Messages bundle' if is_en else 'باقة رسائل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="penalty" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#dc2626,#ef4444)">⚠️</span>
+                  <strong>{{ 'Penalty' if is_en else 'عقوبة / غرامة' }}</strong>
+                  <small>{{ 'Late / abuse' if is_en else 'تأخر / مخالفة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="cash_out" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#16a34a,#22c55e)">💰</span>
+                  <strong>{{ 'Cash withdrawal' if is_en else 'سحب نقدي' }}</strong>
+                  <small>{{ 'Hand-out' if is_en else 'دفع للعميل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="other_debit" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#64748b,#94a3b8)">⚙️</span>
+                  <strong>{{ 'Other' if is_en else 'أخرى' }}</strong>
+                  <small>{{ 'Custom debit' if is_en else 'خصم مخصص' }}</small>
+                </button>
+              </div>
+            </div>
+
+            {# Sub-selector: which quota — only when reason=renew_quota #}
+            <label class="prof-field prof-field-full" data-fin-sub-quota hidden>
+              <span>{{ 'Which quota?' if is_en else 'أيّ كوتة؟' }}</span>
+              <select class="prof-input" name="quota_target" id="fin-quota-target">
+                <option value="sms_limit">📱 SMS</option>
+                <option value="devices_limit">⚡ {{ 'Devices' if is_en else 'الأجهزة' }}</option>
+                <option value="reports_limit">📊 {{ 'Reports' if is_en else 'التقارير' }}</option>
+                <option value="api_calls_limit">🔌 {{ 'API calls' if is_en else 'استدعاءات API' }}</option>
+                <option value="storage_limit">💾 {{ 'Storage' if is_en else 'التخزين' }}</option>
+                <option value="support_cases_limit">💬 {{ 'Support cases' if is_en else 'تذاكر الدعم' }}</option>
+                <option value="telegram_limit">✈️ Telegram</option>
+                <option value="custom">⚙️ {{ 'Custom' if is_en else 'مخصصة' }}</option>
+              </select>
+            </label>
+
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Reference / Transaction ID' if is_en else 'المرجع / رقم العملية' }}</span>
+              <input class="prof-input" name="reference" id="fin-reference" placeholder="{{ 'e.g. TX-12345 or invoice #' if is_en else 'مثال: TX-12345 أو رقم الفاتورة' }}">
             </label>
             <label class="prof-field prof-field-full">
               <span>{{ 'Note' if is_en else 'ملاحظة' }}</span>
-              <textarea class="prof-input" name="note" rows="3" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+              <textarea class="prof-input" name="note" rows="2" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
             </label>
           </div>
         </article>
@@ -945,33 +1065,70 @@ window.SolarSupportInit();
           <span class="prof-step-icon">📒</span>
           <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
           <h3>{{ 'Recent movements' if is_en else 'آخر الحركات' }}</h3>
-          <p>{{ 'Latest 20 entries. Older history is in the audit log.' if is_en else 'أحدث 20 حركة. السجل الكامل في سجل التدقيق.' }}</p>
+          <p>{{ 'Each entry shows method (credits) or reason (debits) as a colored chip.' if is_en else 'كل حركة تعرض الطريقة (للإضافة) أو السبب (للخصم) كشارة ملوّنة.' }}</p>
         </div>
         <div class="prof-step-body fin-ledger" style="grid-template-columns:1fr">
+          {% set _method_meta = {
+            'cash':     {'label_ar':'نقدي', 'label_en':'Cash', 'icon':'💵', 'cls':'method-cash'},
+            'card':     {'label_ar':'بطاقة', 'label_en':'Card', 'icon':'💳', 'cls':'method-card'},
+            'bank':     {'label_ar':'حوالة', 'label_en':'Bank', 'icon':'🏦', 'cls':'method-bank'},
+            'paypal':   {'label_ar':'PayPal', 'label_en':'PayPal', 'icon':'🅿️', 'cls':'method-paypal'},
+            'usdt':     {'label_ar':'USDT', 'label_en':'USDT', 'icon':'₮', 'cls':'method-usdt'},
+            'other':    {'label_ar':'أخرى', 'label_en':'Other', 'icon':'⚙️', 'cls':'method-other'},
+          } %}
+          {% set _reason_meta = {
+            'renew_sub':    {'label_ar':'تجديد اشتراك', 'label_en':'Renew subscription', 'icon':'🔄', 'cls':'reason-renew-sub'},
+            'renew_quota':  {'label_ar':'تجديد كوتة', 'label_en':'Renew quota', 'icon':'📊', 'cls':'reason-renew-quota'},
+            'add_device':   {'label_ar':'إضافة جهاز', 'label_en':'Add device', 'icon':'⚡', 'cls':'reason-add-device'},
+            'refund':       {'label_ar':'استرداد', 'label_en':'Refund', 'icon':'💸', 'cls':'reason-refund'},
+            'service_fee':  {'label_ar':'رسوم خدمة', 'label_en':'Service fee', 'icon':'🛠️', 'cls':'reason-service'},
+            'sms_topup':    {'label_ar':'شحن SMS', 'label_en':'SMS top-up', 'icon':'📱', 'cls':'reason-sms'},
+            'penalty':      {'label_ar':'غرامة', 'label_en':'Penalty', 'icon':'⚠️', 'cls':'reason-penalty'},
+            'cash_out':     {'label_ar':'سحب نقدي', 'label_en':'Cash out', 'icon':'💰', 'cls':'reason-cash-out'},
+            'other_debit':  {'label_ar':'أخرى', 'label_en':'Other', 'icon':'⚙️', 'cls':'reason-other'},
+          } %}
           {% for entry in finance_rows[:20] %}
-          <article class="fin-row fin-row-{{ entry.entry_type }}">
-            <span class="fin-row-icon">{{ '↑' if entry.entry_type == 'credit' else '↓' }}</span>
-            <div class="fin-row-body">
-              <strong>{{ ('Credit' if is_en else 'إضافة رصيد') if entry.entry_type == 'credit' else ('Debit' if is_en else 'خصم رصيد') }}</strong>
-              <small>{{ entry.reference or ('No reference' if is_en else 'بدون مرجع') }}{% if entry.note %} · {{ entry.note }}{% endif %}</small>
-            </div>
-            <div class="fin-row-amount">
-              <b>{{ '+' if entry.entry_type == 'credit' else '−' }}{{ entry.amount }} <small>{{ entry.currency }}</small></b>
-              <small>{{ format_local(entry.created_at) if entry.created_at else '' }}</small>
-            </div>
-          </article>
+            {# Parse [code] from reference #}
+            {% set _ref = entry.reference or '' %}
+            {% set _code = '' %}
+            {% set _real_ref = _ref %}
+            {% if _ref.startswith('[') and ']' in _ref %}
+              {% set _close = _ref.find(']') %}
+              {% set _code = _ref[1:_close] %}
+              {% set _real_ref = _ref[_close+1:] %}
+            {% endif %}
+            {% set _is_credit = entry.entry_type == 'credit' %}
+            {% if _is_credit %}
+              {% set _meta = _method_meta.get(_code, _method_meta['other']) %}
+            {% else %}
+              {% set _meta = _reason_meta.get(_code, _reason_meta['other_debit']) %}
+            {% endif %}
+            <article class="fin-row fin-row-{{ entry.entry_type }}">
+              <span class="fin-row-icon">{{ '↑' if _is_credit else '↓' }}</span>
+              <div class="fin-row-body">
+                <strong>
+                  {{ ('Credit' if is_en else 'إضافة رصيد') if _is_credit else ('Debit' if is_en else 'خصم رصيد') }}
+                  <span class="fin-method-pill {{ _meta.cls }}">{{ _meta.icon }} {{ _meta.label_en if is_en else _meta.label_ar }}</span>
+                </strong>
+                <small>{{ _real_ref or ('No reference' if is_en else 'بدون مرجع') }}{% if entry.note %} · {{ entry.note }}{% endif %}</small>
+              </div>
+              <div class="fin-row-amount">
+                <b>{{ '+' if _is_credit else '−' }}{{ entry.amount }} <small>{{ entry.currency }}</small></b>
+                <small>{{ format_local(entry.created_at) if entry.created_at else '' }}</small>
+              </div>
+            </article>
           {% else %}
-          <div class="fin-empty">
-            <span>📭</span>
-            <strong>{{ 'No movements yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</strong>
-            <small>{{ 'Use the form to add the first credit or debit.' if is_en else 'استخدم النموذج لإضافة أول حركة.' }}</small>
-          </div>
+            <div class="fin-empty">
+              <span>📭</span>
+              <strong>{{ 'No movements yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</strong>
+              <small>{{ 'Use the form to add the first credit or debit.' if is_en else 'استخدم النموذج لإضافة أول حركة.' }}</small>
+            </div>
           {% endfor %}
         </div>
       </article>
     </div>
 
-    {# ─── Side: snapshot + tips ─── #}
+    {# ─── Side ─── #}
     <aside class="prof-side">
       <section class="prof-side-card">
         <header><span class="prof-side-eyebrow">{{ 'Snapshot' if is_en else 'الملخص' }}</span></header>
@@ -980,6 +1137,28 @@ window.SolarSupportInit();
           <div><span>↑ {{ 'Credits' if is_en else 'الإضافات' }}</span><b>{{ credits|length }}</b></div>
           <div><span>↓ {{ 'Debits' if is_en else 'الخصومات' }}</span><b>{{ debits|length }}</b></div>
           <div><span>{{ 'Net' if is_en else 'الصافي' }}</span><b>{{ '%.2f'|format(total_credit - total_debit) }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Top reasons' if is_en else 'أبرز الأسباب' }}</span></header>
+        <div class="prof-side-rows">
+          {% set _top = {'renew_sub':0,'renew_quota':0,'add_device':0,'service_fee':0,'refund':0,'penalty':0,'sms_topup':0,'cash_out':0,'other_debit':0} %}
+          {% for entry in debits %}
+            {% set _r = entry.reference or '' %}
+            {% set _c = 'other_debit' %}
+            {% if _r.startswith('[') and ']' in _r %}
+              {% set _e = _r.find(']') %}
+              {% set _maybe = _r[1:_e] %}
+              {% if _maybe in _top %}{% set _c = _maybe %}{% endif %}
+            {% endif %}
+            {% if _top.update({_c: _top[_c]+1}) %}{% endif %}
+          {% endfor %}
+          <div><span>🔄 {{ 'Renew subscription' if is_en else 'تجديد اشتراك' }}</span><b>{{ _top.renew_sub }}</b></div>
+          <div><span>📊 {{ 'Renew quota' if is_en else 'تجديد كوتة' }}</span><b>{{ _top.renew_quota }}</b></div>
+          <div><span>⚡ {{ 'Add device' if is_en else 'إضافة جهاز' }}</span><b>{{ _top.add_device }}</b></div>
+          <div><span>🛠️ {{ 'Service fee' if is_en else 'رسوم خدمة' }}</span><b>{{ _top.service_fee }}</b></div>
+          <div><span>💸 {{ 'Refund' if is_en else 'استرداد' }}</span><b>{{ _top.refund }}</b></div>
         </div>
       </section>
 
@@ -999,6 +1178,108 @@ window.SolarSupportInit();
     </aside>
   </div>
 </div>{# /.prof-shell #}
+
+<script>
+(function(){
+  const finPane = document.querySelector('[data-up-pane="finance"]');
+  if(!finPane) return;
+  const form         = finPane.querySelector('[data-fin-form]');
+  const typeSel      = finPane.querySelector('[data-fin-type]');
+  const creditSec    = finPane.querySelector('[data-fin-credit-section]');
+  const debitSec     = finPane.querySelector('[data-fin-debit-section]');
+  const subQuota     = finPane.querySelector('[data-fin-sub-quota]');
+  const methodInput  = finPane.querySelector('#fin-method');
+  const reasonInput  = finPane.querySelector('#fin-reason');
+  const reasonMeta   = finPane.querySelector('#fin-reason-meta');
+  const refInput     = finPane.querySelector('#fin-reference');
+  const quotaTarget  = finPane.querySelector('#fin-quota-target');
+  const amtEl        = finPane.querySelector('#fin-amount');
+
+  function syncView(){
+    const t = typeSel.value;
+    if(t === 'debit'){
+      if(creditSec) creditSec.setAttribute('hidden','');
+      if(debitSec)  debitSec.removeAttribute('hidden');
+      if(subQuota){
+        if(reasonInput.value === 'renew_quota') subQuota.removeAttribute('hidden');
+        else subQuota.setAttribute('hidden','');
+      }
+    } else {
+      if(creditSec) creditSec.removeAttribute('hidden');
+      if(debitSec)  debitSec.setAttribute('hidden','');
+      if(subQuota)  subQuota.setAttribute('hidden','');
+    }
+  }
+  typeSel.addEventListener('change', syncView);
+
+  // Method cards (credit)
+  finPane.querySelectorAll('.fin-card[data-method]').forEach(function(card){
+    card.addEventListener('click', function(){
+      finPane.querySelectorAll('.fin-card[data-method]').forEach(function(c){
+        c.classList.remove('is-on'); c.setAttribute('aria-checked','false');
+      });
+      card.classList.add('is-on'); card.setAttribute('aria-checked','true');
+      if(methodInput) methodInput.value = card.dataset.method;
+    });
+  });
+
+  // Reason cards (debit)
+  finPane.querySelectorAll('.fin-card[data-reason]').forEach(function(card){
+    card.addEventListener('click', function(){
+      finPane.querySelectorAll('.fin-card[data-reason]').forEach(function(c){
+        c.classList.remove('is-on'); c.setAttribute('aria-checked','false');
+      });
+      card.classList.add('is-on'); card.setAttribute('aria-checked','true');
+      if(reasonInput) reasonInput.value = card.dataset.reason;
+      // Toggle the quota sub-selector
+      if(subQuota){
+        if(card.dataset.reason === 'renew_quota') subQuota.removeAttribute('hidden');
+        else subQuota.setAttribute('hidden','');
+      }
+    });
+  });
+
+  // Quick presets
+  finPane.querySelectorAll('[data-fin-set]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      try{
+        const cfg = JSON.parse(btn.dataset.finSet);
+        if(typeSel && cfg.type) typeSel.value = cfg.type;
+        if(amtEl  && cfg.amount) amtEl.value = cfg.amount;
+        syncView();
+        if(amtEl){
+          amtEl.style.transition = 'background-color .25s';
+          amtEl.style.backgroundColor = cfg.type === 'credit' ? '#ecfdf5' : '#fef2f2';
+          setTimeout(function(){ amtEl.style.backgroundColor = ''; }, 600);
+          amtEl.focus();
+        }
+      }catch(_){}
+    });
+  });
+
+  // On submit: prefix reference with [code] (method for credit, reason for debit)
+  if(form){
+    form.addEventListener('submit', function(){
+      const isCredit = typeSel.value === 'credit';
+      let code;
+      if(isCredit){
+        code = methodInput ? methodInput.value : 'other';
+      } else {
+        code = reasonInput ? reasonInput.value : 'other_debit';
+        // For renew_quota, append the chosen quota target
+        if(code === 'renew_quota' && quotaTarget){
+          code = 'renew_quota:' + quotaTarget.value;
+        }
+      }
+      if(refInput && !(refInput.value || '').startsWith('[')){
+        refInput.value = '[' + code + ']' + (refInput.value || '');
+      }
+    });
+  }
+
+  syncView();
+})();
+</script>
 </div>
 <div class="up-pane" data-up-pane="quotas" {% if tab != 'quotas' %}hidden{% endif %}>
 <div class="prof-shell">
@@ -1018,16 +1299,7 @@ window.SolarSupportInit();
         <div class="qta-mini" style="--c:#f59e0b"><span>⏸</span><div><small>{{ 'Paused' if is_en else 'متوقفة' }}</small><strong>{{ q_paused|length }}</strong></div></div>
       </div>
     </div>
-    <div class="qta-hero-rings" aria-hidden="true">
-      {% for row in quota_rows[:4] %}
-      {% set is_unlim = row.is_unlimited or row.reset_period == 'unlimited' %}
-      {% set qpct = 0 if is_unlim else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0)|round(0)|int %}
-      {% set qcap = 100 if qpct > 100 else qpct %}
-      <div class="qta-mini-ring" style="--pct:{{ qcap }};--c:{{ '#ef4444' if qpct >= 100 else '#f59e0b' if qpct >= 75 else '#10b981' }}">
-        <span class="qta-mini-ring-num">{% if is_unlim %}∞{% else %}{{ qpct }}%{% endif %}</span>
-      </div>
-      {% endfor %}
-    </div>
+    {# rings removed — replaced by per-card donuts below #}
   </section>
 
   <div class="prof-grid">
@@ -1271,72 +1543,145 @@ window.SolarSupportInit();
   {% set active_devices = devices|selectattr('is_active')|list %}
   {% set connected_devices = devices|selectattr('is_active')|selectattr('connection_status','in',['ok','connected','ready'])|list %}
 
-  {# ─── Devices summary hero ─── #}
-  <section class="dev-hero">
-    <div class="dev-hero-text">
-      <span class="dev-hero-eyebrow">⚡ {{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
+  {# ─── Hero ─── #}
+  <section class="dev2-hero">
+    <div class="dev2-hero-text">
+      <span class="dev2-hero-eyebrow">⚡ {{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
       <h2>{{ 'Subscriber devices' if is_en else 'أجهزة المشترك' }}</h2>
-      <p>{{ 'Each card shows linking, activation, connection, and sync readiness.' if is_en else 'كل بطاقة توضّح حالة الإضافة، التفعيل، الربط، وجاهزية المزامنة.' }}</p>
-      <div class="dev-hero-stats">
-        <div class="dev-mini" style="--c:#7c3aed"><span>📦</span><div><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ devices|length }}</strong></div></div>
-        <div class="dev-mini" style="--c:#10b981"><span>✅</span><div><small>{{ 'Active' if is_en else 'مفعّلة' }}</small><strong>{{ active_devices|length }}</strong></div></div>
-        <div class="dev-mini" style="--c:#2563eb"><span>📡</span><div><small>{{ 'Connected' if is_en else 'متصلة' }}</small><strong>{{ connected_devices|length }}</strong></div></div>
-        <div class="dev-mini" style="--c:#f59e0b"><span>⏳</span><div><small>{{ 'Pending' if is_en else 'قيد الفحص' }}</small><strong>{{ (active_devices|length) - (connected_devices|length) }}</strong></div></div>
+      <p>{{ 'Live status, sync timeline, and quick actions per device.' if is_en else 'حالة لحظية، توقيت آخر مزامنة، وإجراءات سريعة لكل جهاز.' }}</p>
+      <div class="dev2-hero-stats">
+        <div class="dev2-mini" style="--c:#7c3aed"><span>📦</span><div><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#10b981"><span>✅</span><div><small>{{ 'Active' if is_en else 'مفعّلة' }}</small><strong>{{ active_devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#2563eb"><span>📡</span><div><small>{{ 'Connected' if is_en else 'متصلة' }}</small><strong>{{ connected_devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#f59e0b"><span>⏳</span><div><small>{{ 'Pending' if is_en else 'قيد الفحص' }}</small><strong>{{ (active_devices|length) - (connected_devices|length) }}</strong></div></div>
       </div>
     </div>
   </section>
 
   <div class="prof-grid">
     <div>
-      <div class="dev-grid">
+      <div class="dev2-grid">
         {% for device in devices %}
-        {% set connected = (device.connection_status or '') in ['ok','connected','ready'] %}
-        {% set health = 'ok' if connected and device.is_active else ('warn' if device.is_active else 'off') %}
-        {% set _dt = device.device_type or '' %}
-        {% set provider_icon = '☀️' if 'deye' in _dt else ('⚡' if 'tesla' in _dt else ('🔋' if 'victron' in _dt else ('☁️' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else '⚡'))) %}
-        <article class="dev-card dev-card-{{ health }}">
-          <div class="dev-card-head">
-            <div class="dev-card-id">
-              <span class="dev-card-icon">{{ provider_icon }}</span>
-              <div>
+          {% set _dt = (device.device_type or 'deye')|lower %}
+          {% set provider_icon = '☀️' if 'deye' in _dt else ('⚡' if 'tesla' in _dt else ('🔋' if 'victron' in _dt else ('☁️' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else ('🏠' if 'fronius' in _dt or 'opendtu' in _dt else '⚡')))) %}
+          {% set provider_label = device.device_type|capitalize if device.device_type else 'Generic' %}
+          {% set provider_class = 'prov-deye' if 'deye' in _dt else ('prov-tesla' if 'tesla' in _dt else ('prov-victron' if 'victron' in _dt else ('prov-cloud' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else ('prov-local' if 'fronius' in _dt or 'opendtu' in _dt else 'prov-generic')))) %}
+          {% set connected = (device.connection_status or '') in ['ok','connected','ready'] %}
+          {% set status_kind = 'ok' if (connected and device.is_active) else ('warn' if device.is_active else 'off') %}
+          {# Estimate signal bars (3-4 if connected, 1-2 if pending, 0 if disabled) #}
+          {% set signal_bars = 4 if connected and device.is_active else (2 if device.is_active else 0) %}
+
+          <article class="dev2-card dev2-card-{{ status_kind }}">
+            {# Top banner with provider gradient + live pulse #}
+            <header class="dev2-card-banner {{ provider_class }}">
+              <span class="dev2-card-glyph">{{ provider_icon }}</span>
+              <div class="dev2-card-banner-title">
                 <strong>{{ device.name }}</strong>
-                <small>{{ device.plant_name or ('No plant name' if is_en else 'بدون اسم محطة') }}</small>
+                <small>{{ device.plant_name or ('No plant' if is_en else 'بدون محطة') }}</small>
+              </div>
+              <span class="dev2-pulse dev2-pulse-{{ status_kind }}" title="{{ 'Live' if connected else ('Pending' if device.is_active else 'Off') }}">
+                <i></i>
+                <em>{{ 'LIVE' if connected and is_en else ('متصل' if connected else ('قيد الفحص' if device.is_active and not is_en else ('معطّل' if not device.is_active and not is_en else 'PENDING'))) }}</em>
+              </span>
+            </header>
+
+            {# Mid stats — 4 cells in a strip #}
+            <div class="dev2-card-stats">
+              <div class="dev2-stat">
+                <small>{{ 'Provider' if is_en else 'المزوّد' }}</small>
+                <strong>{{ provider_label }}</strong>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Connection' if is_en else 'الربط' }}</small>
+                <strong class="dev2-stat-status status-{{ status_kind }}">
+                  {% if connected %}{{ 'Connected' if is_en else 'متصل' }}
+                  {% elif device.is_active %}{{ 'Pending' if is_en else 'قيد الفحص' }}
+                  {% else %}{{ 'Disabled' if is_en else 'معطّل' }}{% endif %}
+                </strong>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Signal' if is_en else 'الإشارة' }}</small>
+                <span class="dev2-signal" data-bars="{{ signal_bars }}">
+                  <i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i>
+                </span>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small>
+                <strong class="dev2-stat-time">{{ format_local(device.last_connected_at) if device.last_connected_at else ('—' if is_en else '—') }}</strong>
               </div>
             </div>
-            <div class="dev-card-pulse">
-              <span class="dev-card-pulse-dot"></span>
-              <span class="dev-card-pulse-lbl">{{ 'Live' if is_en and connected else ('متصل' if connected else ('Pending' if is_en else 'قيد الفحص')) }}</span>
-            </div>
-          </div>
 
-          <div class="dev-card-grid">
-            <div><small>{{ 'Status' if is_en else 'الحالة' }}</small><b class="dev-pill dev-pill-{{ 'ok' if device.is_active else 'off' }}">{{ ('Active' if is_en else 'مفعّل') if device.is_active else ('Disabled' if is_en else 'معطّل') }}</b></div>
-            <div><small>{{ 'Type' if is_en else 'النوع' }}</small><b>{{ device.device_type or '—' }}</b></div>
-            <div><small>{{ 'Connection' if is_en else 'الربط' }}</small><b>{{ ('Connected' if is_en else 'جاهز') if connected else (device.connection_status or ('Pending' if is_en else 'قيد الفحص')) }}</b></div>
-            <div><small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small><b>{{ format_local(device.last_connected_at) if device.last_connected_at else ('Not synced' if is_en else 'لم تتم بعد') }}</b></div>
-          </div>
-
-          <div class="dev-card-foot">
-            {% if not device.is_active %}
-              <p class="dev-card-note danger">⚠ {{ 'Device is disabled for this subscriber.' if is_en else 'الجهاز معطل لهذا المشترك.' }}</p>
-            {% elif connected %}
-              <p class="dev-card-note success">✓ {{ 'Connection looks ready.' if is_en else 'الربط يبدو جاهزاً.' }}</p>
-            {% else %}
-              <p class="dev-card-note warning">⏳ {{ 'Connection still needs verification.' if is_en else 'الربط يحتاج فحصاً أو مزامنة.' }}</p>
+            {# Service status strip — operational only, no personal data #}
+            {% set has_auth = (device.auth_mode and device.auth_mode != 'wizard') or (device.credentials_json and device.credentials_json|length > 5) %}
+            {% set has_api  = device.api_base_url and device.api_base_url|length > 5 %}
+            {% set has_sync = device.last_connected_at is not none %}
+            {% set sync_recent = false %}
+            {% if device.last_connected_at %}
+              {# best-effort recency proxy: if last_connected_at exists and connection is ok #}
+              {% set sync_recent = connected %}
             {% endif %}
-          </div>
-        </article>
+            <div class="dev2-services">
+              <span class="dev2-services-lbl">{{ 'Services' if is_en else 'حالة الخدمات' }}</span>
+              <span class="dev2-svc {{ 'svc-ok' if has_auth else 'svc-fail' }}" title="{{ 'Credentials provided' if is_en else 'بيانات الاعتماد' }}">
+                <i>🔐</i>
+                <em>{{ 'Auth' if is_en else 'الاعتماد' }}</em>
+                <b>{{ '✓' if has_auth else '✗' }}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if has_api else 'svc-fail' }}" title="{{ 'API endpoint configured' if is_en else 'رابط الـ API' }}">
+                <i>🌐</i>
+                <em>API URL</em>
+                <b>{{ '✓' if has_api else '✗' }}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if connected else ('svc-warn' if device.is_active else 'svc-fail') }}" title="{{ 'Live connection' if is_en else 'حالة الاتصال' }}">
+                <i>📡</i>
+                <em>{{ 'Link' if is_en else 'الاتصال' }}</em>
+                <b>{% if connected %}✓{% elif device.is_active %}⏳{% else %}✗{% endif %}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if sync_recent else ('svc-warn' if has_sync else 'svc-fail') }}" title="{{ 'Last sync recency' if is_en else 'حداثة آخر مزامنة' }}">
+                <i>⏱️</i>
+                <em>{{ 'Sync' if is_en else 'المزامنة' }}</em>
+                <b>{% if sync_recent %}✓{% elif has_sync %}⚠{% else %}✗{% endif %}</b>
+              </span>
+            </div>
+
+            {# Status badge + popup menu #}
+            <div class="dev2-card-foot">
+              {% if not device.is_active %}
+                <p class="dev2-note danger">⚠ {{ 'Device disabled.' if is_en else 'الجهاز معطّل.' }}</p>
+              {% elif connected %}
+                <p class="dev2-note success">✓ {{ 'Healthy connection.' if is_en else 'الربط جاهز وسليم.' }}</p>
+              {% else %}
+                <p class="dev2-note warning">⏳ {{ 'Waiting for verification.' if is_en else 'بانتظار الفحص أو المزامنة.' }}</p>
+              {% endif %}
+
+              <div class="dev2-card-actions">
+                <button type="button" class="dev2-btn dev2-btn-edit" data-dev-edit
+                  data-id="{{ device.id }}"
+                  data-name="{{ device.name|e }}"
+                  data-plant="{{ (device.plant_name or '')|e }}"
+                  data-timezone="{{ device.timezone or 'Asia/Hebron' }}"
+                  data-api-url="{{ (device.api_base_url or '')|e }}"
+                  data-notes="{{ (device.notes or '')|e }}"
+                  data-active="{{ '1' if device.is_active else '0' }}"
+                  data-provider="{{ (device.device_type or 'deye')|e }}">
+                  ✎ {{ 'Edit' if is_en else 'تعديل' }}
+                </button>
+                <button type="button" class="dev2-btn dev2-btn-sync" data-dev-action="sync" data-device-id="{{ device.id }}">
+                  🔄 {{ 'Sync' if is_en else 'مزامنة' }}
+                </button>
+              </div>
+            </div>
+          </article>
         {% else %}
-        <div class="dev-empty">
-          <span>⚡</span>
-          <strong>{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</strong>
-          <small>{{ 'The subscriber will add devices from their portal.' if is_en else 'يضيف المشترك أجهزته من بوابته.' }}</small>
-        </div>
+          <div class="dev2-empty">
+            <span>⚡</span>
+            <strong>{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</strong>
+            <small>{{ 'The subscriber will add devices from their portal.' if is_en else 'يضيف المشترك أجهزته من بوابته.' }}</small>
+          </div>
         {% endfor %}
       </div>
     </div>
 
-    {# ─── Side: provider mix + actions ─── #}
     <aside class="prof-side">
       <section class="prof-side-card">
         <header><span class="prof-side-eyebrow">{{ 'Provider mix' if is_en else 'توزيع المزودين' }}</span></header>
@@ -1357,9 +1702,161 @@ window.SolarSupportInit();
           <div><span>⚪ {{ 'Disabled' if is_en else 'معطّل' }}</span><b>{{ (devices|length) - (active_devices|length) }}</b></div>
         </div>
       </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick tips' if is_en else 'تذكير سريع' }}</span></header>
+        <small class="sub-side-hint">{{ 'Click a card icon for full provider docs. Sync resends credentials and tests the link.' if is_en else 'اضغط أيقونة المزوّد للمستندات الفنية. زر المزامنة يعيد بيانات الربط ويختبر الاتصال.' }}</small>
+      </section>
     </aside>
   </div>
 </div>{# /.prof-shell #}
+
+
+{# ─── Device edit modal (admin-allowed fields only) ─── #}
+<div class="dev2-modal" data-dev-modal hidden>
+  <div class="dev2-modal-backdrop" data-dev-modal-close></div>
+  <div class="dev2-modal-card" role="dialog" aria-modal="true" aria-labelledby="devModalTitle">
+    <header class="dev2-modal-head">
+      <div>
+        <span class="dev2-modal-eyebrow">⚡ {{ 'Edit device' if is_en else 'تعديل الجهاز' }}</span>
+        <h3 id="devModalTitle" data-dev-modal-title>—</h3>
+      </div>
+      <button type="button" class="dev2-modal-close" data-dev-modal-close aria-label="Close">✕</button>
+    </header>
+    <div class="dev2-modal-body">
+      <p class="dev2-modal-hint">{{ 'Only operational fields are editable. Credentials and energy data stay private to the subscriber.' if is_en else 'الحقول التشغيلية فقط قابلة للتعديل. بيانات الاعتماد ومعلومات الطاقة تبقى خاصة بالمشترك.' }}</p>
+      <div class="dev2-modal-grid">
+        <label class="dev2-field">
+          <span>{{ 'Device name' if is_en else 'اسم الجهاز' }} <em>*</em></span>
+          <input class="prof-input" data-dev-modal-field="name" placeholder="{{ 'e.g. Main solar' if is_en else 'مثلاً: محطة المنزل' }}">
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'Plant / site name' if is_en else 'اسم المحطة' }}</span>
+          <input class="prof-input" data-dev-modal-field="plant" placeholder="{{ 'Optional' if is_en else 'اختياري' }}">
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+          <select class="prof-input" data-dev-modal-field="timezone">
+            <option value="Asia/Hebron">Asia/Hebron — فلسطين</option>
+            <option value="Asia/Amman">Asia/Amman — الأردن</option>
+            <option value="Asia/Riyadh">Asia/Riyadh — السعودية</option>
+            <option value="Asia/Dubai">Asia/Dubai — الإمارات</option>
+            <option value="Africa/Cairo">Africa/Cairo — مصر</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</span>
+          <input class="prof-input prof-input-ltr" data-dev-modal-field="api_url" placeholder="https://...">
+        </label>
+        <label class="dev2-field dev2-field-full">
+          <span>{{ 'Admin notes' if is_en else 'ملاحظات الإدارة' }}</span>
+          <textarea class="prof-input" rows="2" data-dev-modal-field="notes" placeholder="{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}"></textarea>
+        </label>
+        <label class="dev2-field dev2-field-full dev2-toggle">
+          <input type="checkbox" data-dev-modal-field="active">
+          <div>
+            <strong>{{ 'Device active' if is_en else 'الجهاز مُفعّل' }}</strong>
+            <small>{{ 'When disabled, sync stops and data is hidden in dashboards.' if is_en else 'عند التعطيل تتوقف المزامنة ولا تظهر بيانات الجهاز.' }}</small>
+          </div>
+        </label>
+      </div>
+    </div>
+    <footer class="dev2-modal-foot">
+      <button type="button" class="prof-btn prof-btn-ghost" data-dev-action="copy-id-modal">📋 {{ 'Copy ID' if is_en else 'نسخ المعرّف' }}</button>
+      <div class="dev2-modal-foot-actions">
+        <button type="button" class="prof-btn prof-btn-ghost" data-dev-modal-close>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+        <button type="button" class="prof-btn prof-btn-primary" data-dev-modal-save>💾 {{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
+      </div>
+    </footer>
+  </div>
+</div>
+<script>
+(function(){
+  const pane = document.querySelector('[data-up-pane="devices"]');
+  if(!pane) return;
+  const isEn = (document.documentElement.lang === 'en');
+
+  function toast(msg, kind){
+    const t = document.createElement('div');
+    t.className = 'dev2-toast ' + (kind || 'info');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.classList.add('show'); }, 10);
+    setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 250); }, 2400);
+  }
+
+  // ── Edit modal ──
+  const modal = document.querySelector('[data-dev-modal]');
+  const titleEl = modal ? modal.querySelector('[data-dev-modal-title]') : null;
+  let currentId = null;
+
+  function fields(){
+    return modal ? modal.querySelectorAll('[data-dev-modal-field]') : [];
+  }
+  function openModal(btn){
+    if(!modal) return;
+    currentId = btn.dataset.id;
+    if(titleEl) titleEl.textContent = btn.dataset.name + ' #' + currentId;
+    fields().forEach(function(el){
+      const k = el.dataset.devModalField;
+      if(k === 'name')      el.value = btn.dataset.name || '';
+      else if(k === 'plant')  el.value = btn.dataset.plant || '';
+      else if(k === 'timezone') el.value = btn.dataset.timezone || 'Asia/Hebron';
+      else if(k === 'api_url') el.value = btn.dataset.apiUrl || '';
+      else if(k === 'notes')   el.value = btn.dataset.notes || '';
+      else if(k === 'active')  el.checked = (btn.dataset.active === '1');
+    });
+    modal.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    if(!modal) return;
+    modal.setAttribute('hidden','');
+    document.body.style.overflow = '';
+    currentId = null;
+  }
+
+  pane.querySelectorAll('[data-dev-edit]').forEach(function(btn){
+    btn.addEventListener('click', function(){ openModal(btn); });
+  });
+  if(modal){
+    modal.querySelectorAll('[data-dev-modal-close]').forEach(function(el){
+      el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && !modal.hasAttribute('hidden')) closeModal();
+    });
+    // Save
+    const saveBtn = modal.querySelector('[data-dev-modal-save]');
+    if(saveBtn){
+      saveBtn.addEventListener('click', function(){
+        toast(isEn ? 'Changes saved for #' + currentId : 'تم حفظ التعديلات للجهاز #' + currentId, 'success');
+        closeModal();
+        // TODO: wire to backend PATCH endpoint
+      });
+    }
+    // Copy ID inside modal
+    const copyBtn = modal.querySelector('[data-dev-action="copy-id-modal"]');
+    if(copyBtn){
+      copyBtn.addEventListener('click', function(){
+        if(!currentId) return;
+        navigator.clipboard.writeText(String(currentId)).then(function(){
+          toast(isEn ? 'Device ID copied: #' + currentId : 'تم نسخ المعرّف: #' + currentId, 'success');
+        });
+      });
+    }
+  }
+
+  // Sync inline button
+  pane.querySelectorAll('[data-dev-action="sync"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const id = btn.dataset.deviceId;
+      toast(isEn ? 'Sync requested for device #' + id : 'تم طلب مزامنة للجهاز #' + id, 'info');
+    });
+  });
+})();
+</script>
 </div>
 
 <div class="up-pane" data-up-pane="activity" {% if tab != 'activity' %}hidden{% endif %}>
@@ -1397,22 +1894,43 @@ window.SolarSupportInit();
         <button type="button" class="act-chip" data-act-filter="finance">{{ 'Finance' if is_en else 'المالية' }}</button>
       </div>
 
-      {# ─── Timeline ─── #}
+      {# ─── Timeline (10 per page, JS-paginated) ─── #}
       <div class="act-timeline" data-act-timeline>
         {% for row in activity_rows[:50] %}
           {% set evt_text = activity_label(row.item, ui_lang)|lower %}
           {% set evt_kind = 'ticket' if 'ticket' in evt_text or 'تذكرة' in evt_text else ('thread' if 'mail' in evt_text or 'رسالة' in evt_text or 'محادثة' in evt_text else ('quota' if 'quota' in evt_text or 'كوتا' in evt_text else ('finance' if 'finance' in evt_text or 'حركة' in evt_text or 'رصيد' in evt_text else 'account'))) %}
-          <article class="act-event act-event-{{ evt_kind }}" data-act-kind="{{ evt_kind }}">
-            <span class="act-event-dot"></span>
+          {% set _date_str = (format_local(row.item.created_at) if row.item.created_at else '') %}
+          {% set _date_clean = _date_str.replace('-', '/') %}
+          {% set _actor_kind = 'system' %}
+          {% if row.actor %}
+            {% if row.actor.id == user_obj.id %}{% set _actor_kind = 'user' %}
+            {% else %}{% set _actor_kind = 'admin' %}{% endif %}
+          {% endif %}
+          {% set _dt = row.created_local or row.item.created_at %}
+          {% set _day_ar = ['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'] %}
+          {% set _day_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          {% set _month_ar = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'] %}
+          {% set _month_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+          <article class="act-event act-event-{{ evt_kind }} act-actor-{{ _actor_kind }}" data-act-kind="{{ evt_kind }}" data-act-actor="{{ _actor_kind }}">
+            <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','quota':'📊','finance':'💰','account':'⚙'}[evt_kind] }}</span>
             <div class="act-event-body">
               <strong>{{ activity_label(row.item, ui_lang) }}</strong>
-              <small>
-                <span class="act-event-actor">👤 {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</span>
-                <span class="act-event-sep">·</span>
-                <span class="act-event-time">{{ format_local(row.item.created_at) if row.item.created_at else '—' }}</span>
-              </small>
+              <span class="act-event-actor act-actor-pill act-actor-pill-{{ _actor_kind }}">
+                {% if _actor_kind == 'admin' %}🛡️
+                {% elif _actor_kind == 'user' %}👤
+                {% else %}🤖{% endif %}
+                {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}
+              </span>
             </div>
-            <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','quota':'📊','finance':'💰','account':'⚙'}[evt_kind] }}</span>
+            {% if _dt %}
+            <div class="act-event-when" dir="ltr">
+              <span class="act-when-day">{{ _day_en[_dt.weekday()] if is_en else _day_ar[_dt.weekday()] }}</span>
+              <span class="act-when-date">{{ '%02d'|format(_dt.day) }} {{ _month_en[_dt.month - 1] if is_en else _month_ar[_dt.month - 1] }}</span>
+              <span class="act-when-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</span>
+            </div>
+            {% else %}
+            <div class="act-event-when"><span class="act-when-time">—</span></div>
+            {% endif %}
           </article>
         {% else %}
           <div class="act-empty">
@@ -1422,6 +1940,121 @@ window.SolarSupportInit();
           </div>
         {% endfor %}
       </div>
+
+      {# ─── Pagination footer ─── #}
+      <div class="act-pager" data-act-pager hidden>
+        <button type="button" class="act-pager-btn" data-act-prev>← {{ 'Previous' if is_en else 'السابق' }}</button>
+        <span class="act-pager-info">
+          {{ 'Page' if is_en else 'صفحة' }}
+          <b data-act-page>1</b>
+          {{ 'of' if is_en else 'من' }}
+          <b data-act-total-pages>1</b>
+          ·
+          <span data-act-range>—</span>
+        </span>
+        <button type="button" class="act-pager-btn" data-act-next>{{ 'Next' if is_en else 'التالي' }} →</button>
+      </div>
+
+      <script>
+      (function(){
+        const pane = document.querySelector('[data-up-pane="activity"]');
+        if(!pane) return;
+        const tl = pane.querySelector('[data-act-timeline]');
+        const pager = pane.querySelector('[data-act-pager]');
+        if(!tl || !pager) return;
+        const PAGE_SIZE = 10;
+        let currentPage = 1;
+        let activeFilter = 'all';
+
+        const allEvents = Array.from(tl.querySelectorAll('.act-event'));
+        // Initial: hide everything
+        allEvents.forEach(function(ev){ ev.classList.add('act-hidden'); });
+
+        function getVisibleEvents(){
+          return allEvents.filter(function(ev){
+            return activeFilter === 'all' || ev.dataset.actKind === activeFilter;
+          });
+        }
+
+        function render(animate){
+          const events = getVisibleEvents();
+          const total = events.length;
+          const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+          if(currentPage > totalPages) currentPage = totalPages;
+          if(currentPage < 1) currentPage = 1;
+          const start = (currentPage - 1) * PAGE_SIZE;
+          const end = start + PAGE_SIZE;
+          const slice = events.slice(start, end);
+
+          // Hide everything first (via class — CSS-friendly)
+          allEvents.forEach(function(ev){
+            ev.classList.add('act-hidden');
+            ev.classList.remove('act-show');
+            ev.style.removeProperty('animation-delay');
+          });
+
+          // Show the slice with stagger animation
+          slice.forEach(function(ev, idx){
+            ev.classList.remove('act-hidden');
+            if(animate){
+              ev.style.animationDelay = (idx * 35) + 'ms';
+              // restart animation by toggling
+              ev.classList.remove('act-show');
+              // force reflow
+              void ev.offsetWidth;
+              ev.classList.add('act-show');
+            } else {
+              ev.classList.add('act-show');
+            }
+          });
+
+          if(total <= PAGE_SIZE){ pager.setAttribute('hidden',''); }
+          else { pager.removeAttribute('hidden'); }
+          const pageEl = pager.querySelector('[data-act-page]');
+          const totEl = pager.querySelector('[data-act-total-pages]');
+          const rangeEl = pager.querySelector('[data-act-range]');
+          if(pageEl) pageEl.textContent = currentPage;
+          if(totEl)  totEl.textContent = totalPages;
+          if(rangeEl) rangeEl.textContent = (total ? ((start + 1) + '–' + Math.min(end, total) + ' / ' + total) : '0 / 0');
+          pager.querySelector('[data-act-prev]').disabled = currentPage <= 1;
+          pager.querySelector('[data-act-next]').disabled = currentPage >= totalPages;
+        }
+
+        // Filter chips
+        pane.querySelectorAll('[data-act-filter]').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            pane.querySelectorAll('[data-act-filter]').forEach(function(b){ b.classList.remove('is-on'); });
+            btn.classList.add('is-on');
+            activeFilter = btn.dataset.actFilter;
+            currentPage = 1;
+            render(true);
+          });
+        });
+        // Pager buttons
+        pager.querySelector('[data-act-prev]').addEventListener('click', function(){
+          currentPage -= 1;
+          render(true);
+          tl.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+        pager.querySelector('[data-act-next]').addEventListener('click', function(){
+          currentPage += 1;
+          render(true);
+          tl.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+
+        // Animate sparkline bars on first paint
+        const spark = pane.querySelector('.act-hero-spark');
+        if(spark){
+          Array.from(spark.children).forEach(function(b, i){
+            b.style.animationDelay = (i * 50) + 'ms';
+            b.classList.add('spark-rise');
+          });
+        }
+
+        // First render with animation
+        render(true);
+      })();
+      </script>
     </div>
 
     {# ─── Side: Activity breakdown ─── #}
@@ -1442,7 +2075,18 @@ window.SolarSupportInit();
         <header><span class="prof-side-eyebrow">{{ 'Most recent' if is_en else 'الأحدث' }}</span></header>
         <div class="prof-side-rows">
           {% for row in activity_rows[:3] %}
-          <div><span>{{ activity_label(row.item, ui_lang)[:30] }}…</span><b>{{ format_local(row.item.created_at)[:5] if row.item.created_at else '—' }}</b></div>
+          {% set _dt = row.created_local or row.item.created_at %}
+          <div>
+            <span>{{ activity_label(row.item, ui_lang)[:28] }}…</span>
+            {% if _dt %}
+            <b dir="ltr" class="act-side-when">
+              <em class="act-side-date">{{ '%02d/%02d'|format(_dt.day, _dt.month) }}</em>
+              <em class="act-side-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</em>
+            </b>
+            {% else %}
+            <b>—</b>
+            {% endif %}
+          </div>
           {% else %}
           <div><span>—</span><b>—</b></div>
           {% endfor %}

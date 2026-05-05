@@ -904,3 +904,155 @@
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   POLISH PASS v167 — breathe, contrast, group rhythm
+   - Toolbar: larger gaps + visible group dividers + button spacing
+   - Side cards: tinted accents, distinct borders, hover lift
+   - Quick-action cards & recent list: clear separators
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Toolbar action bar ──────────────────────────────────────────── */
+.sc-toolbar { padding: 14px 16px !important; }
+.sc-toolbar form {
+  gap: 4px !important;
+  row-gap: 10px !important;
+}
+.sc-toolbar-group {
+  gap: 10px !important;
+  padding: 0 18px !important;
+}
+.sc-toolbar-group + .sc-toolbar-group::before {
+  top: 8px !important;
+  bottom: 8px !important;
+  background: linear-gradient(180deg, transparent, var(--sc-border) 20%, var(--sc-border) 80%, transparent) !important;
+}
+.sc-toolbar-group:first-of-type { padding-inline-start: 0 !important; }
+.sc-toolbar-group:last-of-type  { padding-inline-end: 0 !important; }
+.sc-toolbar .sc-btn-v2 {
+  padding: 8px 14px !important;
+  letter-spacing: .01em;
+}
+.sc-toolbar .sc-btn-v2.ghost {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+.sc-toolbar .sc-btn-v2.ghost:hover {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #1e3a8a !important;
+}
+
+/* ── Side detail cards: distinct accent stripe per card position ── */
+.sc-detail-card {
+  position: relative;
+  padding: 16px 18px !important;
+  border: 1.5px solid #e2e8f0 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%) !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  overflow: hidden;
+}
+.sc-detail-card::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+  opacity: .9;
+}
+.sc-detail-card:nth-of-type(1)::before { background: linear-gradient(180deg, #6366f1, #4338ca); }   /* details */
+.sc-detail-card:nth-of-type(2)::before { background: linear-gradient(180deg, #8b5cf6, #6d28d9); }   /* user info */
+.sc-detail-card:nth-of-type(3)::before { background: linear-gradient(180deg, #06b6d4, #0e7490); }   /* recent tickets */
+.sc-detail-card:nth-of-type(4)::before { background: linear-gradient(180deg, #10b981, #047857); }   /* attachments */
+.sc-detail-card:nth-of-type(5)::before { background: linear-gradient(180deg, #f59e0b, #b45309); }   /* quick actions */
+.sc-detail-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -14px rgba(15, 23, 42, .18) !important;
+  border-color: #c7d2fe !important;
+}
+.sc-detail-card-head {
+  margin-bottom: 12px !important;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.sc-detail-card-head h3 {
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+.sc-detail-ref {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff) !important;
+  color: #4338ca !important;
+  font-weight: 700 !important;
+  border: 1px solid #c7d2fe;
+}
+
+/* ── Detail list rows: subtle row separators for scannability ───── */
+.sc-detail-list { gap: 4px !important; }
+.sc-detail-list > div {
+  padding: 7px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.sc-detail-list > div:last-child { border-bottom: 0; }
+.sc-detail-list dt {
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: .85rem !important;
+}
+.sc-detail-list dd {
+  color: #0f172a !important;
+  font-weight: 500;
+}
+
+/* ── Recent + attachment list: tinted hover pill ──────────────── */
+.sc-recent-list a,
+.sc-attachment-list a {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0;
+  font-weight: 600 !important;
+  padding: 10px 12px !important;
+}
+.sc-recent-list a:hover,
+.sc-attachment-list a:hover {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff) !important;
+  border-color: #c7d2fe !important;
+  transform: translateX(-2px);
+}
+[dir="ltr"] .sc-recent-list a:hover,
+[dir="ltr"] .sc-attachment-list a:hover { transform: translateX(2px); }
+
+/* ── Quick-action sidebar buttons spacing ─────────────────────── */
+.sc-quick-actions { display: grid; gap: 10px; }
+.sc-quick-actions .sc-btn-v2 {
+  width: 100%;
+  padding: 10px 14px !important;
+  justify-content: center;
+}
+
+/* ── Composer reply tabs: clearer active state ───────────────── */
+.sc-composer-tabs {
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.sc-composer-tabs button {
+  padding: 8px 14px !important;
+  font-weight: 700 !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+.sc-composer-tabs button.is-active {
+  background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px -4px rgba(67, 56, 202, .5);
+}
+
+/* ── Mobile: drop dividers, stack groups ──────────────────────── */
+@media (max-width: 880px) {
+  .sc-toolbar-group { padding: 0 8px !important; }
+  .sc-toolbar-group + .sc-toolbar-group::before { display: none; }
+  .sc-toolbar form { gap: 8px !important; row-gap: 8px !important; }
+}

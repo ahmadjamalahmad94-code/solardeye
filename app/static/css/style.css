@@ -8653,3 +8653,323 @@ body:has(.support-center-v22) {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v125 — Notifications dropdown: compact redesign (admin + subscriber)
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Bell button — slightly smaller, modern */
+.notification-bell-btn{
+  width:46px !important;height:46px !important;border-radius:14px !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.12) !important;
+}
+.notification-bell-btn:hover{transform:translateY(-1px) scale(1.02) !important}
+.bell-icon{font-size:1.25rem !important}
+
+/* Counter badge — smaller and crisper */
+.notification-bell-count{
+  min-width:20px !important;height:20px !important;
+  padding:0 5px !important;
+  font-size:.66rem !important;font-weight:900 !important;
+  border-width:2px !important;
+  top:-5px !important;right:-5px !important;
+  box-shadow:0 4px 10px rgba(239,68,68,.35);
+}
+.notification-bell-count.is-zero{display:none !important}
+
+/* Dropdown — smaller width, smaller padding */
+.notification-dropdown{
+  top:54px !important;
+  width:min(340px, calc(100vw - 28px)) !important;
+  border-radius:16px !important;
+  box-shadow:0 18px 48px rgba(15,23,42,.18) !important;
+  border:1px solid #e3eaf6 !important;
+}
+
+/* Head — slim */
+.notification-dropdown-head{
+  padding:12px 16px !important;
+  background:linear-gradient(135deg,#faf5ff,#fff) !important;
+  border-bottom:1px solid #ede9fe !important;
+}
+.notification-dropdown-head strong{
+  font-size:.92rem !important;font-weight:900 !important;color:#0b1220 !important;
+}
+.notification-dropdown-head small{
+  font-size:.7rem !important;color:#7c3aed !important;font-weight:700 !important;
+}
+.notification-mini-count{
+  padding:4px 9px !important;font-size:.7rem !important;font-weight:900 !important;
+  background:#f5f3ff !important;color:#5b21b6 !important;border-color:#ddd6fe !important;
+}
+
+/* List — tight scroll, compact items */
+.notification-list{
+  max-height:340px !important;
+  padding:6px !important;
+}
+
+/* Notification item — much more compact, single line */
+.notification-item{
+  display:grid !important;
+  grid-template-columns:32px 1fr auto !important;
+  grid-template-rows:auto auto !important;
+  gap:2px 10px !important;
+  padding:10px 12px !important;
+  margin:0 0 4px 0 !important;
+  border-radius:11px !important;
+  background:#fff !important;
+  border:1px solid #f1f5f9 !important;
+  position:relative;
+  transition:all .15s !important;
+  text-decoration:none !important;
+}
+.notification-item:hover{
+  background:linear-gradient(135deg,#faf5ff,#fff) !important;
+  border-color:#c4b5fd !important;
+  transform:translateX(-2px) !important;
+}
+[dir="rtl"] .notification-item:hover{transform:translateX(2px) !important}
+
+/* Hide the separate header row inside item — we lay it out via grid */
+.notif-row{
+  grid-column:1 / -1;
+  display:flex !important;align-items:center !important;
+  gap:6px !important;margin-bottom:0 !important;
+  font-size:.66rem !important;
+  flex-wrap:wrap;
+}
+.notif-kind, .notif-status{
+  padding:1px 7px !important;font-size:.62rem !important;
+  border-radius:99px !important;
+}
+
+/* Title compact */
+.notification-item h4{
+  font-size:.82rem !important;
+  margin:2px 0 0 !important;
+  font-weight:900 !important;color:#0b1220 !important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* Body preview — single line ellipsis */
+.notification-item p{
+  margin:1px 0 0 !important;
+  font-size:.72rem !important;line-height:1.35 !important;color:#64748b !important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* Meta line at the bottom */
+.notif-meta{
+  font-size:.66rem !important;color:#94a3b8 !important;
+  margin-top:4px;
+  gap:6px !important;
+}
+.notif-meta small{font-size:.62rem !important}
+
+/* Side stripe based on kind (3px on the start side) */
+.notification-item::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;top:8px;bottom:8px;
+  width:3px;
+  border-radius:99px;
+  background:#cbd5e1;
+}
+.notification-item.kind-ticket::before{background:linear-gradient(180deg,#fbbf24,#f59e0b)}
+.notification-item.kind-message::before, .notification-item.kind-mail::before{background:linear-gradient(180deg,#60a5fa,#2563eb)}
+
+/* Empty state */
+.notification-empty{
+  padding:30px 14px !important;
+  font-size:.84rem !important;font-weight:700 !important;color:#94a3b8 !important;
+}
+.notification-empty::before{
+  content:"📬";
+  display:block;font-size:1.6rem;margin-bottom:6px;font-weight:normal;
+}
+
+/* Bottom action bar — tighter */
+.notification-dropdown-actions{
+  padding:0 !important;
+}
+.notification-mark-read, .notification-dropdown-actions .notification-more{
+  padding:10px 12px !important;
+  font-size:.78rem !important;font-weight:900 !important;
+  transition:background .15s !important;
+}
+.notification-mark-read:hover{background:#fef3c7 !important;color:#92400e !important}
+.notification-dropdown-actions .notification-more:hover{background:#f5f3ff !important;color:#5b21b6 !important}
+
+/* Smooth pulse animation when count > 0 (caller draws attention) */
+.notification-bell-count:not(.is-zero){
+  animation:bellPulse 2s ease-in-out infinite;
+}
+@keyframes bellPulse{
+  0%,100%{transform:scale(1);box-shadow:0 4px 10px rgba(239,68,68,.35)}
+  50%    {transform:scale(1.08);box-shadow:0 6px 14px rgba(239,68,68,.5)}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v126 — Notifications: clean column layout, no wasted space, clear text
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Trim the header gap */
+.notification-dropdown-head{
+  padding:10px 14px !important;
+  gap:8px !important;
+}
+.notification-list{
+  padding:8px !important;
+  gap:6px !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+
+/* Item — switch from broken grid to a clean vertical stack */
+.notification-item{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:4px !important;
+  padding:10px 12px 10px 16px !important;
+  padding-inline-start:16px !important;
+  padding-inline-end:12px !important;
+  margin:0 !important;
+}
+
+/* Kind + status row at the top of each item */
+.notif-row{
+  display:flex !important;align-items:center !important;
+  gap:6px !important;margin:0 !important;
+  flex-wrap:wrap !important;
+  font-size:.66rem !important;
+}
+.notif-kind{
+  padding:2px 8px !important;font-size:.62rem !important;font-weight:900 !important;
+  border-radius:99px !important;
+}
+.notif-status{
+  padding:2px 8px !important;font-size:.62rem !important;font-weight:900 !important;
+  border-radius:99px !important;
+}
+
+/* Title — allow up to 2 lines, no truncation, clear */
+.notification-item h4{
+  font-size:.86rem !important;
+  margin:1px 0 0 !important;
+  font-weight:900 !important;color:#0b1220 !important;
+  line-height:1.35 !important;
+  /* Allow 2 lines */
+  white-space:normal !important;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  word-break:break-word;
+  text-overflow:ellipsis;
+}
+
+/* Preview — 1 line, clear color */
+.notification-item p{
+  margin:0 !important;
+  font-size:.74rem !important;line-height:1.4 !important;
+  color:#475569 !important;font-weight:600 !important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* Meta line — sender + time on opposite ends */
+.notif-meta{
+  display:flex !important;align-items:center !important;justify-content:space-between !important;
+  font-size:.68rem !important;color:#94a3b8 !important;font-weight:700 !important;
+  margin-top:2px !important;
+  gap:8px !important;
+}
+.notif-meta small{font-size:.64rem !important;color:#64748b !important;font-variant-numeric:tabular-nums}
+
+/* Lift hover */
+.notification-item:hover h4{color:#5b21b6 !important}
+.notification-item:hover p{color:#1f2a44 !important}
+
+/* The colored stripe stays at the start */
+.notification-item::before{
+  inset-inline-start:0 !important;
+  width:4px !important;
+  top:10px !important;bottom:10px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v127 — Bento panels: soft fade-out at the bottom (no harsh cuts)
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Add a gradient fade overlay at the bottom 60px of every bento panel list */
+.ad-panel{
+  position:relative !important;
+  isolation:isolate;
+  overflow:hidden;
+}
+.ad-panel > .ad-list{
+  /* Reserve bottom space so the last item still has breathing room behind the fade */
+  padding-bottom:24px !important;
+}
+.ad-panel::after{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  inset-inline-end:0;
+  bottom:0;
+  height:96px;            /* v129 — taller fade so the last row is fully covered */
+  pointer-events:none;
+  z-index:2;
+  /* Sharper fade — last 20% is solid white, no transparency */
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,255,0)   0%,
+    rgba(255,255,255,.45) 40%,
+    rgba(255,255,255,.85) 65%,
+    rgba(255,255,255,1)   80%,
+    rgba(255,255,255,1)  100%
+  );
+}
+
+/* If the panel has a tinted background (e.g. p-violet/p-emerald variants), match its tint */
+.ad-panel.p-violet::after{
+  background:linear-gradient(
+    to bottom,
+    rgba(245,243,255,0)   0%,
+    rgba(245,243,255,.45) 40%,
+    rgba(245,243,255,.85) 65%,
+    rgba(245,243,255,1)   80%,
+    rgba(245,243,255,1)  100%
+  );
+}
+.ad-panel.p-emerald::after{
+  background:linear-gradient(
+    to bottom,
+    rgba(236,253,245,0)   0%,
+    rgba(236,253,245,.45) 40%,
+    rgba(236,253,245,.85) 65%,
+    rgba(236,253,245,1)   80%,
+    rgba(236,253,245,1)  100%
+  );
+}
+.ad-panel.p-amber::after{
+  background:linear-gradient(
+    to bottom,
+    rgba(255,251,235,0)   0%,
+    rgba(255,251,235,.45) 40%,
+    rgba(255,251,235,.85) 65%,
+    rgba(255,251,235,1)   80%,
+    rgba(255,251,235,1)  100%
+  );
+}
+.ad-panel.p-sky::after{
+  background:linear-gradient(
+    to bottom,
+    rgba(239,246,255,0)   0%,
+    rgba(239,246,255,.45) 40%,
+    rgba(239,246,255,.85) 65%,
+    rgba(239,246,255,1)   80%,
+    rgba(239,246,255,1)  100%
+  );
+}
+
+/* Ensure the panel head/link stay above the fade */
+.ad-panel-head, .ad-panel-link{position:relative;z-index:3}

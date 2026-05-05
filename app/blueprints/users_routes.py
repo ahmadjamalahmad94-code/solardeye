@@ -14,7 +14,23 @@ for _legacy_name in dir(_legacy_main):
     if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
         globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
 
-from ..services.rbac import PERMISSION_KEYS, available_roles, permission_catalog, portal_pages, role_label, role_permissions, save_user_portal_visibility, seed_access_control, user_portal_visibility_map
+from ..services.rbac import (
+    ALL_PERMISSION_KEYS,
+    PERMISSION_KEYS,
+    SUBS_BY_PARENT,
+    available_roles,
+    parent_of_sub,
+    permission_catalog,
+    portal_pages,
+    resolve_effective_permission,
+    role_label,
+    role_permissions,
+    save_user_portal_visibility,
+    seed_access_control,
+    sub_permission_catalog,
+    subs_for_parent,
+    user_portal_visibility_map,
+)
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
 from ..services.location_catalog import countries_for_template, timezones_grouped_for_template
 
@@ -61,10 +77,22 @@ def _is_staff_account(user) -> bool:
 
 
 def _parse_user_permission_overrides(user) -> dict[str, bool]:
+    """Parent-only overrides (kept for older call-sites that don't need subs)."""
     try:
         parsed = json.loads(getattr(user, 'permissions_json', None) or '{}')
         if isinstance(parsed, dict):
             return {key: bool(parsed.get(key)) for key in PERMISSION_KEYS if key in parsed}
+    except Exception:
+        pass
+    return {}
+
+
+def _parse_user_permission_overrides_full(user) -> dict[str, bool]:
+    """All overrides — parent keys AND sub-permission dot-keys."""
+    try:
+        parsed = json.loads(getattr(user, 'permissions_json', None) or '{}')
+        if isinstance(parsed, dict):
+            return {key: bool(parsed.get(key)) for key in ALL_PERMISSION_KEYS if key in parsed}
     except Exception:
         pass
     return {}
@@ -85,10 +113,24 @@ def _assigned_support_for_staff(user) -> tuple[list[dict], list[dict]]:
 
 
 def _staff_activity_rows(user) -> list[dict]:
+    """Return up to 30 activity rows where the staff member is actor or target.
+
+    Each timestamp is converted to the *profile owner's* timezone (the timezone
+    they selected on their account — e.g. Asia/Hebron, Europe/Berlin) so the
+    activity tab always shows the same wall-clock time the owner of that profile
+    would see. Falls back to the system default if the owner has no preference.
+    """
+    from ..services.utils import utc_to_local
+    profile_tz = (getattr(user, 'timezone', None) or '').strip() or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')
     rows = []
     for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).limit(120).all():
         if item.actor_user_id == user.id or item.target_id == user.id:
-            rows.append({'item': item, 'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None})
+            local_created = utc_to_local(getattr(item, 'created_at', None), profile_tz) or getattr(item, 'created_at', None)
+            rows.append({
+                'item': item,
+                'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None,
+                'created_local': local_created,
+            })
     return rows[:30]
 
 
@@ -129,34 +171,102 @@ def _admin_staff_profile(user, tab: str):
                 flash('تم تحديث بيانات عضو الإدارة.' if lang != 'en' else 'Staff profile updated.', 'success')
             return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='profile'))
         if action == 'save_staff_permissions':
+            # Full Admin always has every permission (parents + every sub).
             if (user.role or '').strip().lower() == 'admin':
-                user.permissions_json = json.dumps({key: True for key in PERMISSION_KEYS}, ensure_ascii=False)
+                full_grants = {key: True for key in PERMISSION_KEYS}
+                user.permissions_json = json.dumps(full_grants, ensure_ascii=False)
                 db.session.commit()
                 flash('حساب المدير الكامل يملك كل الصلاحيات دائماً.' if lang != 'en' else 'Full admin keeps all permissions.', 'info')
                 return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
-            perms = {key: request.form.get(key) == 'on' for key in PERMISSION_KEYS}
+
+            # Step 1 — collect parent-level permissions from the form.
+            perms: dict[str, bool] = {key: request.form.get(key) == 'on' for key in PERMISSION_KEYS}
+
+            # Self-protection: actor cannot strip their own user-management.
             if actor and actor.id == user.id and not perms.get('can_manage_users'):
                 flash('لا يمكنك إزالة صلاحية إدارة المستخدمين من حسابك الحالي.' if lang != 'en' else 'You cannot remove user-management from your current account.', 'warning')
                 return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
+
+            # Step 2 — collect sub-permissions. Only persist explicit OFF entries
+            # (when parent is ON but admin opted a sub OFF). Implicit ON is the
+            # default and stays out of storage to keep JSON tight & forward-compatible.
+            #
+            # When a parent is OFF, every sub is forced OFF and we drop sub keys
+            # entirely (the resolver will treat them as False anyway).
+            for parent_key, parent_on in perms.items():
+                if not SUBS_BY_PARENT.get(parent_key):
+                    continue   # parent has no granular subs
+                for sub in SUBS_BY_PARENT[parent_key]:
+                    field_name = sub.key  # e.g. "users.delete"
+                    if not parent_on:
+                        # Parent off → don't store the sub at all (resolver returns False)
+                        continue
+                    sub_on = request.form.get(field_name) == 'on'
+                    if not sub_on:
+                        # Explicit opt-OUT under an ON parent → store False
+                        perms[field_name] = False
+                    # else: implicit ON, leave key unset (default behavior in resolver)
+
+            # Self-protection (granular): actor cannot strip their own delete-self
+            # protection by accident — but more importantly, an actor editing
+            # themselves cannot remove `users.change_role` while they still have it
+            # via parent (or they'd lock themselves out of role management). We
+            # keep this lenient for now; the parent rule above is the strict gate.
+
             user.permissions_json = json.dumps(perms, ensure_ascii=False)
             user.is_admin = _is_admin_role_code(user.role)
             db.session.commit()
-            _admin_write_log('staff.permissions', f'Updated staff permissions for user #{user.id}', 'app_user', user.id, {'user_id': user.id, 'permissions': perms})
+            _admin_write_log(
+                'staff.permissions',
+                f'Updated staff permissions for user #{user.id}',
+                'app_user', user.id,
+                {'user_id': user.id, 'permissions': perms},
+            )
             flash('تم تحديث صلاحيات عضو الإدارة.' if lang != 'en' else 'Staff permissions updated.', 'success')
             return redirect(url_for('main.admin_user_profile', user_id=user.id, lang=lang, staff=1, tab='permissions'))
 
     assigned_threads, assigned_tickets = _assigned_support_for_staff(user)
     role_perms = role_permissions(user.role)
-    user_overrides = _parse_user_permission_overrides(user)
+    # FULL overrides — includes both parent keys and sub-permission dot-keys
+    user_overrides_full = _parse_user_permission_overrides_full(user)
+    # Combined dict used by resolve_effective_permission (role baseline + user overrides)
+    effective_store: dict[str, bool] = dict(role_perms)
+    effective_store.update(user_overrides_full)
+
+    sub_label_map = {row['key']: row for row in sub_permission_catalog(lang)}
+
     permission_rows = []
     for perm in permission_catalog(lang):
-        inherited = bool(role_perms.get(perm['key']))
-        has_override = perm['key'] in user_overrides
+        parent_key = perm['key']
+        inherited = bool(role_perms.get(parent_key))
+        has_override = parent_key in user_overrides_full
+        parent_checked = bool(user_overrides_full[parent_key]) if has_override else inherited
+
+        # Build sub-permissions list (empty for parents that aren't granular)
+        subs = []
+        for sub in subs_for_parent(parent_key):
+            sub_meta = sub_label_map.get(sub.key, {'label': sub.label_ar, 'is_dangerous': sub.is_dangerous})
+            sub_has_override = sub.key in user_overrides_full
+            # When parent is OFF, every sub is OFF regardless. When parent is ON,
+            # the sub defaults to ON unless an explicit False override exists.
+            sub_checked = resolve_effective_permission(effective_store, sub.key)
+            subs.append({
+                'key': sub.key,
+                'parent': sub.parent,
+                'label': sub_meta['label'],
+                'is_dangerous': sub_meta.get('is_dangerous', sub.is_dangerous),
+                'inherited': inherited,        # subs inherit from the parent's role grant
+                'has_override': sub_has_override,
+                'checked': sub_checked,
+            })
+
         permission_rows.append({
             **perm,
             'inherited': inherited,
-            'checked': bool(user_overrides[perm['key']]) if has_override else inherited,
+            'checked': parent_checked,
             'has_override': has_override,
+            'subs': subs,                       # empty list for non-granular parents
+            'has_subs': bool(subs),
         })
     return render_template(
         'admin_staff_profile.html',
@@ -287,13 +397,56 @@ def _activity_summary_label(item, lang: str = 'ar') -> str:
     if (lang or 'ar') == 'en':
         return raw or 'Activity update'
     patterns = [
+        # Order matters — longer / more specific first
+        ('Updated staff permissions for user', 'تم تحديث صلاحيات عضو الإدارة'),
+        ('Updated staff profile for user', 'تم تحديث ملف عضو الإدارة'),
+        ('Updated staff permissions', 'تم تحديث صلاحيات عضو الإدارة'),
+        ('Updated staff profile', 'تم تحديث ملف عضو الإدارة'),
+        ('Hard deleted user account', 'تم حذف الحساب نهائياً'),
+        ('Uploaded avatar for user', 'تم رفع الصورة الرمزية'),
+        ('Removed avatar for user', 'تم حذف الصورة الرمزية'),
+        ('Added finance entry for tenant', 'تمت إضافة حركة مالية للمشترك'),
         ('Added finance entry', 'تمت إضافة حركة مالية'),
+        # Support center actions (new in v164) — most specific first
+        ('Created support ticket', 'تم إنشاء تذكرة دعم'),
+        ('Created support message', 'تم إنشاء رسالة دعم'),
+        ('Replied to support ticket', 'تم الرد على تذكرة دعم'),
+        ('Replied to support message', 'تم الرد على رسالة دعم'),
+        ('Saved draft on support ticket', 'تم حفظ مسودة على تذكرة دعم'),
+        ('Saved draft on support message', 'تم حفظ مسودة على رسالة دعم'),
+        ('Internal note on support ticket', 'تم إضافة ملاحظة داخلية على تذكرة دعم'),
+        ('Internal note on support message', 'تم إضافة ملاحظة داخلية على رسالة دعم'),
+        ('Reopened support ticket', 'تم إعادة فتح تذكرة دعم'),
+        ('Reopened support message', 'تم إعادة فتح رسالة دعم'),
+        ('Performed start_processing on support ticket', 'تم بدء معالجة تذكرة دعم'),
+        ('Performed start_processing on support message', 'تم بدء معالجة رسالة دعم'),
+        ('Performed assign_me on support ticket', 'تم استلام تذكرة دعم'),
+        ('Performed assign_me on support message', 'تم استلام رسالة دعم'),
+        ('Performed assign_admin on support ticket', 'تم تعيين مسؤول لتذكرة دعم'),
+        ('Performed assign_admin on support message', 'تم تعيين مسؤول لرسالة دعم'),
+        ('Performed mark_urgent on support ticket', 'تم رفع أولوية تذكرة دعم'),
+        ('Performed mark_urgent on support message', 'تم رفع أولوية رسالة دعم'),
+        ('Performed waiting_user on support ticket', 'تذكرة دعم بانتظار المستخدم'),
+        ('Performed waiting_user on support message', 'رسالة دعم بانتظار المستخدم'),
+        ('Performed close on support ticket', 'تم إغلاق تذكرة دعم'),
+        ('Performed close on support message', 'تم إغلاق رسالة دعم'),
+        ('Performed reopen on support ticket', 'تم إعادة فتح تذكرة دعم'),
+        ('Performed reopen on support message', 'تم إعادة فتح رسالة دعم'),
+        ('Performed tag_followup on support ticket', 'تم وضع علامة متابعة على تذكرة دعم'),
+        ('Performed tag_followup on support message', 'تم وضع علامة متابعة على رسالة دعم'),
+        ('Performed merge_note on support ticket', 'تم تسجيل دمج لتذكرة دعم'),
+        ('Performed merge_note on support message', 'تم تسجيل دمج لرسالة دعم'),
+        ('Updated support ticket', 'تم تحديث تذكرة دعم'),
+        ('Updated support message', 'تم تحديث رسالة دعم'),
         ('Updated mail thread', 'تم تحديث محادثة دعم'),
         ('Updated ticket', 'تم تحديث تذكرة دعم'),
+        ('Updated subscription for tenant', 'تم تعديل الاشتراك للمشترك'),
         ('Updated subscription', 'تم تعديل الاشتراك'),
+        ('Updated profile for user', 'تم تعديل بيانات الحساب'),
         ('Updated profile', 'تم تعديل بيانات الحساب'),
         ('Created quota', 'تم إنشاء كوتا'),
         ('Updated quota', 'تم تحديث كوتا'),
+        ('Deleted quota', 'تم حذف كوتا'),
         ('Created support case', 'تم إنشاء حالة دعم'),
         ('Admin updated support message', 'تم تحديث رسالة دعم'),
         ('Admin updated support ticket', 'تم تحديث تذكرة دعم'),
@@ -302,7 +455,10 @@ def _activity_summary_label(item, lang: str = 'ar') -> str:
     out = raw or 'عملية على الحساب'
     for en, ar in patterns:
         out = out.replace(en, ar)
-    out = out.replace('for tenant', 'للمشترك').replace('thread', 'محادثة').replace('ticket', 'تذكرة')
+    out = out.replace('for tenant', 'للمشترك').replace('for user', 'للمستخدم').replace('thread', 'محادثة').replace('ticket', 'تذكرة')
+    # Strip trailing "#N" hash-id and turn it into a cleaner Arabic suffix
+    import re as _re
+    out = _re.sub(r'\s*#(\d+)$', r' (#\1)', out)
     return out
 
 
@@ -402,8 +558,25 @@ def admin_user_profile(user_id: int):
             flash('تم تحديث بيانات الاشتراك وتطبيق حدود الخطة تلقائيًا.', 'success')
         elif action == 'finance_entry':
             amount = float(request.form.get('amount') or 0)
+            entry_type = (request.form.get('entry_type') or 'credit').strip()
+            debit_reason = (request.form.get('debit_reason') or '').strip().lower()
+            # Granular finance gates — block by entry type / reason
+            from ..services.scope import has_permission
+            blocked = None
+            if entry_type == 'credit' and not has_permission('finance.credit'):
+                blocked = 'لا تملك صلاحية الإيداع.'
+            elif entry_type == 'debit':
+                # Refund is a special debit reason
+                is_refund = debit_reason in {'refund', 'استرداد'} or 'refund' in (request.form.get('reference') or '').lower()
+                if is_refund and not has_permission('finance.refund'):
+                    blocked = 'لا تملك صلاحية استرداد الأموال.'
+                elif not is_refund and not has_permission('finance.debit'):
+                    blocked = 'لا تملك صلاحية الخصم.'
+            if blocked:
+                flash(blocked, 'danger')
+                amount = 0  # force the next block to skip
             if amount:
-                entry = WalletLedger(tenant_id=tenant.id, actor_user_id=getattr(actor, 'id', None), entry_type=(request.form.get('entry_type') or 'credit').strip(), amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip() or None, reference=(request.form.get('reference') or '').strip() or None)
+                entry = WalletLedger(tenant_id=tenant.id, actor_user_id=getattr(actor, 'id', None), entry_type=entry_type, amount=amount, currency=(request.form.get('currency') or 'USD').strip() or 'USD', note=(request.form.get('note') or '').strip() or None, reference=(request.form.get('reference') or '').strip() or None)
                 db.session.add(entry)
                 db.session.commit()
                 _admin_write_log('finance.profile', f'Added finance entry for tenant #{tenant.id}', 'wallet_ledger', entry.id, {'tenant_id': tenant.id, 'user_id': user.id, 'entry_type': entry.entry_type})
@@ -907,6 +1080,11 @@ def admin_user_toggle(user_id: int):
     guard = _admin_guard()
     if guard:
         return guard
+    # Granular sub-permission gate
+    from ..services.scope import has_permission
+    if not has_permission('users.toggle_active'):
+        flash('لا تملك صلاحية تفعيل وتعطيل الحسابات.', 'danger')
+        return _safe_admin_redirect()
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     if user.username == current_app.config.get('ADMIN_USERNAME') and user.is_admin:
         flash('لا يمكن تعطيل مدير النظام الأساسي.', 'warning')
@@ -922,6 +1100,12 @@ def admin_user_delete(user_id: int):
     guard = _admin_guard('can_manage_users')
     if guard:
         return guard
+    # Granular sub-permission gate: even with can_manage_users, the actor
+    # must specifically have the `users.delete` capability.
+    from ..services.scope import has_permission
+    if not has_permission('users.delete'):
+        flash('لا تملك صلاحية حذف المستخدمين. تواصل مع المدير لمنحك "حذف المستخدمين نهائياً".', 'danger')
+        return _safe_admin_redirect()
     actor = _active_user()
     user = AppUser.query.filter_by(id=user_id).first_or_404()
     if actor and user.id == actor.id:

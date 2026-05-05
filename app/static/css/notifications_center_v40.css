@@ -1033,3 +1033,373 @@
   box-shadow:none !important;
   grid-template-columns:none !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   v41 — Notifications list refinement (2026-05-05)
+   Goals: less clutter • stronger row separation • perfect vertical centering
+          softer card-style rows • refined hover micro-interaction
+═════════════════════════════════════════════════════════════════════════ */
+
+/* List container — soft canvas with comfortable padding */
+.ncv40-list{
+  padding: 16px !important;
+  gap: 12px !important;
+  background: #fafbfd !important;
+}
+
+/* Each row becomes a free-standing card */
+.ncv40-row{
+  grid-template-columns: 6px 56px minmax(0, 1fr) auto !important;
+  gap: 18px !important;
+  padding: 18px 22px !important;
+  background: #ffffff !important;
+  border: 1px solid #e7eaf0 !important;
+  border-bottom: 1px solid #e7eaf0 !important;
+  border-radius: 16px !important;
+  align-items: center !important;
+  min-height: 96px !important;
+  box-shadow: 0 1px 0 rgba(15,23,42,.02) !important;
+  transition: box-shadow .25s cubic-bezier(.22,1,.36,1),
+              transform .25s cubic-bezier(.22,1,.36,1),
+              border-color .2s ease,
+              background .2s ease !important;
+}
+
+/* Subtle alternating tint for visual rhythm (every other row) */
+.ncv40-list > .ncv40-row:nth-of-type(even){
+  background: #f8fafc !important;
+}
+
+/* Hover lift — clean, premium */
+.ncv40-row:hover{
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 10px 24px -12px rgba(15,23,42,.18),
+    0 2px 6px -2px rgba(15,23,42,.06) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Kind stripe — tighter pill, glow halo */
+.ncv40-row > .ncv40-row-bar{
+  width: 5px !important;
+  height: 56px !important;
+  border-radius: 999px !important;
+  align-self: center !important;
+  opacity: 1 !important;
+  background: var(--row-color, #cbd5e1) !important;
+  box-shadow: 0 0 0 4px rgba(0,0,0,.04) !important;
+}
+
+/* Avatar — slightly smaller, perfectly centered */
+.ncv40-row .ncv40-row-avatar{
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 14px !important;
+  align-self: center !important;
+}
+
+/* Body — vertical rhythm */
+.ncv40-row .ncv40-row-body{
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  align-self: center !important;
+}
+
+/* Title row — push chips to inline-end always (consistent layout regardless of title length) */
+.ncv40-row .ncv40-row-top{
+  margin: 0 !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+.ncv40-row .ncv40-row-title{
+  flex: 0 1 auto !important;
+  margin-inline-end: auto !important;
+  font-size: 1.02rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: .1px !important;
+}
+.ncv40-row.is-unread .ncv40-row-title{ font-weight: 900 !important; }
+
+/* Chip cluster — softer, bordered pills with consistent sizing */
+.ncv40-row .ncv40-chip{
+  font-size: .68rem !important;
+  font-weight: 800 !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid transparent !important;
+  letter-spacing: .15px !important;
+  height: 22px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+.ncv40-row .ncv40-chip.kind{
+  background: rgba(255,255,255,.18) !important;
+  color: #fff !important;
+  background-color: var(--row-color, #2563eb) !important;
+  border-color: transparent !important;
+}
+.ncv40-row[data-kind="ticket"] .ncv40-chip.kind{ color: #1f1407 !important; }
+
+.ncv40-row .ncv40-chip.status-new       { background:#dbeafe !important; color:#1e40af !important; border-color:#bfdbfe !important; }
+.ncv40-row .ncv40-chip.status-open      { background:#ecfeff !important; color:#0e7490 !important; border-color:#cffafe !important; }
+.ncv40-row .ncv40-chip.status-assigned  { background:#f3efff !important; color:#6d28d9 !important; border-color:#e9d5ff !important; }
+.ncv40-row .ncv40-chip.status-in_progress{background:#fef3c7 !important; color:#b45309 !important; border-color:#fde68a !important; }
+.ncv40-row .ncv40-chip.status-pending,
+.ncv40-row .ncv40-chip.status-waiting_user{background:#fff7ed !important; color:#c2410c !important; border-color:#fed7aa !important; }
+.ncv40-row .ncv40-chip.status-resolved  { background:#ecfdf5 !important; color:#047857 !important; border-color:#a7f3d0 !important; }
+.ncv40-row .ncv40-chip.status-closed    { background:#ecfdf5 !important; color:#065f46 !important; border-color:#a7f3d0 !important; }
+.ncv40-row .ncv40-chip.status-read      { background:#f1f5f9 !important; color:#475569 !important; border-color:#e2e8f0 !important; }
+.ncv40-row .ncv40-chip.priority-high,
+.ncv40-row .ncv40-chip.priority-urgent  { background:#fef2f2 !important; color:#b91c1c !important; border-color:#fecaca !important; }
+.ncv40-row .ncv40-chip.priority-low     { background:#f1f5f9 !important; color:#64748b !important; border-color:#e2e8f0 !important; }
+
+/* Snippet — single line, subtle */
+.ncv40-row .ncv40-row-text{
+  margin: 0 !important;
+  font-size: .87rem !important;
+  line-height: 1.5 !important;
+  color: #6b7280 !important;
+  -webkit-line-clamp: 1 !important;
+}
+
+/* Meta — bottom strip with dashed separator */
+.ncv40-row .ncv40-row-meta{
+  margin-top: 4px !important;
+  padding-top: 8px !important;
+  border-top: 1px dashed #eef0f4 !important;
+  gap: 16px !important;
+  font-size: .73rem !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+}
+.ncv40-row .ncv40-row-meta span{ gap: 5px !important; }
+.ncv40-row .ncv40-row-meta svg{ width: 12px !important; height: 12px !important; opacity: .8 !important; }
+
+/* Action group — pinned to inline-end, perfectly centered, fixed width */
+.ncv40-row .ncv40-row-side{
+  align-self: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  min-width: 96px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Unread badge — small chip on top */
+.ncv40-row .ncv40-unread-badge{
+  background: linear-gradient(135deg,#ef4444,#dc2626) !important;
+  color: #fff !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  padding: 0 7px !important;
+  font-size: .68rem !important;
+  font-weight: 900 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 10px -2px rgba(220,38,38,.4) !important;
+  letter-spacing: .2px !important;
+}
+
+/* Open button — pill, kind-colored gradient, consistent width */
+.ncv40-row .ncv40-open-link{
+  background: var(--row-color, #2563eb) !important;
+  color: #fff !important;
+  height: 38px !important;
+  padding: 0 18px !important;
+  border-radius: 11px !important;
+  font-size: .82rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px !important;
+  box-shadow: 0 6px 14px -8px rgba(15,23,42,.5) !important;
+  min-width: 96px !important;
+  justify-content: center !important;
+}
+.ncv40-row[data-kind="ticket"] .ncv40-open-link{ color: #1f1407 !important; }
+.ncv40-row .ncv40-open-link:hover{ filter: brightness(1.06) !important; transform: translateY(-1px) !important; }
+
+/* Unread emphasis — soft tint flush from the kind side, not full-row */
+.ncv40-row.is-unread{
+  background: linear-gradient(90deg, var(--row-soft, #eff6ff) 0%, #fff 32%) !important;
+  border-color: rgba(15,23,42,.08) !important;
+}
+[dir="rtl"] .ncv40-row.is-unread{
+  background: linear-gradient(-90deg, var(--row-soft, #eff6ff) 0%, #fff 32%) !important;
+}
+
+/* Stagger fade-in animation for the rows */
+@keyframes ncv41RowIn{
+  from{ opacity: 0; transform: translateY(6px); }
+  to  { opacity: 1; transform: translateY(0); }
+}
+.ncv40-list > .ncv40-row{
+  animation: ncv41RowIn .35s cubic-bezier(.22,1,.36,1) both;
+}
+.ncv40-list > .ncv40-row:nth-of-type(1){ animation-delay: .02s }
+.ncv40-list > .ncv40-row:nth-of-type(2){ animation-delay: .05s }
+.ncv40-list > .ncv40-row:nth-of-type(3){ animation-delay: .08s }
+.ncv40-list > .ncv40-row:nth-of-type(4){ animation-delay: .11s }
+.ncv40-list > .ncv40-row:nth-of-type(5){ animation-delay: .14s }
+.ncv40-list > .ncv40-row:nth-of-type(6){ animation-delay: .17s }
+.ncv40-list > .ncv40-row:nth-of-type(7){ animation-delay: .2s  }
+.ncv40-list > .ncv40-row:nth-of-type(8){ animation-delay: .23s }
+.ncv40-list > .ncv40-row:nth-of-type(9){ animation-delay: .26s }
+.ncv40-list > .ncv40-row:nth-of-type(10){animation-delay: .29s }
+
+/* Mobile tweak — collapse side group below body */
+@media (max-width: 720px){
+  .ncv40-row{
+    grid-template-columns: 5px 48px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    min-height: 0 !important;
+  }
+  .ncv40-row .ncv40-row-side{
+    grid-column: 2 / -1 !important;
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    border-top: 1px dashed #eef0f4 !important;
+    padding-top: 10px !important;
+    margin-top: 10px !important;
+    min-width: 0 !important;
+  }
+  .ncv40-row .ncv40-open-link{ min-width: 0 !important; padding: 0 14px !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   v42 — Tinted glassy notification cards (2026-05-05)
+   • Each card gets a kind-tinted gradient background
+   • Glass sheen at the top + soft inset highlight
+   • Subtle moving shine on hover
+═════════════════════════════════════════════════════════════════════════ */
+
+/* Per-kind tinted gradient backgrounds (subtle, no contrast loss with text) */
+.ncv40-row[data-kind="message"]{
+  --row-tint-top: #eaf2ff;
+  --row-tint-bot: #f6faff;
+  --row-tint-edge: rgba(37,99,235,.18);
+}
+.ncv40-row[data-kind="ticket"]{
+  --row-tint-top: #fff1dc;
+  --row-tint-bot: #fffaef;
+  --row-tint-edge: rgba(245,158,11,.22);
+}
+.ncv40-row[data-kind="system"]{
+  --row-tint-top: #e3fbef;
+  --row-tint-bot: #f1fdf7;
+  --row-tint-edge: rgba(16,185,129,.2);
+}
+
+/* Glass body — diagonal tinted gradient */
+.ncv40-list > .ncv40-row{
+  background:
+    linear-gradient(180deg,
+      var(--row-tint-top, #f7fafc) 0%,
+      var(--row-tint-bot, #ffffff) 70%) !important;
+  border: 1px solid var(--row-tint-edge, rgba(15,23,42,.08)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),     /* top highlight (glass) */
+    inset 0 -1px 0 rgba(15,23,42,.02),       /* bottom soft line */
+    0 1px 2px rgba(15,23,42,.04),
+    0 4px 12px -8px rgba(15,23,42,.08) !important;
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+}
+
+/* Glass sheen — top-down highlight (diagonal for a glassier feel) */
+.ncv40-list > .ncv40-row::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,.55) 0%,
+      rgba(255,255,255,.18) 32%,
+      rgba(255,255,255,0)   55%);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+/* Make sure children paint above the sheen */
+.ncv40-list > .ncv40-row > *{ position: relative; z-index: 1; }
+
+/* Animated shine sweep on hover — thin diagonal light streak */
+.ncv40-list > .ncv40-row::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline-start: -120%;
+  width: 60%;
+  height: 100%;
+  background:
+    linear-gradient(115deg,
+      transparent 0%,
+      rgba(255,255,255,.55) 50%,
+      transparent 100%);
+  transform: skewX(-18deg);
+  transition: inset-inline-start .9s cubic-bezier(.22,1,.36,1);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+.ncv40-list > .ncv40-row:hover::after{
+  inset-inline-start: 130%;
+}
+
+/* Hover glow — stronger tinted shadow matching the kind */
+.ncv40-list > .ncv40-row:hover{
+  background:
+    linear-gradient(180deg,
+      var(--row-tint-top, #f7fafc) 0%,
+      #ffffff 80%) !important;
+  border-color: var(--row-color, #cbd5e1) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    0 12px 28px -14px var(--row-tint-edge, rgba(15,23,42,.18)),
+    0 4px 10px -4px rgba(15,23,42,.06) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Unread card — stronger glassy tint and brighter edge */
+.ncv40-list > .ncv40-row.is-unread{
+  background:
+    linear-gradient(135deg,
+      var(--row-tint-top, #eef5ff) 0%,
+      var(--row-tint-bot, #ffffff) 65%) !important;
+  border-color: var(--row-color, #2563eb) !important;
+  border-width: 1px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.95),
+    0 0 0 3px var(--row-tint-edge, rgba(37,99,235,.12)),
+    0 6px 14px -8px rgba(15,23,42,.1) !important;
+}
+[dir="rtl"] .ncv40-list > .ncv40-row.is-unread{
+  background:
+    linear-gradient(225deg,
+      var(--row-tint-top, #eef5ff) 0%,
+      var(--row-tint-bot, #ffffff) 65%) !important;
+}
+
+/* Override the alternating tint from v41 — let glass tint own the row color */
+.ncv40-list > .ncv40-row:nth-of-type(even){
+  background:
+    linear-gradient(180deg,
+      var(--row-tint-top, #f7fafc) 0%,
+      var(--row-tint-bot, #ffffff) 70%) !important;
+}
+
+/* Title color stays high-contrast over the glass tint */
+.ncv40-list > .ncv40-row .ncv40-row-title{ color: #0b1220 !important; }
+.ncv40-list > .ncv40-row .ncv40-row-text { color: #475569 !important; }
+.ncv40-list > .ncv40-row .ncv40-row-meta { color: #64748b !important; }
+
+/* Make the avatar pop on the tinted bg — subtle white ring */
+.ncv40-list > .ncv40-row .ncv40-row-avatar{
+  box-shadow:
+    0 0 0 4px rgba(255,255,255,.65),
+    0 6px 14px -6px var(--row-tint-edge, rgba(15,23,42,.18)) !important;
+}

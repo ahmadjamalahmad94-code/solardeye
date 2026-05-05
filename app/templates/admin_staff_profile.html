@@ -1,132 +1,796 @@
 {% extends "base.html" %}
 {% import '_location_picker.html' as loc %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v163-pager-pinned-bottom-20260505') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_staff_profile_v2.css', v='v163-pager-pinned-bottom-20260505') }}">
+<script defer src="{{ url_for('static', filename='js/admin_user_profile.js', v='v163-pager-pinned-bottom-20260505') }}"></script>
+{% endblock %}
 {% block title %}{{ 'Staff profile' if (ui_lang or 'ar') == 'en' else 'ملف عضو الإدارة' }}{% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set _granted = permission_rows|selectattr('checked')|list|length %}
+{% set _open_support = (assigned_threads|rejectattr('thread.status','in',['closed','resolved'])|list|length) + (assigned_tickets|rejectattr('ticket.status','in',['closed','resolved'])|list|length) %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 staff-profile-v122">
-    <header class="admin-page-head compact">
-      <div>
-        <span class="eyebrow">{{ 'Admin Team' if is_en else 'فريق الإدارة' }}</span>
-        <h1>{{ user_obj.full_name or user_obj.username }}</h1>
-        <p>{{ 'Personal data, exact permissions, assigned support, and activity for this staff account.' if is_en else 'بيانات شخصية، صلاحيات دقيقة، الدعم المكلّف فيه، وسجل نشاط هذا العضو.' }}</p>
-      </div>
-      <div class="admin-head-actions">
-        <span class="status-pill {{ 'success' if user_obj.is_active else 'danger' }}">{{ 'Active' if is_en and user_obj.is_active else ('Disabled' if is_en else ('نشط' if user_obj.is_active else 'معطل')) }}</span>
-        <a class="btn btn-outline-primary" href="{{ url_for('users_routes.admin_team', lang=ui_lang) }}">{{ 'Back to team' if is_en else 'العودة لفريق الإدارة' }}</a>
+  <main class="app-main content-area up-page staff-page-v2" data-up-tab="{{ tab }}" data-up-user-id="{{ user_obj.id }}">
+
+    {# ═══════════════ HERO ═══════════════ #}
+    <header class="hu-hero hu-hero-staff-v2">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            {{ 'Admin team member' if is_en else 'فريق الإدارة' }}
+          </span>
+          <h1 class="hu-h1">{{ user_obj.full_name or user_obj.username }}</h1>
+          <p class="hu-tagline">{{ 'Personal data, exact permissions, assigned support, and activity log for this staff account.' if is_en else 'بيانات شخصية، صلاحيات دقيقة، الدعم المكلَّف فيه، وسجل نشاط هذا العضو.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill {{ 'ok' if user_obj.is_active else 'warn' }}">{% if user_obj.is_active %}🟢 <b>{{ 'Active' if is_en else 'نشط' }}</b>{% else %}⛔ <b>{{ 'Disabled' if is_en else 'معطّل' }}</b>{% endif %}</span>
+            <span class="hu-meta-pill"><b>@{{ user_obj.username }}</b></span>
+            {% if user_obj.email %}<span class="hu-meta-pill">📧 <b>{{ user_obj.email }}</b></span>{% endif %}
+            <span class="hu-meta-pill role-pill role-{{ user_obj.role or 'user' }}">🛡️ <b>{{ role_label(user_obj.role or 'user', ui_lang) }}</b></span>
+            {% if is_full_admin %}<span class="hu-meta-pill ok">⭐ <b>{{ 'Full admin' if is_en else 'مدير كامل' }}</b></span>{% endif %}
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('users_routes.admin_team', lang=ui_lang) }}">← {{ 'Back to team' if is_en else 'العودة لفريق الإدارة' }}</a>
+        </div>
       </div>
     </header>
 
-    <section class="staff-profile-summary-v122">
-      <article><small>{{ 'Role' if is_en else 'الدور' }}</small><strong>{{ role_label(user_obj.role or 'user', ui_lang) }}</strong></article>
-      <article><small>{{ 'Full admin' if is_en else 'مدير كامل' }}</small><strong>{{ 'Yes' if is_en and is_full_admin else ('نعم' if is_full_admin else ('No' if is_en else 'لا')) }}</strong></article>
-      <article><small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small><strong>{{ permission_rows|selectattr('checked')|list|length }}</strong></article>
-      <article><small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small><strong>{{ assigned_threads|length + assigned_tickets|length }}</strong></article>
+    {# ═══════════════ KPI strip ═══════════════ #}
+    <section class="up-stats up-stats-staff-v2">
+      <article class="up-stat s-violet">
+        <span class="up-stat-icon">🛡️</span>
+        <small>{{ 'Role' if is_en else 'الدور' }}</small>
+        <strong>{{ role_label(user_obj.role or 'user', ui_lang) }}</strong>
+      </article>
+      <article class="up-stat s-emerald">
+        <span class="up-stat-icon">⭐</span>
+        <small>{{ 'Full admin' if is_en else 'مدير كامل' }}</small>
+        <strong>{{ ('Yes' if is_en else 'نعم') if is_full_admin else ('No' if is_en else 'لا') }}</strong>
+      </article>
+      <article class="up-stat s-sky">
+        <span class="up-stat-icon">🔐</span>
+        <small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small>
+        <strong>{{ _granted }} <em>/ {{ permission_rows|length }}</em></strong>
+      </article>
+      <article class="up-stat s-amber">
+        <span class="up-stat-icon">🎧</span>
+        <small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small>
+        <strong>{{ assigned_threads|length + assigned_tickets|length }}</strong>
+      </article>
     </section>
 
-    <nav class="staff-tabs-v122">
-      {% for key,label_ar,label_en in [('profile','البيانات الشخصية','Personal'),('permissions','الصلاحيات','Permissions'),('support','رسائل الدعم','Support'),('activity','النشاط','Activity')] %}
-      <a class="{% if tab == key %}active{% endif %}" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, staff=1, tab=key) }}">{{ label_en if is_en else label_ar }}</a>
+    {# ═══════════════ Tabs nav ═══════════════ #}
+    <nav class="up-tabs" role="tablist">
+      {% for key, label_ar, label_en, icon in [
+        ('profile',     'البيانات الشخصية', 'Personal',    '👤'),
+        ('permissions', 'الصلاحيات',         'Permissions', '🔐'),
+        ('support',     'رسائل الدعم',       'Support',     '🎧'),
+        ('activity',    'النشاط',            'Activity',    '⏱'),
+      ] %}
+        <button type="button" class="up-tab {% if tab == key %}is-active{% endif %}" data-up-tab-btn="{{ key }}" role="tab" aria-selected="{{ 'true' if tab == key else 'false' }}">
+          <span class="up-tab-icon">{{ icon }}</span>
+          <span class="up-tab-label">{{ label_en if is_en else label_ar }}</span>
+        </button>
       {% endfor %}
     </nav>
 
-    {% if tab == 'profile' %}
-    <form method="post" class="admin-card-v2 staff-form-v122" id="staffProfileFormV127">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="save_staff_profile">
-      <div class="staff-card-title-v122"><small>{{ 'Personal data' if is_en else 'البيانات الشخصية' }}</small><h3>{{ 'Identity and login' if is_en else 'الهوية وتسجيل الدخول' }}</h3></div>
-      <div class="form-grid-v2 two staff-personal-grid-v127">
-        <label class="staff-field-username-v127"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="form-control form-control-lg ltr-field-v108" name="username" value="{{ user_obj.username }}" required></label>
-        <label class="staff-field-name-v127"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="form-control form-control-lg" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
-        <label class="staff-field-email-v127"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="form-control form-control-lg ltr-field-v108" name="email" value="{{ user_obj.email or '' }}"></label>
-        <label class="staff-field-country-v127"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='form-control form-control-lg', countries=country_options, lang=ui_lang) }}</label>
-        <label class="staff-field-city-v127"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='form-control form-control-lg', lang=ui_lang) }}</label>
-        {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
-        <div class="phone-combo-v124 staff-phone-v127">
-          <label class="staff-phone-prefix-v127">
-            <span>{{ 'Country code' if is_en else 'بدالة الدولة' }}</span>
-            <select class="form-select form-select-lg phone-prefix-select-v124" name="phone_country_code">
-              {% for country in country_options %}
-                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.label }} {{ country.dial }}</option>
+    {# ═══════════════ PROFILE pane ═══════════════ #}
+    <div class="up-pane" data-up-pane="profile" {% if tab != 'profile' %}hidden{% endif %}>
+      <div class="prof-shell">
+
+        <div class="prof-hero prof-hero-staff-v2">
+          <div class="prof-hero-bg"></div>
+          <div class="prof-hero-text">
+            <h2>{{ user_obj.full_name or user_obj.username }}</h2>
+            <div class="prof-hero-meta">
+              <span class="prof-tag">@{{ user_obj.username }}</span>
+              {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
+              {% if user_obj.phone_number %}<span class="prof-tag">📱 {{ user_obj.phone_country_code or '' }} {{ user_obj.phone_number }}</span>{% endif %}
+              <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
+            </div>
+            <div class="prof-hero-stats">
+              <div class="prof-mini"><span class="prof-mini-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">🛡️</span><div class="prof-mini-body"><small>{{ 'Role' if is_en else 'الدور' }}</small><strong>{{ role_label(user_obj.role or 'user', ui_lang) }}</strong></div></div>
+              <div class="prof-mini"><span class="prof-mini-icon" style="background:linear-gradient(135deg,#34d399,#059669)">🔐</span><div class="prof-mini-body"><small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small><strong>{{ _granted }}</strong></div></div>
+              <div class="prof-mini"><span class="prof-mini-icon" style="background:linear-gradient(135deg,#fbbf24,#d97706)">🎧</span><div class="prof-mini-body"><small>{{ 'Open cases' if is_en else 'حالات مفتوحة' }}</small><strong>{{ _open_support }}</strong></div></div>
+              <div class="prof-mini"><span class="prof-mini-icon" style="background:linear-gradient(135deg,#60a5fa,#2563eb)">⏱</span><div class="prof-mini-body"><small>{{ 'Activity' if is_en else 'النشاط' }}</small><strong>{{ activity_rows|length }}</strong></div></div>
+            </div>
+          </div>
+          <div class="prof-hero-avatar">
+            <span class="prof-hero-avatar-letter">{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}</span>
+            <span class="prof-hero-status {{ 'is-active' if user_obj.is_active else 'is-disabled' }}" title="{{ 'Active' if user_obj.is_active else 'Disabled' }}"></span>
+          </div>
+        </div>
+
+        <div class="prof-grid">
+          <form method="post" class="prof-form" id="staff-prof-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_staff_profile">
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">1</span>
+                <span class="prof-step-icon">🪪</span>
+                <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+                <h3>{{ 'Identity' if is_en else 'الهوية' }}</h3>
+                <p>{{ 'Username, name, and email — what we use to recognize this staff member.' if is_en else 'اسم المستخدم والاسم والإيميل — ما نستخدمه للتعرّف على عضو الإدارة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="prof-input ltr" name="username" value="{{ user_obj.username }}" required></label>
+                <label class="prof-field"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="prof-input" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
+                <label class="prof-field"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="prof-input ltr" type="email" name="email" value="{{ user_obj.email or '' }}"></label>
+                <label class="prof-field"><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="prof-input" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+              </div>
+            </article>
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">2</span>
+                <span class="prof-step-icon">🌍</span>
+                <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+                <h3>{{ 'Contact & locale' if is_en else 'التواصل والمنطقة' }}</h3>
+                <p>{{ 'Phone number, country, and city.' if is_en else 'رقم الجوال والدولة والمدينة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='prof-input', countries=country_options, lang=ui_lang) }}</label>
+                <label class="prof-field"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='prof-input', lang=ui_lang) }}</label>
+                <label class="prof-field"><span>{{ 'Phone' if is_en else 'الجوال' }}</span><input class="prof-input ltr" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}"></label>
+                {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
+                <label class="prof-field prof-field-narrow"><span>{{ 'Country code' if is_en else 'بدالة الدولة' }}</span><select class="prof-input ltr" name="phone_country_code">{% for country in country_options %}<option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>{% endfor %}</select></label>
+              </div>
+            </article>
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">3</span>
+                <span class="prof-step-icon">🛡️</span>
+                <small>{{ 'Step 3' if is_en else 'الخطوة 3' }}</small>
+                <h3>{{ 'Security & role' if is_en else 'الأمان والدور' }}</h3>
+                <p>{{ 'Password, role, and account status. Permissions are managed in the next tab.' if is_en else 'كلمة المرور والدور وحالة الحساب. الصلاحيات تُدار من تبويب الصلاحيات.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input class="prof-input" type="password" name="password" placeholder="{{ 'Leave blank to keep current' if is_en else 'اتركها فارغة للإبقاء' }}"></label>
+                <label class="prof-field"><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="prof-input" name="role">{% for role in roles %}<option value="{{ role.code }}" {% if (user_obj.role or 'user') == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>{% endfor %}</select></label>
+                <div class="prof-field-toggle-inline-v134 prof-field-full">
+                  <label class="prof-toggle-inline-label" for="staff-is-active">{{ 'Account enabled' if is_en else 'الحساب مفعّل' }}</label>
+                  <em class="prof-toggle-inline-hint">{{ 'Disabled accounts cannot sign in' if is_en else 'الحسابات المعطَّلة لا تستطيع تسجيل الدخول' }}</em>
+                  <span class="prof-toggle-inline-control">
+                    <strong class="prof-toggle-state">{{ ('Active' if is_en else 'مفعَّل') if user_obj.is_active else ('Disabled' if is_en else 'معطَّل') }}</strong>
+                    <label class="prof-switch" for="staff-is-active"><input type="checkbox" id="staff-is-active" name="is_active" {% if user_obj.is_active %}checked{% endif %}><span></span></label>
+                  </span>
+                </div>
+              </div>
+            </article>
+
+            <div class="prof-form-actions">
+              <button type="submit" class="prof-btn-save">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button>
+            </div>
+          </form>
+
+          <aside class="prof-side">
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Quick info' if is_en else 'معلومات سريعة' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Member since' if is_en else 'منذ' }}</span><b dir="ltr">{{ user_obj.created_at.strftime('%Y/%m/%d') if user_obj.created_at else '—' }}</b></div>
+                <div><span>{{ 'Last login' if is_en else 'آخر دخول' }}</span><b dir="ltr">{{ user_obj.last_login_at.strftime('%Y/%m/%d %H:%M') if user_obj.last_login_at else '—' }}</b></div>
+                <div><span>{{ 'Status' if is_en else 'الحالة' }}</span><b>{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}</b></div>
+                <div><span>{{ 'Locale' if is_en else 'اللغة' }}</span><b>{{ 'English' if (user_obj.preferred_language or 'ar') == 'en' else 'العربية' }}</b></div>
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Permissions snapshot' if is_en else 'لمحة الصلاحيات' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Granted' if is_en else 'ممنوحة' }}</span><b>{{ _granted }}</b></div>
+                <div><span>{{ 'Total' if is_en else 'الإجمالي' }}</span><b>{{ permission_rows|length }}</b></div>
+                <div><span>{{ 'Custom overrides' if is_en else 'مخصّصة' }}</span><b>{{ permission_rows|selectattr('has_override')|list|length }}</b></div>
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Workload' if is_en else 'حمل العمل' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>📨 {{ 'Mail threads' if is_en else 'محادثات' }}</span><b>{{ assigned_threads|length }}</b></div>
+                <div><span>🎫 {{ 'Tickets' if is_en else 'تذاكر' }}</span><b>{{ assigned_tickets|length }}</b></div>
+                <div><span>⏳ {{ 'Open' if is_en else 'مفتوحة' }}</span><b>{{ _open_support }}</b></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    {# ═══════════════ PERMISSIONS pane ═══════════════ #}
+    <div class="up-pane" data-up-pane="permissions" {% if tab != 'permissions' %}hidden{% endif %}>
+      <div class="prof-shell">
+
+        <section class="perm-hero">
+          <div class="perm-hero-text">
+            <span class="perm-eyebrow">🔐 {{ 'Exact access' if is_en else 'صلاحيات دقيقة' }}</span>
+            <h2>{{ 'Show, hide, and guard admin sections' if is_en else 'إظهار وإخفاء وحماية أقسام الإدارة' }}</h2>
+            <p>{{ 'The sidebar and route guards read these permissions. Full Admin always keeps all access.' if is_en else 'السايدبار وحماية الروابط تعتمد على هذه الصلاحيات. المدير الكامل يبقى لديه كل الصلاحيات دائماً.' }}</p>
+          </div>
+          <div class="perm-hero-counter">
+            <strong>{{ _granted }}</strong>
+            <small>{{ 'of' if is_en else 'من' }} {{ permission_rows|length }}</small>
+          </div>
+        </section>
+
+        {% if is_full_admin %}
+        <div class="perm-banner perm-banner-info">
+          <span>⭐</span>
+          <div>
+            <strong>{{ 'This account is a Full Admin.' if is_en else 'هذا الحساب مدير كامل.' }}</strong>
+            <small>{{ 'All permissions are granted automatically and cannot be edited here.' if is_en else 'كل الصلاحيات ممنوحة تلقائياً ولا يمكن تعديلها من هنا.' }}</small>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post" class="perm-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="save_staff_permissions">
+
+          {% set perm_bullets_ar = {
+            'can_manage_portal_visibility': ['التحكم بالصفحات المرئية للمشتركين', 'إخفاء أقسام معينة عن مشترك محدد', 'قفل ميزات في خطط معينة', 'إخفاء الميزات التجريبية', 'تخصيص تجربة كل اشتراك على حدة'],
+            'can_manage_devices': ['إضافة وتعديل وحذف الأجهزة', 'مراقبة حالة الاتصال والإشارة لحظياً', 'مزامنة بيانات الأجهزة الحية', 'فحص سجل أخطاء الجهاز', 'تشخيص مشاكل الشبكة والإنتاجية', 'تصدير بيانات الجهاز للتقارير'],
+            'can_manage_integrations': ['تشغيل وإيقاف التكاملات (SMS / Telegram / Email)', 'مراجعة سجل التكاملات والأخطاء', 'إعادة محاولة الإرسالات الفاشلة', 'فحص حالة الاتصال بالخدمات الخارجية', 'إدارة الويب-هوكس وقنوات الإرسال'],
+            'can_configure_integrations': ['إدخال مفاتيح API والإعدادات الفنية', 'ربط الخدمات الخارجية الجديدة', 'تخصيص قوالب الرسائل والتنبيهات', 'اختبار الاتصال الفوري قبل الحفظ', 'تدوير المفاتيح بأمان عند الحاجة', 'تعديل بارامترات Rate Limit المتقدمة'],
+            'can_manage_support': ['الرد على الرسائل والتذاكر', 'إسناد التذاكر لأعضاء الفريق', 'إغلاق وإعادة فتح وأرشفة الحالات', 'وضع علامات وأولويات (عاجل / عالي / عادي)', 'استخدام وإنشاء قوالب ردود جاهزة', 'تحويل التذاكر بين الفئات', 'تصدير سجل الدعم وتقارير الأداء'],
+            'can_manage_subscriptions': ['تجديد وإلغاء اشتراكات المشتركين', 'تغيير الخطة وتعديل مدد الاشتراك', 'تفعيل التجارب المجانية والعروض', 'تجميد الاشتراك مؤقتاً', 'منح أيام إضافية مجانية', 'تطبيق خصومات مخصصة لكل حساب', 'إدارة التجديد التلقائي'],
+            'can_manage_backups': ['إنشاء نسخ احتياطية يدوياً', 'الاستعادة من نسخة سابقة', 'جدولة النسخ التلقائية الدورية', 'تصدير وتنزيل النسخ المخزنة', 'تشفير النسخ الاحتياطية', 'إدارة سياسات الاحتفاظ والحذف التلقائي'],
+            'can_view_logs': ['فحص سجل العمليات الكامل (Audit log)', 'فلترة بنوع العملية والتاريخ والمنفِّذ', 'مراقبة صحة الخدمات الحية', 'رؤية الأخطاء والتحذيرات الحرجة', 'مراجعة محاولات تسجيل الدخول', 'تتبع نشاط مستخدم محدد', 'تصدير السجل بصيغة CSV'],
+            'can_access_mobile_api': ['تسجيل الدخول من تطبيق الموبايل', 'استدعاء واجهات API المحمية للموبايل', 'مزامنة البيانات بين الأجهزة المحمولة', 'تلقي إشعارات Push الفورية', 'استخدام وضع عدم الاتصال (Offline mode)', 'تسجيل وإدارة الأجهزة المحمولة'],
+          } %}
+          {% set perm_bullets_en = {
+            'can_manage_portal_visibility': ['Control which pages subscribers can see','Hide sections from a specific subscriber','Lock features inside specific plans','Hide experimental features','Tailor the portal per account'],
+            'can_manage_devices': ['Add, edit, and remove devices','Watch live connection and signal status','Sync live device data','Inspect device error logs','Diagnose network and performance issues','Export device data for reports'],
+            'can_manage_integrations': ['Turn integrations on/off (SMS / Telegram / Email)','Review integration logs and errors','Retry failed deliveries','Check external service connection status','Manage webhooks and delivery channels'],
+            'can_configure_integrations': ['Enter API keys and technical settings','Connect new external services','Customize message and alert templates','Test connection live before saving','Rotate keys safely when needed','Edit advanced rate-limit parameters'],
+            'can_manage_support': ['Reply to messages and tickets','Assign tickets to team members','Close, reopen, and archive cases','Set tags and priorities (urgent / high / normal)','Use and author canned reply templates','Move tickets between categories','Export support history and performance reports'],
+            'can_manage_subscriptions': ['Renew and cancel subscriptions','Change plans and adjust durations','Activate trials and promotional offers','Pause subscription temporarily','Grant bonus free days','Apply per-account custom discounts','Manage auto-renewal cycles'],
+            'can_manage_backups': ['Create manual backups','Restore from a previous snapshot','Schedule recurring automatic backups','Export and download stored backups','Encrypt backup archives','Manage retention and auto-deletion policies'],
+            'can_view_logs': ['Inspect the full audit log','Filter by action type, date, and actor','Watch live service health','See critical errors and warnings','Review login attempts','Track a specific user activity','Export logs as CSV'],
+            'can_access_mobile_api': ['Sign in from the mobile app','Call protected mobile API endpoints','Sync data across mobile devices','Receive instant push notifications','Use offline mode','Register and manage mobile devices'],
+          } %}
+          {% set perm_bullets = perm_bullets_en if is_en else perm_bullets_ar %}
+
+          {% set _groups = [] %}
+          {% for perm in permission_rows %}
+            {% set _g = perm.group or ('Other' if is_en else 'أخرى') %}
+            {% if _g not in _groups %}{% set _ = _groups.append(_g) %}{% endif %}
+          {% endfor %}
+
+          <div class="perm-groups">
+            {% for grp in _groups %}
+            {% set _grp_perms = permission_rows|selectattr('group','equalto',grp)|list %}
+            {% set _grp_count = _grp_perms|selectattr('checked')|list|length %}
+            <article class="perm-group">
+              <header class="perm-group-head">
+                <div>
+                  <h3>{{ grp }}</h3>
+                  <small>{{ _grp_count }} / {{ _grp_perms|length }} {{ 'enabled' if is_en else 'مفعّلة' }}</small>
+                </div>
+                <span class="perm-group-meter" style="--p: {{ ((_grp_count / (_grp_perms|length)) * 100) if _grp_perms|length else 0 }}%"></span>
+              </header>
+              {# Show parents WITH granular subs first, then the simpler ones #}
+              {% set _grp_perms_sorted = (_grp_perms|selectattr('has_subs')|list) + (_grp_perms|rejectattr('has_subs')|list) %}
+              <div class="perm-group-grid">
+                {% for perm in _grp_perms_sorted %}
+                {% set _bullets = perm_bullets.get(perm.key, []) %}
+                <div class="perm-card {{ 'is-on' if perm.checked else '' }} {{ 'is-locked' if is_full_admin else '' }} {{ 'has-subs' if perm.has_subs else '' }}">
+                  <label class="perm-card-parent-label" for="permcb-{{ perm.key }}">
+                    <input type="checkbox" id="permcb-{{ perm.key }}" name="{{ perm.key }}" {% if perm.checked %}checked{% endif %} {% if is_full_admin %}disabled{% endif %}>
+                    <span class="perm-card-title">{{ perm.label }}</span>
+                    <span class="perm-card-key" dir="ltr">{{ perm.key }}</span>
+                    <span class="perm-card-source">
+                      <em class="perm-src perm-src-on {% if perm.has_override %}perm-src-override{% else %}perm-src-inherited{% endif %}">{% if perm.has_override %}🛠 {{ 'Custom for this account' if is_en else 'مخصَّصة لهذا الحساب' }}{% else %}✓ {{ 'Default from role' if is_en else 'افتراضية ضمن الدور' }}{% endif %}</em>
+                      <em class="perm-src perm-src-off perm-src-none">○ {{ 'Not enabled' if is_en else 'غير مفعَّلة' }}</em>
+                    </span>
+                    <span class="perm-card-toggle"></span>
+                  </label>
+                  {% if perm.has_subs %}
+                  <span class="perm-card-bullets-head">{{ 'Pick which actions are allowed' if is_en else 'حدد العمليات المسموحة:' }}</span>
+                  <ul class="perm-card-subs">
+                    {% for sub in perm.subs %}
+                    <li class="perm-sub {% if sub.checked %}is-on{% endif %} {% if sub.is_dangerous %}is-dangerous{% endif %}">
+                      <label class="perm-sub-label" for="subcb-{{ sub.key|replace('.', '-') }}">
+                        <input type="checkbox" id="subcb-{{ sub.key|replace('.', '-') }}" name="{{ sub.key }}" class="perm-sub-input" data-perm-parent="{{ perm.key }}" {% if sub.checked %}checked{% endif %} {% if is_full_admin %}disabled{% endif %}>
+                        <span class="perm-sub-text">{{ sub.label }}{% if sub.is_dangerous %} <em class="perm-sub-warn">⚠</em>{% endif %}</span>
+                        <span class="perm-sub-toggle"></span>
+                      </label>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                  {% elif _bullets %}
+                  <span class="perm-card-bullets-head">{{ 'What this unlocks' if is_en else 'هذا التفعيل يمنح:' }}</span>
+                  <ul class="perm-card-bullets">
+                    {% for b in _bullets %}<li>{{ b }}</li>{% endfor %}
+                  </ul>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+
+          <div class="prof-form-actions">
+            <button type="submit" class="prof-btn-save" {% if is_full_admin %}disabled{% endif %}>{{ 'Save permissions' if is_en else 'حفظ الصلاحيات' }}</button>
+          </div>
+        </form>
+
+        <script>
+        (function(){
+          const pane = document.querySelector('[data-up-pane="permissions"]');
+          if(!pane) return;
+          function syncParent(cb){
+            const card = cb.closest('.perm-card');
+            if(!card) return;
+            const isOn = !!cb.checked;
+            card.classList.toggle('is-on', isOn);
+            card.classList.toggle('parent-off', !isOn);
+            const onLabel  = card.querySelector('.perm-src-on');
+            const offLabel = card.querySelector('.perm-src-off');
+            if(onLabel)  onLabel.style.display  = isOn ? 'inline-block' : 'none';
+            if(offLabel) offLabel.style.display = isOn ? 'none' : 'inline-block';
+            // Cascade to subs: when parent OFF, force every sub to OFF and disable;
+            // when parent ON, just enable (leave their checked state alone).
+            card.querySelectorAll('.perm-sub-input').forEach(function(sub){
+              if(!isOn){
+                sub.checked = false;          // force OFF visually + in form
+                sub.disabled = true;
+              } else {
+                sub.disabled = card.classList.contains('is-locked');
+              }
+              const row = sub.closest('.perm-sub');
+              if(row) row.classList.toggle('is-on', !!sub.checked);
+            });
+          }
+          function syncSub(cb){
+            const row = cb.closest('.perm-sub');
+            if(!row) return;
+            row.classList.toggle('is-on', !!cb.checked);
+          }
+          pane.querySelectorAll('.perm-card > .perm-card-parent-label > input[type="checkbox"]').forEach(function(cb){
+            syncParent(cb);
+            cb.addEventListener('change', function(){ syncParent(cb); });
+          });
+          pane.querySelectorAll('.perm-sub-input').forEach(function(cb){
+            syncSub(cb);
+            cb.addEventListener('change', function(){ syncSub(cb); });
+          });
+          pane.querySelectorAll('.perm-card').forEach(function(card){
+            const cb = card.querySelector(':scope > .perm-card-parent-label > input[type="checkbox"]');
+            if(!cb) return;
+            const pill = card.querySelector(':scope > .perm-card-parent-label > .perm-card-toggle');
+            if(pill){
+              pill.addEventListener('click', function(e){
+                if(card.classList.contains('is-locked') || cb.disabled) return;
+                e.preventDefault();
+                cb.checked = !cb.checked;
+                syncParent(cb);
+              });
+            }
+          });
+        })();
+        </script>
+      </div>
+    </div>
+
+    {# ═══════════════ SUPPORT pane ═══════════════ #}
+    <div class="up-pane" data-up-pane="support" {% if tab != 'support' %}hidden{% endif %}>
+      <div class="prof-shell">
+        <section class="sup-hero">
+          <div class="sup-hero-text">
+            <span class="sup-eyebrow">🎧 {{ 'Assigned support' if is_en else 'الدعم المكلَّف' }}</span>
+            <h2>{{ 'Threads and tickets owned by this staff member' if is_en else 'محادثات وتذاكر الدعم المسندة لهذا العضو' }}</h2>
+            <p>{{ 'Click a row to open the case in the support command center.' if is_en else 'اضغط على أي صف لفتح الحالة في مركز الدعم.' }}</p>
+          </div>
+          <div class="sup-hero-stats">
+            <div><small>📨 {{ 'Mail' if is_en else 'محادثات' }}</small><strong>{{ assigned_threads|length }}</strong></div>
+            <div><small>🎫 {{ 'Tickets' if is_en else 'تذاكر' }}</small><strong>{{ assigned_tickets|length }}</strong></div>
+            <div><small>⏳ {{ 'Open' if is_en else 'مفتوحة' }}</small><strong>{{ _open_support }}</strong></div>
+            <div><small>✅ {{ 'Closed' if is_en else 'مغلقة' }}</small><strong>{{ (assigned_threads|length + assigned_tickets|length) - _open_support }}</strong></div>
+          </div>
+        </section>
+
+        <div class="sup-columns">
+          <section class="sup-col sup-col-mail" data-sup-col="mail">
+            <header class="sup-col-head">
+              <h3><span class="sup-col-icon">📨</span> {{ 'Mail threads' if is_en else 'محادثات البريد' }}</h3>
+              <span class="sup-col-count">{{ assigned_threads|length }}</span>
+            </header>
+            <div class="sup-col-body" data-sup-list>
+              {% for row in assigned_threads %}
+              {% set _st = row.thread.status or 'open' %}
+              <a class="sup-row sup-row-mail status-{{ _st }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all', case='message-' ~ row.thread.id) }}#case-message-{{ row.thread.id }}">
+                <span class="sup-row-stripe"></span>
+                <span class="sup-row-icon">✉</span>
+                <div class="sup-row-body">
+                  <strong class="sup-row-title">{{ row.thread.subject }}</strong>
+                  <small class="sup-row-meta">
+                    <span>👤 {{ row.owner.full_name or row.owner.username if row.owner else ('Unknown' if is_en else 'غير معروف') }}</span>
+                    {% if row.thread.updated_at %}<span dir="ltr">🕒 {{ row.thread.updated_at.strftime('%Y/%m/%d %H:%M') }}</span>{% endif %}
+                  </small>
+                </div>
+                <div class="sup-row-side">
+                  <span class="sup-row-pill status-{{ _st }}">{{ ui_label(_st, 'status', ui_lang) }}</span>
+                  <span class="sup-row-arrow">{% if is_en %}→{% else %}←{% endif %}</span>
+                </div>
+              </a>
+              {% else %}
+              <div class="sup-empty">
+                <span>📭</span>
+                <strong>{{ 'No assigned mail threads.' if is_en else 'لا توجد محادثات مسندة.' }}</strong>
+                <small>{{ 'Threads assigned to this member will appear here.' if is_en else 'المحادثات التي تُسنَد لهذا العضو ستظهر هنا.' }}</small>
+              </div>
               {% endfor %}
-            </select>
-          </label>
-          <label class="staff-phone-number-v127">
-            <span>{{ 'Phone' if is_en else 'الجوال' }}</span>
-            <input class="form-control form-control-lg ltr-field-v108" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}">
-          </label>
+            </div>
+            <div class="sup-pager" data-sup-pager hidden>
+              <button type="button" class="sup-pager-btn" data-sup-prev>← {{ 'Previous' if is_en else 'السابق' }}</button>
+              <span class="sup-pager-info">{{ 'Page' if is_en else 'صفحة' }} <b data-sup-page>1</b> {{ 'of' if is_en else 'من' }} <b data-sup-total>1</b></span>
+              <button type="button" class="sup-pager-btn" data-sup-next>{{ 'Next' if is_en else 'التالي' }} →</button>
+            </div>
+          </section>
+
+          <section class="sup-col sup-col-tickets" data-sup-col="ticket">
+            <header class="sup-col-head">
+              <h3><span class="sup-col-icon">🎫</span> {{ 'Tickets' if is_en else 'التذاكر' }}</h3>
+              <span class="sup-col-count">{{ assigned_tickets|length }}</span>
+            </header>
+            <div class="sup-col-body" data-sup-list>
+              {% for row in assigned_tickets %}
+              {% set _st = row.ticket.status or 'open' %}
+              <a class="sup-row sup-row-ticket status-{{ _st }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all', case='ticket-' ~ row.ticket.id) }}#case-ticket-{{ row.ticket.id }}">
+                <span class="sup-row-stripe"></span>
+                <span class="sup-row-icon">🎫</span>
+                <div class="sup-row-body">
+                  <strong class="sup-row-title">{{ row.ticket.subject }}</strong>
+                  <small class="sup-row-meta">
+                    <span>👤 {{ row.owner.full_name or row.owner.username if row.owner else ('Unknown' if is_en else 'غير معروف') }}</span>
+                    {% if row.ticket.updated_at %}<span dir="ltr">🕒 {{ row.ticket.updated_at.strftime('%Y/%m/%d %H:%M') }}</span>{% endif %}
+                  </small>
+                </div>
+                <div class="sup-row-side">
+                  <span class="sup-row-pill status-{{ _st }}">{{ ui_label(_st, 'status', ui_lang) }}</span>
+                  <span class="sup-row-arrow">{% if is_en %}→{% else %}←{% endif %}</span>
+                </div>
+              </a>
+              {% else %}
+              <div class="sup-empty">
+                <span>📭</span>
+                <strong>{{ 'No assigned tickets.' if is_en else 'لا توجد تذاكر مسندة.' }}</strong>
+                <small>{{ 'Tickets assigned to this member will appear here.' if is_en else 'التذاكر التي تُسنَد لهذا العضو ستظهر هنا.' }}</small>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="sup-pager" data-sup-pager hidden>
+              <button type="button" class="sup-pager-btn" data-sup-prev>← {{ 'Previous' if is_en else 'السابق' }}</button>
+              <span class="sup-pager-info">{{ 'Page' if is_en else 'صفحة' }} <b data-sup-page>1</b> {{ 'of' if is_en else 'من' }} <b data-sup-total>1</b></span>
+              <button type="button" class="sup-pager-btn" data-sup-next>{{ 'Next' if is_en else 'التالي' }} →</button>
+            </div>
+          </section>
         </div>
-        <label class="staff-password-v127"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input type="password" class="form-control form-control-lg" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للإبقاء على كلمة المرور الحالية' }}"></label>
-        <label class="staff-field-role-v127"><span>{{ 'Role' if is_en else 'الدور' }}</span><select class="form-select form-select-lg" name="role">{% for role in roles %}<option value="{{ role.code }}" {% if (user_obj.role or 'user') == role.code %}selected{% endif %}>{{ role.name_en if is_en else role.name_ar }}</option>{% endfor %}</select></label>
-        <label class="staff-active-inline-v128">
-          <span>{{ 'Account enabled' if is_en else 'الحساب مفعّل' }}</span>
-          <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
-        </label>
-        <label class="staff-field-language-v127"><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="form-select form-select-lg" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+
+        {# JS: independent pagination per column, 10 per page #}
+        <script>
+        (function(){
+          const pane = document.querySelector('[data-up-pane="support"]');
+          if(!pane) return;
+          const PAGE_SIZE = 10;
+          pane.querySelectorAll('[data-sup-col]').forEach(function(col){
+            const list = col.querySelector('[data-sup-list]');
+            const pager = col.querySelector('[data-sup-pager]');
+            if(!list || !pager) return;
+            const rows = Array.from(list.querySelectorAll('.sup-row'));
+            if(rows.length === 0) return;
+            let page = 1;
+            const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+            function render(){
+              const start = (page-1) * PAGE_SIZE;
+              const end = start + PAGE_SIZE;
+              rows.forEach(function(r, idx){
+                r.style.display = (idx >= start && idx < end) ? '' : 'none';
+              });
+              const pageEl = pager.querySelector('[data-sup-page]');
+              const totEl = pager.querySelector('[data-sup-total]');
+              if(pageEl) pageEl.textContent = page;
+              if(totEl) totEl.textContent = totalPages;
+              pager.querySelector('[data-sup-prev]').disabled = page <= 1;
+              pager.querySelector('[data-sup-next]').disabled = page >= totalPages;
+            }
+            pager.querySelector('[data-sup-prev]').addEventListener('click', function(){
+              if(page > 1){ page -= 1; render(); }
+            });
+            pager.querySelector('[data-sup-next]').addEventListener('click', function(){
+              if(page < totalPages){ page += 1; render(); }
+            });
+            // Always show pager (even with 1 page)
+            pager.removeAttribute('hidden');
+            render();
+          });
+        })();
+        </script>
       </div>
-      <div class="action-row-v2"><button class="btn btn-solar">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button></div>
-    </form>
-    {% elif tab == 'permissions' %}
-    <form method="post" class="admin-card-v2 staff-permissions-v122">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="save_staff_permissions">
-      <div class="staff-card-title-v122"><small>{{ 'Exact access' if is_en else 'صلاحيات دقيقة' }}</small><h3>{{ 'Show, hide, and guard admin sections' if is_en else 'إظهار وإخفاء وحماية أقسام الإدارة' }}</h3><p>{{ 'The sidebar and route guards read these permissions. Full Admin always keeps all access.' if is_en else 'السايدبار وحماية الروابط تعتمد على هذه الصلاحيات. المدير الكامل يبقى لديه كل الصلاحيات دائماً.' }}</p></div>
-      <div class="staff-permission-grid-v122">
-        {% for perm in permission_rows %}
-        <label class="staff-permission-card-v122 {{ 'is-on' if perm.checked else '' }}">
-          <input type="checkbox" name="{{ perm.key }}" {% if perm.checked %}checked{% endif %} {% if is_full_admin %}disabled{% endif %}>
-          <span>{{ perm.label }}</span>
-          <small>{{ perm.key }}{% if perm.has_override %} · {{ 'custom' if is_en else 'مخصص' }}{% elif perm.inherited %} · {{ 'from role' if is_en else 'من الدور' }}{% endif %}</small>
-        </label>
-        {% endfor %}
-      </div>
-      <div class="action-row-v2"><button class="btn btn-solar" {% if is_full_admin %}disabled{% endif %}>{{ 'Save permissions' if is_en else 'حفظ الصلاحيات' }}</button></div>
-    </form>
-    {% elif tab == 'support' %}
-    <section class="admin-card-v2 staff-support-v122">
-      <div class="staff-card-title-v122"><small>{{ 'Assigned support' if is_en else 'الدعم المكلّف' }}</small><h3>{{ 'Messages and tickets owned by this staff member' if is_en else 'رسائل وتذاكر الدعم المسندة لهذا العضو' }}</h3></div>
-      <div class="staff-support-columns-v122">
-        <div>
-          <h4>{{ 'Mail threads' if is_en else 'محادثات البريد' }}</h4>
-          {% for row in assigned_threads %}
-          <a class="staff-support-row-v122 support-mail-v129 status-{{ row.thread.status or 'open' }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine', case='message-' ~ row.thread.id) }}#case-message-{{ row.thread.id }}">
-            <span class="support-row-glow-v129"></span>
-            <div class="support-row-main-v129">
-              <strong>{{ row.thread.subject }}</strong>
-              <small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small>
+    </div>
+
+    {# ═══════════════ ACTIVITY pane ═══════════════ #}
+    <div class="up-pane" data-up-pane="activity" {% if tab != 'activity' %}hidden{% endif %}>
+      <div class="prof-shell">
+        <section class="act-hero">
+          <div class="act-hero-text">
+            <span class="act-hero-eyebrow">⚡ {{ 'Activity log' if is_en else 'سجل النشاط' }}</span>
+            <h2>{{ 'Last actions involving this staff member' if is_en else 'آخر العمليات المتعلِّقة بهذا العضو' }}</h2>
+            <p>{{ 'Newest events first. Filter by type.' if is_en else 'الأحدث أولاً. صفِّ السجل حسب النوع.' }}</p>
+            <div class="act-hero-stats">
+              <div><small>{{ 'Total events' if is_en else 'العمليات' }}</small><strong>{{ activity_rows|length }}</strong></div>
+              <div><small>{{ 'Showing' if is_en else 'يُعرض' }}</small><strong>{{ activity_rows[:50]|length }}</strong></div>
+              <div><small>{{ 'Unique actors' if is_en else 'المنفّذون' }}</small><strong>{{ (activity_rows|map(attribute='actor')|select|map(attribute='id')|unique|list)|length }}</strong></div>
             </div>
-            <div class="support-row-meta-v129">
-              <span class="status-pill {{ 'success' if row.thread.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.thread.status, 'status', ui_lang) }}</span>
-              <em>{{ 'Open support center' if is_en else 'افتح مركز الدعم' }}</em>
+          </div>
+          <div class="act-hero-spark" aria-hidden="true">
+            {% set _bars = [3,5,8,4,6,9,7,5,8,6,9,11,7,4] %}
+            {% for v in _bars %}<i style="--h:{{ v*6 }}px"></i>{% endfor %}
+          </div>
+        </section>
+
+        <div class="prof-grid">
+          <div>
+            <div class="act-filters" role="tablist" data-act-filters>
+              <button type="button" class="act-chip is-on" data-act-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
+              <button type="button" class="act-chip" data-act-filter="account">{{ 'Account' if is_en else 'الحساب' }}</button>
+              <button type="button" class="act-chip" data-act-filter="permission">{{ 'Permissions' if is_en else 'الصلاحيات' }}</button>
+              <button type="button" class="act-chip" data-act-filter="ticket">{{ 'Tickets' if is_en else 'التذاكر' }}</button>
+              <button type="button" class="act-chip" data-act-filter="thread">{{ 'Messages' if is_en else 'الرسائل' }}</button>
+              <button type="button" class="act-chip" data-act-filter="other">{{ 'Other' if is_en else 'غير ذلك' }}</button>
             </div>
-          </a>
-          {% else %}<div class="empty-box-v2">{{ 'No assigned mail threads.' if is_en else 'لا توجد محادثات مسندة.' }}</div>{% endfor %}
+
+            <div class="act-timeline" data-act-timeline>
+              {% for row in activity_rows[:50] %}
+                {% set evt_text = activity_label(row.item, ui_lang)|lower %}
+                {% set evt_kind = 'ticket' if 'ticket' in evt_text or 'تذكرة' in evt_text else ('thread' if 'mail' in evt_text or 'رسالة' in evt_text or 'محادثة' in evt_text else ('permission' if 'permission' in evt_text or 'صلاحي' in evt_text else ('account' if 'profile' in evt_text or 'بيانات' in evt_text or 'staff' in evt_text else 'other'))) %}
+                {% set _actor_kind = 'system' %}
+                {% if row.actor %}
+                  {% if row.actor.id == user_obj.id %}{% set _actor_kind = 'user' %}
+                  {% else %}{% set _actor_kind = 'admin' %}{% endif %}
+                {% endif %}
+                {% set _dt = row.created_local or row.item.created_at %}
+                {% set _day_ar = ['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'] %}
+                {% set _day_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                {% set _month_ar = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'] %}
+                {% set _month_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+                {# Build a deep-link to the support center if this event references a ticket or thread #}
+                {% set _target_type = (row.item.target_type or '')|lower %}
+                {% set _target_id = row.item.target_id %}
+                {% set _case_url = '' %}
+                {% if _target_type == 'support_ticket' and _target_id %}
+                  {% set _case_url = url_for('main.admin_support_command_center', lang=ui_lang, filter='all', case='ticket-' ~ _target_id) ~ '#case-ticket-' ~ _target_id %}
+                {% elif _target_type == 'internal_mail_thread' and _target_id %}
+                  {% set _case_url = url_for('main.admin_support_command_center', lang=ui_lang, filter='all', case='message-' ~ _target_id) ~ '#case-message-' ~ _target_id %}
+                {% endif %}
+                {% set _is_clickable = (_case_url != '') %}
+                {% if _is_clickable %}
+                <a href="{{ _case_url }}" class="act-event act-event-{{ evt_kind }} act-actor-{{ _actor_kind }} act-event-clickable" data-act-kind="{{ evt_kind }}" data-act-actor="{{ _actor_kind }}">
+                  <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','permission':'🔐','account':'⚙','other':'•'}[evt_kind] }}</span>
+                  <div class="act-event-body">
+                    <strong>{{ activity_label(row.item, ui_lang) }} <em class="act-event-go">↗ {{ 'Open' if is_en else 'فتح' }}</em></strong>
+                    <span class="act-event-actor act-actor-pill act-actor-pill-{{ _actor_kind }}">
+                      {% if _actor_kind == 'admin' %}🛡️
+                      {% elif _actor_kind == 'user' %}👤
+                      {% else %}🤖{% endif %}
+                      {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}
+                    </span>
+                  </div>
+                  {% if _dt %}
+                  <div class="act-event-when" dir="ltr">
+                    <span class="act-when-day">{{ _day_en[_dt.weekday()] if is_en else _day_ar[_dt.weekday()] }}</span>
+                    <span class="act-when-date">{{ '%02d'|format(_dt.day) }} {{ _month_en[_dt.month - 1] if is_en else _month_ar[_dt.month - 1] }}</span>
+                    <span class="act-when-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</span>
+                  </div>
+                  {% else %}
+                  <div class="act-event-when"><span class="act-when-time">—</span></div>
+                  {% endif %}
+                </a>
+                {% else %}
+                <article class="act-event act-event-{{ evt_kind }} act-actor-{{ _actor_kind }}" data-act-kind="{{ evt_kind }}" data-act-actor="{{ _actor_kind }}">
+                  <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','permission':'🔐','account':'⚙','other':'•'}[evt_kind] }}</span>
+                  <div class="act-event-body">
+                    <strong>{{ activity_label(row.item, ui_lang) }}</strong>
+                    <span class="act-event-actor act-actor-pill act-actor-pill-{{ _actor_kind }}">
+                      {% if _actor_kind == 'admin' %}🛡️
+                      {% elif _actor_kind == 'user' %}👤
+                      {% else %}🤖{% endif %}
+                      {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}
+                    </span>
+                  </div>
+                  {% if _dt %}
+                  <div class="act-event-when" dir="ltr">
+                    <span class="act-when-day">{{ _day_en[_dt.weekday()] if is_en else _day_ar[_dt.weekday()] }}</span>
+                    <span class="act-when-date">{{ '%02d'|format(_dt.day) }} {{ _month_en[_dt.month - 1] if is_en else _month_ar[_dt.month - 1] }}</span>
+                    <span class="act-when-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</span>
+                  </div>
+                  {% else %}
+                  <div class="act-event-when"><span class="act-when-time">—</span></div>
+                  {% endif %}
+                </article>
+                {% endif %}
+              {% else %}
+                <div class="act-empty">
+                  <span>📭</span>
+                  <strong>{{ 'No activity yet.' if is_en else 'لا يوجد سجل نشاط بعد.' }}</strong>
+                  <small>{{ 'Actions involving this staff member will appear here.' if is_en else 'العمليات المتعلقة بهذا العضو ستظهر هنا.' }}</small>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="act-pager" data-act-pager hidden>
+              <button type="button" class="act-pager-btn" data-act-prev>← {{ 'Previous' if is_en else 'السابق' }}</button>
+              <span class="act-pager-info">
+                {{ 'Page' if is_en else 'صفحة' }}
+                <b data-act-page>1</b>
+                {{ 'of' if is_en else 'من' }}
+                <b data-act-total-pages>1</b>
+                ·
+                <span data-act-range>—</span>
+              </span>
+              <button type="button" class="act-pager-btn" data-act-next>{{ 'Next' if is_en else 'التالي' }} →</button>
+            </div>
+
+            <script>
+            (function(){
+              const pane = document.querySelector('[data-up-pane="activity"]');
+              if(!pane) return;
+              const tl = pane.querySelector('[data-act-timeline]');
+              const pager = pane.querySelector('[data-act-pager]');
+              if(!tl || !pager) return;
+              const PAGE_SIZE = 10;
+              let currentPage = 1;
+              let activeFilter = 'all';
+              const allEvents = Array.from(tl.querySelectorAll('.act-event'));
+              allEvents.forEach(function(ev){ ev.classList.add('act-hidden'); });
+              function getVisibleEvents(){
+                return allEvents.filter(function(ev){
+                  return activeFilter === 'all' || ev.dataset.actKind === activeFilter;
+                });
+              }
+              function render(animate){
+                const events = getVisibleEvents();
+                const total = events.length;
+                const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                if(currentPage > totalPages) currentPage = totalPages;
+                if(currentPage < 1) currentPage = 1;
+                const start = (currentPage - 1) * PAGE_SIZE;
+                const end = start + PAGE_SIZE;
+                const slice = events.slice(start, end);
+                allEvents.forEach(function(ev){
+                  ev.classList.add('act-hidden');
+                  ev.classList.remove('act-show');
+                  ev.style.removeProperty('animation-delay');
+                });
+                slice.forEach(function(ev, idx){
+                  ev.classList.remove('act-hidden');
+                  if(animate){
+                    ev.style.animationDelay = (idx * 35) + 'ms';
+                    ev.classList.remove('act-show');
+                    void ev.offsetWidth;
+                    ev.classList.add('act-show');
+                  } else {
+                    ev.classList.add('act-show');
+                  }
+                });
+                if(total <= PAGE_SIZE){ pager.setAttribute('hidden',''); }
+                else { pager.removeAttribute('hidden'); }
+                const pageEl = pager.querySelector('[data-act-page]');
+                const totEl = pager.querySelector('[data-act-total-pages]');
+                const rangeEl = pager.querySelector('[data-act-range]');
+                if(pageEl) pageEl.textContent = currentPage;
+                if(totEl)  totEl.textContent = totalPages;
+                if(rangeEl) rangeEl.textContent = (total ? ((start + 1) + '–' + Math.min(end, total) + ' / ' + total) : '0 / 0');
+                pager.querySelector('[data-act-prev]').disabled = currentPage <= 1;
+                pager.querySelector('[data-act-next]').disabled = currentPage >= totalPages;
+              }
+              pane.querySelectorAll('[data-act-filter]').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                  pane.querySelectorAll('[data-act-filter]').forEach(function(b){ b.classList.remove('is-on'); });
+                  btn.classList.add('is-on');
+                  activeFilter = btn.dataset.actFilter;
+                  currentPage = 1;
+                  render(true);
+                });
+              });
+              pager.querySelector('[data-act-prev]').addEventListener('click', function(){
+                currentPage -= 1;
+                render(true);
+                tl.scrollIntoView({behavior:'smooth', block:'start'});
+              });
+              pager.querySelector('[data-act-next]').addEventListener('click', function(){
+                currentPage += 1;
+                render(true);
+                tl.scrollIntoView({behavior:'smooth', block:'start'});
+              });
+              const spark = pane.querySelector('.act-hero-spark');
+              if(spark){
+                Array.from(spark.children).forEach(function(b, i){
+                  b.style.animationDelay = (i * 50) + 'ms';
+                  b.classList.add('spark-rise');
+                });
+              }
+              render(true);
+            })();
+            </script>
+          </div>
+
+          <aside class="prof-side">
+            {% set _kind_counts = {'account':0,'permission':0,'ticket':0,'thread':0,'other':0} %}
+            {% for row in activity_rows %}
+              {% set _t = activity_label(row.item, ui_lang)|lower %}
+              {% if 'تذكرة' in _t or 'ticket' in _t %}{% set _ = _kind_counts.update({'ticket': _kind_counts['ticket']+1}) %}
+              {% elif 'محادثة' in _t or 'رسالة' in _t or 'mail' in _t %}{% set _ = _kind_counts.update({'thread': _kind_counts['thread']+1}) %}
+              {% elif 'صلاحي' in _t or 'permission' in _t %}{% set _ = _kind_counts.update({'permission': _kind_counts['permission']+1}) %}
+              {% elif 'بيانات' in _t or 'profile' in _t or 'staff' in _t or 'حساب' in _t %}{% set _ = _kind_counts.update({'account': _kind_counts['account']+1}) %}
+              {% else %}{% set _ = _kind_counts.update({'other': _kind_counts['other']+1}) %}{% endif %}
+            {% endfor %}
+            {% set _total_act = activity_rows|length or 1 %}
+
+            {# ─── Card 1: Distribution by kind ─── #}
+            <section class="prof-side-card act-bd-card-v154">
+              <header><span class="prof-side-eyebrow">📊 {{ 'Distribution' if is_en else 'التوزيع حسب النوع' }}</span></header>
+              <div class="act-bd-list">
+                <div class="act-bd-row act-bd-account" style="--c:#7c3aed;--w:{{ (_kind_counts['account']/_total_act*100)|round|int }}%">
+                  <span class="act-bd-label">⚙ {{ 'Account' if is_en else 'الحساب' }}</span>
+                  <span class="act-bd-bar"><i></i></span>
+                  <b class="act-bd-count">{{ _kind_counts['account'] }}</b>
+                </div>
+                <div class="act-bd-row act-bd-permission" style="--c:#0ea5e9;--w:{{ (_kind_counts['permission']/_total_act*100)|round|int }}%">
+                  <span class="act-bd-label">🔐 {{ 'Permissions' if is_en else 'الصلاحيات' }}</span>
+                  <span class="act-bd-bar"><i></i></span>
+                  <b class="act-bd-count">{{ _kind_counts['permission'] }}</b>
+                </div>
+                <div class="act-bd-row act-bd-ticket" style="--c:#f59e0b;--w:{{ (_kind_counts['ticket']/_total_act*100)|round|int }}%">
+                  <span class="act-bd-label">🎫 {{ 'Tickets' if is_en else 'التذاكر' }}</span>
+                  <span class="act-bd-bar"><i></i></span>
+                  <b class="act-bd-count">{{ _kind_counts['ticket'] }}</b>
+                </div>
+                <div class="act-bd-row act-bd-thread" style="--c:#10b981;--w:{{ (_kind_counts['thread']/_total_act*100)|round|int }}%">
+                  <span class="act-bd-label">✉ {{ 'Messages' if is_en else 'الرسائل' }}</span>
+                  <span class="act-bd-bar"><i></i></span>
+                  <b class="act-bd-count">{{ _kind_counts['thread'] }}</b>
+                </div>
+                {% if _kind_counts['other'] > 0 %}
+                <div class="act-bd-row act-bd-other" style="--c:#94a3b8;--w:{{ (_kind_counts['other']/_total_act*100)|round|int }}%">
+                  <span class="act-bd-label">• {{ 'Other' if is_en else 'غير ذلك' }}</span>
+                  <span class="act-bd-bar"><i></i></span>
+                  <b class="act-bd-count">{{ _kind_counts['other'] }}</b>
+                </div>
+                {% endif %}
+              </div>
+            </section>
+
+            {# ─── Card 2: Most recent ─── #}
+            <section class="prof-side-card act-recent-card-v154">
+              <header><span class="prof-side-eyebrow">🕒 {{ 'Most recent' if is_en else 'الأحدث' }}</span></header>
+              <div class="prof-side-rows">
+                {% for row in activity_rows[:5] %}
+                {% set _dt = row.created_local or row.item.created_at %}
+                <div>
+                  <span>{{ activity_label(row.item, ui_lang)[:34] }}{% if (activity_label(row.item, ui_lang)|length) > 34 %}…{% endif %}</span>
+                  {% if _dt %}
+                  <b dir="ltr" class="act-side-when">
+                    <em class="act-side-date">{{ '%02d/%02d'|format(_dt.day, _dt.month) }}</em>
+                    <em class="act-side-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</em>
+                  </b>
+                  {% else %}<b>—</b>{% endif %}
+                </div>
+                {% else %}
+                <div><span>—</span><b>—</b></div>
+                {% endfor %}
+              </div>
+            </section>
+          </aside>
         </div>
-        <div>
-          <h4>{{ 'Tickets' if is_en else 'التذاكر' }}</h4>
-          {% for row in assigned_tickets %}
-          <a class="staff-support-row-v122 support-ticket-v129 status-{{ row.ticket.status or 'open' }}" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='mine', case='ticket-' ~ row.ticket.id) }}#case-ticket-{{ row.ticket.id }}">
-            <span class="support-row-glow-v129"></span>
-            <div class="support-row-main-v129">
-              <strong>{{ row.ticket.subject }}</strong>
-              <small>{{ row.owner.full_name or row.owner.username if row.owner else ('Unknown subscriber' if is_en else 'مستفيد غير معروف') }}</small>
-            </div>
-            <div class="support-row-meta-v129">
-              <span class="status-pill {{ 'success' if row.ticket.status in ['resolved','closed'] else 'warning' }}">{{ ui_label(row.ticket.status, 'status', ui_lang) }}</span>
-              <em>{{ 'Open support center' if is_en else 'افتح مركز الدعم' }}</em>
-            </div>
-          </a>
-          {% else %}<div class="empty-box-v2">{{ 'No assigned tickets.' if is_en else 'لا توجد تذاكر مسندة.' }}</div>{% endfor %}
-        </div>
       </div>
-    </section>
-    {% elif tab == 'activity' %}
-    <section class="admin-card-v2">
-      <div class="staff-card-title-v122"><small>{{ 'Activity' if is_en else 'النشاط' }}</small><h3>{{ 'Latest actions' if is_en else 'آخر العمليات' }}</h3></div>
-      <div class="activity-list-v2">{% for row in activity_rows %}<div class="activity-item-v2"><div><strong>{{ activity_label(row.item, ui_lang) }}</strong><small>{{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}</small></div><span>{{ format_local(row.item.created_at) if row.item.created_at else '' }}</span></div>{% else %}<div class="empty-box-v2">{{ 'No activity yet.' if is_en else 'لا يوجد نشاط بعد.' }}</div>{% endfor %}</div>
-    </section>
-    {% endif %}
+    </div>
+
   </main>
 </div>
 {% endblock %}

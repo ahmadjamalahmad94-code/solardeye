@@ -402,7 +402,22 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       .then(data=>{ updateCounts(data); render(data.items || []); return data; })
       .catch(()=>{});
   }
-  btn && btn.addEventListener('click', function(e){ e.preventDefault(); wrap.classList.toggle('open'); if(wrap.classList.contains('open')) refresh(); });
+  btn && btn.addEventListener('click', function(e){
+    e.preventDefault();
+    wrap.classList.toggle('open');
+    if(wrap.classList.contains('open')){
+      refresh();
+      // Auto mark-as-read when opening — counter goes to 0 instantly,
+      // but we keep the items visible in the list for context.
+      if(markReadUrl){
+        const fd = new FormData();
+        fetch(markReadUrl, {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){ return r.json(); })
+          .then(function(data){ updateCounts(data); })
+          .catch(function(){});
+      }
+    }
+  });
   markAll && markAll.addEventListener('click', function(){
     if(!markReadUrl) return;
     const form = new FormData();

@@ -76,13 +76,18 @@ def admin_roles_v10():
                 db.session.commit()
                 flash('Role updated.' if lang == 'en' else 'تم تحديث الدور.', 'success')
         elif action == 'delete_role':
-            role_id = int(request.form.get('role_id') or 0)
-            row = AppRole.query.get(role_id)
-            if row and not row.is_system and row.code not in {'admin', 'user'}:
-                AppUser.query.filter_by(role=row.code).update({'role': 'user', 'is_admin': False})
-                db.session.delete(row)
-                db.session.commit()
-                flash('Role deleted and assigned users moved to Subscriber.' if lang == 'en' else 'تم حذف الدور ونقل المستخدمين المرتبطين إلى دور مشترك.', 'success')
+            # Granular sub-permission gate: roles.delete
+            from ..services.scope import has_permission
+            if not has_permission('roles.delete'):
+                flash('You do not have permission to delete roles.' if lang == 'en' else 'لا تملك صلاحية حذف الأدوار.', 'danger')
+            else:
+                role_id = int(request.form.get('role_id') or 0)
+                row = AppRole.query.get(role_id)
+                if row and not row.is_system and row.code not in {'admin', 'user'}:
+                    AppUser.query.filter_by(role=row.code).update({'role': 'user', 'is_admin': False})
+                    db.session.delete(row)
+                    db.session.commit()
+                    flash('Role deleted and assigned users moved to Subscriber.' if lang == 'en' else 'تم حذف الدور ونقل المستخدمين المرتبطين إلى دور مشترك.', 'success')
         elif action == 'portal_visibility':
             visible_keys = set(request.form.getlist('visible_pages'))
             for page in portal_pages(include_locked=True):

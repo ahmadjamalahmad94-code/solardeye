@@ -816,6 +816,10 @@ def _admin_user_payload(user: AppUser):
         AdminActivityLog.created_at.desc(),
         AdminActivityLog.id.desc(),
     ).limit(150).all()
+    # Convert each activity timestamp to the *profile owner's* timezone so the
+    # admin viewing this profile sees the same wall-clock time the owner sees.
+    from ..services.utils import utc_to_local as _utc_to_local
+    _profile_tz = (getattr(user, 'timezone', None) or '').strip() or current_app.config.get('LOCAL_TIMEZONE', 'Asia/Hebron')
     related_activities = []
     for item in activity_rows:
         details = {}
@@ -824,7 +828,12 @@ def _admin_user_payload(user: AppUser):
         except Exception:
             details = {}
         if details.get('tenant_id') == getattr(tenant, 'id', None) or details.get('user_id') == user.id or item.target_id == user.id:
-            related_activities.append({'item': item, 'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None})
+            _local_created = _utc_to_local(getattr(item, 'created_at', None), _profile_tz) or getattr(item, 'created_at', None)
+            related_activities.append({
+                'item': item,
+                'actor': AppUser.query.get(item.actor_user_id) if item.actor_user_id else None,
+                'created_local': _local_created,
+            })
     feature_map = plan_features(SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None)
     return {
         'tenant': tenant,

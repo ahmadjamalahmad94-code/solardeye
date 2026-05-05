@@ -1,0 +1,2690 @@
+/* ════════════════════════════════════════════════════════════════════
+   Admin Staff Profile — v2 rebuild (2026-05-05)
+   Reuses admin_user_profile.css base (up-page / up-tabs / prof-shell /
+   prof-step / hu-hero / act-* / etc.) and adds staff-specific
+   refinements: role pill, permissions UI, support assignment lists.
+═════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────
+   Hero — role pill colors per role family
+───────────────────────────────────────────────────────────── */
+.hu-hero-staff-v2 .hu-meta-pill.role-pill{
+  font-weight:800;
+  border:1px solid rgba(255,255,255,.18);
+}
+.hu-hero-staff-v2 .role-pill.role-admin{
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  color:#fff;
+  border-color:rgba(255,255,255,.25);
+}
+.hu-hero-staff-v2 .role-pill.role-support{
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:#1f1407;
+  border-color:rgba(0,0,0,.1);
+}
+.hu-hero-staff-v2 .role-pill.role-manager,
+.hu-hero-staff-v2 .role-pill.role-supervisor{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9);
+  color:#fff;
+}
+.hu-hero-staff-v2 .role-pill.role-finance{
+  background:linear-gradient(135deg,#10b981,#059669);
+  color:#fff;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   KPI strip — staff variant: 4 columns
+───────────────────────────────────────────────────────────── */
+.up-stats-staff-v2{
+  grid-template-columns:repeat(4, minmax(0,1fr));
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Profile pane — hero variant
+───────────────────────────────────────────────────────────── */
+.prof-hero-staff-v2 .prof-hero-bg{
+  background:
+    radial-gradient(circle at 85% -10%, rgba(167,139,250,.55), transparent 55%),
+    radial-gradient(circle at 12% 110%, rgba(96,165,250,.45), transparent 55%),
+    linear-gradient(135deg,#1e1b4b 0%, #312e81 45%, #1e3a8a 100%);
+}
+.prof-hero-staff-v2 .prof-hero-avatar{
+  background:linear-gradient(135deg,#a78bfa,#7c3aed);
+}
+
+/* Toggle row — same grid as profile */
+.prof-field-toggle{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:18px !important;
+  background:#f8fafc;
+  border:1px solid #e7eaf0;
+  border-radius:14px;
+  padding:14px 18px;
+}
+.prof-field-toggle .prof-toggle-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.prof-field-toggle .prof-toggle-text small{
+  font-size:.92rem;
+  font-weight:800;
+  color:#0f172a;
+}
+.prof-field-toggle .prof-toggle-text em{
+  font-style:normal;
+  font-size:.78rem;
+  color:#64748b;
+  font-weight:600;
+}
+.prof-switch{
+  position:relative;
+  width:48px;
+  height:26px;
+  flex-shrink:0;
+  cursor:pointer;
+}
+.prof-switch input{
+  position:absolute;
+  opacity:0;
+  width:0;
+  height:0;
+}
+.prof-switch span{
+  position:absolute;
+  inset:0;
+  background:#cbd5e1;
+  border-radius:999px;
+  transition:background .25s ease;
+}
+.prof-switch span::after{
+  content:"";
+  position:absolute;
+  top:3px;
+  inset-inline-start:3px;
+  width:20px;
+  height:20px;
+  background:#fff;
+  border-radius:50%;
+  box-shadow:0 2px 4px rgba(0,0,0,.18);
+  transition:inset-inline-start .25s ease;
+}
+.prof-switch input:checked + span{
+  background:linear-gradient(135deg,#10b981,#059669);
+}
+.prof-switch input:checked + span::after{
+  inset-inline-start:25px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PERMISSIONS PANE
+═══════════════════════════════════════════════════════════════ */
+.perm-hero{
+  margin-top:26px !important;
+  background:linear-gradient(135deg,#0f172a 0%, #1e3a8a 100%);
+  color:#fff;
+  border-radius:18px;
+  padding:24px 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  position:relative;
+  overflow:hidden;
+}
+.perm-hero::after{
+  content:"";
+  position:absolute;
+  top:-40%;
+  inset-inline-end:-10%;
+  width:340px;
+  height:340px;
+  background:radial-gradient(circle, rgba(167,139,250,.35), transparent 70%);
+  pointer-events:none;
+}
+.perm-hero-text{
+  position:relative;
+  z-index:1;
+  flex:1;
+}
+.perm-eyebrow{
+  display:inline-block;
+  font-size:.74rem;
+  font-weight:900;
+  letter-spacing:.5px;
+  background:rgba(255,255,255,.12);
+  padding:5px 12px;
+  border-radius:999px;
+  margin-bottom:12px;
+}
+.perm-hero-text h2{
+  margin:0 0 6px;
+  font-size:1.5rem;
+  font-weight:900;
+}
+.perm-hero-text p{
+  margin:0;
+  color:#cbd5e1;
+  font-size:.92rem;
+}
+.perm-hero-counter{
+  position:relative;
+  z-index:1;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:18px;
+  padding:18px 24px;
+  text-align:center;
+  min-width:140px;
+  backdrop-filter:blur(8px);
+}
+.perm-hero-counter strong{
+  display:block;
+  font-size:2.6rem;
+  font-weight:900;
+  line-height:1;
+  background:linear-gradient(135deg,#fff,#a78bfa);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.perm-hero-counter small{
+  display:block;
+  margin-top:6px;
+  font-size:.78rem;
+  font-weight:700;
+  color:#cbd5e1;
+}
+
+.perm-banner{
+  margin-top:26px !important;
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+  border:1px solid #fbbf24;
+  border-radius:14px;
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.perm-banner-info{
+  background:linear-gradient(135deg,#f3efff,#e9d5ff);
+  border-color:#c4b5fd;
+}
+.perm-banner > span{
+  font-size:1.6rem;
+  flex-shrink:0;
+}
+.perm-banner strong{
+  display:block;
+  color:#0f172a;
+  font-size:.95rem;
+  font-weight:900;
+}
+.perm-banner small{
+  display:block;
+  color:#475569;
+  font-size:.82rem;
+  font-weight:600;
+  margin-top:2px;
+}
+
+/* Permission groups */
+.perm-form{
+  margin-top:26px !important;
+}
+.perm-groups{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+.perm-group{
+  background:#fff;
+  border:1px solid #e7eaf0;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 1px 0 rgba(15,23,42,.02);
+}
+.perm-group-head{
+  padding:18px 22px;
+  background:linear-gradient(180deg,#f8fafc 0%, #fff 100%);
+  border-bottom:1px solid #eef0f4;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  position:relative;
+}
+.perm-group-head h3{
+  margin:0 0 4px;
+  font-size:1rem;
+  font-weight:900;
+  color:#0f172a;
+}
+.perm-group-head small{
+  font-size:.76rem;
+  font-weight:700;
+  color:#64748b;
+}
+.perm-group-meter{
+  display:block;
+  width:120px;
+  height:6px;
+  background:#e2e8f0;
+  border-radius:999px;
+  position:relative;
+  overflow:hidden;
+}
+.perm-group-meter::after{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:0;
+  bottom:0;
+  width:var(--p, 0%);
+  background:linear-gradient(90deg,#7c3aed,#a78bfa);
+  border-radius:inherit;
+  transition:width .5s cubic-bezier(.22,1,.36,1);
+}
+
+.perm-group-grid{
+  padding:18px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  gap:12px;
+}
+
+.perm-card{
+  position:relative;
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-rows:auto auto auto;
+  grid-template-areas:
+    "title toggle"
+    "key   toggle"
+    "src   toggle";
+  gap:4px 14px;
+  align-items:center;
+  background:#fff;
+  border:1.5px solid #e7eaf0;
+  border-radius:12px;
+  padding:14px 16px;
+  cursor:pointer;
+  transition:border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.perm-card:hover{
+  border-color:#a78bfa;
+  background:#fafaff;
+  transform:translateY(-1px);
+  box-shadow:0 6px 14px -8px rgba(124,58,237,.25);
+}
+.perm-card input[type="checkbox"]{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.perm-card-title{
+  grid-area:title;
+  font-size:.88rem;
+  font-weight:800;
+  color:#0f172a;
+}
+.perm-card-key{
+  grid-area:key;
+  font-size:.7rem;
+  color:#94a3b8;
+  font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing:.2px;
+}
+.perm-card-source{
+  grid-area:src;
+}
+.perm-src{
+  display:inline-block;
+  font-size:.68rem;
+  font-style:normal;
+  font-weight:800;
+  padding:2px 8px;
+  border-radius:999px;
+}
+.perm-src-override{
+  background:#fef3c7;
+  color:#b45309;
+  border:1px solid #fde68a;
+}
+.perm-src-inherited{
+  background:#ecfdf5;
+  color:#047857;
+  border:1px solid #a7f3d0;
+}
+.perm-src-none{
+  background:#f1f5f9;
+  color:#94a3b8;
+  border:1px solid #e2e8f0;
+}
+
+.perm-card-toggle{
+  grid-area:toggle;
+  width:44px;
+  height:24px;
+  background:#cbd5e1;
+  border-radius:999px;
+  position:relative;
+  flex-shrink:0;
+  transition:background .25s ease;
+}
+.perm-card-toggle::after{
+  content:"";
+  position:absolute;
+  top:3px;
+  inset-inline-start:3px;
+  width:18px;
+  height:18px;
+  background:#fff;
+  border-radius:50%;
+  box-shadow:0 2px 4px rgba(0,0,0,.18);
+  transition:inset-inline-start .25s ease;
+}
+.perm-card.is-on{
+  border-color:#7c3aed;
+  background:linear-gradient(135deg,#fafaff 0%, #f3efff 100%);
+  box-shadow:0 4px 12px -8px rgba(124,58,237,.3);
+}
+.perm-card.is-on .perm-card-toggle{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9);
+}
+.perm-card.is-on .perm-card-toggle::after{
+  inset-inline-start:23px;
+}
+.perm-card.is-locked{
+  opacity:.7;
+  cursor:not-allowed;
+}
+.perm-card.is-locked:hover{
+  transform:none;
+  box-shadow:none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUPPORT PANE
+═══════════════════════════════════════════════════════════════ */
+.sup-hero{
+  margin-top:26px !important;
+  background:linear-gradient(135deg,#fef3c7 0%, #fff7ed 100%);
+  border:1px solid #fde68a;
+  border-radius:18px;
+  padding:22px 26px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:24px;
+  align-items:center;
+}
+.sup-hero-text{
+  flex:1;
+}
+.sup-eyebrow{
+  display:inline-block;
+  font-size:.74rem;
+  font-weight:900;
+  letter-spacing:.4px;
+  background:rgba(245,158,11,.18);
+  color:#92400e;
+  padding:5px 12px;
+  border-radius:999px;
+  margin-bottom:10px;
+}
+.sup-hero-text h2{
+  margin:0 0 6px;
+  font-size:1.32rem;
+  font-weight:900;
+  color:#0f172a;
+}
+.sup-hero-text p{
+  margin:0;
+  color:#78350f;
+  font-size:.86rem;
+  font-weight:600;
+}
+.sup-hero-stats{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0,1fr));
+  gap:10px;
+  min-width:340px;
+}
+.sup-hero-stats > div{
+  background:rgba(255,255,255,.7);
+  border:1px solid rgba(245,158,11,.25);
+  border-radius:12px;
+  padding:10px 12px;
+  text-align:center;
+  backdrop-filter:blur(4px);
+}
+.sup-hero-stats small{
+  display:block;
+  font-size:.7rem;
+  font-weight:700;
+  color:#92400e;
+  margin-bottom:2px;
+}
+.sup-hero-stats strong{
+  display:block;
+  font-size:1.3rem;
+  font-weight:900;
+  color:#0f172a;
+}
+
+/* Two-column layout */
+.sup-columns{
+  margin-top:26px !important;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+@media (max-width:980px){
+  .sup-columns{
+    grid-template-columns:1fr;
+  }
+  .sup-hero{
+    grid-template-columns:1fr;
+  }
+  .sup-hero-stats{
+    min-width:0;
+  }
+}
+
+.sup-col{
+  background:#fff;
+  border:1px solid #e7eaf0;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 1px 0 rgba(15,23,42,.02);
+}
+.sup-col-head{
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid #eef0f4;
+  background:linear-gradient(180deg,#f8fafc,#fff);
+}
+.sup-col-mail .sup-col-head{
+  background:linear-gradient(180deg,#eff6ff,#fff);
+}
+.sup-col-tickets .sup-col-head{
+  background:linear-gradient(180deg,#fef3c7,#fff);
+}
+.sup-col-head h3{
+  margin:0;
+  font-size:1rem;
+  font-weight:900;
+  color:#0f172a;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.sup-col-icon{
+  font-size:1.1rem;
+}
+.sup-col-count{
+  background:rgba(15,23,42,.08);
+  color:#0f172a;
+  border-radius:999px;
+  padding:3px 12px;
+  font-size:.78rem;
+  font-weight:900;
+}
+.sup-col-mail .sup-col-count{
+  background:rgba(37,99,235,.12);
+  color:#1e40af;
+}
+.sup-col-tickets .sup-col-count{
+  background:rgba(245,158,11,.18);
+  color:#92400e;
+}
+.sup-col-body{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* Support row */
+.sup-row{
+  position:relative;
+  display:grid;
+  grid-template-columns:5px 44px 1fr auto;
+  align-items:center;
+  gap:14px;
+  background:#fff;
+  border:1px solid #e7eaf0;
+  border-radius:14px;
+  padding:14px 16px;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  overflow:hidden;
+}
+.sup-row:hover{
+  transform:translateY(-1px);
+  border-color:#cbd5e1;
+  box-shadow:0 8px 18px -10px rgba(15,23,42,.18);
+}
+.sup-row-stripe{
+  width:5px;
+  height:36px;
+  border-radius:999px;
+  align-self:center;
+  background:#cbd5e1;
+}
+.sup-row-mail .sup-row-stripe{ background:#3b82f6; }
+.sup-row-ticket .sup-row-stripe{ background:#f59e0b; }
+.sup-row.status-resolved .sup-row-stripe,
+.sup-row.status-closed .sup-row-stripe{ background:#10b981; }
+.sup-row.status-pending .sup-row-stripe,
+.sup-row.status-waiting_user .sup-row-stripe{ background:#eab308; }
+.sup-row.status-in_progress .sup-row-stripe{ background:#a78bfa; }
+
+.sup-row-icon{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  font-size:1.1rem;
+  flex-shrink:0;
+  align-self:center;
+}
+.sup-row-mail .sup-row-icon{
+  background:linear-gradient(135deg,#dbeafe,#eff6ff);
+  color:#1e40af;
+}
+.sup-row-ticket .sup-row-icon{
+  background:linear-gradient(135deg,#fef3c7,#fef9c3);
+  color:#92400e;
+}
+
+.sup-row-body{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  align-self:center;
+}
+.sup-row-title{
+  font-size:.95rem;
+  font-weight:800;
+  color:#0f172a;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sup-row-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  font-size:.74rem;
+  font-weight:600;
+  color:#64748b;
+}
+.sup-row-meta span{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+
+.sup-row-side{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+  align-self:center;
+}
+.sup-row-pill{
+  display:inline-flex;
+  align-items:center;
+  font-size:.7rem;
+  font-weight:900;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid transparent;
+  background:#f1f5f9;
+  color:#475569;
+  white-space:nowrap;
+}
+.sup-row-pill.status-open{
+  background:#ecfeff;
+  color:#0e7490;
+  border-color:#cffafe;
+}
+.sup-row-pill.status-pending,
+.sup-row-pill.status-waiting_user{
+  background:#fef9c3;
+  color:#854d0e;
+  border-color:#fde68a;
+}
+.sup-row-pill.status-in_progress{
+  background:#f3efff;
+  color:#6d28d9;
+  border-color:#e9d5ff;
+}
+.sup-row-pill.status-resolved,
+.sup-row-pill.status-closed{
+  background:#ecfdf5;
+  color:#047857;
+  border-color:#a7f3d0;
+}
+.sup-row-arrow{
+  font-size:1.1rem;
+  font-weight:900;
+  color:#94a3b8;
+  transition:transform .2s ease, color .2s ease;
+}
+.sup-row:hover .sup-row-arrow{
+  color:#0f172a;
+  transform:translateX(2px);
+}
+[dir="rtl"] .sup-row:hover .sup-row-arrow{
+  transform:translateX(-2px);
+}
+
+.sup-empty{
+  padding:36px 18px;
+  text-align:center;
+  color:#94a3b8;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+.sup-empty > span{
+  font-size:2.2rem;
+  margin-bottom:4px;
+}
+.sup-empty strong{
+  display:block;
+  color:#475569;
+  font-size:.95rem;
+  font-weight:800;
+}
+.sup-empty small{
+  display:block;
+  color:#94a3b8;
+  font-size:.8rem;
+  font-weight:600;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Activity event kinds — add permission + other for staff log
+───────────────────────────────────────────────────────────── */
+.act-event-permission .act-event-dot{--dot:#0ea5e9}
+.act-event-other .act-event-dot{--dot:#94a3b8}
+
+.act-event-badge-permission{background:#dbeafe;color:#0369a1}
+.act-event-badge-other{background:#f1f5f9;color:#475569}
+
+.act-event-permission::before{background:linear-gradient(180deg,#38bdf8,#0ea5e9) !important}
+.act-event-other::before{background:linear-gradient(180deg,#cbd5e1,#94a3b8) !important}
+
+/* ════════════════════════════════════════════════════════════════════
+   v2 — Fix layer (2026-05-05) — addresses post-launch polish issues
+═════════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────
+   FIX 1 — Kill the legacy pink border-left that
+   the original up-pane[data-up-pane=activity] rule
+   applies to every <article>. Our new act-event
+   uses ::before for the kind-stripe, not border.
+──────────────────────────────────────────────── */
+.up-pane[data-up-pane="activity"] article.act-event,
+.staff-page-v2 .up-pane[data-up-pane="activity"] article{
+  border-left:0 !important;
+  border-inline-start:0 !important;
+  background:transparent !important;
+}
+
+/* Re-apply the actor-driven background tints (which the rule above just
+   killed). Without this, activity rows look transparent. */
+.staff-page-v2 .act-actor-admin{
+  background:linear-gradient(135deg,#faf5ff 0%, #fff 60%) !important;
+  border:1.5px solid #e9d5ff !important;
+}
+.staff-page-v2 .act-actor-user{
+  background:linear-gradient(135deg,#ecfdf5 0%, #fff 60%) !important;
+  border:1.5px solid #a7f3d0 !important;
+}
+.staff-page-v2 .act-actor-system{
+  background:linear-gradient(135deg,#f1f5f9 0%, #fff 60%) !important;
+  border:1.5px solid #cbd5e1 !important;
+}
+
+/* Make the kind stripe ALWAYS visible on the inline-start with proper colors
+   (the original rule had a typo with extra space that broke the selector) */
+.staff-page-v2 .act-event::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:8px;
+  bottom:8px;
+  width:5px;
+  border-radius:99px;
+  background:#cbd5e1;
+  z-index:1;
+}
+.staff-page-v2 .act-event-account::before{background:linear-gradient(180deg,#a78bfa,#7c3aed) !important}
+.staff-page-v2 .act-event-ticket::before{background:linear-gradient(180deg,#fbbf24,#f59e0b) !important}
+.staff-page-v2 .act-event-thread::before{background:linear-gradient(180deg,#34d399,#10b981) !important}
+.staff-page-v2 .act-event-permission::before{background:linear-gradient(180deg,#38bdf8,#0ea5e9) !important}
+.staff-page-v2 .act-event-other::before{background:linear-gradient(180deg,#cbd5e1,#94a3b8) !important}
+
+/* ────────────────────────────────────────────────
+   FIX 2 — Save bar / Save button styling
+   (.prof-form-actions and .prof-btn-save weren't
+    defined — define them here to match the design)
+──────────────────────────────────────────────── */
+.prof-form-actions{
+  position:sticky;
+  bottom:14px;
+  z-index:10;
+  margin-top:18px !important;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:14px;
+  padding:12px 18px;
+  border-radius:16px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid #e3eaf6;
+  box-shadow:0 16px 40px rgba(15,23,42,.12);
+}
+.prof-btn-save{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:11px 22px;
+  border-radius:12px;
+  font-family:inherit;
+  font-size:.86rem;
+  font-weight:900;
+  text-decoration:none;
+  border:none;
+  cursor:pointer;
+  background:linear-gradient(135deg,#a78bfa,#7c3aed);
+  color:#fff;
+  box-shadow:0 10px 22px rgba(124,58,237,.34);
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  letter-spacing:.2px;
+}
+.prof-btn-save:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 28px rgba(124,58,237,.44);
+  filter:brightness(1.04);
+}
+.prof-btn-save:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  transform:none;
+  filter:grayscale(.4);
+}
+.prof-btn-save::before{
+  content:"💾";
+  font-size:.95rem;
+}
+
+/* ────────────────────────────────────────────────
+   FIX 3 — Support hero — refine layout
+──────────────────────────────────────────────── */
+.sup-hero{
+  align-items:flex-start !important;
+  padding:24px 28px !important;
+}
+.sup-hero-text{
+  align-self:center !important;
+}
+.sup-hero-stats{
+  min-width:0 !important;
+  width:100% !important;
+  max-width:420px !important;
+}
+@media (min-width:981px){
+  .sup-hero{
+    grid-template-columns:1fr 420px !important;
+  }
+}
+
+/* Make the column heads tighter */
+.sup-col-head{
+  padding:14px 18px !important;
+}
+.sup-col-head h3{
+  font-size:.95rem !important;
+}
+
+/* ────────────────────────────────────────────────
+   FIX 4 — Activity hero side spark — proper layout
+──────────────────────────────────────────────── */
+.staff-page-v2 .act-hero{
+  align-items:center !important;
+}
+.staff-page-v2 .act-hero-spark{
+  align-self:center !important;
+}
+
+/* ────────────────────────────────────────────────
+   FIX 5 — Permissions card layout — slightly tighter
+──────────────────────────────────────────────── */
+.perm-card{
+  grid-template-columns:1fr 44px !important;
+  padding:13px 14px !important;
+  gap:3px 12px !important;
+}
+.perm-card-title{
+  font-size:.86rem !important;
+}
+.perm-card-key{
+  font-size:.66rem !important;
+  margin-top:2px;
+}
+.perm-card-source{
+  margin-top:6px;
+}
+.perm-src{
+  font-size:.66rem !important;
+  padding:2px 7px !important;
+}
+
+/* ────────────────────────────────────────────────
+   FIX 6 — Hero gradient header text (for staff)
+──────────────────────────────────────────────── */
+.hu-hero-staff-v2 .hu-h1{
+  background:linear-gradient(135deg,#7c3aed,#2563eb) !important;
+  -webkit-background-clip:text !important;
+  -webkit-text-fill-color:transparent !important;
+  background-clip:text !important;
+  color:transparent !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 7 — Toggle field height matches input height (v133)
+═════════════════════════════════════════════════════════════════════ */
+
+/* New toggle field: label above (matches all other prof-fields), then a
+   shell that has the same height as a regular .prof-input row */
+.prof-field-toggle-v133{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:6px !important;
+  min-width:0 !important;
+}
+.prof-field-toggle-v133 > span{
+  font-size:.76rem !important;
+  font-weight:900 !important;
+  color:#1f2a44 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+}
+.prof-field-toggle-v133 .prof-field-hint{
+  font-style:normal;
+  font-weight:600;
+  color:#94a3b8;
+  font-size:.7rem;
+}
+.prof-toggle-shell{
+  width:100%;
+  height:46px;            /* exactly the height of .prof-input */
+  padding:0 14px;
+  border:2px solid #cbd5e1;
+  border-radius:11px;
+  background:#f8fafc;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+  transition:all .15s ease;
+}
+.prof-toggle-shell:hover{
+  border-color:#94a3b8;
+  background:#fff;
+}
+.prof-toggle-shell:has(input:checked){
+  border-color:#10b981;
+  background:linear-gradient(135deg,#ecfdf5,#fff 65%);
+}
+.prof-toggle-state{
+  font-size:.84rem;
+  font-weight:900;
+  color:#475569;
+  letter-spacing:.2px;
+}
+.prof-toggle-shell:has(input:checked) .prof-toggle-state{
+  color:#047857;
+}
+
+/* Override the older .prof-field-toggle rule (different element) so it
+   doesn't bleed onto the new compact one */
+.prof-field-toggle-v133.prof-field-toggle{
+  background:transparent !important;
+  border:0 !important;
+  padding:0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 8 — Inline full-width toggle (v134)
+   "الحساب مفعَّل" — label, hint, switch — كلهم على نفس السطر بعرض الصفحة
+═════════════════════════════════════════════════════════════════════ */
+.prof-field-toggle-inline-v134{
+  grid-column:1 / -1 !important;          /* full width across the prof-step grid */
+  display:flex !important;
+  align-items:center !important;
+  gap:14px !important;
+  height:46px !important;
+  padding:0 18px !important;
+  border:2px solid #cbd5e1 !important;
+  border-radius:11px !important;
+  background:#f8fafc !important;
+  cursor:pointer;
+  transition:all .2s ease;
+  margin-top:4px !important;
+}
+.prof-field-toggle-inline-v134:hover{
+  border-color:#94a3b8 !important;
+  background:#fff !important;
+}
+.prof-field-toggle-inline-v134:has(input:checked){
+  border-color:#10b981 !important;
+  background:linear-gradient(135deg,#ecfdf5,#fff 65%) !important;
+}
+.prof-toggle-inline-label{
+  font-size:.86rem !important;
+  font-weight:900 !important;
+  color:#0f172a !important;
+  flex-shrink:0 !important;
+}
+.prof-toggle-inline-hint{
+  flex:1 1 auto !important;
+  font-style:normal !important;
+  font-size:.78rem !important;
+  font-weight:600 !important;
+  color:#64748b !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+.prof-toggle-inline-control{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:10px !important;
+  flex-shrink:0 !important;
+}
+.prof-toggle-inline-control .prof-toggle-state{
+  font-size:.82rem;
+  font-weight:900;
+  color:#475569;
+  letter-spacing:.2px;
+  min-width:60px;
+  text-align:end;
+}
+.prof-field-toggle-inline-v134:has(input:checked) .prof-toggle-state{
+  color:#047857;
+}
+
+/* Mobile collapse: stack hint under label, switch stays at end */
+@media (max-width:600px){
+  .prof-field-toggle-inline-v134{
+    height:auto !important;
+    padding:12px 16px !important;
+    flex-wrap:wrap !important;
+  }
+  .prof-toggle-inline-hint{
+    flex-basis:100% !important;
+    order:3 !important;
+    margin-top:2px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 9 — Remove ghost box under the avatar (v136)
+   The .prof-hero-avatar container had a square background + no radius,
+   leaking corners under the rounded letter. Plus older rules added a
+   shadow/halo box that read as a duplicate square.
+═════════════════════════════════════════════════════════════════════ */
+
+/* The avatar container should have no own background — only the letter does.
+   Match border-radius so any inherited bg/shadow can't leak square corners. */
+.staff-page-v2 .prof-hero-avatar{
+  background:transparent !important;
+  border-radius:22px !important;
+  overflow:visible;
+}
+
+/* Remove any inherited extra ::before/::after that older rules might have
+   layered behind the avatar (creates the "ghost box under the image"). */
+.staff-page-v2 .prof-hero-avatar::before,
+.staff-page-v2 .prof-hero-avatar::after{
+  content:none !important;
+  display:none !important;
+}
+
+/* Also make sure the letter clips its own gradient cleanly */
+.staff-page-v2 .prof-hero-avatar-letter{
+  border-radius:22px !important;
+  overflow:hidden;
+}
+
+/* Fix the active dot pulse halo so it doesn't read as a "box" */
+.staff-page-v2 .prof-hero-status{
+  width:18px !important;
+  height:18px !important;
+  border-radius:50% !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 10 — Force password input height to match select height (v138)
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .prof-input,
+.staff-page-v2 input.prof-input,
+.staff-page-v2 select.prof-input,
+.staff-page-v2 textarea.prof-input{
+  height:46px !important;
+  min-height:46px !important;
+  max-height:46px !important;
+  padding:0 14px !important;
+  line-height:46px !important;
+  box-sizing:border-box !important;
+}
+
+/* Textarea exception (only if used) — allow growing */
+.staff-page-v2 textarea.prof-input{
+  height:auto !important;
+  min-height:46px !important;
+  max-height:none !important;
+  padding:11px 14px !important;
+  line-height:1.5 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 11 — Permissions: hero contrast + live toggle + clearer labels
+═════════════════════════════════════════════════════════════════════ */
+
+/* Hero — brighter eyebrow + stronger heading + better p contrast */
+.perm-hero{
+  background:linear-gradient(135deg,#1e1b4b 0%, #312e81 50%, #1e3a8a 100%) !important;
+}
+.perm-eyebrow{
+  background:linear-gradient(135deg,#a78bfa,#7c3aed) !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.3) !important;
+  box-shadow:0 4px 12px -4px rgba(124,58,237,.5);
+  font-size:.78rem !important;
+}
+.perm-hero-text h2{
+  color:#fff !important;
+  text-shadow:0 2px 14px rgba(0,0,0,.35);
+  letter-spacing:.2px;
+  font-size:1.55rem !important;
+  margin-bottom:8px !important;
+}
+.perm-hero-text p{
+  color:#e0e7ff !important;
+  font-weight:600 !important;
+  font-size:.95rem !important;
+  line-height:1.55;
+}
+
+/* Live visual toggle — drive .perm-card.is-on via :has(input:checked)
+   so it updates instantly when the user clicks (no JS needed). */
+.staff-page-v2 .perm-card{
+  cursor:pointer;
+}
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked){
+  border-color:#7c3aed !important;
+  background:linear-gradient(135deg,#fafaff 0%, #f3efff 100%) !important;
+  box-shadow:0 4px 12px -8px rgba(124,58,237,.3) !important;
+}
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked) .perm-card-toggle{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9) !important;
+}
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked) .perm-card-toggle::after{
+  inset-inline-start:23px !important;
+}
+
+/* Allow the input to be clickable so checkbox toggles when card is clicked */
+.staff-page-v2 .perm-card input[type="checkbox"]{
+  /* Stays visually hidden but stays in flow so the label-wrapper toggles it */
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  inset-inline-start:0 !important;
+  top:0 !important;
+}
+
+/* Source label — improve readability + iconography */
+.staff-page-v2 .perm-src{
+  font-size:.7rem !important;
+  font-weight:800 !important;
+  padding:3px 9px !important;
+  border-radius:999px !important;
+  border:1px solid !important;
+  white-space:nowrap;
+}
+.staff-page-v2 .perm-src-override{
+  background:#fef3c7 !important;
+  color:#92400e !important;
+  border-color:#fde68a !important;
+}
+.staff-page-v2 .perm-src-inherited{
+  background:#ecfdf5 !important;
+  color:#065f46 !important;
+  border-color:#a7f3d0 !important;
+}
+.staff-page-v2 .perm-src-none{
+  background:#f1f5f9 !important;
+  color:#94a3b8 !important;
+  border-color:#e2e8f0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 12 — Live label switch on permission toggle (v140)
+   Two labels per card; CSS shows only the matching one based on the
+   actual checkbox state via :has(). No JavaScript needed.
+═════════════════════════════════════════════════════════════════════ */
+
+/* Default visibility: the source label is hidden when checkbox is OFF */
+.staff-page-v2 .perm-card .perm-src-on{
+  display:inline-block;
+}
+.staff-page-v2 .perm-card .perm-src-off{
+  display:none;
+}
+
+/* When NOT checked → flip: hide the source label, show "غير مفعَّلة" */
+.staff-page-v2 .perm-card:not(:has(input[type="checkbox"]:checked)) .perm-src-on{
+  display:none !important;
+}
+.staff-page-v2 .perm-card:not(:has(input[type="checkbox"]:checked)) .perm-src-off{
+  display:inline-block !important;
+}
+
+/* When checked → show source label, hide off label (already default, but pinned) */
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked) .perm-src-off{
+  display:none !important;
+}
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked) .perm-src-on{
+  display:inline-block !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 13 — Override pill: glassy bright green (v142)
+   "🛠 مخصَّصة لهذا الحساب" → green glass instead of amber
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .perm-src-override{
+  background:linear-gradient(135deg, #6ee7b7 0%, #34d399 60%, #10b981 100%) !important;
+  color:#064e3b !important;
+  border-color:#10b981 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    inset 0 -2px 4px rgba(6,78,59,.18),
+    0 4px 10px -4px rgba(16,185,129,.45) !important;
+  text-shadow:0 1px 0 rgba(255,255,255,.35);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 14 — Bullets list inside permission cards (v143)
+   Each card now lists what enabling the toggle grants.
+═════════════════════════════════════════════════════════════════════ */
+
+/* Restructure the card grid to fit a wide bullets row underneath */
+.staff-page-v2 .perm-card{
+  grid-template-columns:1fr 44px !important;
+  grid-template-rows:auto auto auto auto auto !important;
+  grid-template-areas:
+    "title  toggle"
+    "key    toggle"
+    "src    toggle"
+    "bhead  bhead"
+    "blist  blist" !important;
+  gap:4px 12px !important;
+  padding:14px 16px !important;
+  align-items:start !important;
+}
+
+/* Cards become slightly wider so the bullets read comfortably */
+.staff-page-v2 .perm-group-grid{
+  grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)) !important;
+}
+
+/* Bullets header — small subtle label */
+.staff-page-v2 .perm-card-bullets-head{
+  grid-area:bhead;
+  display:block;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px dashed #e2e8f0;
+  font-size:.7rem;
+  font-weight:900;
+  color:#64748b;
+  letter-spacing:.3px;
+  text-transform:uppercase;
+}
+
+/* Bullets list */
+.staff-page-v2 .perm-card-bullets{
+  grid-area:blist;
+  margin:6px 0 0 !important;
+  padding:0 !important;
+  list-style:none !important;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+.staff-page-v2 .perm-card-bullets li{
+  position:relative;
+  padding-inline-start:18px;
+  font-size:.74rem;
+  font-weight:600;
+  color:#475569;
+  line-height:1.45;
+}
+.staff-page-v2 .perm-card-bullets li::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:7px;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#cbd5e1;
+  transition:background .25s ease;
+}
+
+/* When the card is ON — the bullets bullets light up green and text gets darker */
+.staff-page-v2 .perm-card.is-on .perm-card-bullets-head,
+.staff-page-v2 .perm-card:has(input:checked) .perm-card-bullets-head{
+  color:#047857;
+  border-top-color:#a7f3d0;
+}
+.staff-page-v2 .perm-card.is-on .perm-card-bullets li,
+.staff-page-v2 .perm-card:has(input:checked) .perm-card-bullets li{
+  color:#1f2937;
+}
+.staff-page-v2 .perm-card.is-on .perm-card-bullets li::before,
+.staff-page-v2 .perm-card:has(input:checked) .perm-card-bullets li::before{
+  background:#10b981;
+  box-shadow:0 0 0 3px rgba(16,185,129,.18);
+}
+
+/* When OFF — bullets are dim, dot stays grey */
+.staff-page-v2 .perm-card:not(:has(input:checked)) .perm-card-bullets li{
+  color:#94a3b8;
+}
+.staff-page-v2 .perm-card:not(:has(input:checked)) .perm-card-bullets li::before{
+  background:#cbd5e1;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 15 — Granular sub-permissions UI (v146)
+   Each sub-permission is a small inline toggle row inside the parent card
+═════════════════════════════════════════════════════════════════════ */
+
+/* The parent label wraps title/key/source/toggle so clicks on those areas
+   only toggle the parent (sub-toggles have their own clickable region). */
+.staff-page-v2 .perm-card-parent-label{
+  display:contents;
+  cursor:pointer;
+}
+
+/* Sub-permissions list */
+.staff-page-v2 .perm-card.has-subs{
+  /* Slightly more vertical room for the sub list */
+  padding-bottom:14px !important;
+}
+.staff-page-v2 .perm-card-subs{
+  grid-area:blist;
+  margin:6px 0 0 !important;
+  padding:0 !important;
+  list-style:none !important;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.staff-page-v2 .perm-sub{
+  display:block;
+  position:relative;
+}
+.staff-page-v2 .perm-sub-label{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border:1.5px solid #e7eaf0;
+  border-radius:10px;
+  background:#fafbfc;
+  cursor:pointer;
+  transition:border-color .2s ease, background .2s ease, transform .15s ease;
+}
+.staff-page-v2 .perm-sub-label:hover{
+  border-color:#94a3b8;
+  background:#fff;
+}
+
+/* Hidden actual checkbox; the visual pill replaces it */
+.staff-page-v2 .perm-sub-input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+  width:1px;
+  height:1px;
+}
+
+/* Sub-text takes the remaining space */
+.staff-page-v2 .perm-sub-text{
+  flex:1 1 auto;
+  font-size:.78rem;
+  font-weight:700;
+  color:#475569;
+  line-height:1.4;
+}
+.staff-page-v2 .perm-sub-warn{
+  font-style:normal;
+  color:#dc2626;
+  font-size:.85rem;
+  margin-inline-start:4px;
+}
+
+/* Visual toggle pill at the inline-end */
+.staff-page-v2 .perm-sub-toggle{
+  width:34px;
+  height:18px;
+  background:#cbd5e1;
+  border-radius:999px;
+  position:relative;
+  flex-shrink:0;
+  transition:background .25s ease;
+}
+.staff-page-v2 .perm-sub-toggle::after{
+  content:"";
+  position:absolute;
+  top:2px;
+  inset-inline-start:2px;
+  width:14px;
+  height:14px;
+  background:#fff;
+  border-radius:50%;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  transition:inset-inline-start .25s ease;
+}
+
+/* Checked state — green for safe subs, red for dangerous */
+.staff-page-v2 .perm-sub.is-on .perm-sub-label,
+.staff-page-v2 .perm-sub-label:has(input:checked){
+  border-color:#10b981;
+  background:linear-gradient(135deg,#ecfdf5,#fff 70%);
+}
+.staff-page-v2 .perm-sub.is-on .perm-sub-toggle,
+.staff-page-v2 .perm-sub-label:has(input:checked) .perm-sub-toggle{
+  background:linear-gradient(135deg,#34d399,#10b981);
+}
+.staff-page-v2 .perm-sub.is-on .perm-sub-toggle::after,
+.staff-page-v2 .perm-sub-label:has(input:checked) .perm-sub-toggle::after{
+  inset-inline-start:18px;
+}
+.staff-page-v2 .perm-sub.is-on .perm-sub-text,
+.staff-page-v2 .perm-sub-label:has(input:checked) .perm-sub-text{
+  color:#0f172a;
+}
+
+/* Dangerous subs — red border tint when ON */
+.staff-page-v2 .perm-sub.is-dangerous.is-on .perm-sub-label,
+.staff-page-v2 .perm-sub.is-dangerous .perm-sub-label:has(input:checked){
+  border-color:#ef4444;
+  background:linear-gradient(135deg,#fef2f2,#fff 70%);
+}
+.staff-page-v2 .perm-sub.is-dangerous.is-on .perm-sub-toggle,
+.staff-page-v2 .perm-sub.is-dangerous .perm-sub-label:has(input:checked) .perm-sub-toggle{
+  background:linear-gradient(135deg,#f87171,#dc2626);
+}
+
+/* When the parent is OFF, fade and disable the subs */
+.staff-page-v2 .perm-card:not(.is-on):not(:has(input.perm-card-parent-label > input:checked, > .perm-card-parent-label input:checked)) .perm-card-subs,
+.staff-page-v2 .perm-card.parent-off .perm-card-subs{
+  opacity:.45;
+  pointer-events:none;
+  filter:grayscale(.4);
+}
+
+/* Hide bullets head when parent is OFF for granular cards */
+.staff-page-v2 .perm-card.parent-off .perm-card-bullets-head{
+  opacity:.5;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 16 — Compact one-row parent header (v147)
+   • Toggle + Title + Key + Source pill on ONE line
+   • Tighter spacing throughout
+   • Lighter, softer feel; less vertical sprawl
+═════════════════════════════════════════════════════════════════════ */
+
+/* Card itself — tighter padding, softer shadow */
+.staff-page-v2 .perm-card{
+  display:flex !important;
+  flex-direction:column !important;
+  grid-template-columns:none !important;
+  grid-template-rows:none !important;
+  grid-template-areas:none !important;
+  padding:12px 14px !important;
+  gap:0 !important;
+  border-width:1.5px !important;
+  border-radius:14px !important;
+  box-shadow:0 1px 0 rgba(15,23,42,.02) !important;
+}
+
+/* Parent label becomes a single horizontal row */
+.staff-page-v2 .perm-card-parent-label{
+  display:flex !important;
+  align-items:center !important;
+  gap:12px !important;
+  width:100%;
+  padding:2px 0;
+  cursor:pointer;
+}
+
+/* Toggle pill on the leading edge (inline-start) */
+.staff-page-v2 .perm-card .perm-card-toggle{
+  grid-area:auto !important;
+  order:0 !important;
+  width:38px !important;
+  height:22px !important;
+  border-radius:999px !important;
+  flex-shrink:0;
+  margin:0 !important;
+}
+.staff-page-v2 .perm-card .perm-card-toggle::after{
+  width:16px !important;
+  height:16px !important;
+  top:3px !important;
+  inset-inline-start:3px !important;
+}
+.staff-page-v2 .perm-card:has(input[type="checkbox"]:checked) .perm-card-toggle::after{
+  inset-inline-start:19px !important;
+}
+
+/* Title takes the available middle space */
+.staff-page-v2 .perm-card-title{
+  grid-area:auto !important;
+  order:1 !important;
+  flex:1 1 auto !important;
+  min-width:0;
+  font-size:.86rem !important;
+  font-weight:800 !important;
+  color:#0f172a !important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  margin:0 !important;
+}
+
+/* Key in monospace — small and subdued, sits next to the title */
+.staff-page-v2 .perm-card-key{
+  grid-area:auto !important;
+  order:2 !important;
+  flex-shrink:0;
+  font-size:.62rem !important;
+  color:#94a3b8 !important;
+  background:#f8fafc;
+  border:1px solid #eef0f4;
+  border-radius:6px;
+  padding:2px 7px !important;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  letter-spacing:.1px;
+  margin:0 !important;
+}
+
+/* Source pill aligned to the trailing edge */
+.staff-page-v2 .perm-card-source{
+  grid-area:auto !important;
+  order:3 !important;
+  flex-shrink:0;
+  margin:0 !important;
+}
+
+/* "هذا التفعيل يمنح" / "حدد العمليات" head — quieter, no big margin */
+.staff-page-v2 .perm-card-bullets-head{
+  margin-top:10px !important;
+  padding-top:8px !important;
+  border-top:1px dashed #eef0f4 !important;
+  font-size:.66rem !important;
+  font-weight:800 !important;
+  color:#94a3b8 !important;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+}
+
+/* Bullets list — tighter rhythm */
+.staff-page-v2 .perm-card-bullets{
+  margin:6px 0 0 !important;
+  gap:3px !important;
+}
+.staff-page-v2 .perm-card-bullets li{
+  font-size:.72rem !important;
+  padding-inline-start:14px !important;
+  line-height:1.4 !important;
+}
+.staff-page-v2 .perm-card-bullets li::before{
+  width:5px !important;
+  height:5px !important;
+  top:6px !important;
+}
+
+/* Sub-permission rows — slimmer */
+.staff-page-v2 .perm-card-subs{
+  margin:6px 0 0 !important;
+  gap:5px !important;
+}
+.staff-page-v2 .perm-sub-label{
+  padding:6px 9px !important;
+  border-radius:8px !important;
+  border-width:1.5px !important;
+  gap:8px !important;
+}
+.staff-page-v2 .perm-sub-text{
+  font-size:.74rem !important;
+  font-weight:700 !important;
+}
+.staff-page-v2 .perm-sub-toggle{
+  width:30px !important;
+  height:16px !important;
+}
+.staff-page-v2 .perm-sub-toggle::after{
+  width:12px !important;
+  height:12px !important;
+  top:2px !important;
+  inset-inline-start:2px !important;
+}
+.staff-page-v2 .perm-sub-label:has(input:checked) .perm-sub-toggle::after,
+.staff-page-v2 .perm-sub.is-on .perm-sub-toggle::after{
+  inset-inline-start:16px !important;
+}
+
+/* Source pill — smaller text */
+.staff-page-v2 .perm-src{
+  font-size:.65rem !important;
+  padding:2px 8px !important;
+}
+
+/* Group grid — 2 columns max on wider screens for breathing room */
+.staff-page-v2 .perm-group-grid{
+  grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)) !important;
+  gap:10px !important;
+  padding:14px !important;
+}
+.staff-page-v2 .perm-group-head{
+  padding:14px 18px !important;
+}
+.staff-page-v2 .perm-group-head h3{
+  font-size:.92rem !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 17 — Sub-permission row: description + toggle on ONE line (v149)
+═════════════════════════════════════════════════════════════════════ */
+
+/* Force horizontal layout: description on inline-start, toggle on inline-end */
+.staff-page-v2 .perm-sub-label{
+  display:flex !important;
+  flex-direction:row !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  text-align:start !important;
+}
+
+.staff-page-v2 .perm-sub-text{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  text-align:start !important;
+  white-space:normal !important;
+  word-break:break-word !important;
+}
+
+.staff-page-v2 .perm-sub-toggle{
+  flex-shrink:0 !important;
+  margin:0 !important;
+  align-self:center !important;
+}
+
+/* Same fix on the perm-card-bullets in case any older row was affected */
+.staff-page-v2 .perm-card-subs li{
+  display:block !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 18 — Sub rows expand to full card width (v150)
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .perm-card-subs{
+  width:100% !important;
+  margin-inline:0 !important;
+  padding-inline:0 !important;
+  list-style:none !important;
+}
+.staff-page-v2 .perm-card-subs li.perm-sub{
+  width:100% !important;
+  display:block !important;
+  margin:0 !important;
+}
+.staff-page-v2 .perm-sub-label{
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 19 — Support pane: calmer, cooler palette (v151)
+   • Drop yellow/amber dominance
+   • Hero → cool slate-violet gradient
+   • Tickets column → violet (instead of amber)
+   • Mail column stays blue
+   • Stats → clean white with soft tinted borders
+═════════════════════════════════════════════════════════════════════ */
+
+/* ─── Support hero — cool gradient instead of warm yellow ─── */
+.staff-page-v2 .sup-hero{
+  background:linear-gradient(135deg, #eef2ff 0%, #f0f9ff 60%, #f8fafc 100%) !important;
+  border:1px solid #e0e7ff !important;
+}
+.staff-page-v2 .sup-eyebrow{
+  background:linear-gradient(135deg,#6366f1,#4f46e5) !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.4);
+  box-shadow:0 4px 12px -4px rgba(99,102,241,.45);
+}
+.staff-page-v2 .sup-hero-text h2{
+  color:#0f172a !important;
+}
+.staff-page-v2 .sup-hero-text p{
+  color:#475569 !important;
+}
+
+/* ─── KPI mini stats inside hero — clean white with violet accent ─── */
+.staff-page-v2 .sup-hero-stats > div{
+  background:#fff !important;
+  border:1px solid #e2e8f0 !important;
+  box-shadow:0 1px 0 rgba(15,23,42,.02);
+}
+.staff-page-v2 .sup-hero-stats small{
+  color:#64748b !important;
+}
+.staff-page-v2 .sup-hero-stats strong{
+  color:#0f172a !important;
+}
+
+/* ─── Mail column header — soft sky-blue (kept clean) ─── */
+.staff-page-v2 .sup-col-mail .sup-col-head{
+  background:linear-gradient(180deg, #eff6ff, #fff) !important;
+}
+.staff-page-v2 .sup-col-mail .sup-col-count{
+  background:rgba(59,130,246,.12) !important;
+  color:#1e40af !important;
+}
+
+/* ─── Tickets column header — switch to violet (away from amber) ─── */
+.staff-page-v2 .sup-col-tickets .sup-col-head{
+  background:linear-gradient(180deg, #f5f3ff, #fff) !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-col-count{
+  background:rgba(124,58,237,.12) !important;
+  color:#5b21b6 !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-row-icon{
+  background:linear-gradient(135deg,#ddd6fe,#ede9fe) !important;
+  color:#5b21b6 !important;
+}
+
+/* ─── Tickets row stripe — violet not amber ─── */
+.staff-page-v2 .sup-row-ticket .sup-row-stripe{
+  background:#7c3aed !important;
+}
+
+/* ─── Status pills inside support rows — softened ─── */
+.staff-page-v2 .sup-row-pill{
+  background:#f1f5f9 !important;
+  color:#475569 !important;
+  border-color:#e2e8f0 !important;
+  font-weight:800 !important;
+}
+.staff-page-v2 .sup-row-pill.status-open{
+  background:#eff6ff !important;
+  color:#1e40af !important;
+  border-color:#dbeafe !important;
+}
+.staff-page-v2 .sup-row-pill.status-pending,
+.staff-page-v2 .sup-row-pill.status-waiting_user{
+  background:#fef3c7 !important;
+  color:#92400e !important;
+  border-color:#fde68a !important;
+}
+.staff-page-v2 .sup-row-pill.status-in_progress{
+  background:#f5f3ff !important;
+  color:#5b21b6 !important;
+  border-color:#e9d5ff !important;
+}
+.staff-page-v2 .sup-row-pill.status-resolved,
+.staff-page-v2 .sup-row-pill.status-closed{
+  background:#ecfdf5 !important;
+  color:#047857 !important;
+  border-color:#a7f3d0 !important;
+}
+
+/* ─── Row borders + soft hover ─── */
+.staff-page-v2 .sup-row{
+  border-color:#e2e8f0 !important;
+  background:#fff !important;
+}
+.staff-page-v2 .sup-row:hover{
+  border-color:#cbd5e1 !important;
+  box-shadow:0 6px 16px -10px rgba(15,23,42,.18) !important;
+}
+
+/* ─── Column shells — tighter borders ─── */
+.staff-page-v2 .sup-col{
+  border-color:#e2e8f0 !important;
+}
+.staff-page-v2 .sup-col-head h3{
+  color:#0f172a !important;
+}
+
+/* ─── Empty state — neutral grays ─── */
+.staff-page-v2 .sup-empty{
+  color:#94a3b8 !important;
+}
+.staff-page-v2 .sup-empty strong{
+  color:#475569 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 20 — Support eyebrow shrinks to content (v153)
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .sup-eyebrow{
+  display:inline-block !important;
+  width:auto !important;
+  max-width:max-content !important;
+  align-self:flex-start !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 21 — Merged Activity sidebar card (v154)
+   Single card containing:
+     • Breakdown by event kind (with color bar fill)
+     • Most recent (top 5)
+   Replaces the old two separate cards.
+═════════════════════════════════════════════════════════════════════ */
+
+.staff-page-v2 .act-side-card-v153{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:0 !important;
+  padding:0 !important;
+  overflow:hidden;
+}
+.staff-page-v2 .act-side-card-v153 > header{
+  padding:14px 18px !important;
+  background:linear-gradient(135deg,#faf5ff,#f5f3ff) !important;
+  border-bottom:1px solid #ede9fe !important;
+}
+.staff-page-v2 .act-side-card-v153 > header .prof-side-eyebrow{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9) !important;
+  color:#fff !important;
+  padding:5px 12px !important;
+  border-radius:999px !important;
+  font-size:.7rem !important;
+  font-weight:900 !important;
+  letter-spacing:.4px;
+  display:inline-block !important;
+  width:auto !important;
+  max-width:max-content !important;
+}
+
+/* Section heads inside the card */
+.staff-page-v2 .act-side-card-v153 .act-bd-head{
+  padding:10px 18px 4px !important;
+  font-size:.66rem;
+  font-weight:900;
+  color:#94a3b8;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+}
+
+/* Breakdown wrapper */
+.staff-page-v2 .act-bd-wrap{
+  padding:6px 0 14px;
+  border-bottom:1px dashed #e7eaf0;
+}
+
+/* Breakdown row — kind label + count + colored fill bar */
+.staff-page-v2 .act-bd-row{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 18px;
+  font-size:.78rem;
+  font-weight:700;
+  color:#475569;
+  z-index:1;
+}
+.staff-page-v2 .act-bd-row::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:0; bottom:0;
+  width:var(--w, 0%);
+  background:linear-gradient(90deg, color-mix(in srgb, var(--c, #cbd5e1) 18%, transparent), transparent);
+  z-index:-1;
+  transition:width .5s cubic-bezier(.22,1,.36,1);
+}
+.staff-page-v2 .act-bd-row span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.staff-page-v2 .act-bd-row b{
+  color:var(--c, #475569);
+  font-weight:900;
+  font-size:.86rem;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Recent wrapper */
+.staff-page-v2 .act-recent-wrap{
+  padding:6px 0 14px;
+}
+.staff-page-v2 .act-side-card-v153 .prof-side-rows{
+  padding:0 !important;
+}
+.staff-page-v2 .act-side-card-v153 .prof-side-rows > div{
+  padding:8px 18px !important;
+  border-bottom:1px solid #f1f5f9 !important;
+}
+.staff-page-v2 .act-side-card-v153 .prof-side-rows > div:last-child{
+  border-bottom:0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 22 — Split sidebar back into TWO cards + bolder activity colors (v155)
+═════════════════════════════════════════════════════════════════════ */
+
+/* Side aside: stack with clear gap between the two separate cards */
+.staff-page-v2 .up-pane[data-up-pane="activity"] .prof-side{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:18px !important;
+}
+
+/* ─── Distribution card ─── */
+.staff-page-v2 .act-bd-card-v154{
+  padding:0 !important;
+  overflow:hidden;
+}
+.staff-page-v2 .act-bd-card-v154 > header{
+  padding:14px 18px !important;
+  background:linear-gradient(135deg,#faf5ff,#f5f3ff) !important;
+  border-bottom:1px solid #ede9fe !important;
+}
+.staff-page-v2 .act-bd-card-v154 .prof-side-eyebrow{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9) !important;
+  color:#fff !important;
+  padding:5px 12px !important;
+  border-radius:999px !important;
+  font-size:.7rem !important;
+  font-weight:900 !important;
+  letter-spacing:.4px;
+  display:inline-block !important;
+  width:auto !important;
+  max-width:max-content !important;
+}
+.staff-page-v2 .act-bd-list{
+  padding:14px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:11px;
+}
+.staff-page-v2 .act-bd-row{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:10px;
+  font-size:.8rem;
+  font-weight:800;
+  color:#0f172a;
+}
+.staff-page-v2 .act-bd-row .act-bd-label{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  white-space:nowrap;
+  color:var(--c, #475569);
+}
+.staff-page-v2 .act-bd-row .act-bd-bar{
+  display:block;
+  height:6px;
+  background:#f1f5f9;
+  border-radius:999px;
+  position:relative;
+  overflow:hidden;
+}
+.staff-page-v2 .act-bd-row .act-bd-bar > i{
+  position:absolute;
+  inset-inline-start:0;
+  top:0; bottom:0;
+  width:var(--w, 0%);
+  background:linear-gradient(90deg, var(--c, #cbd5e1), color-mix(in srgb, var(--c, #cbd5e1) 70%, #fff));
+  border-radius:inherit;
+  transition:width .6s cubic-bezier(.22,1,.36,1);
+}
+.staff-page-v2 .act-bd-row .act-bd-count{
+  font-variant-numeric:tabular-nums;
+  font-size:.92rem;
+  font-weight:900;
+  color:var(--c, #0f172a);
+  min-width:24px;
+  text-align:end;
+}
+
+/* ─── Recent card ─── */
+.staff-page-v2 .act-recent-card-v154{
+  padding:0 !important;
+  overflow:hidden;
+}
+.staff-page-v2 .act-recent-card-v154 > header{
+  padding:14px 18px !important;
+  background:linear-gradient(135deg,#f0fdf4,#ecfdf5) !important;
+  border-bottom:1px solid #d1fae5 !important;
+}
+.staff-page-v2 .act-recent-card-v154 .prof-side-eyebrow{
+  background:linear-gradient(135deg,#10b981,#059669) !important;
+  color:#fff !important;
+  padding:5px 12px !important;
+  border-radius:999px !important;
+  font-size:.7rem !important;
+  font-weight:900 !important;
+  letter-spacing:.4px;
+  display:inline-block !important;
+  width:auto !important;
+  max-width:max-content !important;
+}
+.staff-page-v2 .act-recent-card-v154 .prof-side-rows{
+  padding:0 !important;
+}
+.staff-page-v2 .act-recent-card-v154 .prof-side-rows > div{
+  padding:9px 18px !important;
+  border-bottom:1px solid #f1f5f9 !important;
+  font-size:.78rem !important;
+}
+.staff-page-v2 .act-recent-card-v154 .prof-side-rows > div:last-child{
+  border-bottom:0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 23 — Bolder kind colors on activity event cards (v155)
+═════════════════════════════════════════════════════════════════════ */
+
+/* Soft tinted backgrounds per event kind — clearly distinguishable */
+.staff-page-v2 .act-event-account{
+  background:linear-gradient(135deg, #faf5ff 0%, #fff 65%) !important;
+  border-color:#ede9fe !important;
+}
+.staff-page-v2 .act-event-permission{
+  background:linear-gradient(135deg, #f0f9ff 0%, #fff 65%) !important;
+  border-color:#bae6fd !important;
+}
+.staff-page-v2 .act-event-ticket{
+  background:linear-gradient(135deg, #fffbeb 0%, #fff 65%) !important;
+  border-color:#fde68a !important;
+}
+.staff-page-v2 .act-event-thread{
+  background:linear-gradient(135deg, #ecfdf5 0%, #fff 65%) !important;
+  border-color:#a7f3d0 !important;
+}
+.staff-page-v2 .act-event-other{
+  background:linear-gradient(135deg, #f8fafc 0%, #fff 65%) !important;
+  border-color:#e2e8f0 !important;
+}
+
+/* Stronger left stripes (kind indicator) */
+.staff-page-v2 .act-event::before{
+  width:6px !important;
+  border-radius:999px !important;
+}
+.staff-page-v2 .act-event-account::before{background:linear-gradient(180deg,#a78bfa,#7c3aed) !important; box-shadow:0 0 0 4px rgba(124,58,237,.08) !important;}
+.staff-page-v2 .act-event-permission::before{background:linear-gradient(180deg,#38bdf8,#0ea5e9) !important; box-shadow:0 0 0 4px rgba(14,165,233,.08) !important;}
+.staff-page-v2 .act-event-ticket::before{background:linear-gradient(180deg,#fbbf24,#f59e0b) !important; box-shadow:0 0 0 4px rgba(245,158,11,.08) !important;}
+.staff-page-v2 .act-event-thread::before{background:linear-gradient(180deg,#34d399,#10b981) !important; box-shadow:0 0 0 4px rgba(16,185,129,.08) !important;}
+.staff-page-v2 .act-event-other::before{background:linear-gradient(180deg,#cbd5e1,#94a3b8) !important;}
+
+/* Badge backgrounds — vivid and distinct */
+.staff-page-v2 .act-event-badge-account{background:linear-gradient(135deg,#ede9fe,#ddd6fe) !important; color:#5b21b6 !important; box-shadow:0 4px 10px -4px rgba(124,58,237,.3) !important;}
+.staff-page-v2 .act-event-badge-permission{background:linear-gradient(135deg,#dbeafe,#bae6fd) !important; color:#0369a1 !important; box-shadow:0 4px 10px -4px rgba(14,165,233,.3) !important;}
+.staff-page-v2 .act-event-badge-ticket{background:linear-gradient(135deg,#fef3c7,#fde68a) !important; color:#92400e !important; box-shadow:0 4px 10px -4px rgba(245,158,11,.3) !important;}
+.staff-page-v2 .act-event-badge-thread{background:linear-gradient(135deg,#d1fae5,#a7f3d0) !important; color:#047857 !important; box-shadow:0 4px 10px -4px rgba(16,185,129,.3) !important;}
+.staff-page-v2 .act-event-badge-other{background:#f1f5f9 !important; color:#64748b !important;}
+
+/* Hover lift adds tinted shadow matching kind */
+.staff-page-v2 .act-event{transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease !important;}
+.staff-page-v2 .act-event:hover{transform:translateY(-1px) !important;}
+.staff-page-v2 .act-event-account:hover{box-shadow:0 10px 22px -12px rgba(124,58,237,.3) !important; border-color:#c4b5fd !important;}
+.staff-page-v2 .act-event-permission:hover{box-shadow:0 10px 22px -12px rgba(14,165,233,.3) !important; border-color:#7dd3fc !important;}
+.staff-page-v2 .act-event-ticket:hover{box-shadow:0 10px 22px -12px rgba(245,158,11,.3) !important; border-color:#fcd34d !important;}
+.staff-page-v2 .act-event-thread:hover{box-shadow:0 10px 22px -12px rgba(16,185,129,.3) !important; border-color:#6ee7b7 !important;}
+
+/* Top filter chips: bolder borders and active states */
+.staff-page-v2 .act-filters{padding:0 0 14px !important;}
+.staff-page-v2 .act-chip{
+  border:1.5px solid #e2e8f0 !important;
+  font-weight:800 !important;
+  padding:7px 14px !important;
+  font-size:.78rem !important;
+}
+.staff-page-v2 .act-chip.is-on{
+  background:linear-gradient(135deg,#7c3aed,#6d28d9) !important;
+  color:#fff !important;
+  border-color:transparent !important;
+  box-shadow:0 6px 14px -6px rgba(124,58,237,.5) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 24 — Clickable activity events (ticket/thread → support center)
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 a.act-event{
+  text-decoration:none !important;
+  color:inherit !important;
+  display:flex;
+  cursor:pointer;
+}
+.staff-page-v2 a.act-event:hover{
+  filter:brightness(1.02);
+}
+
+/* Inline "Open ↗" hint after the title */
+.staff-page-v2 .act-event-go{
+  display:inline-block;
+  margin-inline-start:6px;
+  font-style:normal;
+  font-size:.66rem;
+  font-weight:900;
+  color:#5b21b6;
+  background:#ede9fe;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid #c4b5fd;
+  letter-spacing:.3px;
+  vertical-align:middle;
+  transition:transform .2s ease, background .2s ease;
+}
+.staff-page-v2 a.act-event:hover .act-event-go{
+  background:#7c3aed;
+  color:#fff;
+  border-color:#7c3aed;
+  transform:translateX(-2px);   /* RTL: visual move toward the start */
+}
+[dir="ltr"] .staff-page-v2 a.act-event:hover .act-event-go{
+  transform:translateX(2px);
+}
+
+/* Tickets and threads get specific hint colors */
+.staff-page-v2 .act-event-ticket .act-event-go{
+  background:#fef3c7;
+  color:#92400e;
+  border-color:#fde68a;
+}
+.staff-page-v2 a.act-event-ticket:hover .act-event-go{
+  background:#f59e0b;
+  color:#fff;
+  border-color:#f59e0b;
+}
+.staff-page-v2 .act-event-thread .act-event-go{
+  background:#d1fae5;
+  color:#047857;
+  border-color:#a7f3d0;
+}
+.staff-page-v2 a.act-event-thread:hover .act-event-go{
+  background:#10b981;
+  color:#fff;
+  border-color:#10b981;
+}
+
+/* Cursor cue: only the clickable variant gets the pointer */
+.staff-page-v2 article.act-event{cursor:default;}
+
+/* Polish the pager strip */
+.staff-page-v2 .act-pager{
+  margin-top:18px !important;
+  padding:12px 18px !important;
+  background:#fff;
+  border:1px solid #e7eaf0;
+  border-radius:14px;
+  box-shadow:0 1px 0 rgba(15,23,42,.02);
+}
+.staff-page-v2 .act-pager-btn{
+  font-weight:800 !important;
+  border:1.5px solid #e2e8f0 !important;
+}
+.staff-page-v2 .act-pager-btn:not(:disabled):hover{
+  border-color:#7c3aed !important;
+  color:#5b21b6 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 25 — Distribution rows: drop middle bar + glow,
+            keep only a colored underline under each label
+═════════════════════════════════════════════════════════════════════ */
+
+/* Hide the middle bar entirely */
+.staff-page-v2 .act-bd-row .act-bd-bar{
+  display:none !important;
+}
+
+/* Remove any tinted background on the row */
+.staff-page-v2 .act-bd-row{
+  background:transparent !important;
+  box-shadow:none !important;
+  grid-template-columns:1fr auto !important;  /* label + count only */
+  align-items:center !important;
+  padding:6px 0 !important;
+}
+.staff-page-v2 .act-bd-row::before{
+  display:none !important;
+  content:none !important;
+}
+
+/* Underline beneath each label, width = --w (proportional) */
+.staff-page-v2 .act-bd-row .act-bd-label{
+  position:relative;
+  padding-bottom:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.staff-page-v2 .act-bd-row .act-bd-label::after{
+  content:"";
+  position:absolute;
+  bottom:0;
+  inset-inline-start:0;
+  height:3px;
+  width:var(--w, 0%);
+  min-width:18px;
+  background:linear-gradient(90deg, var(--c, #cbd5e1), color-mix(in srgb, var(--c, #cbd5e1) 65%, #fff));
+  border-radius:999px;
+  transition:width .6s cubic-bezier(.22,1,.36,1);
+}
+
+/* Tighten the row gap inside the list */
+.staff-page-v2 .act-bd-list{
+  gap:4px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 26 — Kind backgrounds win over actor backgrounds (v158)
+   The .act-actor-* rules used the same lavender for every admin actor,
+   washing out the kind-specific tint. Promote kind tint specificity.
+═════════════════════════════════════════════════════════════════════ */
+
+/* Use multi-class selector to outweigh the actor rule (which has 1 class) */
+.staff-page-v2 .act-event.act-event-account,
+.staff-page-v2 a.act-event.act-event-account{
+  background:linear-gradient(135deg, #ede9fe 0%, #fff 70%) !important;
+  border:1.5px solid #c4b5fd !important;
+}
+.staff-page-v2 .act-event.act-event-permission,
+.staff-page-v2 a.act-event.act-event-permission{
+  background:linear-gradient(135deg, #dbeafe 0%, #fff 70%) !important;
+  border:1.5px solid #93c5fd !important;
+}
+.staff-page-v2 .act-event.act-event-ticket,
+.staff-page-v2 a.act-event.act-event-ticket{
+  background:linear-gradient(135deg, #fef3c7 0%, #fff 70%) !important;
+  border:1.5px solid #fcd34d !important;
+}
+.staff-page-v2 .act-event.act-event-thread,
+.staff-page-v2 a.act-event.act-event-thread{
+  background:linear-gradient(135deg, #d1fae5 0%, #fff 70%) !important;
+  border:1.5px solid #6ee7b7 !important;
+}
+.staff-page-v2 .act-event.act-event-other,
+.staff-page-v2 a.act-event.act-event-other{
+  background:linear-gradient(135deg, #f1f5f9 0%, #fff 70%) !important;
+  border:1.5px solid #cbd5e1 !important;
+}
+
+/* Hover deepens the kind tint */
+.staff-page-v2 .act-event.act-event-account:hover{
+  background:linear-gradient(135deg, #ddd6fe 0%, #f5f3ff 80%) !important;
+}
+.staff-page-v2 .act-event.act-event-permission:hover{
+  background:linear-gradient(135deg, #bfdbfe 0%, #eff6ff 80%) !important;
+}
+.staff-page-v2 .act-event.act-event-ticket:hover{
+  background:linear-gradient(135deg, #fde68a 0%, #fffbeb 80%) !important;
+}
+.staff-page-v2 .act-event.act-event-thread:hover{
+  background:linear-gradient(135deg, #a7f3d0 0%, #ecfdf5 80%) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 27 — Always show the pager strip (v158)
+   Even with 1 page, show "صفحة 1 من 1 · 1-N / N" so the layout has the
+   familiar nav at the bottom. Disable prev/next when N <= PAGE_SIZE.
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .act-pager[hidden]{
+  display:flex !important;
+  visibility:visible !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 28 — Kill the old .act-bd-row::after underline (v159)
+   The legacy rule from admin_user_profile.css adds a second line under
+   each row. Disable it inside the staff page so only the label-anchored
+   underline remains.
+═════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .act-bd-row::after{
+  content:none !important;
+  display:none !important;
+  background:transparent !important;
+  height:0 !important;
+  width:0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 29 — Activity event cards: stronger DEFAULT colors + motion-only hover
+   • Backgrounds are clearly visible by default (no need to hover)
+   • Hover triggers a subtle lift + slide animation, NOT a color change
+═════════════════════════════════════════════════════════════════════ */
+
+/* Stronger default tint per kind — visible immediately */
+.staff-page-v2 .act-event.act-event-account,
+.staff-page-v2 a.act-event.act-event-account{
+  background:linear-gradient(135deg, #ddd6fe 0%, #ede9fe 55%, #faf5ff 100%) !important;
+  border-color:#a78bfa !important;
+}
+.staff-page-v2 .act-event.act-event-permission,
+.staff-page-v2 a.act-event.act-event-permission{
+  background:linear-gradient(135deg, #bae6fd 0%, #dbeafe 55%, #eff6ff 100%) !important;
+  border-color:#38bdf8 !important;
+}
+.staff-page-v2 .act-event.act-event-ticket,
+.staff-page-v2 a.act-event.act-event-ticket{
+  background:linear-gradient(135deg, #fde68a 0%, #fef3c7 55%, #fffbeb 100%) !important;
+  border-color:#fbbf24 !important;
+}
+.staff-page-v2 .act-event.act-event-thread,
+.staff-page-v2 a.act-event.act-event-thread{
+  background:linear-gradient(135deg, #a7f3d0 0%, #d1fae5 55%, #ecfdf5 100%) !important;
+  border-color:#34d399 !important;
+}
+.staff-page-v2 .act-event.act-event-other,
+.staff-page-v2 a.act-event.act-event-other{
+  background:linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 55%, #f8fafc 100%) !important;
+  border-color:#94a3b8 !important;
+}
+
+/* Hover behavior: NO color change, only motion + box-shadow lift */
+.staff-page-v2 .act-event.act-event-account:hover,
+.staff-page-v2 .act-event.act-event-permission:hover,
+.staff-page-v2 .act-event.act-event-ticket:hover,
+.staff-page-v2 .act-event.act-event-thread:hover,
+.staff-page-v2 .act-event.act-event-other:hover{
+  background:inherit !important;        /* keep default tint */
+  transform:translateY(-3px) !important; /* subtle lift */
+}
+
+/* Animated shine streak that sweeps on hover (no color shift) */
+.staff-page-v2 .act-event{
+  position:relative !important;
+  isolation:isolate;
+  overflow:hidden !important;
+  transition:transform .25s cubic-bezier(.22,1,.36,1),
+             box-shadow .25s ease !important;
+}
+.staff-page-v2 .act-event.act-event-clickable::before,
+.staff-page-v2 .act-event:not(.act-event-clickable)::before{
+  /* keep the existing kind-stripe (defined elsewhere) — do nothing here */
+}
+.staff-page-v2 .act-event > .act-shine-overlay{ display:none; } /* placeholder */
+
+/* Shine using ::after — diagonal light streak on hover */
+.staff-page-v2 .act-event::after{
+  content:"";
+  position:absolute;
+  top:0;
+  inset-inline-start:-110%;
+  width:55%;
+  height:100%;
+  background:linear-gradient(115deg,
+    transparent 0%,
+    rgba(255,255,255,.55) 50%,
+    transparent 100%);
+  transform:skewX(-18deg);
+  pointer-events:none;
+  z-index:0;
+  transition:inset-inline-start .8s cubic-bezier(.22,1,.36,1);
+  border-radius:inherit;
+}
+.staff-page-v2 .act-event:hover::after{
+  inset-inline-start:120%;
+}
+
+/* Make sure kind-stripe (::before) stays in place — earlier rule defined it */
+.staff-page-v2 .act-event > *{
+  position:relative;
+  z-index:1;
+}
+
+/* Hover shadows tinted to kind, no color flip */
+.staff-page-v2 .act-event-account:hover{
+  box-shadow:0 14px 28px -14px rgba(124,58,237,.45) !important;
+}
+.staff-page-v2 .act-event-permission:hover{
+  box-shadow:0 14px 28px -14px rgba(14,165,233,.45) !important;
+}
+.staff-page-v2 .act-event-ticket:hover{
+  box-shadow:0 14px 28px -14px rgba(245,158,11,.45) !important;
+}
+.staff-page-v2 .act-event-thread:hover{
+  box-shadow:0 14px 28px -14px rgba(16,185,129,.45) !important;
+}
+.staff-page-v2 .act-event-other:hover{
+  box-shadow:0 14px 28px -14px rgba(15,23,42,.18) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 30 — Force colors to render reliably + correct target_type binding
+   • Remove the bad `background:inherit` on hover (was wiping the tint)
+   • Pin each kind's gradient with maximum specificity to win any actor rule
+═════════════════════════════════════════════════════════════════════ */
+
+/* Maximum-specificity default backgrounds — beat every actor rule */
+.staff-page-v2 main .act-event.act-event-account,
+.staff-page-v2 main a.act-event.act-event-account,
+.staff-page-v2 main article.act-event.act-event-account{
+  background:linear-gradient(135deg, #ddd6fe 0%, #ede9fe 55%, #faf5ff 100%) !important;
+  border:2px solid #a78bfa !important;
+}
+.staff-page-v2 main .act-event.act-event-permission,
+.staff-page-v2 main a.act-event.act-event-permission,
+.staff-page-v2 main article.act-event.act-event-permission{
+  background:linear-gradient(135deg, #bae6fd 0%, #dbeafe 55%, #eff6ff 100%) !important;
+  border:2px solid #38bdf8 !important;
+}
+.staff-page-v2 main .act-event.act-event-ticket,
+.staff-page-v2 main a.act-event.act-event-ticket,
+.staff-page-v2 main article.act-event.act-event-ticket{
+  background:linear-gradient(135deg, #fde68a 0%, #fef3c7 55%, #fffbeb 100%) !important;
+  border:2px solid #fbbf24 !important;
+}
+.staff-page-v2 main .act-event.act-event-thread,
+.staff-page-v2 main a.act-event.act-event-thread,
+.staff-page-v2 main article.act-event.act-event-thread{
+  background:linear-gradient(135deg, #a7f3d0 0%, #d1fae5 55%, #ecfdf5 100%) !important;
+  border:2px solid #34d399 !important;
+}
+.staff-page-v2 main .act-event.act-event-other,
+.staff-page-v2 main a.act-event.act-event-other,
+.staff-page-v2 main article.act-event.act-event-other{
+  background:linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 55%, #f8fafc 100%) !important;
+  border:2px solid #94a3b8 !important;
+}
+
+/* Hover: KEEP the same background, only motion changes */
+.staff-page-v2 main .act-event.act-event-account:hover{
+  background:linear-gradient(135deg, #ddd6fe 0%, #ede9fe 55%, #faf5ff 100%) !important;
+}
+.staff-page-v2 main .act-event.act-event-permission:hover{
+  background:linear-gradient(135deg, #bae6fd 0%, #dbeafe 55%, #eff6ff 100%) !important;
+}
+.staff-page-v2 main .act-event.act-event-ticket:hover{
+  background:linear-gradient(135deg, #fde68a 0%, #fef3c7 55%, #fffbeb 100%) !important;
+}
+.staff-page-v2 main .act-event.act-event-thread:hover{
+  background:linear-gradient(135deg, #a7f3d0 0%, #d1fae5 55%, #ecfdf5 100%) !important;
+}
+.staff-page-v2 main .act-event.act-event-other:hover{
+  background:linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 55%, #f8fafc 100%) !important;
+}
+
+/* Disable any actor-tinted background on activity events (it was washing
+   out the kind colors when actor=admin) */
+.staff-page-v2 main .act-event.act-actor-admin,
+.staff-page-v2 main .act-event.act-actor-user,
+.staff-page-v2 main .act-event.act-actor-system{
+  /* Let kind rules win — these ones intentionally ship NO background */
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 31 — Distinct themes for Mail vs Tickets columns + per-column pager
+═════════════════════════════════════════════════════════════════════ */
+
+/* ─── Mail column: clean BLUE theme ─── */
+.staff-page-v2 .sup-col-mail{
+  border:2px solid #bfdbfe !important;
+  background:linear-gradient(180deg,#f8fbff 0%, #fff 30%) !important;
+}
+.staff-page-v2 .sup-col-mail .sup-col-head{
+  background:linear-gradient(135deg,#dbeafe,#eff6ff) !important;
+  border-bottom:2px solid #bfdbfe !important;
+  position:relative;
+}
+.staff-page-v2 .sup-col-mail .sup-col-head::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:0;
+  bottom:0;
+  width:5px;
+  background:linear-gradient(180deg,#3b82f6,#2563eb);
+}
+.staff-page-v2 .sup-col-mail .sup-col-head h3{
+  color:#1e40af !important;
+}
+.staff-page-v2 .sup-col-mail .sup-col-head .sup-col-icon{
+  filter:drop-shadow(0 2px 4px rgba(37,99,235,.3));
+}
+.staff-page-v2 .sup-col-mail .sup-col-count{
+  background:#3b82f6 !important;
+  color:#fff !important;
+  box-shadow:0 4px 10px -3px rgba(37,99,235,.4);
+}
+
+/* Mail row stripes — solid blue */
+.staff-page-v2 .sup-col-mail .sup-row{
+  border:1.5px solid #e0e7ff !important;
+  background:linear-gradient(135deg,#fafbff 0%, #fff 60%) !important;
+}
+.staff-page-v2 .sup-col-mail .sup-row:hover{
+  border-color:#93c5fd !important;
+  background:linear-gradient(135deg,#eff6ff 0%, #fff 70%) !important;
+}
+.staff-page-v2 .sup-col-mail .sup-row .sup-row-stripe{
+  background:linear-gradient(180deg,#3b82f6,#2563eb) !important;
+  width:6px !important;
+}
+
+/* ─── Tickets column: bold VIOLET theme ─── */
+.staff-page-v2 .sup-col-tickets{
+  border:2px solid #ddd6fe !important;
+  background:linear-gradient(180deg,#fbfaff 0%, #fff 30%) !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-col-head{
+  background:linear-gradient(135deg,#ede9fe,#f5f3ff) !important;
+  border-bottom:2px solid #ddd6fe !important;
+  position:relative;
+}
+.staff-page-v2 .sup-col-tickets .sup-col-head::before{
+  content:"";
+  position:absolute;
+  inset-inline-start:0;
+  top:0;
+  bottom:0;
+  width:5px;
+  background:linear-gradient(180deg,#7c3aed,#6d28d9);
+}
+.staff-page-v2 .sup-col-tickets .sup-col-head h3{
+  color:#5b21b6 !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-col-head .sup-col-icon{
+  filter:drop-shadow(0 2px 4px rgba(124,58,237,.3));
+}
+.staff-page-v2 .sup-col-tickets .sup-col-count{
+  background:#7c3aed !important;
+  color:#fff !important;
+  box-shadow:0 4px 10px -3px rgba(124,58,237,.4);
+}
+
+/* Ticket row stripes — solid violet */
+.staff-page-v2 .sup-col-tickets .sup-row{
+  border:1.5px solid #ede9fe !important;
+  background:linear-gradient(135deg,#fbfaff 0%, #fff 60%) !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-row:hover{
+  border-color:#c4b5fd !important;
+  background:linear-gradient(135deg,#f5f3ff 0%, #fff 70%) !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-row .sup-row-stripe{
+  background:linear-gradient(180deg,#7c3aed,#6d28d9) !important;
+  width:6px !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-row .sup-row-icon{
+  background:linear-gradient(135deg,#ddd6fe,#ede9fe) !important;
+  color:#5b21b6 !important;
+}
+
+/* ─── Per-column pager strip ─── */
+.staff-page-v2 .sup-pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 18px;
+  margin:0;
+  border-top:1px solid #eef0f4;
+  background:#fafbfc;
+}
+.staff-page-v2 .sup-col-mail .sup-pager{
+  background:linear-gradient(180deg,#fff,#eff6ff) !important;
+  border-top-color:#bfdbfe !important;
+}
+.staff-page-v2 .sup-col-tickets .sup-pager{
+  background:linear-gradient(180deg,#fff,#f5f3ff) !important;
+  border-top-color:#ddd6fe !important;
+}
+
+.staff-page-v2 .sup-pager-info{
+  font-size:.74rem;
+  font-weight:800;
+  color:#475569;
+  letter-spacing:.2px;
+}
+.staff-page-v2 .sup-pager-info b{
+  color:#0f172a;
+  font-variant-numeric:tabular-nums;
+  margin:0 3px;
+}
+
+.staff-page-v2 .sup-pager-btn{
+  background:#fff;
+  border:1.5px solid #cbd5e1;
+  border-radius:8px;
+  padding:6px 12px;
+  font-size:.74rem;
+  font-weight:800;
+  color:#475569;
+  cursor:pointer;
+  transition:border-color .15s ease, background .15s ease, color .15s ease;
+}
+.staff-page-v2 .sup-pager-btn:not(:disabled):hover{
+  background:#f8fafc;
+  color:#0f172a;
+}
+.staff-page-v2 .sup-col-mail .sup-pager-btn:not(:disabled):hover{
+  border-color:#3b82f6;
+  color:#1e40af;
+}
+.staff-page-v2 .sup-col-tickets .sup-pager-btn:not(:disabled):hover{
+  border-color:#7c3aed;
+  color:#5b21b6;
+}
+.staff-page-v2 .sup-pager-btn:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+
+/* Always show pager (override the [hidden] attribute) */
+.staff-page-v2 .sup-pager[hidden]{
+  display:flex !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 32 — Pin the pager strip at the BOTTOM of each column,
+            even when current page has fewer rows than the page size
+═════════════════════════════════════════════════════════════════════ */
+
+/* Make column a flex container so the pager can stay pinned at the end */
+.staff-page-v2 .sup-col{
+  display:flex !important;
+  flex-direction:column !important;
+  /* Reserve enough vertical space so the pager doesn't dance up/down between pages.
+     About 10 rows × ~74px + header ≈ 800px. We use min-height to lock layout. */
+  min-height:820px !important;
+}
+
+/* Body grows; pager sticks to bottom */
+.staff-page-v2 .sup-col-body{
+  flex:1 1 auto !important;
+  align-content:flex-start !important;
+}
+
+/* Pager always at the bottom edge of the column */
+.staff-page-v2 .sup-pager{
+  margin-top:auto !important;
+  flex-shrink:0 !important;
+}
+
+/* On the smallest screens, allow column to shrink (mobile) */
+@media (max-width:980px){
+  .staff-page-v2 .sup-col{
+    min-height:auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIX 33 — Activity timeline: equal vertical gaps between cards (v167)
+   The screenshot showed inconsistent spacing between events of different
+   kinds. Some cards added their own margin via inherited rules, breaking
+   the flex `gap` value. We enforce a single gap source of truth on the
+   parent, zero out any per-card margin, and normalize <a> vs <article>
+   so the rhythm stays uniform regardless of event kind.
+═══════════════════════════════════════════════════════════════════════ */
+.staff-page-v2 .act-timeline{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:12px !important;
+}
+.staff-page-v2 .act-timeline > .act-event,
+.staff-page-v2 .act-timeline > a.act-event,
+.staff-page-v2 .act-timeline > article.act-event{
+  margin:0 !important;
+  display:flex !important;
+  align-items:stretch !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+/* Anchors are inline by default; force block-flex so flex-gap works on them
+   the same way it works on <article>. */
+.staff-page-v2 a.act-event{
+  text-decoration:none !important;
+}

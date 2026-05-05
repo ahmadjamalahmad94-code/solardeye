@@ -159,5 +159,24 @@ def get_user_permissions(user=None) -> dict:
 
 
 def has_permission(permission: str) -> bool:
+    """Check whether the current user has a parent OR sub permission.
+
+    For parent keys: returns the boolean directly.
+    For dot-notation sub keys (e.g. ``users.delete``): uses the
+    parent-then-sub resolver — sub defaults to ON when parent is ON
+    and the sub isn't explicitly overridden.
+    """
     perms = get_user_permissions()
+    if not perms:
+        return False
+    try:
+        from .rbac import (
+            PERMISSION_KEYS,
+            SUB_PERMISSION_KEYS,
+            resolve_effective_permission,
+        )
+        if permission in PERMISSION_KEYS or permission in SUB_PERMISSION_KEYS:
+            return resolve_effective_permission(perms, permission)
+    except Exception:
+        pass
     return bool(perms.get(permission, False))
