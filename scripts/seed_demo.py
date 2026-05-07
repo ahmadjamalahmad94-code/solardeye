@@ -502,57 +502,33 @@ def create_wallet_entries(subscribers, admins):
             else:
                 # 30% of debits are refunds
                 if random.random() < 0.3:
-                    note = 'استرداد رصيد بناءً على طلب المشترك'
+                    description = random.choice([
+                        'استرداد مبلغ من اشتراك ملغي',
+                        'استرداد رصيد للمشترك',
+                        'تعويض مالي',
+                    ])
                     reference = '[refund]'
                 else:
-                    note = random.choice([
-                        'تجديد الاشتراك الشهري',
-                        'إضافة كوتا SMS',
-                        'رسوم خدمة Telegram',
-                        'ترقية للخطة الأعلى',
+                    description = random.choice([
                         'سحب رصيد',
+                        'خصم اشتراك',
+                        'خصم رسوم خدمة',
                     ])
-                    reference = random.choice(['[renew]', '[quota]', '[service]', '[plan_change]', '[cashout]'])
+                    reference = '[debit]'
 
             entry = WalletLedger(
                 tenant_id=tenant.id,
-                actor_user_id=finance_actor.id if finance_actor else None,
-                entry_type=kind,
-                amount=amount,
-                currency='USD',
-                note=note,
+                amount=amount if direction == 'credit' else -amount,
+                direction=direction,
+                description=description,
                 reference=reference,
-                created_at=random_past_dt(1, 90),
+                balance_after=0,
+                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 90)),
             )
             db.session.add(entry)
-            total += 1
+
     db.session.commit()
-    print(f'[finance] Total ledger entries created: {total}\n')
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Main
-# ─────────────────────────────────────────────────────────────────────
-def main():
-    random.seed()
-    app = create_app()
-    with app.app_context():
-        wipe_support_and_finance()
-        admins = ensure_admin_staff()
-        if not admins:
-            print('ERROR: no admins available; aborting.')
-            return
-        subs = create_subscribers(20)
-        create_support_data(subs, admins)
-        create_wallet_entries(subs, admins)
-        print('✅ Data seeded into the live database successfully.')
-        print('\nLogin credentials (password for all = "Demo@2026"):')
-        print('\n  Admin team:')
-        for a in admins:
-            print(f'    @{a.username:<26} {a.full_name:<25} ({a.role})')
-        print(f'\n  Subscribers ({len(subs)}):')
-        for s in subs:
-            print(f'    @{s.username:<26} {s.full_name}')
+    print(f'Seeded {len(SUBSCRIBER_PROFILES)} subscribers, {len(ADMIN_PROFILES)} staff, with tickets/messages/wallet entries.')
 
 
 if __name__ == '__main__':

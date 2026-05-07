@@ -1,502 +1,204 @@
 {% extends 'base.html' %}
-{% import '_location_picker.html' as loc %}
-{% block title %}{{ 'Profile' if (ui_lang or 'ar') == 'en' else 'الملف الشخصي' }}{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set page_dir = 'ltr' if is_en else 'rtl' %}
-{% set avatar_src = user_obj.profile_image_url or '' %}
-{% set avatar_fallback = (user_obj.full_name or user_obj.username or 'U')[:1]|upper %}
-{% set language_label = 'English' if user_obj.preferred_language == 'en' else ('العربية' if not is_en else 'Arabic') %}
-{% set country_label = user_obj.country or ('Not set' if is_en else 'غير محددة') %}
-{% set city_label = user_obj.city or ('Not set' if is_en else 'غير محددة') %}
-{% set phone_label = ((user_obj.phone_country_code or '') ~ ' ' ~ (user_obj.phone_number or '')).strip() or ('No phone number' if is_en else 'لا يوجد رقم هاتف') %}
-{% set timezone_label = user_obj.timezone or 'Asia/Hebron' %}
-
-<style>
-.pf-page{
-  --pf-ink:#0b1220;
-  --pf-ink-soft:#1f2a44;
-  --pf-muted:#5e6f8c;
-  --pf-line:#e3eaf6;
-  --pf-line-strong:#cfd9ec;
-  --pf-card:#ffffff;
-  --pf-bg:#eef3fb;
-  --pf-violet:#6d3aff;
-  --pf-amber:#f59e0b;
-  --pf-amber-soft:#fbbf24;
-  --pf-emerald:#10b981;
-  --pf-sky:#2563eb;
-  --pf-sky-soft:#60a5fa;
-  --pf-rose:#f43f5e;
-  --pf-shadow-sm:0 6px 18px rgba(15,23,42,.06);
-  --pf-shadow:0 22px 60px rgba(15,23,42,.09);
-  --pf-radius:22px;
-  --pf-radius-lg:30px;
-  --pf-radius-xl:38px;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
-  padding:18px clamp(14px,2.4vw,32px) 80px;
-  font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--pf-ink);
-  display:flex;flex-direction:column;gap:18px;
-}
-.pf-page *,.pf-page *::before,.pf-page *::after{box-sizing:border-box}
-.pf-flash{display:flex;flex-direction:column;gap:.5rem}
-
-/* HERO */
-.pf-hero{
-  position:relative;border-radius:var(--pf-radius-xl);
-  padding:clamp(18px,2.4vw,26px) clamp(18px,2.4vw,30px);
-  overflow:hidden;color:#fff;
-  box-shadow:0 30px 70px rgba(15,23,42,.13);isolation:isolate;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-}
-.pf-hero::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
-    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
-}
-.pf-hero-grid{
-  position:relative;z-index:1;display:grid;gap:22px;
-  grid-template-columns:minmax(0,1.3fr) minmax(0,auto);
-  align-items:center;
-}
-@media (max-width:980px){.pf-hero-grid{grid-template-columns:1fr;justify-items:start}}
-.pf-hero-copy{display:flex;flex-direction:column;gap:8px;min-width:0}
-.pf-eyebrow{
-  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
-  font-size:.72rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
-  color:#0b1531;background:rgba(255,255,255,.92);
-  padding:.35rem .75rem;border-radius:999px;
-  box-shadow:0 6px 16px rgba(11,21,49,.18);
-}
-.pf-eyebrow .pf-pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--pf-amber);
-  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:pfPulse 1.8s infinite;
-}
-@keyframes pfPulse{
-  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
-  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
-  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
-}
-.pf-hero h1{
-  font-size:clamp(1.4rem,2.3vw,1.85rem);font-weight:950;
-  margin:0;line-height:1.18;color:#fff;
-  text-shadow:0 4px 18px rgba(11,21,49,.22);
-}
-.pf-hero p{margin:0;font-size:.88rem;color:rgba(255,255,255,.92);max-width:62ch;line-height:1.5;font-weight:600}
-.pf-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
-.pf-meta span{
-  display:inline-flex;align-items:center;gap:.35rem;
-  font-size:.74rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.94);padding:.32rem .65rem;border-radius:10px;
-  box-shadow:0 4px 10px rgba(11,21,49,.10);
-}
-
-/* HERO PANEL (avatar) */
-.pf-hero-panel{
-  display:flex;flex-direction:column;align-items:center;gap:.55rem;
-  background:rgba(255,255,255,.95);
-  padding:14px 18px 12px;border-radius:18px;
-  box-shadow:0 12px 26px rgba(11,21,49,.16);
-  min-width:180px;
-}
-.pf-avatar-shell{
-  width:88px;height:88px;border-radius:50%;
-  background:linear-gradient(135deg,#fff,#fef3c7);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;flex-shrink:0;
-  box-shadow:0 10px 22px rgba(245,158,11,.32);
-  border:3px solid #fff;
-  padding:4px;
-}
-.pf-avatar-image{
-  width:100%;height:100%;
-  object-fit:contain;        /* show entire image without cropping */
-  border-radius:50%;
-  background:#fff;
-}
-.pf-avatar-image.is-hidden{display:none}
-.pf-avatar-fallback{
-  font-size:2.4rem;font-weight:900;color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  width:100%;height:100%;
-  text-shadow:0 4px 12px rgba(11,21,49,.30);
-}
-.pf-hero-status{display:flex;flex-direction:column;align-items:center;gap:.15rem;text-align:center}
-.pf-hero-status strong{font-size:.92rem;font-weight:950;color:var(--pf-ink);line-height:1.2}
-.pf-hero-status small{font-size:.72rem;color:var(--pf-muted);font-weight:700}
-.pf-hero-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
-.pf-hero-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
-  padding:.42rem .8rem;border-radius:10px;
-  font-size:.74rem;font-weight:900;font-family:inherit;
-  text-decoration:none;border:1px solid transparent;cursor:pointer;
-  transition:all .15s;white-space:nowrap;
-}
-.pf-hero-btn-primary{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 6px 16px rgba(245,158,11,.25)}
-.pf-hero-btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35);color:#0b1531}
-.pf-hero-btn-secondary{background:#fff;color:var(--pf-ink-soft);border-color:var(--pf-line)}
-.pf-hero-btn-secondary:hover{transform:translateY(-1px);box-shadow:var(--pf-shadow-sm);color:var(--pf-ink-soft)}
-
-/* SUMMARY (4 KPI cards) */
-.pf-summary-grid{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr))}
-@media (max-width:1024px){.pf-summary-grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:560px){.pf-summary-grid{grid-template-columns:1fr}}
-.pf-stat{
-  position:relative;background:var(--pf-card);
-  border:1px solid var(--pf-line);border-radius:18px;
-  padding:14px 16px 14px;box-shadow:var(--pf-shadow-sm);overflow:hidden;
-  transition:all .2s;
-  display:flex;flex-direction:column;gap:.3rem;
-}
-.pf-stat:hover{transform:translateY(-3px);box-shadow:var(--pf-shadow);border-color:var(--pf-line-strong)}
-.pf-stat::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:4px;
-  border-radius:18px 18px 0 0;opacity:.95;
-}
-.pf-stat-violet::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
-.pf-stat-sky    ::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.pf-stat-emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
-.pf-stat-amber  ::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.pf-stat-kicker{
-  font-size:.66rem;color:var(--pf-muted);font-weight:900;
-  text-transform:uppercase;letter-spacing:.4px;margin-top:.15rem;
-  display:inline-flex;align-items:center;gap:.3rem;
-}
-.pf-stat strong{
-  font-size:.98rem;font-weight:900;color:var(--pf-ink);line-height:1.25;
-  font-variant-numeric:tabular-nums;word-break:break-word;
-}
-.pf-stat-violet  strong{color:#5b21b6}
-.pf-stat-sky     strong{color:#1d4ed8}
-.pf-stat-emerald strong{color:#047857}
-.pf-stat-amber   strong{color:#b45309}
-.pf-stat small{font-size:.7rem;color:var(--pf-muted);font-weight:600;line-height:1.4}
-
-/* FORM GRID */
-.pf-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
-@media (max-width:980px){.pf-grid{grid-template-columns:1fr}}
-.pf-card{
-  position:relative;background:var(--pf-card);
-  border:1px solid var(--pf-line);border-radius:22px;
-  padding:18px 20px 18px;box-shadow:var(--pf-shadow-sm);
-  transition:all .2s;overflow:hidden;
-  display:flex;flex-direction:column;gap:14px;
-}
-.pf-card:hover{box-shadow:var(--pf-shadow);border-color:var(--pf-line-strong)}
-.pf-card::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:4px;
-  border-radius:22px 22px 0 0;opacity:.95;
-}
-.pf-card-wide{grid-column:1/-1}
-.pf-card-accent-sky    ::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.pf-card-accent-amber  ::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.pf-card-accent-violet::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
-.pf-card-accent-emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
-.pf-card-accent-rose   ::before{background:linear-gradient(90deg,#f43f5e,#fb7185)}
-
-.pf-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
-.pf-card-head h2{font-size:.98rem;font-weight:950;color:var(--pf-ink);margin:0;line-height:1.3}
-.pf-card-head small{font-size:.65rem;color:var(--pf-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:1px}
-.pf-chip{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.72rem;font-weight:900;color:#1d4ed8;
-  background:#dbeafe;border:1px solid #bfdbfe;
-  padding:.32rem .7rem;border-radius:999px;flex-shrink:0;
-}
-
-/* FIELDS */
-.pf-fields{display:grid;gap:10px;grid-template-columns:1fr}
-.pf-fields-two{grid-template-columns:repeat(2,minmax(0,1fr))}
-@media (max-width:560px){.pf-fields-two{grid-template-columns:1fr}}
-.pf-field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.pf-field-full{grid-column:1/-1}
-.pf-field>span{font-size:.74rem;font-weight:800;color:var(--pf-ink-soft);letter-spacing:.2px}
-.pf-field input,.pf-field select,.pf-field textarea,
-.pf-field .form-control{
-  background:#fff;border:1px solid var(--pf-line);border-radius:10px;
-  color:var(--pf-ink);padding:.5rem .75rem;
-  font-size:.88rem;font-family:inherit;font-weight:600;outline:none;
-  transition:border-color .15s,box-shadow .15s;
-  width:100%;
-}
-.pf-field input:focus,.pf-field select:focus,.pf-field textarea:focus,
-.pf-field .form-control:focus{
-  border-color:var(--pf-amber);
-  box-shadow:0 0 0 3px rgba(245,158,11,.18);
-}
-.pf-field input::placeholder,.pf-field textarea::placeholder{color:var(--pf-muted);font-weight:500}
-.ltr-field-v108{direction:ltr;text-align:start}
-
-.pf-phone-row{display:grid;grid-template-columns:1fr 130px;gap:.5rem}
-.pf-phone-dial{font-weight:800;text-align:center}
-@media (max-width:480px){.pf-phone-row{grid-template-columns:1fr;gap:.4rem}}
-
-/* IMAGE UPLOADER */
-.pf-uploader{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.pf-uploader-preview{
-  width:78px;height:78px;border-radius:20px;
-  background:linear-gradient(135deg,#fff,#fef3c7);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;flex-shrink:0;
-  border:2px solid #fef3c7;
-  box-shadow:0 8px 18px rgba(245,158,11,.18);
-  padding:4px;
-}
-.pf-uploader-image{
-  width:100%;height:100%;
-  object-fit:contain;        /* show entire image without cropping */
-  border-radius:18px;
-  background:#fff;
-}
-.pf-uploader-image.is-hidden{display:none}
-.pf-uploader-fallback{font-size:2rem;font-weight:900;color:#b45309}
-.pf-uploader-actions{display:flex;flex-direction:column;gap:.45rem;flex:1;min-width:200px}
-.pf-uploader-actions input[type=file]{display:none}
-.pf-upload-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
-  padding:.48rem .85rem;border-radius:10px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:.78rem;font-weight:900;cursor:pointer;
-  transition:all .15s;font-family:inherit;border:none;
-  box-shadow:0 5px 14px rgba(245,158,11,.25);
-  align-self:flex-start;
-}
-.pf-upload-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35)}
-.pf-link-btn{
-  background:none;border:none;color:var(--pf-rose);
-  font-size:.76rem;font-weight:800;cursor:pointer;font-family:inherit;
-  text-decoration:underline;text-underline-offset:3px;
-  align-self:flex-start;padding:0;
-}
-.pf-link-btn:hover{color:#be123c}
-.pf-uploader-actions small{font-size:.7rem;color:var(--pf-muted);font-weight:600;line-height:1.4}
-
-/* SAVE BUTTON */
-.pf-actions{
-  grid-column:1/-1;
-  display:flex;justify-content:flex-end;
-}
-.pf-save-btn{
-  display:inline-flex;align-items:center;gap:.5rem;
-  padding:.7rem 1.6rem;border-radius:13px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:.92rem;font-weight:900;font-family:inherit;
-  border:none;cursor:pointer;
-  transition:all .15s;
-  box-shadow:0 12px 26px rgba(245,158,11,.28);
-}
-.pf-save-btn:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(245,158,11,.38)}
-.pf-save-btn::before{content:"💾"}
-</style>
-
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'My Profile' if is_en else 'ملفي الشخصي' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
+  <main class="app-main content-area ap-page">
 
-  <main class="app-main content-area">
-    <div class="pf-page" dir="{{ page_dir }}">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="pf-flash">
-            {% for category, message in messages %}
-              <div class="flash-toast-v61 {{ category }}"><span>{{ '✅' if category == 'success' else ('⚠️' if category == 'warning' else ('❌' if category == 'danger' else 'ℹ️')) }}</span><p>{{ t(message) }}</p></div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-
-      <section class="pf-hero">
-        <div class="pf-hero-grid">
-          <div class="pf-hero-copy">
-            <span class="pf-eyebrow"><span class="pf-pulse"></span>{{ 'Subscriber profile' if is_en else 'ملف المشترك' }}</span>
-            <h1>{{ 'Profile settings' if is_en else 'الملف الشخصي' }}</h1>
-            <p>{{ 'Update your identity, preferred image, contact information, and interface preferences from one clean place.' if is_en else 'عدّل بياناتك الأساسية، صورة الحساب، معلومات التواصل، وتفضيلات الواجهة من مساحة واحدة مرتبة وواضحة.' }}</p>
-            <div class="pf-meta">
-              <span>👤 {{ user_obj.username }}</span>
-              <span>✉️ {{ user_obj.email or ('No email saved' if is_en else 'لا يوجد بريد محفوظ') }}</span>
-              <span>🌍 {{ timezone_label }}</span>
-            </div>
-          </div>
-
-          <div class="pf-hero-panel">
-            <div class="pf-avatar-shell">
-              {% if avatar_src %}
-                <img src="{{ avatar_src }}" alt="{{ 'Profile image' if is_en else 'صورة الملف الشخصي' }}" class="pf-avatar-image" id="pfAvatarImage">
-              {% else %}
-                <div class="pf-avatar-fallback" id="pfAvatarFallback">{{ avatar_fallback }}</div>
-                <img src="" alt="{{ 'Profile image preview' if is_en else 'معاينة الصورة' }}" class="pf-avatar-image is-hidden" id="pfAvatarImage">
-              {% endif %}
-            </div>
-            <div class="pf-hero-status">
-              <strong>{{ user_obj.full_name or user_obj.username }}</strong>
-              <small>{{ phone_label }}</small>
-            </div>
-            <div class="pf-hero-actions">
-              <a class="pf-hero-btn pf-hero-btn-primary" href="#pfImageCard">📷 {{ 'Upload image' if is_en else 'رفع صورة' }}</a>
-              <a class="pf-hero-btn pf-hero-btn-secondary" href="#pfSecurityCard">🔒 {{ 'Security' if is_en else 'الأمان' }}</a>
-            </div>
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Account · Profile' if is_en else 'الحساب · الملف الشخصي' }}</span>
+          <h1 class="hu-h1">{{ 'My personal profile' if is_en else 'ملفي الشخصي' }}</h1>
+          <p class="hu-tagline">{{ 'Keep your information current. These details are used for billing, support contact, and notifications.' if is_en else 'حافظ على معلوماتك محدّثة. هذه البيانات تُستخدم في الفواتير والتواصل مع الدعم والتنبيهات.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill">@<b>{{ user_obj.username }}</b></span>
+            {% if user_obj.email %}<span class="hu-meta-pill ok">✓ {{ 'email' if is_en else 'بريد' }}</span>{% endif %}
+            {% if user_obj.phone_number %}<span class="hu-meta-pill ok">✓ {{ 'phone' if is_en else 'هاتف' }}</span>{% endif %}
           </div>
         </div>
-      </section>
+      </div>
+    </header>
 
-      <section class="pf-summary-grid" aria-label="{{ 'Profile summary' if is_en else 'ملخص الملف الشخصي' }}">
-        <article class="pf-stat pf-stat-violet">
-          <span class="pf-stat-kicker">🌐 {{ 'Language' if is_en else 'اللغة' }}</span>
-          <strong>{{ language_label }}</strong>
-          <small>{{ 'Current interface language' if is_en else 'لغة الواجهة الحالية' }}</small>
-        </article>
-        <article class="pf-stat pf-stat-sky">
-          <span class="pf-stat-kicker">⏱ {{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-          <strong>{{ timezone_label }}</strong>
-          <small>{{ 'Used in reports and alerts' if is_en else 'تُستخدم في التقارير والتنبيهات' }}</small>
-        </article>
-        <article class="pf-stat pf-stat-emerald">
-          <span class="pf-stat-kicker">📍 {{ 'Location' if is_en else 'الموقع' }}</span>
-          <strong>{{ country_label }}</strong>
-          <small>{{ city_label }}</small>
-        </article>
-        <article class="pf-stat pf-stat-amber">
-          <span class="pf-stat-kicker">📞 {{ 'Phone' if is_en else 'الهاتف' }}</span>
-          <strong>{{ phone_label }}</strong>
-          <small>{{ 'Used for account contact' if is_en else 'مستخدم للتواصل مع الحساب' }}</small>
-        </article>
-      </section>
+    <div class="ap-shell">
+      <aside class="ap-aside">
+        <div class="ap-as-card explainer">
+          <h4>📘 {{ 'Why we need these details' if is_en else 'لماذا نحتاج هذه البيانات' }}</h4>
+          <p>{{ 'Your name and email appear on invoices. The phone is used for SMS alerts. The country/timezone affect timestamps and weather.' if is_en else 'اسمك وبريدك يظهران على الفواتير. الهاتف يُستخدم لتنبيهات SMS. الدولة والمنطقة الزمنية تؤثران على التواريخ والطقس.' }}</p>
+          <p>{{ 'Your password is never visible to anyone — including admins. Reset it anytime from the Security section.' if is_en else 'كلمة المرور لا تُعرض لأي شخص — حتى للإدارة. يمكنك إعادة تعيينها من قسم الأمان.' }}</p>
+        </div>
+        <div class="ap-as-card">
+          <h4>🔑 {{ 'Profile fields' if is_en else 'حقول الملف' }}</h4>
+          <ul class="ap-legend-list">
+            <li><span class="ap-legend-dot" style="background:#3b82f6"></span><strong>{{ 'Identity' if is_en else 'الهوية' }}</strong><small>{{ 'name + username' if is_en else 'الاسم واسم المستخدم' }}</small></li>
+            <li><span class="ap-legend-dot" style="background:#22c55e"></span><strong>{{ 'Contact' if is_en else 'التواصل' }}</strong><small>{{ 'email + phone' if is_en else 'بريد + هاتف' }}</small></li>
+            <li><span class="ap-legend-dot" style="background:#f59e0b"></span><strong>{{ 'Location' if is_en else 'الموقع' }}</strong><small>{{ 'country + timezone' if is_en else 'دولة + منطقة زمنية' }}</small></li>
+            <li><span class="ap-legend-dot" style="background:#ef4444"></span><strong>{{ 'Security' if is_en else 'الأمان' }}</strong><small>{{ 'password' if is_en else 'كلمة المرور' }}</small></li>
+          </ul>
+        </div>
+        <div class="ap-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Use a strong, unique password (at least 8 chars with mix).' if is_en else 'استخدم كلمة مرور قوية وفريدة (8 أحرف على الأقل بمزيج).' }}</li>
+            <li>{{ 'Match your country code to your phone number.' if is_en else 'احرص أن يطابق رمز الدولة رقم هاتفك.' }}</li>
+          </ul>
+        </div>
+      </aside>
 
-      <form method="post" enctype="multipart/form-data" class="pf-grid" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="clear_profile_image" id="pfClearProfileImage" value="0">
+      <div class="ap-main">
 
-        <section class="pf-card pf-card-wide pf-card-accent-sky" id="pfIdentityCard">
-          <div class="pf-card-head">
-            <div>
-              <small>👤 {{ 'Identity' if is_en else 'الهوية' }}</small>
-              <h2>{{ 'Core identity' if is_en else 'البيانات الأساسية' }}</h2>
-            </div>
-            <span class="pf-chip">✏️ {{ 'Editable by you' if is_en else 'تعديل مباشر' }}</span>
-          </div>
-          <div class="pf-fields pf-fields-two">
-            <label class="pf-field">
-              <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
-              <input class="form-control" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Your full name' if is_en else 'اسمك الكامل' }}">
-            </label>
-            <label class="pf-field">
-              <span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span>
-              <input class="form-control ltr-field-v108" name="username" value="{{ user_obj.username or '' }}" required>
-            </label>
-            <label class="pf-field pf-field-full">
-              <span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span>
-              <input class="form-control ltr-field-v108" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com">
-            </label>
-          </div>
-        </section>
+        <form method="post" enctype="multipart/form-data" class="ap-master-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <section class="pf-card pf-card-accent-amber" id="pfImageCard">
-          <div class="pf-card-head">
-            <div>
-              <small>📷 {{ 'Profile image' if is_en else 'صورة الحساب' }}</small>
-              <h2>{{ 'Preferred image' if is_en else 'الصورة المفضلة' }}</h2>
-            </div>
-          </div>
-          <div class="pf-uploader">
-            <div class="pf-uploader-preview">
-              {% if avatar_src %}
-                <img src="{{ avatar_src }}" alt="{{ 'Profile image' if is_en else 'صورة الملف الشخصي' }}" class="pf-uploader-image" id="pfPreviewImage">
-              {% else %}
-                <div class="pf-uploader-fallback" id="pfPreviewFallback">{{ avatar_fallback }}</div>
-                <img src="" alt="{{ 'Profile image preview' if is_en else 'معاينة الصورة' }}" class="pf-uploader-image is-hidden" id="pfPreviewImage">
-              {% endif %}
-            </div>
-            <div class="pf-uploader-actions">
-              <label class="pf-upload-btn" for="pfProfileImageInput">⬆ {{ 'Choose image' if is_en else 'اختيار صورة' }}</label>
-              <input id="pfProfileImageInput" type="file" name="profile_image_file" accept=".png,.jpg,.jpeg,.webp">
-              <button type="button" class="pf-link-btn" id="pfRemoveImageBtn">{{ 'Remove image' if is_en else 'إزالة الصورة' }}</button>
-              <small>{{ 'PNG, JPG, JPEG, WEBP up to 4MB.' if is_en else 'PNG و JPG و JPEG و WEBP حتى 4MB.' }}</small>
-            </div>
-          </div>
-        </section>
-
-        <section class="pf-card pf-card-accent-violet">
-          <div class="pf-card-head">
-            <div>
-              <small>📞 {{ 'Contact' if is_en else 'التواصل' }}</small>
-              <h2>{{ 'Phone and location' if is_en else 'رقم الهاتف والموقع' }}</h2>
-            </div>
-          </div>
-          <div class="pf-fields">
-            <label class="pf-field">
-              <span>{{ 'Phone number' if is_en else 'رقم الهاتف' }}</span>
-              <div class="pf-phone-row">
-                <input class="form-control ltr-field-v108" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
-                <select class="form-control pf-phone-dial" name="phone_country_code">
-                  {% for country in country_options %}
-                    <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>
-                  {% endfor %}
-                </select>
+          {# Section 1: Identity #}
+          <section class="ap-section" data-help="{{ 'Your name and how the system addresses you. The display name is shown on receipts and team mentions.' if is_en else 'اسمك وكيف يخاطبك النظام. اسم العرض يظهر على الفواتير ومخاطبات الفريق.' }}">
+            <div class="ap-sec-head">
+              <div>
+                <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+                <h2><span class="ap-sec-icon">👤</span> {{ 'Identity' if is_en else 'الهوية' }}</h2>
               </div>
-            </label>
-            <label class="pf-field">
-              <span>{{ 'Country' if is_en else 'الدولة' }}</span>
-              {{ loc.country_select(name='country', value=user_obj.country, classes='form-control', countries=country_options, lang=ui_lang) }}
-            </label>
-            <label class="pf-field">
-              <span>{{ 'City' if is_en else 'المدينة' }}</span>
-              {{ loc.city_select(name='city', value=user_obj.city, classes='form-control', lang=ui_lang) }}
-            </label>
-          </div>
-        </section>
-
-        <section class="pf-card pf-card-accent-emerald">
-          <div class="pf-card-head">
-            <div>
-              <small>⚙️ {{ 'Preferences' if is_en else 'التفضيلات' }}</small>
-              <h2>{{ 'Language and timezone' if is_en else 'اللغة والمنطقة الزمنية' }}</h2>
+              <span class="ap-sec-meta">{{ 'name & username' if is_en else 'الاسم واسم المستخدم' }}</span>
             </div>
-          </div>
-          <div class="pf-fields">
-            <label class="pf-field">
-              <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-              {{ loc.timezone_select(name='timezone', value=(user_obj.timezone or 'Asia/Hebron'), classes='form-control ltr-field-v108', groups=timezone_groups, lang=ui_lang) }}
-            </label>
-            <label class="pf-field">
-              <span>{{ 'Preferred language' if is_en else 'لغة الواجهة' }}</span>
-              <select class="form-control" name="preferred_language">
-                <option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>{{ 'Arabic' if is_en else 'العربية' }}</option>
-                <option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section class="pf-card pf-card-wide pf-card-accent-rose" id="pfSecurityCard">
-          <div class="pf-card-head">
-            <div>
-              <small>🔒 {{ 'Security' if is_en else 'الأمان' }}</small>
-              <h2>{{ 'Password update' if is_en else 'تغيير كلمة المرور' }}</h2>
+            <div class="ap-sec-body">
+              <div class="ap-grid-2">
+                <label class="ap-field">
+                  <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+                  <input type="text" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'e.g. Ahmad Ahmad' if is_en else 'مثلاً: أحمد أحمد' }}">
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'Username' if is_en else 'اسم المستخدم' }} <em style="font-style:normal;color:#94a3b8">{{ '(read-only)' if is_en else '(للعرض فقط)' }}</em></span>
+                  <input type="text" value="{{ user_obj.username }}" disabled dir="ltr">
+                </label>
+              </div>
             </div>
-          </div>
-          <div class="pf-fields pf-fields-two">
-            <label class="pf-field">
-              <span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span>
-              <input type="password" class="form-control" name="password" placeholder="{{ 'Leave blank to keep current password' if is_en else 'اتركها فارغة للاحتفاظ بالحالية' }}">
-            </label>
-            <label class="pf-field">
-              <span>{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}</span>
-              <input type="password" class="form-control" name="confirm_password" placeholder="{{ 'Repeat new password' if is_en else 'أعد كتابة كلمة المرور' }}">
-            </label>
-          </div>
-        </section>
+          </section>
 
-        <div class="pf-actions">
-          <button type="submit" class="pf-save-btn">{{ 'Save profile' if is_en else 'حفظ الملف الشخصي' }}</button>
-        </div>
-      </form>
+          {# Section 2: Contact #}
+          <section class="ap-section" data-help="{{ 'Email and phone — used for billing receipts, password resets, and notifications. Keep them up to date.' if is_en else 'البريد والهاتف — يُستخدمان للفواتير وإعادة تعيين كلمة المرور والتنبيهات. حافظ عليهما محدّثين.' }}">
+            <div class="ap-sec-head">
+              <div>
+                <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+                <h2><span class="ap-sec-icon">✉</span> {{ 'Contact details' if is_en else 'بيانات التواصل' }}</h2>
+              </div>
+              <span class="ap-sec-meta">{{ 'email & phone' if is_en else 'بريد + هاتف' }}</span>
+            </div>
+            <div class="ap-sec-body">
+              <div class="ap-grid-2">
+                <label class="ap-field">
+                  <span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span>
+                  <input type="email" name="email" value="{{ user_obj.email or '' }}" placeholder="you@example.com" dir="ltr">
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'Country code' if is_en else 'رمز الدولة' }}</span>
+                  <select name="phone_country_code">
+                    <option value="">— {{ 'Select' if is_en else 'اختر' }} —</option>
+                    {% for opt in country_options %}
+                      <option value="{{ opt.code }}" {% if opt.code == current_phone_code %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'Phone number' if is_en else 'رقم الهاتف' }}</span>
+                  <input type="tel" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599..." dir="ltr">
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'City (optional)' if is_en else 'المدينة (اختياري)' }}</span>
+                  <input type="text" name="city" value="{{ user_obj.city or '' }}">
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {# Section 3: Location & timezone #}
+          <section class="ap-section" data-help="{{ 'Your country and timezone are used to display dates correctly and fetch local weather data.' if is_en else 'دولتك ومنطقتك الزمنية تُستخدم لعرض التواريخ بشكل صحيح وجلب بيانات الطقس المحلية.' }}">
+            <div class="ap-sec-head">
+              <div>
+                <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+                <h2><span class="ap-sec-icon">🌍</span> {{ 'Location & timezone' if is_en else 'الموقع والمنطقة الزمنية' }}</h2>
+              </div>
+              <span class="ap-sec-meta">{{ 'for accurate timestamps' if is_en else 'لدقة التواريخ' }}</span>
+            </div>
+            <div class="ap-sec-body">
+              <div class="ap-grid-2">
+                <label class="ap-field">
+                  <span>{{ 'Country' if is_en else 'الدولة' }}</span>
+                  <input type="text" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'e.g. Palestine' if is_en else 'مثلاً: فلسطين' }}">
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+                  <select name="timezone">
+                    {% for grp in timezone_groups %}
+                      <optgroup label="{{ grp.label }}">
+                        {% for tz in grp.zones %}
+                          <option value="{{ tz }}" {% if user_obj.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                        {% endfor %}
+                      </optgroup>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {# Section 4: Security #}
+          <section class="ap-section" data-help="{{ 'Change your password. Leave both fields empty to keep the current one. Use a strong password with letters, numbers, and symbols.' if is_en else 'غيّر كلمة المرور. اترك الحقلين فارغين للإبقاء على الحالية. استخدم كلمة قوية تحوي أحرف وأرقام ورموز.' }}">
+            <div class="ap-sec-head">
+              <div>
+                <small>{{ 'Section 04' if is_en else 'القسم 4' }}</small>
+                <h2><span class="ap-sec-icon">🔒</span> {{ 'Security' if is_en else 'الأمان' }}</h2>
+              </div>
+              <span class="ap-sec-meta">{{ 'change password' if is_en else 'تغيير كلمة المرور' }}</span>
+            </div>
+            <div class="ap-sec-body">
+              <div class="ap-grid-2">
+                <label class="ap-field">
+                  <span>{{ 'New password' if is_en else 'كلمة المرور الجديدة' }}</span>
+                  <input type="password" name="password" placeholder="••••••••" autocomplete="new-password">
+                </label>
+                <label class="ap-field">
+                  <span>{{ 'Confirm new password' if is_en else 'تأكيد كلمة المرور' }}</span>
+                  <input type="password" name="password_confirm" placeholder="••••••••" autocomplete="new-password">
+                </label>
+              </div>
+              <p class="ap-help-text">{{ 'Tip: a strong password is at least 8 characters with mixed letters, numbers, and a symbol.' if is_en else 'تلميح: كلمة المرور القوية لا تقل عن 8 أحرف بمزيج أحرف وأرقام ورمز.' }}</p>
+            </div>
+          </section>
+
+          <div class="ap-save-bar">
+            <span class="ap-save-hint">{{ 'Changes are applied immediately after save.' if is_en else 'التعديلات تُطبَّق فوراً بعد الحفظ.' }}</span>
+            <button type="submit" class="ap-btn primary">💾 {{ 'Save profile' if is_en else 'حفظ الملف الشخصي' }}</button>
+          </div>
+        </form>
+
+      </div>
     </div>
   </main>
 </div>
-<script src="{{ url_for('static', filename='js/account_profile.js', v='v78-account-profile-playbook-20260502') }}"></script>
+
+<style>
+  .ap-master-form { display: grid; gap: 22px; }
+  .ap-grid-2 {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+  }
+  @media (max-width: 720px) { .ap-grid-2 { grid-template-columns: 1fr; } }
+  .ap-help-text {
+    margin: 12px 0 0; font-size: .82rem; color: #64748b; font-style: italic;
+  }
+  .ap-save-bar {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 14px;
+    padding: 14px 22px;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(14px);
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(15,23,42,.08);
+    position: sticky; bottom: 14px; z-index: 10;
+  }
+  .ap-save-hint { font-size: .82rem; color: #64748b; font-weight: 600; margin-inline-end: auto; }
+</style>
 {% endblock %}

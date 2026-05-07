@@ -471,6 +471,14 @@ class WalletLedger(db.Model):
     note = db.Column(db.Text, nullable=True)
     reference = db.Column(db.String(120), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    # Finance v3 enhancements
+    category = db.Column(db.String(60), nullable=True, default='general')
+    is_recurring = db.Column(db.Boolean, default=False)
+    recurring_period = db.Column(db.String(30), nullable=True)  # monthly, quarterly, yearly
+    # Finance v5 enhancements (payment method + attachment)
+    payment_method = db.Column(db.String(40), nullable=True)  # cash, paypal, visa, mastercard, bank_transfer, bank_card, check, crypto, other
+    attachment_path = db.Column(db.String(255), nullable=True)  # relative path under static/uploads/finance/
+    attachment_name = db.Column(db.String(255), nullable=True)  # original filename for display
 
 
 class AdminActivityLog(db.Model):

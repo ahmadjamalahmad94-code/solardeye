@@ -1,522 +1,533 @@
 {% extends 'base.html' %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing_settings_v110.css', v='v110-landing-settings-luxe-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unified_hero_v1.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing_settings_v111.css', v='v111') }}">
 {% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 ls-page-v110">
+  <main class="app-main content-area admin-shell-v2 ls111-page">
 
-    {# ============================================================
-       HERO HEADER
-       ============================================================ #}
-    <header class="ls-hero-v110">
-      <div class="ls-hero-bg-v110" aria-hidden="true">
-        <span class="ls-hero-orb-v110 a"></span>
-        <span class="ls-hero-orb-v110 b"></span>
-        <span class="ls-hero-grid-v110"></span>
-      </div>
-      <div class="ls-hero-inner-v110">
-        <div class="ls-hero-text-v110">
-          <span class="ls-eyebrow-v110">
-            <i>✦</i>{{ 'Homepage Studio' if is_en else 'استوديو الصفحة الرئيسية' }}
+    {# ════════════════════ HERO — unified hu-hero ════════════════════ #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            {{ 'Homepage Studio' if is_en else 'استوديو الصفحة الرئيسية' }}
           </span>
-          <h1>{{ 'Landing page command center' if is_en else 'مركز التحكم بصفحة الهبوط' }}</h1>
-          <p>{{ 'Edit hero copy, plan cards, footer and social links — every section saves on its own so you can iterate fearlessly.' if is_en else 'حرّر نصوص الواجهة، بطاقات الباقات، الفوتر، وروابط التواصل — كل قسم يحفظ بشكل مستقل لتعديل سريع وآمن.' }}</p>
-          <div class="ls-hero-meta-v110">
-            <span><b>{{ plan_rows|length }}</b>{{ 'Plans' if is_en else 'باقات' }}</span>
-            <span><b>{{ social_links|length }}</b>{{ 'Channels' if is_en else 'قنوات تواصل' }}</span>
-            <span class="ok"><b>●</b>{{ 'Live' if is_en else 'منشور مباشر' }}</span>
+          <h1 class="hu-h1">{{ 'Landing page command center' if is_en else 'مركز التحكم بصفحة الهبوط' }}</h1>
+          <p class="hu-tagline">{{ 'Edit hero copy, plan cards, footer and social links — each section saves independently.' if is_en else 'حرّر نصوص الواجهة، بطاقات الباقات، الفوتر وروابط التواصل — كل قسم يحفظ بشكل مستقل.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ plan_rows|length }}</b> {{ 'Plans' if is_en else 'باقات' }}</span>
+            <span class="hu-meta-pill"><b>{{ social_links|length }}</b> {{ 'Channels' if is_en else 'قنوات تواصل' }}</span>
+            <span class="hu-meta-pill ok">● {{ 'Live' if is_en else 'منشور مباشر' }}</span>
           </div>
         </div>
-        <div class="ls-hero-actions-v110">
-          <a class="ls-btn-v110 ghost" href="#section-hero">
-            <span class="ls-btn-icon-v110">📝</span>
-            <span>{{ 'Jump to texts' if is_en else 'القفز إلى النصوص' }}</span>
-          </a>
-          <a class="ls-btn-v110 ghost" href="#section-plans">
-            <span class="ls-btn-icon-v110">💎</span>
-            <span>{{ 'Jump to plans' if is_en else 'القفز إلى الباقات' }}</span>
-          </a>
-          <a class="ls-btn-v110 primary" href="{{ url_for('main.index', lang=ui_lang) }}" target="_blank" rel="noopener">
-            <span class="ls-btn-icon-v110">👁️</span>
-            <span>{{ 'Preview live page' if is_en else 'معاينة الصفحة الحيّة' }}</span>
-          </a>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="#section-hero">📝 {{ 'Texts' if is_en else 'النصوص' }}</a>
+          <a class="hu-btn hu-btn-ghost" href="#section-plans">💎 {{ 'Plans' if is_en else 'الباقات' }}</a>
+          <a class="hu-btn hu-btn-primary" href="{{ url_for('main.index', lang=ui_lang) }}" target="_blank" rel="noopener">👁️ {{ 'Preview live' if is_en else 'معاينة الصفحة' }}</a>
         </div>
       </div>
     </header>
 
-    {# ============================================================
-       SECTION NAV — STICKY TABS
-       ============================================================ #}
-    <nav class="ls-tabs-v110" aria-label="{{ 'Sections' if is_en else 'الأقسام' }}">
-      <a href="#section-hero" data-tab="hero" class="ls-tab-v110 active">
-        <span class="ls-tab-icon-v110">🪐</span>
-        <b>{{ 'Hero & Texts' if is_en else 'الواجهة والنصوص' }}</b>
-        <small>{{ 'Titles, mission, vision, logo' if is_en else 'العناوين، الرسالة، الرؤية، الشعار' }}</small>
+    {# ════════════════════ STICKY TABS ════════════════════ #}
+    <nav class="ls111-tabs" aria-label="{{ 'Sections' if is_en else 'الأقسام' }}">
+      <a href="#section-hero" data-tab="hero" class="ls111-tab active violet">
+        <span class="ls111-tab-icon">🪐</span>
+        <div>
+          <b>{{ 'Hero & Texts' if is_en else 'الواجهة والنصوص' }}</b>
+          <small>{{ 'Titles · CTAs · Vision' if is_en else 'العناوين · الأزرار · الرؤية' }}</small>
+        </div>
       </a>
-      <a href="#section-plans" data-tab="plans" class="ls-tab-v110">
-        <span class="ls-tab-icon-v110">💎</span>
-        <b>{{ 'Plan cards' if is_en else 'بطاقات الباقات' }}</b>
-        <small>{{ 'Add, edit, reorder, delete' if is_en else 'إضافة، تعديل، حذف' }}</small>
+      <a href="#section-plans" data-tab="plans" class="ls111-tab amber">
+        <span class="ls111-tab-icon">💎</span>
+        <div>
+          <b>{{ 'Plan cards' if is_en else 'بطاقات الباقات' }}</b>
+          <small>{{ 'Add · Edit · Delete' if is_en else 'إضافة · تعديل · حذف' }}</small>
+        </div>
       </a>
-      <a href="#section-footer" data-tab="footer" class="ls-tab-v110">
-        <span class="ls-tab-icon-v110">📡</span>
-        <b>{{ 'Footer & Social' if is_en else 'الفوتر والتواصل' }}</b>
-        <small>{{ 'About, copyright, channels' if is_en else 'النبذة، الحقوق، القنوات' }}</small>
+      <a href="#section-footer" data-tab="footer" class="ls111-tab emerald">
+        <span class="ls111-tab-icon">📡</span>
+        <div>
+          <b>{{ 'Footer & Social' if is_en else 'الفوتر والتواصل' }}</b>
+          <small>{{ 'About · Copyright · Channels' if is_en else 'النبذة · الحقوق · القنوات' }}</small>
+        </div>
       </a>
     </nav>
 
-    {# ============================================================
-       SECTION 1 — HERO & TEXTS
-       ============================================================ #}
-    <section class="ls-section-v110" id="section-hero" data-section="hero">
-      <form method="post" enctype="multipart/form-data" class="ls-section-form-v110" autocomplete="off">
+    {# ════════════════════ SECTION 1 — HERO & TEXTS ════════════════════ #}
+    <section class="ls111-section theme-violet" id="section-hero" data-section="hero">
+      <form method="post" enctype="multipart/form-data" class="ls111-form" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_hero">
 
-        <header class="ls-section-head-v110">
-          <div class="ls-section-title-v110">
-            <span class="ls-section-icon-v110 violet">🪐</span>
+        {# Dark section header #}
+        <div class="ls111-shead">
+          <div class="ls111-shead-info">
+            <span class="ls111-snum">01</span>
             <div>
-              <small>{{ 'Section 01' if is_en else 'القسم الأول' }}</small>
               <h2>{{ 'Hero copy & brand' if is_en else 'نصوص الواجهة الرئيسية والعلامة' }}</h2>
-              <p>{{ 'Every text that shows above the fold on the homepage. Bilingual fields are stacked for instant compare.' if is_en else 'كل نص يظهر في أعلى الصفحة الرئيسية. الحقول ثنائية اللغة مرتبة جنبًا إلى جنب لمقارنة فورية.' }}</p>
+              <p>{{ 'Every text visible above the fold on the homepage — all bilingual.' if is_en else 'كل نص يظهر في أعلى الصفحة الرئيسية — ثنائي اللغة.' }}</p>
             </div>
           </div>
-          <button type="submit" class="ls-save-btn-v110">
-            <span class="ls-save-pulse-v110"></span>
-            <span class="ls-save-icon-v110">💾</span>
+          <button type="submit" class="ls111-save-btn violet">
+            <span class="ls111-save-shine"></span>
+            <span>💾</span>
             <span>{{ 'Save section' if is_en else 'حفظ القسم' }}</span>
           </button>
-        </header>
+        </div>
 
-        <div class="ls-grid-v110 cols-2">
+        {# Content body #}
+        <div class="ls111-sbody">
 
-          {# Site name #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 sky">🌐</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">اسم الموقع</span>
-                <input class="ls-input-v110" name="site_name_ar" value="{{ landing.site_name_ar }}" dir="rtl" placeholder="منصة الطاقة">
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Site name</span>
-                <input class="ls-input-v110" name="site_name_en" value="{{ landing.site_name_en }}" dir="ltr" placeholder="Energy Platform">
-              </label>
+          {# ── Group 1: Brand Identity ── #}
+          <div class="ls111-group">
+            <div class="ls111-group-label violet">
+              <span>🌐</span>
+              {{ 'Brand identity' if is_en else 'هوية العلامة التجارية' }}
+            </div>
+            <div class="ls111-fields cols-2">
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon violet">🌐</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">اسم الموقع</span>
+                    <input class="ls111-input" name="site_name_ar" value="{{ landing.site_name_ar }}" dir="rtl" placeholder="منصة الطاقة">
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Site name</span>
+                    <input class="ls111-input" name="site_name_en" value="{{ landing.site_name_en }}" dir="ltr" placeholder="Energy Platform">
+                  </label>
+                </div>
+              </div>
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon amber">✨</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">شارة الهيرو</span>
+                    <input class="ls111-input" name="hero_badge_ar" value="{{ landing.hero_badge_ar }}" dir="rtl">
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Hero badge</span>
+                    <input class="ls111-input" name="hero_badge_en" value="{{ landing.hero_badge_en }}" dir="ltr">
+                  </label>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {# Hero badge #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 amber">✨</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">شارة الهيرو</span>
-                <input class="ls-input-v110" name="hero_badge_ar" value="{{ landing.hero_badge_ar }}" dir="rtl">
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Hero badge</span>
-                <input class="ls-input-v110" name="hero_badge_en" value="{{ landing.hero_badge_en }}" dir="ltr">
-              </label>
+          {# ── Group 2: Hero Content ── #}
+          <div class="ls111-group">
+            <div class="ls111-group-label violet">
+              <span>💡</span>
+              {{ 'Hero content' if is_en else 'محتوى الهيرو' }}
+            </div>
+            <div class="ls111-fields cols-1">
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon indigo">💡</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">عنوان الهيرو</span>
+                    <textarea class="ls111-input" name="hero_title_ar" rows="2" dir="rtl">{{ landing.hero_title_ar }}</textarea>
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Hero title</span>
+                    <textarea class="ls111-input" name="hero_title_en" rows="2" dir="ltr">{{ landing.hero_title_en }}</textarea>
+                  </label>
+                </div>
+              </div>
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon sky">💬</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">وصف الهيرو</span>
+                    <textarea class="ls111-input" name="hero_subtitle_ar" rows="3" dir="rtl">{{ landing.hero_subtitle_ar }}</textarea>
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Hero subtitle</span>
+                    <textarea class="ls111-input" name="hero_subtitle_en" rows="3" dir="ltr">{{ landing.hero_subtitle_en }}</textarea>
+                  </label>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="ls111-fields cols-2">
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon emerald">🚀</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">زر CTA الأساسي</span>
+                    <input class="ls111-input" name="hero_primary_ar" value="{{ landing.hero_primary_ar }}" dir="rtl">
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Primary CTA</span>
+                    <input class="ls111-input" name="hero_primary_en" value="{{ landing.hero_primary_en }}" dir="ltr">
+                  </label>
+                </div>
+              </div>
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon rose">🎯</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">زر CTA الثانوي</span>
+                    <input class="ls111-input" name="hero_secondary_ar" value="{{ landing.hero_secondary_ar }}" dir="rtl">
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Secondary CTA</span>
+                    <input class="ls111-input" name="hero_secondary_en" value="{{ landing.hero_secondary_en }}" dir="ltr">
+                  </label>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {# Hero title — full width #}
-          <div class="ls-field-v110 ls-field-pair-v110 full">
-            <span class="ls-field-icon-v110 indigo">💡</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">عنوان الهيرو</span>
-                <textarea class="ls-input-v110" name="hero_title_ar" rows="2" dir="rtl">{{ landing.hero_title_ar }}</textarea>
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Hero title</span>
-                <textarea class="ls-input-v110" name="hero_title_en" rows="2" dir="ltr">{{ landing.hero_title_en }}</textarea>
-              </label>
+          {# ── Group 3: Brand Values ── #}
+          <div class="ls111-group">
+            <div class="ls111-group-label violet">
+              <span>🌅</span>
+              {{ 'Brand values' if is_en else 'قيم العلامة' }}
+            </div>
+            <div class="ls111-fields cols-2">
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon sky">👁️</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">رؤيتنا</span>
+                    <textarea class="ls111-input" name="vision_ar" rows="3" dir="rtl">{{ landing.vision_ar }}</textarea>
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Our vision</span>
+                    <textarea class="ls111-input" name="vision_en" rows="3" dir="ltr">{{ landing.vision_en }}</textarea>
+                  </label>
+                </div>
+              </div>
+
+              <div class="ls111-field">
+                <div class="ls111-field-icon emerald">🎯</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">رسالة المنصة</span>
+                    <textarea class="ls111-input" name="mission_ar" rows="3" dir="rtl">{{ landing.mission_ar }}</textarea>
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Platform mission</span>
+                    <textarea class="ls111-input" name="mission_en" rows="3" dir="ltr">{{ landing.mission_en }}</textarea>
+                  </label>
+                </div>
+              </div>
+
+              <div class="ls111-field full">
+                <div class="ls111-field-icon amber">🛡️</div>
+                <div class="ls111-field-body">
+                  <label class="ls111-pair">
+                    <span class="ls111-lang ar">عربي</span>
+                    <span class="ls111-label">وعد المنصة</span>
+                    <textarea class="ls111-input" name="promise_ar" rows="2" dir="rtl">{{ landing.promise_ar }}</textarea>
+                  </label>
+                  <label class="ls111-pair">
+                    <span class="ls111-lang en">EN</span>
+                    <span class="ls111-label">Platform promise</span>
+                    <textarea class="ls111-input" name="promise_en" rows="2" dir="ltr">{{ landing.promise_en }}</textarea>
+                  </label>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {# Hero subtitle — full width #}
-          <div class="ls-field-v110 ls-field-pair-v110 full">
-            <span class="ls-field-icon-v110 sky">💬</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">وصف الهيرو</span>
-                <textarea class="ls-input-v110" name="hero_subtitle_ar" rows="3" dir="rtl">{{ landing.hero_subtitle_ar }}</textarea>
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Hero subtitle</span>
-                <textarea class="ls-input-v110" name="hero_subtitle_en" rows="3" dir="ltr">{{ landing.hero_subtitle_en }}</textarea>
-              </label>
+          {# ── Group 4: Logo ── #}
+          <div class="ls111-group">
+            <div class="ls111-group-label violet">
+              <span>🖼️</span>
+              {{ 'Brand logo' if is_en else 'شعار المنصة' }}
             </div>
-          </div>
-
-          {# Primary CTA #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 emerald">🚀</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">زر CTA الأساسي</span>
-                <input class="ls-input-v110" name="hero_primary_ar" value="{{ landing.hero_primary_ar }}" dir="rtl">
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Primary CTA</span>
-                <input class="ls-input-v110" name="hero_primary_en" value="{{ landing.hero_primary_en }}" dir="ltr">
-              </label>
-            </div>
-          </div>
-
-          {# Secondary CTA #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 rose">🎯</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">زر CTA الثانوي</span>
-                <input class="ls-input-v110" name="hero_secondary_ar" value="{{ landing.hero_secondary_ar }}" dir="rtl">
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Secondary CTA</span>
-                <input class="ls-input-v110" name="hero_secondary_en" value="{{ landing.hero_secondary_en }}" dir="ltr">
-              </label>
-            </div>
-          </div>
-
-          {# Vision #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 sky">👁️</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">رؤيتنا</span>
-                <textarea class="ls-input-v110" name="vision_ar" rows="3" dir="rtl">{{ landing.vision_ar }}</textarea>
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Our vision</span>
-                <textarea class="ls-input-v110" name="vision_en" rows="3" dir="ltr">{{ landing.vision_en }}</textarea>
-              </label>
-            </div>
-          </div>
-
-          {# Mission #}
-          <div class="ls-field-v110 ls-field-pair-v110">
-            <span class="ls-field-icon-v110 emerald">🎯</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">رسالة المنصة</span>
-                <textarea class="ls-input-v110" name="mission_ar" rows="3" dir="rtl">{{ landing.mission_ar }}</textarea>
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Platform mission</span>
-                <textarea class="ls-input-v110" name="mission_en" rows="3" dir="ltr">{{ landing.mission_en }}</textarea>
-              </label>
-            </div>
-          </div>
-
-          {# Promise — full width #}
-          <div class="ls-field-v110 ls-field-pair-v110 full">
-            <span class="ls-field-icon-v110 amber">🛡️</span>
-            <div class="ls-field-body-v110">
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 ar">عربي</span>
-                <span class="ls-label-v110">وعد المنصة</span>
-                <textarea class="ls-input-v110" name="promise_ar" rows="2" dir="rtl">{{ landing.promise_ar }}</textarea>
-              </label>
-              <label class="ls-field-row-v110">
-                <span class="ls-lang-v110 en">EN</span>
-                <span class="ls-label-v110">Platform promise</span>
-                <textarea class="ls-input-v110" name="promise_en" rows="2" dir="ltr">{{ landing.promise_en }}</textarea>
-              </label>
-            </div>
-          </div>
-
-          {# Logo upload #}
-          <div class="ls-field-v110 ls-logo-field-v110 full">
-            <span class="ls-field-icon-v110 violet">🖼️</span>
-            <div class="ls-logo-body-v110">
-              <div class="ls-logo-info-v110">
-                <span class="ls-label-v110">{{ 'Brand logo (optional)' if is_en else 'شعار المنصة (اختياري)' }}</span>
-                <p class="ls-help-v110">{{ 'PNG, JPG, WEBP, SVG up to 5MB. Used in the homepage header and footer.' if is_en else 'PNG, JPG, WEBP, SVG حتى 5MB. يظهر في رأس وأسفل الصفحة الرئيسية.' }}</p>
-                <div class="ls-logo-actions-v110">
-                  <label class="ls-upload-btn-v110">
+            <div class="ls111-logo-row">
+              <div class="ls111-logo-preview" data-has-logo="{{ '1' if landing.site_logo else '0' }}">
+                {% if landing.site_logo %}
+                  <img src="{{ landing.site_logo }}" alt="logo">
+                {% else %}
+                  <span class="ls111-logo-empty">⚡<small>{{ 'No logo yet' if is_en else 'لا يوجد شعار' }}</small></span>
+                {% endif %}
+              </div>
+              <div class="ls111-logo-info">
+                <p class="ls111-help">{{ 'PNG, JPG, WEBP, SVG — up to 5 MB. Used in the homepage header and footer.' if is_en else 'PNG, JPG, WEBP, SVG — حتى 5MB. يظهر في رأس وأسفل الصفحة الرئيسية.' }}</p>
+                <div class="ls111-logo-actions">
+                  <label class="ls111-upload-btn">
                     <input type="file" name="site_logo_file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden>
                     <span>📤 {{ 'Upload logo' if is_en else 'ارفع الشعار' }}</span>
                   </label>
                   {% if landing.site_logo %}
-                  <label class="ls-clear-logo-v110">
+                  <label class="ls111-clear-btn">
                     <input type="checkbox" name="clear_logo" value="1">
-                    <span>🗑️ {{ 'Remove current logo' if is_en else 'حذف الشعار الحالي' }}</span>
+                    <span>🗑️ {{ 'Remove logo' if is_en else 'حذف الشعار' }}</span>
                   </label>
                   {% endif %}
                 </div>
               </div>
-              <div class="ls-logo-preview-v110" data-has-logo="{{ '1' if landing.site_logo else '0' }}">
-                {% if landing.site_logo %}
-                  <img src="{{ landing.site_logo }}" alt="logo">
-                {% else %}
-                  <span class="ls-logo-empty-v110">⚡<small>{{ 'No logo yet' if is_en else 'لا يوجد شعار' }}</small></span>
-                {% endif %}
-              </div>
             </div>
           </div>
 
-        </div>
+        </div>{# /sbody #}
       </form>
     </section>
 
-    {# ============================================================
-       SECTION 2 — PLAN CARDS
-       ============================================================ #}
-    <section class="ls-section-v110" id="section-plans" data-section="plans">
+    {# ════════════════════ SECTION 2 — PLANS ════════════════════ #}
+    <section class="ls111-section theme-amber" id="section-plans" data-section="plans">
 
-      <header class="ls-section-head-v110">
-        <div class="ls-section-title-v110">
-          <span class="ls-section-icon-v110 amber">💎</span>
+      <div class="ls111-shead">
+        <div class="ls111-shead-info">
+          <span class="ls111-snum">02</span>
           <div>
-            <small>{{ 'Section 02' if is_en else 'القسم الثاني' }}</small>
             <h2>{{ 'Plan cards on the homepage' if is_en else 'بطاقات الباقات في الصفحة الرئيسية' }}</h2>
-            <p>{{ 'Inline edit each card. Add new plans, mark a featured one, or delete what you no longer need. Each card saves independently.' if is_en else 'حرّر كل بطاقة في مكانها، أضف باقات جديدة، ميّز الباقة الأنسب، أو احذف ما لم تعد تحتاجه. كل بطاقة تحفظ منفصلة.' }}</p>
+            <p>{{ 'Edit each card inline, add new plans, mark the featured one, or delete what you no longer need.' if is_en else 'حرّر كل بطاقة في مكانها، أضف باقات جديدة، ميّز الباقة الأنسب، أو احذف ما لم تعد تحتاجه.' }}</p>
           </div>
         </div>
-        <div class="ls-plan-tools-v110">
-          <a class="ls-btn-v110 ghost sm" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">
-            <span>⚙️</span><span>{{ 'Advanced quotas' if is_en else 'الكوتا التفصيلية' }}</span>
-          </a>
-          <form method="post" class="inline-form-v110">
+        <div class="ls111-plan-tools">
+          <a class="ls111-btn outline-amber sm" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">⚙️ {{ 'Advanced quotas' if is_en else 'الكوتا التفصيلية' }}</a>
+          <form method="post" style="display:inline-flex">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="add_plan">
-            <button type="submit" class="ls-add-plan-v110">
-              <span class="ls-add-plus-v110">＋</span>
-              <span>{{ 'Add a new plan' if is_en else 'إضافة باقة جديدة' }}</span>
+            <button type="submit" class="ls111-add-btn">
+              <span class="ls111-plus">＋</span>
+              {{ 'Add new plan' if is_en else 'إضافة باقة جديدة' }}
             </button>
           </form>
         </div>
-      </header>
+      </div>
 
-      <div class="ls-plans-grid-v110">
-        {% for row in plan_rows %}
-        {% set plan = row.plan %}
-        {% set meta_ar = row.meta_ar %}
-        {% set meta_en = row.meta_en %}
-        {% set meta = row.meta %}
-        {% set prefix = 'plan_' ~ plan.id %}
-        {% set palette_idx = loop.index0 % 4 %}
-        <article class="ls-plan-card-v110 palette-{{ palette_idx }} {% if meta.featured %}is-featured{% endif %}" id="plan-{{ plan.id }}">
-          <div class="ls-plan-glow-v110" aria-hidden="true"></div>
+      <div class="ls111-sbody">
+        <div class="ls111-plans-grid">
+          {% for row in plan_rows %}
+          {% set plan = row.plan %}
+          {% set meta_ar = row.meta_ar %}
+          {% set meta_en = row.meta_en %}
+          {% set meta = row.meta %}
+          {% set prefix = 'plan_' ~ plan.id %}
+          {% set colors = ['violet','amber','emerald','rose'] %}
+          {% set color = colors[loop.index0 % 4] %}
+          <article class="ls111-plan-card color-{{ color }} {% if meta.featured %}is-featured{% endif %}" id="plan-{{ plan.id }}">
 
-          <form method="post" class="ls-plan-form-v110" autocomplete="off">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_plan">
-            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+            <form method="post" class="ls111-plan-form" autocomplete="off">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="save_plan">
+              <input type="hidden" name="plan_id" value="{{ plan.id }}">
 
-            <header class="ls-plan-head-v110">
-              <span class="ls-plan-emblem-v110">
-                {% if (plan.code or '')|lower in ['platinum'] %}🚀
-                {% elif (plan.code or '')|lower in ['pro','professional'] %}💎
-                {% elif (plan.code or '')|lower in ['basic','starter'] %}👑
-                {% else %}✨{% endif %}
-              </span>
-              <div class="ls-plan-title-v110">
-                <strong>{{ plan.name_ar or plan.name_en or plan.code }}</strong>
-                <span class="ls-plan-code-v110">{{ plan.code }}</span>
+              <div class="ls111-plan-top">
+                <div class="ls111-plan-emblem color-{{ color }}">
+                  {% if (plan.code or '')|lower in ['platinum'] %}🚀
+                  {% elif (plan.code or '')|lower in ['pro','professional'] %}💎
+                  {% elif (plan.code or '')|lower in ['basic','starter'] %}👑
+                  {% else %}✨{% endif %}
+                </div>
+                <div class="ls111-plan-id">
+                  <strong>{{ plan.name_ar or plan.name_en or plan.code }}</strong>
+                  <code>{{ plan.code }}</code>
+                </div>
+                <label class="ls111-feat-toggle" title="{{ 'Featured plan' if is_en else 'الباقة المميزة' }}">
+                  <input type="checkbox" name="{{ prefix }}_featured" {% if meta.featured %}checked{% endif %}>
+                  <span class="ls111-toggle-track"><span class="ls111-toggle-thumb">★</span></span>
+                  <small>{{ 'Featured' if is_en else 'مميزة' }}</small>
+                </label>
               </div>
-              <label class="ls-plan-feature-toggle-v110" title="{{ 'Feature this plan' if is_en else 'تمييز هذه الباقة' }}">
-                <input type="checkbox" name="{{ prefix }}_featured" {% if meta.featured %}checked{% endif %}>
-                <span class="ls-toggle-track-v110"><span class="ls-toggle-thumb-v110">★</span></span>
-                <small>{{ 'Featured' if is_en else 'مميزة' }}</small>
-              </label>
-            </header>
 
-            <div class="ls-plan-grid-v110">
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Name (AR)' if is_en else 'الاسم عربي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_name_ar" value="{{ plan.name_ar }}" dir="rtl">
-              </label>
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Name (EN)' if is_en else 'الاسم إنجليزي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_name_en" value="{{ plan.name_en }}" dir="ltr">
-              </label>
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Price' if is_en else 'السعر' }}</span>
-                <input class="ls-input-v110" type="number" step="0.01" name="{{ prefix }}_price" value="{{ '%.2f'|format(plan.price or 0) }}">
-              </label>
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Currency' if is_en else 'العملة' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_currency" value="{{ plan.currency or 'USD' }}" maxlength="6">
-              </label>
-              <label class="ls-mini-field-v110 full">
-                <span>{{ 'Subtitle (AR)' if is_en else 'وصف مختصر عربي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_subtitle_ar" value="{{ meta_ar.subtitle }}" dir="rtl">
-              </label>
-              <label class="ls-mini-field-v110 full">
-                <span>{{ 'Subtitle (EN)' if is_en else 'وصف مختصر إنجليزي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_subtitle_en" value="{{ meta_en.subtitle }}" dir="ltr">
-              </label>
-              <label class="ls-mini-field-v110 full">
-                <span>{{ 'Bullets (AR) — one per line' if is_en else 'بنود البطاقة عربي — كل بند في سطر' }}</span>
-                <textarea class="ls-input-v110" name="{{ prefix }}_bullets_ar" rows="4" dir="rtl">{{ meta_ar.bullets|join('\n') }}</textarea>
-              </label>
-              <label class="ls-mini-field-v110 full">
-                <span>{{ 'Bullets (EN) — one per line' if is_en else 'البنود إنجليزي — كل بند في سطر' }}</span>
-                <textarea class="ls-input-v110" name="{{ prefix }}_bullets_en" rows="4" dir="ltr">{{ meta_en.bullets|join('\n') }}</textarea>
-              </label>
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Featured badge (AR)' if is_en else 'شارة مميزة عربي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_badge_ar" value="{{ meta_ar.badge }}" dir="rtl">
-              </label>
-              <label class="ls-mini-field-v110">
-                <span>{{ 'Featured badge (EN)' if is_en else 'شارة مميزة إنجليزي' }}</span>
-                <input class="ls-input-v110" name="{{ prefix }}_badge_en" value="{{ meta_en.badge }}" dir="ltr">
-              </label>
-            </div>
+              <div class="ls111-plan-grid">
+                <label class="ls111-mini-f">
+                  <span>{{ 'Name AR' if is_en else 'الاسم عربي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_name_ar" value="{{ plan.name_ar }}" dir="rtl">
+                </label>
+                <label class="ls111-mini-f">
+                  <span>{{ 'Name EN' if is_en else 'الاسم إنجليزي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_name_en" value="{{ plan.name_en }}" dir="ltr">
+                </label>
+                <label class="ls111-mini-f">
+                  <span>{{ 'Price' if is_en else 'السعر' }}</span>
+                  <input class="ls111-input" type="number" step="0.01" name="{{ prefix }}_price" value="{{ '%.2f'|format(plan.price or 0) }}">
+                </label>
+                <label class="ls111-mini-f">
+                  <span>{{ 'Currency' if is_en else 'العملة' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_currency" value="{{ plan.currency or 'USD' }}" maxlength="6">
+                </label>
+                <label class="ls111-mini-f full">
+                  <span>{{ 'Subtitle AR' if is_en else 'وصف مختصر عربي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_subtitle_ar" value="{{ meta_ar.subtitle }}" dir="rtl">
+                </label>
+                <label class="ls111-mini-f full">
+                  <span>{{ 'Subtitle EN' if is_en else 'وصف مختصر إنجليزي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_subtitle_en" value="{{ meta_en.subtitle }}" dir="ltr">
+                </label>
+                <label class="ls111-mini-f full">
+                  <span>{{ 'Bullets AR — one per line' if is_en else 'بنود البطاقة عربي — كل بند في سطر' }}</span>
+                  <textarea class="ls111-input" name="{{ prefix }}_bullets_ar" rows="4" dir="rtl">{{ meta_ar.bullets|join('\n') }}</textarea>
+                </label>
+                <label class="ls111-mini-f full">
+                  <span>{{ 'Bullets EN — one per line' if is_en else 'البنود إنجليزي — كل بند في سطر' }}</span>
+                  <textarea class="ls111-input" name="{{ prefix }}_bullets_en" rows="4" dir="ltr">{{ meta_en.bullets|join('\n') }}</textarea>
+                </label>
+                <label class="ls111-mini-f">
+                  <span>{{ 'Badge AR' if is_en else 'شارة مميزة عربي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_badge_ar" value="{{ meta_ar.badge }}" dir="rtl">
+                </label>
+                <label class="ls111-mini-f">
+                  <span>{{ 'Badge EN' if is_en else 'شارة مميزة إنجليزي' }}</span>
+                  <input class="ls111-input" name="{{ prefix }}_badge_en" value="{{ meta_en.badge }}" dir="ltr">
+                </label>
+              </div>
 
-            <footer class="ls-plan-foot-v110">
-              <button type="submit" class="ls-plan-save-v110">
-                <span>💾</span><span>{{ 'Save plan' if is_en else 'حفظ الباقة' }}</span>
+              <div class="ls111-plan-foot">
+                <button type="submit" class="ls111-plan-save color-{{ color }}">
+                  💾 {{ 'Save plan' if is_en else 'حفظ الباقة' }}
+                </button>
+              </div>
+
+            </form>
+
+            <form method="post" class="ls111-plan-del-form"
+                  onsubmit="return confirm('{{ 'Delete this plan permanently?' if is_en else 'هل تريد حذف هذه الباقة نهائياً؟' }}');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="delete_plan">
+              <input type="hidden" name="plan_id" value="{{ plan.id }}">
+              <button type="submit" class="ls111-del-btn">🗑️ {{ 'Delete' if is_en else 'حذف' }}</button>
+            </form>
+          </article>
+          {% endfor %}
+
+          {% if plan_rows|length == 0 %}
+          <article class="ls111-plans-empty">
+            <span>📦</span>
+            <h3>{{ 'No plans yet' if is_en else 'لا توجد باقات بعد' }}</h3>
+            <p>{{ 'Add your first plan to display on the homepage pricing grid.' if is_en else 'أضف أول باقة لعرضها في شبكة الأسعار.' }}</p>
+            <form method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="add_plan">
+              <button type="submit" class="ls111-add-btn lg">
+                <span class="ls111-plus">＋</span>
+                {{ 'Add a new plan' if is_en else 'إضافة باقة جديدة' }}
               </button>
-            </footer>
-          </form>
-
-          <form method="post" class="ls-plan-delete-form-v110"
-                onsubmit="return confirm('{{ 'Delete this plan? This cannot be undone.' if is_en else 'هل تريد حذف هذه الباقة نهائياً؟' }}');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="delete_plan">
-            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-            <button type="submit" class="ls-plan-delete-v110" title="{{ 'Delete plan' if is_en else 'حذف الباقة' }}">
-              🗑️ {{ 'Delete' if is_en else 'حذف' }}
-            </button>
-          </form>
-        </article>
-        {% endfor %}
-
-        {# Empty state — only when there are zero plans #}
-        {% if plan_rows|length == 0 %}
-        <article class="ls-plan-empty-v110">
-          <span>📦</span>
-          <h3>{{ 'No plans yet' if is_en else 'لا توجد باقات بعد' }}</h3>
-          <p>{{ 'Add your first plan to display on the homepage pricing grid.' if is_en else 'أضف أول باقة لعرضها في شبكة الأسعار في الصفحة الرئيسية.' }}</p>
-          <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="add_plan">
-            <button type="submit" class="ls-add-plan-v110 lg">
-              <span class="ls-add-plus-v110">＋</span>
-              <span>{{ 'Add a new plan' if is_en else 'إضافة باقة جديدة' }}</span>
-            </button>
-          </form>
-        </article>
-        {% endif %}
+            </form>
+          </article>
+          {% endif %}
+        </div>
       </div>
     </section>
 
-    {# ============================================================
-       SECTION 3 — FOOTER & SOCIAL
-       ============================================================ #}
-    <section class="ls-section-v110" id="section-footer" data-section="footer">
-      <form method="post" class="ls-section-form-v110" autocomplete="off">
+    {# ════════════════════ SECTION 3 — FOOTER & SOCIAL ════════════════════ #}
+    <section class="ls111-section theme-emerald" id="section-footer" data-section="footer">
+      <form method="post" class="ls111-form" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_footer">
 
-        <header class="ls-section-head-v110">
-          <div class="ls-section-title-v110">
-            <span class="ls-section-icon-v110 emerald">📡</span>
+        <div class="ls111-shead">
+          <div class="ls111-shead-info">
+            <span class="ls111-snum">03</span>
             <div>
-              <small>{{ 'Section 03' if is_en else 'القسم الثالث' }}</small>
               <h2>{{ 'Footer & social channels' if is_en else 'الفوتر وقنوات التواصل الاجتماعي' }}</h2>
-              <p>{{ 'About text, copyright line, and the six channels rendered in the footer. Empty channels are simply hidden from the homepage.' if is_en else 'النبذة، حقوق النشر، والقنوات الستّ التي تظهر في الفوتر. القنوات الفارغة تُخفى تلقائيًا.' }}</p>
+              <p>{{ 'About text, copyright, and the six channels shown in the footer. Empty channels are hidden automatically.' if is_en else 'النبذة، حقوق النشر، والقنوات التي تظهر في الفوتر. القنوات الفارغة تُخفى تلقائياً.' }}</p>
             </div>
           </div>
-          <button type="submit" class="ls-save-btn-v110">
-            <span class="ls-save-pulse-v110"></span>
-            <span class="ls-save-icon-v110">💾</span>
+          <button type="submit" class="ls111-save-btn emerald">
+            <span class="ls111-save-shine"></span>
+            <span>💾</span>
             <span>{{ 'Save section' if is_en else 'حفظ القسم' }}</span>
           </button>
-        </header>
+        </div>
 
-        <div class="ls-footer-grid-v110">
+        <div class="ls111-sbody">
+          <div class="ls111-footer-layout">
 
-          {# About panel #}
-          <div class="ls-about-panel-v110">
-            <div class="ls-panel-head-v110">
-              <span class="ls-section-icon-v110 sky sm">📝</span>
-              <div>
-                <strong>{{ 'About panel' if is_en else 'نبذة المنصة' }}</strong>
-                <small>{{ 'Shown left in footer' if is_en else 'تظهر في طرف الفوتر' }}</small>
+            {# About & Copyright #}
+            <div class="ls111-about-panel">
+              <div class="ls111-panel-head">
+                <span class="ls111-picon emerald">📝</span>
+                <div>
+                  <strong>{{ 'About panel' if is_en else 'نبذة المنصة' }}</strong>
+                  <small>{{ 'Shown in the footer' if is_en else 'تظهر في الفوتر' }}</small>
+                </div>
               </div>
+              <label class="ls111-mini-f full">
+                <span>{{ 'About (AR)' if is_en else 'نبذة عن الموقع (عربي)' }}</span>
+                <textarea class="ls111-input" name="footer_about_ar" rows="3" dir="rtl">{{ landing.footer_about_ar }}</textarea>
+              </label>
+              <label class="ls111-mini-f full">
+                <span>{{ 'About (EN)' if is_en else 'Footer about (English)' }}</span>
+                <textarea class="ls111-input" name="footer_about_en" rows="3" dir="ltr">{{ landing.footer_about_en }}</textarea>
+              </label>
+              <label class="ls111-mini-f full">
+                <span>{{ 'Copyright (AR)' if is_en else 'حقوق النشر (عربي)' }}</span>
+                <input class="ls111-input" name="copyright_ar" value="{{ landing.copyright_ar }}" dir="rtl">
+              </label>
+              <label class="ls111-mini-f full">
+                <span>{{ 'Copyright (EN)' if is_en else 'Copyright (English)' }}</span>
+                <input class="ls111-input" name="copyright_en" value="{{ landing.copyright_en }}" dir="ltr">
+              </label>
             </div>
-            <label class="ls-mini-field-v110 full">
-              <span>{{ 'About (AR)' if is_en else 'نبذة عن الموقع (عربي)' }}</span>
-              <textarea class="ls-input-v110" name="footer_about_ar" rows="3" dir="rtl">{{ landing.footer_about_ar }}</textarea>
-            </label>
-            <label class="ls-mini-field-v110 full">
-              <span>{{ 'About (EN)' if is_en else 'Footer about (English)' }}</span>
-              <textarea class="ls-input-v110" name="footer_about_en" rows="3" dir="ltr">{{ landing.footer_about_en }}</textarea>
-            </label>
-            <label class="ls-mini-field-v110 full">
-              <span>{{ 'Copyright (AR)' if is_en else 'حقوق النشر (عربي)' }}</span>
-              <input class="ls-input-v110" name="copyright_ar" value="{{ landing.copyright_ar }}" dir="rtl">
-            </label>
-            <label class="ls-mini-field-v110 full">
-              <span>{{ 'Copyright (EN)' if is_en else 'Copyright (English)' }}</span>
-              <input class="ls-input-v110" name="copyright_en" value="{{ landing.copyright_en }}" dir="ltr">
-            </label>
-          </div>
 
-          {# Social panel #}
-          <div class="ls-social-panel-v110">
-            <div class="ls-panel-head-v110">
-              <span class="ls-section-icon-v110 violet sm">🌐</span>
-              <div>
-                <strong>{{ 'Social channels' if is_en else 'روابط التواصل الاجتماعي' }}</strong>
-                <small>{{ 'Leave empty to hide' if is_en else 'اتركها فارغة لإخفائها' }}</small>
+            {# Social channels #}
+            <div class="ls111-social-panel">
+              <div class="ls111-panel-head">
+                <span class="ls111-picon violet">🌐</span>
+                <div>
+                  <strong>{{ 'Social channels' if is_en else 'روابط التواصل الاجتماعي' }}</strong>
+                  <small>{{ 'Leave empty to hide from homepage' if is_en else 'اتركها فارغة لإخفائها من الصفحة' }}</small>
+                </div>
               </div>
+              <ul class="ls111-social-list">
+                {% for key,label,icon in social_links %}
+                {% set value = landing.get(key, '') %}
+                <li class="ls111-social-row {% if value %}is-live{% endif %} soc-{{ key.replace('social_','') }}">
+                  <span class="ls111-soc-icon soc-{{ key.replace('social_','') }}">
+                    {% if key == 'social_facebook' %}f
+                    {% elif key == 'social_instagram' %}◎
+                    {% elif key == 'social_x' %}𝕏
+                    {% elif key == 'social_linkedin' %}in
+                    {% elif key == 'social_telegram' %}✈
+                    {% elif key == 'social_whatsapp' %}☎
+                    {% else %}{{ icon }}{% endif %}
+                  </span>
+                  <span class="ls111-soc-name">{{ label }}</span>
+                  <input class="ls111-input ls111-soc-input" name="{{ key }}" value="{{ value }}" placeholder="https://..." dir="ltr">
+                  <span class="ls111-soc-dot" aria-hidden="true">{% if value %}●{% else %}○{% endif %}</span>
+                </li>
+                {% endfor %}
+              </ul>
             </div>
-            <ul class="ls-social-list-v110">
-              {% for key,label,icon in social_links %}
-              {% set value = landing.get(key, '') %}
-              <li class="ls-social-row-v110 {% if value %}is-active{% endif %}">
-                <span class="ls-social-icon-v110 ico-{{ key }}">
-                  {% if key == 'social_facebook' %}f
-                  {% elif key == 'social_instagram' %}◎
-                  {% elif key == 'social_x' %}𝕏
-                  {% elif key == 'social_linkedin' %}in
-                  {% elif key == 'social_telegram' %}✈
-                  {% elif key == 'social_whatsapp' %}☎
-                  {% else %}{{ icon }}{% endif %}
-                </span>
-                <span class="ls-social-name-v110">{{ label }}</span>
-                <input class="ls-input-v110 ls-input-ltr-v110" name="{{ key }}" value="{{ value }}" placeholder="https://..." dir="ltr">
-                <span class="ls-social-status-v110" aria-hidden="true">{% if value %}●{% else %}○{% endif %}</span>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
 
+          </div>
         </div>
       </form>
     </section>
 
-    {# ============================================================
-       FLOATING SUMMARY (sticky)
-       ============================================================ #}
-    <div class="ls-floating-summary-v110" aria-hidden="true">
-      <span>{{ 'Tip' if is_en else 'نصيحة' }}:</span>
+    {# Floating tip #}
+    <div class="ls111-tip" aria-hidden="true">
+      <span>💡</span>
       <strong>{{ 'Each section saves independently.' if is_en else 'كل قسم يحفظ بشكل مستقل.' }}</strong>
     </div>
 
@@ -525,89 +536,74 @@
 
 <script>
 (function(){
-  // Tab navigation with smooth section switching and active highlighting.
-  var tabs = document.querySelectorAll('.ls-tab-v110');
-  var sections = document.querySelectorAll('.ls-section-v110');
-  function setActive(target){
-    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.tab === target); });
+  var tabs = document.querySelectorAll('.ls111-tab');
+  var sections = document.querySelectorAll('.ls111-section');
+
+  function activateTab(key){
+    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.tab === key); });
   }
-  tabs.forEach(function(tab){
-    tab.addEventListener('click', function(){
-      setActive(tab.dataset.tab);
-    });
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ activateTab(t.dataset.tab); });
   });
-  // Observe section visibility to update tabs while scrolling.
-  if ('IntersectionObserver' in window) {
+  if ('IntersectionObserver' in window){
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
-        if (e.isIntersecting && e.intersectionRatio > 0.45) {
-          var key = e.target.getAttribute('data-section');
-          if (key) setActive(key);
-        }
+        if (e.isIntersecting && e.intersectionRatio > 0.4)
+          activateTab(e.target.dataset.section);
       });
-    }, { threshold: [0.5] });
+    }, { threshold: [0.45] });
     sections.forEach(function(s){ io.observe(s); });
   }
 
-  // Logo upload — show file name on the upload button + live image preview.
+  // Logo preview
   var fileInput = document.querySelector('input[name="site_logo_file"]');
-  if (fileInput) {
+  if (fileInput){
     fileInput.addEventListener('change', function(){
-      var file = fileInput.files && fileInput.files[0];
-      if (!file) return;
-      var btnSpan = fileInput.parentElement.querySelector('span');
-      if (btnSpan) btnSpan.textContent = '📎 ' + file.name;
-      var preview = document.querySelector('.ls-logo-preview-v110');
-      if (preview && /image\//.test(file.type)) {
-        var reader = new FileReader();
-        reader.onload = function(e){
-          preview.innerHTML = '<img src="' + e.target.result + '" alt="logo">';
-          preview.setAttribute('data-has-logo', '1');
-        };
-        reader.readAsDataURL(file);
+      var file = fileInput.files && fileInput.files[0]; if (!file) return;
+      var lbl = fileInput.parentElement.querySelector('span');
+      if (lbl) lbl.textContent = '📎 ' + file.name;
+      var prev = document.querySelector('.ls111-logo-preview');
+      if (prev && /image\//.test(file.type)){
+        var r = new FileReader();
+        r.onload = function(ev){ prev.innerHTML = '<img src="' + ev.target.result + '" alt="logo">'; };
+        r.readAsDataURL(file);
       }
     });
   }
 
-  // Save button feedback — pulse + restore on submit
-  document.querySelectorAll('.ls-section-form-v110, .ls-plan-form-v110').forEach(function(form){
+  // Save button feedback
+  document.querySelectorAll('.ls111-form, .ls111-plan-form').forEach(function(form){
     form.addEventListener('submit', function(){
-      var btn = form.querySelector('.ls-save-btn-v110, .ls-plan-save-v110');
-      if (btn) { btn.classList.add('is-saving'); }
+      var btn = form.querySelector('.ls111-save-btn, .ls111-plan-save');
+      if (btn) btn.classList.add('is-saving');
     });
   });
 
-  // Track changes — show a subtle "unsaved" hint per section
-  document.querySelectorAll('.ls-section-form-v110, .ls-plan-form-v110').forEach(function(form){
-    var hintTarget = form.closest('.ls-section-v110') || form.closest('.ls-plan-card-v110');
-    if (!hintTarget) return;
-    form.addEventListener('input', function(){ hintTarget.classList.add('has-unsaved'); }, { once: false });
+  // Unsaved changes indicator
+  document.querySelectorAll('.ls111-form, .ls111-plan-form').forEach(function(form){
+    var target = form.closest('.ls111-section') || form.closest('.ls111-plan-card');
+    if (!target) return;
+    form.addEventListener('input', function(){ target.classList.add('has-unsaved'); }, { once: false });
   });
 
-  // Live update of social-row "active" state as user types
-  document.querySelectorAll('.ls-social-row-v110 input').forEach(function(input){
-    input.addEventListener('input', function(){
-      var row = input.closest('.ls-social-row-v110');
-      var status = row.querySelector('.ls-social-status-v110');
-      if (input.value.trim()) {
-        row.classList.add('is-active');
-        if (status) status.textContent = '●';
-      } else {
-        row.classList.remove('is-active');
-        if (status) status.textContent = '○';
-      }
+  // Social live indicator
+  document.querySelectorAll('.ls111-social-row input').forEach(function(inp){
+    inp.addEventListener('input', function(){
+      var row = inp.closest('.ls111-social-row');
+      var dot = row && row.querySelector('.ls111-soc-dot');
+      var live = inp.value.trim().length > 0;
+      if (row) row.classList.toggle('is-live', live);
+      if (dot) dot.textContent = live ? '●' : '○';
     });
   });
 
-  // Featured toggle — only one plan should be featured visually at a time in
-  // the admin grid (the backend still allows multiple if you want).
-  document.querySelectorAll('.ls-plan-feature-toggle-v110 input').forEach(function(cb){
+  // Featured toggle visual
+  document.querySelectorAll('.ls111-feat-toggle input').forEach(function(cb){
     cb.addEventListener('change', function(){
-      var card = cb.closest('.ls-plan-card-v110');
+      var card = cb.closest('.ls111-plan-card');
       if (card) card.classList.toggle('is-featured', cb.checked);
     });
   });
 })();
 </script>
-
 {% endblock %}

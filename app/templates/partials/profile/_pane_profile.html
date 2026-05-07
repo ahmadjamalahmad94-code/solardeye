@@ -1,0 +1,229 @@
+<div class="up-pane" data-up-pane="profile" {% if tab != 'profile' %}hidden{% endif %}>
+
+<div class="prof-shell">
+  {# ─── Identity hero card (with mini-stats — Solution D) ─── #}
+  <div class="prof-hero">
+    <div class="prof-hero-bg"></div>
+    <div class="prof-hero-text">
+      <h2>{{ user_obj.full_name or user_obj.username }}</h2>
+      <div class="prof-hero-meta">
+        <span class="prof-tag">@{{ user_obj.username }}</span>
+        {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
+        {% if user_obj.phone_number %}<span class="prof-tag">📱 {{ user_obj.phone_country_code or '' }} {{ user_obj.phone_number }}</span>{% endif %}
+        <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
+        <span class="prof-tag prof-tag-tz">🕒 {{ user_obj.timezone or 'Asia/Hebron' }}</span>
+      </div>
+      <div class="prof-hero-stats">
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">📅</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Subscription' if is_en else 'الاشتراك' }}</small>
+            <strong>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }} {{ 'days' if is_en else 'يوم' }}{% else %}—{% endif %}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#34d399,#059669)">⚡</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+            <strong>{{ devices|length }}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#fbbf24,#d97706)">💬</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Open cases' if is_en else 'دعم مفتوح' }}</small>
+            <strong>{{ (thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list|length) + (ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list|length) }}</strong>
+          </div>
+        </div>
+        <div class="prof-mini">
+          <span class="prof-mini-icon" style="background:linear-gradient(135deg,#60a5fa,#2563eb)">💰</span>
+          <div class="prof-mini-body">
+            <small>{{ 'Wallet' if is_en else 'المحفظة' }}</small>
+            <strong>{{ '%.2f'|format(wallet_balance or 0) }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="prof-hero-avatar">
+      <span class="prof-hero-avatar-letter">{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}</span>
+      <span class="prof-hero-status {{ 'is-active' if user_obj.is_active else 'is-disabled' }}" title="{{ 'Active' if user_obj.is_active else 'Disabled' }}"></span>
+    </div>
+  </div>
+
+  <div class="prof-grid">
+  <form method="post" class="prof-form" id="prof-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_profile">
+
+    {# ─── Step 1: Identity ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">1</span>
+        <span class="prof-step-icon">🪪</span>
+        <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+        <h3>{{ 'Identity' if is_en else 'الهوية' }}</h3>
+        <p>{{ 'Username, name, email & phone — what we use to recognize the subscriber.' if is_en else 'اسم المستخدم والاسم والإيميل والجوال — ما نستخدمه للتعرّف على المشترك.' }}</p>
+      </div>
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'Username' if is_en else 'اسم المستخدم' }} <em>*</em></span>
+          <input class="prof-input prof-input-ltr" name="username" value="{{ user_obj.username }}" required>
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
+          <input class="prof-input" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'Subscriber full name' if is_en else 'الاسم الكامل للمشترك' }}">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span>
+          <input class="prof-input prof-input-ltr" type="email" name="email" value="{{ user_obj.email or '' }}" placeholder="name@example.com">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Phone' if is_en else 'رقم الجوال' }}</span>
+          <div class="prof-phone">
+            <select class="prof-input prof-phone-code" name="phone_country_code">
+              {% set current_phone_code = user_obj.phone_country_code or '+970' %}
+              {% for country in country_options %}
+                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>
+              {% endfor %}
+            </select>
+            <input class="prof-input prof-input-ltr prof-phone-num" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
+          </div>
+        </label>
+      </div>
+    </article>
+
+    {# ─── Step 2: Location ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">2</span>
+        <span class="prof-step-icon">🌍</span>
+        <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+        <h3>{{ 'Location' if is_en else 'الموقع' }}</h3>
+        <p>{{ 'Country, city, timezone & UI language — power the dashboard correctly.' if is_en else 'الدولة والمدينة والمنطقة الزمنية ولغة الواجهة — لتعمل الداشبورد بدقة.' }}</p>
+      </div>
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'Country' if is_en else 'الدولة' }}</span>
+          <select class="prof-input" name="country" id="prof-country" data-current="{{ user_obj.country or '' }}">
+            <option value="">{{ '— Select country —' if is_en else '— اختر الدولة —' }}</option>
+            {% for c in country_options %}
+              {% set label_value = c.name_en if is_en else c.name_ar %}
+              <option value="{{ label_value }}"
+                data-code="{{ c.code }}"
+                data-tz="{{ c.timezone }}"
+                data-cities-ar='{{ c.cities_ar|tojson }}'
+                data-cities-en='{{ c.cities_en|tojson }}'
+                {% if user_obj.country and (user_obj.country == c.name_ar or user_obj.country == c.name_en) %}selected{% endif %}>
+                {{ c.flag }} {{ label_value }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="prof-field">
+          <span>{{ 'City' if is_en else 'المدينة' }}</span>
+          <select class="prof-input" name="city" id="prof-city" data-current="{{ user_obj.city or '' }}">
+            <option value="">{{ '— Select city —' if is_en else '— اختر المدينة —' }}</option>
+            {% if user_obj.city %}<option value="{{ user_obj.city }}" selected>{{ user_obj.city }}</option>{% endif %}
+          </select>
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+          <select class="prof-input prof-input-ltr" name="timezone" id="prof-timezone">
+            {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
+            {% for group in timezone_groups %}
+              <optgroup label="{{ group.group_en if is_en else group.group_ar }}">
+                {% for item in group['items'] %}
+                  <option value="{{ item.tz }}" {% if current_tz == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="prof-field">
+          <span>{{ 'UI language' if is_en else 'لغة الواجهة' }}</span>
+          <select class="prof-input" name="preferred_language">
+            <option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>🇸🇦 عربي</option>
+            <option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>🇬🇧 English</option>
+          </select>
+        </label>
+      </div>
+    </article>
+
+    {# ─── Step 3: Security & Access ─── #}
+    <article class="prof-step">
+      <div class="prof-step-side">
+        <span class="prof-step-num">3</span>
+        <span class="prof-step-icon">🛡️</span>
+        <small>{{ 'Step 3' if is_en else 'الخطوة 3' }}</small>
+        <h3>{{ 'Security & Access' if is_en else 'الأمان والوصول' }}</h3>
+        <p>{{ 'Reset password, set role, and toggle account access.' if is_en else 'إعادة كلمة المرور، تحديد الدور، تفعيل أو تعطيل الحساب.' }}</p>
+      </div>
+      <div class="prof-step-body">
+        <label class="prof-field">
+          <span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span>
+          <input class="prof-input prof-input-ltr" type="password" name="password" placeholder="{{ 'Leave blank to keep' if is_en else 'فارغة للإبقاء على الحالية' }}" autocomplete="new-password">
+        </label>
+        <label class="prof-field">
+          <span>{{ 'Role' if is_en else 'الدور' }}</span>
+          <select class="prof-input" name="role">
+            <option value="user" {% if user_obj.role in ['user','subscriber','customer',''] %}selected{% endif %}>{{ 'Subscriber' if is_en else 'مشترك' }}</option>
+          </select>
+        </label>
+        <label class="prof-toggle">
+          <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
+          <span class="prof-toggle-knob"></span>
+          <div class="prof-toggle-text">
+            <strong>{{ 'Account enabled' if is_en else 'الحساب مُفعَّل' }}</strong>
+            <small>{{ 'When disabled, the subscriber cannot sign in.' if is_en else 'عند التعطيل لن يستطيع المشترك تسجيل الدخول.' }}</small>
+          </div>
+        </label>
+      </div>
+    </article>
+
+    {# ─── Sticky save bar ─── #}
+    <div class="prof-savebar">
+      <span class="prof-savebar-hint">💡 {{ 'Press save to apply changes.' if is_en else 'اضغط حفظ لتطبيق التعديلات.' }}</span>
+      <div class="prof-savebar-actions">
+        <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save profile' if is_en else 'حفظ الملف' }}</button>
+      </div>
+    </div>
+  </form>
+
+  {# ─── Side column (Solution B) ─── #}
+  <aside class="prof-side">
+    <section class="prof-side-card prof-side-plan">
+      <header>
+        <span class="prof-side-eyebrow">{{ 'Plan' if is_en else 'الخطة' }}</span>
+        <span class="prof-side-state {{ 'is-active' if subscription and subscription.status in ['active','trial'] else 'is-disabled' }}">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else '—' }}</span>
+      </header>
+      <strong class="prof-side-title">{{ (plans|selectattr('id','equalto', tenant.plan_id)|first).name_en if is_en and (plans|selectattr('id','equalto', tenant.plan_id)|first) else ((plans|selectattr('id','equalto', tenant.plan_id)|first).name_ar if (plans|selectattr('id','equalto', tenant.plan_id)|first) else ('No plan' if is_en else 'بدون خطة')) }}</strong>
+      <div class="prof-side-rows">
+        <div><span>{{ 'Days left' if is_en else 'الأيام المتبقية' }}</span><b>{% if subscription_day_info.days_left is not none %}{{ subscription_day_info.days_left }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Ends at' if is_en else 'تاريخ الانتهاء' }}</span><b>{% if subscription_day_info.target %}{{ format_local(subscription_day_info.target) }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Tenant status' if is_en else 'حالة المشترك' }}</span><b>{{ ui_label(tenant.status, 'status', ui_lang) }}</b></div>
+      </div>
+    </section>
+
+    <section class="prof-side-card prof-side-quick">
+      <header><span class="prof-side-eyebrow">{{ 'Quick actions' if is_en else 'إجراءات سريعة' }}</span></header>
+      <div class="prof-side-actions">
+        <a class="prof-side-btn act-subscription" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='subscription') }}">📅 <span>{{ 'Manage subscription' if is_en else 'إدارة الاشتراك' }}</span></a>
+        <a class="prof-side-btn act-support" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}">💬 <span>{{ 'Open support' if is_en else 'مساحة الدعم' }}</span></a>
+        <a class="prof-side-btn act-devices" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='devices') }}">⚡ <span>{{ 'Devices' if is_en else 'الأجهزة' }}</span></a>
+        <a class="prof-side-btn act-finance" href="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='finance') }}">💰 <span>{{ 'Finance' if is_en else 'المالية' }}</span></a>
+      </div>
+    </section>
+
+    <section class="prof-side-card prof-side-meta">
+      <header><span class="prof-side-eyebrow">{{ 'Account meta' if is_en else 'معلومات الحساب' }}</span></header>
+      <div class="prof-side-rows">
+        <div><span>{{ 'User ID' if is_en else 'المعرّف' }}</span><b>#{{ user_obj.id }}</b></div>
+        <div><span>{{ 'Created' if is_en else 'تاريخ الإنشاء' }}</span><b>{% if user_obj.created_at %}{{ format_local(user_obj.created_at) }}{% else %}—{% endif %}</b></div>
+        <div><span>{{ 'Last login' if is_en else 'آخر دخول' }}</span><b>{% if user_obj.last_login_at %}{{ format_local(user_obj.last_login_at) }}{% else %}—{% endif %}</b></div>
+      </div>
+    </section>
+  </aside>
+  </div>
+</div>{# /.prof-shell #}
+
+</div>

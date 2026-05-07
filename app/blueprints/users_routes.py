@@ -6,7 +6,7 @@ import json
 # Heavy v10.1 split blueprint. The route logic is intentionally moved out of
 # main.py while importing legacy helpers/services from main during the migration
 # window. This keeps behavior stable while main.py shrinks safely.
-from flask import Blueprint
+from flask import Blueprint, g
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -62,12 +62,16 @@ def _is_admin_role_code(role: str | None) -> bool:
 
 
 def _staff_role_codes() -> set[str]:
+    cached = getattr(g, '_staff_role_codes_cache', None)
+    if cached is not None:
+        return cached
     seed_access_control(commit=True)
     codes = {'admin'}
     for role in available_roles():
         code = (getattr(role, 'code', '') or '').strip().lower()
         if code and _is_admin_role_code(code):
             codes.add(code)
+    g._staff_role_codes_cache = codes
     return codes
 
 
@@ -444,9 +448,9 @@ def _activity_summary_label(item, lang: str = 'ar') -> str:
         ('Updated subscription', 'تم تعديل الاشتراك'),
         ('Updated profile for user', 'تم تعديل بيانات الحساب'),
         ('Updated profile', 'تم تعديل بيانات الحساب'),
-        ('Created quota', 'تم إنشاء كوتا'),
-        ('Updated quota', 'تم تحديث كوتا'),
-        ('Deleted quota', 'تم حذف كوتا'),
+        ('Created quota', 'تم إنشاء حدود استخدام'),
+        ('Updated quota', 'تم تحديث حدود الاستخدام'),
+        ('Deleted quota', 'تم حذف حدود الاستخدام'),
         ('Created support case', 'تم إنشاء حالة دعم'),
         ('Admin updated support message', 'تم تحديث رسالة دعم'),
         ('Admin updated support ticket', 'تم تحديث تذكرة دعم'),
@@ -1167,7 +1171,13 @@ def admin_activity_log():
     for item in AdminActivityLog.query.order_by(AdminActivityLog.created_at.desc(), AdminActivityLog.id.desc()).all():
         actor = AppUser.query.get(item.actor_user_id) if item.actor_user_id else None
         rows.append({'item': item, 'actor': actor})
-    return render_template('admin_activity_log.html', rows=rows, ui_lang=_lang())
+    return render_template(
+        'admin_activity_log.html',
+        rows=rows,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+        activity_label=_activity_summary_label,
+    )
 
 
 @users_bp.route('/admin/roles')

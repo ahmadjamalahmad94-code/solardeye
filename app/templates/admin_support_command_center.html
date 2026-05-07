@@ -461,15 +461,19 @@
               </button>
             {% endfor %}
           {% else %}
-            <p class="sc-empty-mini">{{ 'No cases match this filter.' if is_en else 'لا توجد طلبات ضمن هذا الفلتر.' }}</p>
+            <div class="sc-inbox-empty">
+              <p>{{ 'No support cases match this filter.' if is_en else 'لا توجد طلبات ضمن هذا الفلتر.' }}</p>
+            </div>
           {% endif %}
         </section>
       </aside>
     </section>
 
+    {# ───────── Toast for AJAX feedback ───────── #}
     <div class="sc-toast" data-sc-toast hidden></div>
   </main>
 </div>
 
-<script src="{{ url_for('static', filename='js/support_center.js', v='v185-toast-layer-center-20260505') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/support_center.css', v='v210-restored-20260505') }}">
+<script src="{{ url_for('static', filename='js/support_center.js', v='v210-restored-20260505') }}" defer></script>
 {% endblock %}

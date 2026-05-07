@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'Mobile API Docs' if is_en else 'توثيق واجهة برمجة تطبيقات الجوّال' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/api_docs_v2.css', v='v211-api-docs-rebuild-20260506') }}">
+{% endblock %}
+
+{% block body %}
+{% set _total_endpoints = spec.paths|length if spec.paths else 0 %}
+{% set _total_ops = by_tag.values()|map('length')|sum %}
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area apidoc-page">
+
+    {# ─── Hero with API badges ─── #}
+    <header class="hu-hero apidoc-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+            {{ 'Mobile API' if is_en else 'واجهة برمجة تطبيقات الجوّال' }}
+          </span>
+          <h1 class="hu-h1">{{ 'SolarDeye OpenAPI v1 — mobile-first endpoints' if is_en else 'مواصفة SolarDeye OpenAPI v1 — نقاط مهيّأة للجوّال' }}</h1>
+          <p class="hu-tagline">{{ 'Authentication, devices, support, and notifications endpoints designed for native iOS/Android apps and web SPAs.' if is_en else 'نقاط المصادقة والأجهزة والدعم والإشعارات مصمّمة لتطبيقات iOS/Android وتطبيقات الويب أحادية الصفحة.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ spec.info.version }}</b> {{ 'version' if is_en else 'إصدار' }}</span>
+            <span class="hu-meta-pill"><b>{{ _total_endpoints }}</b> {{ 'paths' if is_en else 'مسار' }}</span>
+            <span class="hu-meta-pill"><b>{{ _total_ops }}</b> {{ 'operations' if is_en else 'عملية' }}</span>
+            <span class="hu-meta-pill ok">🔐 {{ 'Bearer JWT' if is_en else 'مصادقة برمز حامل موقّع' }}</span>
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ spec_url }}" target="_blank">{ } {{ 'OpenAPI JSON' if is_en else 'ملف المواصفة بصيغة JSON' }}</a>
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('integrations.admin_integrations', lang=ui_lang) }}">🔗 {{ 'Integrations' if is_en else 'التكاملات' }}</a>
+        </div>
+      </div>
+    </header>
+
+    {# ─── Auth quick-start card ─── #}
+    <section class="apidoc-quickstart">
+      <div class="apidoc-qs-text">
+        <span class="apidoc-qs-eyebrow">🚀 {{ 'Quick start' if is_en else 'بدء سريع' }}</span>
+        <h2>{{ 'Authentication flow' if is_en else 'مسار المصادقة' }}</h2>
+        <p>{{ 'POST credentials to get an access token, then send all requests with Bearer auth header.' if is_en else 'أرسل بيانات الدخول عبر طلب POST للحصول على رمز وصول، ثم أرسل كل الطلبات بترويسة مصادقة الرمز الحامل (Bearer).' }}</p>
+      </div>
+      <pre class="apidoc-code"><code><span class="apidoc-comment"># 1. تسجيل الدخول</span>
+POST /api/v1/auth/login
+{
+  "username": "user@example.com",
+  "password": "..."
+}
+
+<span class="apidoc-comment"># 2. استخدام رمز الوصول</span>
+GET /api/v1/devices
+Authorization: Bearer <span class="apidoc-token">eyJhbGc...</span></code></pre>
+    </section>
+
+    {# ─── Endpoints by tag ─── #}
+    {% for tag, ops in by_tag.items() %}
+    <section class="apidoc-tag-block">
+      <header class="apidoc-tag-head">
+        <div class="apidoc-tag-icon">
+          {% if tag == 'Auth' %}🔐
+          {% elif tag == 'Mobile' %}📱
+          {% elif tag == 'Devices' %}🔌
+          {% elif tag == 'Support' %}🎧
+          {% elif tag == 'Notifications' %}🔔
+          {% else %}✦{% endif %}
+        </div>
+        <div>
+          <small class="apidoc-tag-eyebrow">{{ tag_labels[tag] }}</small>
+          <h2>{{ tag_labels[tag] }} {{ 'endpoints' if is_en else '— نقاط الوصول' }}</h2>
+        </div>
+        <span class="apidoc-tag-count">{{ ops|length }}</span>
+      </header>
+      <div class="apidoc-endpoints">
+        {% for op in ops %}
+        <article class="apidoc-endpoint">
+          <span class="apidoc-method apidoc-method-{{ op.method|lower }}">{{ op.method }}</span>
+          <code class="apidoc-path">{{ op.path }}</code>
+          <span class="apidoc-summary">{{ op.summary }}</span>
+          {% if op.auth_required %}<span class="apidoc-auth-badge" title="{{ 'Bearer auth required' if is_en else 'يتطلّب مصادقة الرمز الحامل (Bearer)' }}">🔒</span>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    {# ─── Schemas / response envelope ─── #}
+    <section class="apidoc-schemas">
+      <header class="apidoc-block-head">
+        <span class="apidoc-block-eyebrow">📐 {{ 'Schemas' if is_en else 'بُنى البيانات' }}</span>
+        <h2>{{ 'Standard response envelope' if is_en else 'الغلاف الموحَّد للاستجابة' }}</h2>
+      </header>
+      <div class="apidoc-schemas-grid">
+        <article class="apidoc-schema">
+          <header><strong>ApiOk</strong><span class="apidoc-pill apidoc-pill-ok">{{ 'success' if is_en else 'نجاح' }}</span></header>
+          <pre><code>{
+  "ok": true,
+  "data": { ... },
+  "meta": { ... },
+  "errors": []
+}</code></pre>
+        </article>
+        <article class="apidoc-schema">
+          <header><strong>ApiError</strong><span class="apidoc-pill apidoc-pill-err">{{ 'error' if is_en else 'خطأ' }}</span></header>
+          <pre><code>{
+  "ok": false,
+  "message": "...",
+  "code": "...",
+  "errors": [ ... ]
+}</code></pre>
+        </article>
+      </div>
+    </section>
+
+  </main>
+</div>
+{% endblock %}

@@ -1,31 +1,216 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Plans' if is_en else 'الباقات' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_plans_v2.css', v='v211-plans-aside-left-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2">
-    <header class="admin-page-head compact">
-      <div><span class="eyebrow">{{ 'Plans' if is_en else 'الخطط' }}</span><h1>{{ 'Subscriptions and packaging' if is_en else 'الباقات والاشتراكات' }}</h1><p>{{ 'Create and manage productized plans for subscribers.' if is_en else 'إنشاء وإدارة باقات واضحة للمشتركين.' }}</p></div>
-      <a class="btn btn-solar" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ 'Create plan' if is_en else 'إضافة خطة' }}</a>
-    </header>
-    <section class="admin-card-v2 ui-reactive plans-card-v115" data-hover-card>
-      <div class="plans-list-v115">
-        {% for plan in plans %}
-        <article class="plan-row-v115">
-          <div class="plan-code-v115"><span class="chip-v2">{{ plan.code }}</span></div>
-          <div class="plan-main-v115">
-            <strong>{{ plan.name_en if is_en else plan.name_ar }}</strong>
-            <small>{{ plan.name_ar }} / {{ plan.name_en }}</small>
-          </div>
-          <div class="plan-meta-v115"><small>{{ 'Price' if is_en else 'السعر' }}</small><b>{{ plan.price }} {{ plan.currency }}</b></div>
-          <div class="plan-meta-v115"><small>{{ 'Duration' if is_en else 'المدة' }}</small><b>{{ plan.duration_days_default }} {{ 'days' if is_en else 'يوم' }}</b></div>
-          <div class="plan-meta-v115"><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><b>{{ plan.max_devices }}</b></div>
-          <div class="plan-state-v115"><span class="status-pill {{ 'success' if plan.is_active else 'danger' }}">{{ 'Active' if is_en and plan.is_active else ('Inactive' if is_en else ('مفعلة' if plan.is_active else 'معطلة')) }}</span></div>
-          <div class="plan-actions-v115"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_plan_edit', plan_id=plan.id, lang=ui_lang) }}">{{ 'Edit' if is_en else 'تعديل' }}</a></div>
-        </article>
-        {% endfor %}
+  <main class="app-main content-area pln-page has-aside">
+
+    {# ── Hero ────────────────────────────────────────────────── #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Plans' if is_en else 'الباقات' }}</span>
+          <h1 class="hu-h1">{{ 'Productize subscriptions clearly' if is_en else 'صياغة باقات الاشتراك بوضوح' }}</h1>
+          <p class="hu-tagline">{{ 'Configure plans, pricing, durations.' if is_en else 'إعداد الباقات والأسعار والمدد.' }}</p>
+          <div class="hu-hero-meta"><span class="hu-meta-pill"><b>{{ plans|length }}</b> {{ 'plans' if is_en else 'باقة' }}</span></div>
+        </div>
+        <div class="hu-hero-cta"><a class="hu-btn hu-btn-primary" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ '+ New plan' if is_en else '+ باقة جديدة' }}</a></div>
       </div>
-    </section>
+    </header>
+
+    {# ── 2-column shell: aside (visual LEFT) + plans grid (right) ── #}
+    <div class="pln-shell">
+
+      {# ════════ ASIDE — INSIGHTS COLUMN (left) ════════ #}
+      <aside class="pln-aside">
+
+        {# 1. EXPLAINER — moved to top per request #}
+        <div class="pln-as-card explainer">
+          <h4>📘 {{ 'How plans work' if is_en else 'كيف تعمل الباقات' }}</h4>
+          <p>{{ 'A plan defines pricing, duration, included features, and per-subscriber quota limits.' if is_en else 'الباقة تُعرّف السعر والمدة والمزايا المضمنة وحدود الكوتا لكل مشترك.' }}</p>
+          <p>{{ 'When you attach a subscriber to a plan, all quota limits are auto-created. Subscriber-level edits become overrides.' if is_en else 'عند ربط مشترك بباقة يتم إنشاء حدود الكوتا تلقائياً، وتعديلاتك على المشترك تصبح استثناءات شخصية.' }}</p>
+          <p>{{ 'Use the "sort order" field to control which plan appears first on the landing page.' if is_en else 'استخدم حقل "الترتيب" للتحكم بأي باقة تظهر أولاً في صفحة الهبوط.' }}</p>
+          <p>{{ 'Deactivating a plan hides it from new subscribers without affecting existing ones.' if is_en else 'تعطيل الباقة يخفيها عن المشتركين الجدد دون التأثير على الموجودين.' }}</p>
+        </div>
+
+        {# 2. Catalog summary KPIs #}
+        <div class="pln-as-card">
+          <h4>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>
+            {{ 'Catalog summary' if is_en else 'ملخص الكتالوج' }}
+          </h4>
+          <div class="pln-as-mini-grid">
+            <div class="pln-as-mini accent-blue">
+              <small>{{ 'Plans' if is_en else 'الباقات' }}</small>
+              <strong>{{ insights.plans_total }}</strong>
+              <span>{{ 'in catalog' if is_en else 'في الكتالوج' }}</span>
+            </div>
+            <div class="pln-as-mini accent-emerald">
+              <small>{{ 'Active' if is_en else 'نشطة' }}</small>
+              <strong>{{ insights.plans_active }}</strong>
+              <span>{{ 'available' if is_en else 'متاحة' }}</span>
+            </div>
+            <div class="pln-as-mini accent-amber">
+              <small>{{ 'Subscribers' if is_en else 'مشتركون' }}</small>
+              <strong>{{ insights.subs_total }}</strong>
+              <span>{{ 'across plans' if is_en else 'عبر الباقات' }}</span>
+            </div>
+            <div class="pln-as-mini accent-violet">
+              <small>{{ 'Revenue' if is_en else 'الإيرادات' }}</small>
+              <strong>{{ '%.0f'|format(insights.revenue_total) }}</strong>
+              <span>USD {{ 'lifetime' if is_en else 'تراكمي' }}</span>
+            </div>
+          </div>
+        </div>
+
+        {# 3. Subscriber distribution chart #}
+        <div class="pln-as-card">
+          <h4>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            {{ 'Distribution by plan' if is_en else 'التوزيع حسب الباقة' }}
+          </h4>
+          {% if distribution and insights.subs_total > 0 %}
+            <div class="pln-as-dist">
+              {% for d in distribution %}
+                {% set is_top = insights.most_popular and d.plan.id == insights.most_popular.id and d.count > 0 %}
+                <div class="pln-as-dist-row {{ 'is-zero' if d.count == 0 else '' }} {{ 'is-top' if is_top else '' }}">
+                  <div class="pln-as-dist-meta">
+                    <strong>{{ d.plan.name_en if is_en else d.plan.name_ar }}</strong>
+                    <span><b>{{ d.count }}</b> · {{ d.active }} {{ 'active' if is_en else 'نشط' }}</span>
+                  </div>
+                  <div class="pln-as-dist-bar"><span style="width: {{ d.pct }}%"></span></div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="pln-as-empty">{{ 'No subscriptions yet.' if is_en else 'لا توجد اشتراكات بعد.' }}</div>
+          {% endif %}
+        </div>
+
+        {# 4. Comparisons #}
+        <div class="pln-as-card">
+          <h4>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            {{ 'Highlights & comparisons' if is_en else 'مقارنات وأبرز الباقات' }}
+          </h4>
+          {% if insights.cheapest %}
+            <div class="pln-as-cmp-row cheap">
+              <span class="pln-as-cmp-icon">💚</span>
+              <div class="pln-as-cmp-info">
+                <small>{{ 'Cheapest' if is_en else 'الأرخص' }}</small>
+                <strong>{{ insights.cheapest.name_en if is_en else insights.cheapest.name_ar }}</strong>
+              </div>
+              <span class="pln-as-cmp-value">{{ '%.0f'|format(insights.cheapest.price) }} {{ insights.cheapest.currency }}</span>
+            </div>
+          {% endif %}
+          {% if insights.priciest and insights.priciest != insights.cheapest %}
+            <div class="pln-as-cmp-row pricey">
+              <span class="pln-as-cmp-icon">💎</span>
+              <div class="pln-as-cmp-info">
+                <small>{{ 'Premium' if is_en else 'الأعلى' }}</small>
+                <strong>{{ insights.priciest.name_en if is_en else insights.priciest.name_ar }}</strong>
+              </div>
+              <span class="pln-as-cmp-value">{{ '%.0f'|format(insights.priciest.price) }} {{ insights.priciest.currency }}</span>
+            </div>
+          {% endif %}
+          {% if insights.most_popular %}
+            <div class="pln-as-cmp-row popular">
+              <span class="pln-as-cmp-icon">🔥</span>
+              <div class="pln-as-cmp-info">
+                <small>{{ 'Most popular' if is_en else 'الأكثر طلباً' }}</small>
+                <strong>{{ insights.most_popular.name_en if is_en else insights.most_popular.name_ar }}</strong>
+              </div>
+              <span class="pln-as-cmp-value">{{ insights.most_popular_count }} {{ 'subs' if is_en else 'اشتراك' }}</span>
+            </div>
+          {% endif %}
+          {% if insights.longest_duration %}
+            <div class="pln-as-cmp-row long">
+              <span class="pln-as-cmp-icon">⏱</span>
+              <div class="pln-as-cmp-info">
+                <small>{{ 'Longest term' if is_en else 'أطول مدة' }}</small>
+                <strong>{{ insights.longest_duration.name_en if is_en else insights.longest_duration.name_ar }}</strong>
+              </div>
+              <span class="pln-as-cmp-value">{{ insights.longest_duration.duration_days_default }} {{ 'd' if is_en else 'يوم' }}</span>
+            </div>
+          {% endif %}
+          {% if insights.avg_price > 0 %}
+            <div class="pln-as-cmp-row">
+              <span class="pln-as-cmp-icon">📊</span>
+              <div class="pln-as-cmp-info">
+                <small>{{ 'Average price' if is_en else 'متوسط السعر' }}</small>
+                <strong>{{ 'Across paid plans' if is_en else 'عبر الباقات المدفوعة' }}</strong>
+              </div>
+              <span class="pln-as-cmp-value">{{ '%.2f'|format(insights.avg_price) }} USD</span>
+            </div>
+          {% endif %}
+        </div>
+
+        {# 5. Subscriber-status mix #}
+        <div class="pln-as-card">
+          <h4>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {{ 'Subscriber lifecycle' if is_en else 'مراحل المشتركين' }}
+          </h4>
+          <div class="pln-as-dist">
+            {% set _max = [insights.subs_active, insights.subs_trial, insights.subs_expired]|max or 1 %}
+            <div class="pln-as-dist-row">
+              <div class="pln-as-dist-meta"><strong>✅ {{ 'Active' if is_en else 'نشط' }}</strong><span>{{ insights.subs_active }}</span></div>
+              <div class="pln-as-dist-bar"><span style="width: {{ (insights.subs_active / _max * 100)|int }}%; background: linear-gradient(90deg, #22c55e, #15803d);"></span></div>
+            </div>
+            <div class="pln-as-dist-row">
+              <div class="pln-as-dist-meta"><strong>🌱 {{ 'Trial' if is_en else 'تجريبي' }}</strong><span>{{ insights.subs_trial }}</span></div>
+              <div class="pln-as-dist-bar"><span style="width: {{ (insights.subs_trial / _max * 100)|int }}%; background: linear-gradient(90deg, #3b82f6, #1d4ed8);"></span></div>
+            </div>
+            <div class="pln-as-dist-row">
+              <div class="pln-as-dist-meta"><strong>⏰ {{ 'Expired' if is_en else 'منتهي' }}</strong><span>{{ insights.subs_expired }}</span></div>
+              <div class="pln-as-dist-bar"><span style="width: {{ (insights.subs_expired / _max * 100)|int }}%; background: linear-gradient(90deg, #f59e0b, #b45309);"></span></div>
+            </div>
+          </div>
+        </div>
+
+      </aside>{# /pln-aside #}
+
+      {# ════════ MAIN — PLANS GRID ════════ #}
+      <section class="pln-grid">
+        {% for plan in plans %}
+          {% set is_featured = loop.index == 2 %}
+          <article class="pln-card {% if not plan.is_active %}is-disabled{% endif %} {% if is_featured %}is-featured{% endif %}">
+            {% if is_featured %}<span class="pln-badge">{{ 'Most popular' if is_en else 'الأكثر طلباً' }}</span>{% endif %}
+            <header class="pln-card-head">
+              <span class="pln-code">{{ plan.code }}</span>
+              <span class="pln-status {{ 'is-on' if plan.is_active else 'is-off' }}">
+                {% if plan.is_active %}{{ 'Active' if is_en else 'نشطة' }}{% else %}{{ 'Off' if is_en else 'متوقفة' }}{% endif %}
+              </span>
+            </header>
+            <div class="pln-name">
+              <h3>{{ plan.name_en if is_en else plan.name_ar }}</h3>
+              <small>{{ plan.name_ar if is_en else plan.name_en }}</small>
+            </div>
+            <div class="pln-price"><strong>{{ plan.price }}</strong><span>{{ plan.currency }}</span><em>/ {{ plan.duration_days_default }} {{ 'days' if is_en else 'يوم' }}</em></div>
+            <ul class="pln-features">
+              <li><span>📱</span> <b>{{ plan.max_devices }}</b> {{ 'devices' if is_en else 'جهاز' }}</li>
+              <li><span>📅</span> <b>{{ plan.duration_days_default }}</b> {{ 'days' if is_en else 'يوم' }}</li>
+              <li><span>💳</span> {{ plan.currency }} {{ 'billing' if is_en else 'فوترة' }}</li>
+            </ul>
+            <footer class="pln-card-actions">
+              <a class="pln-btn primary" href="{{ url_for('main.admin_plan_edit', plan_id=plan.id, lang=ui_lang) }}">{{ 'Edit plan' if is_en else 'تحرير الباقة' }}</a>
+            </footer>
+          </article>
+        {% else %}
+          <div class="pln-empty">
+            <span>📦</span>
+            <h3>{{ 'No plans yet' if is_en else 'لا توجد باقات بعد' }}</h3>
+            <p>{{ 'Create your first plan.' if is_en else 'أنشئ أول باقة لديك.' }}</p>
+            <a class="pln-btn primary" href="{{ url_for('main.admin_plan_create', lang=ui_lang) }}">{{ '+ Create' if is_en else '+ إنشاء' }}</a>
+          </div>
+        {% endfor %}
+      </section>
+
+    </div>{# /pln-shell #}
   </main>
 </div>
 {% endblock %}

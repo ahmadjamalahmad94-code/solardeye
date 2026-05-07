@@ -1,5 +1,29 @@
 from __future__ import annotations
 
+# ═══════════════════════════════════════════════════════════════════════
+# LEGACY URL BRIDGE — main_compat.py
+# ═══════════════════════════════════════════════════════════════════════
+# This module exists to keep `url_for('main.<name>')` calls working in
+# templates while the actual route handlers have moved to dedicated
+# blueprints (users_routes, energy, support, notifications_routes, etc.).
+#
+# Each function below is a thin stub registered under the 'main' blueprint
+# that simply delegates to the real implementation in its proper blueprint.
+#
+# DEPRECATION PATH (low priority, high risk — defer):
+#   For each stub, the long-term cleanup is to:
+#     1. Update every `url_for('main.X')` in templates to use the proper
+#        blueprint endpoint, e.g. `url_for('users_routes.admin_user_profile')`.
+#     2. Test every page to confirm no broken links.
+#     3. Remove the stub.
+#
+# This is currently 62 stubs × multiple template references each → ~200
+# call-site updates with full regression testing required. Until then,
+# the bridge stays.
+#
+# Updated: 2026-05-05  (added structural docs)
+# ═══════════════════════════════════════════════════════════════════════
+
 
 def register_main_compat_routes(main_bp):
     @main_bp.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])

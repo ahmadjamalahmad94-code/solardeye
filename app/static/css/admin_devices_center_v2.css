@@ -1,0 +1,868 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   admin_devices_center_v2.css  —  v211 redesign — 20260506
+   Strong section rhythm, clearer purpose labels, richer table.
+═══════════════════════════════════════════════════════════════════════ */
+
+.dvf-page { padding-bottom: 64px; }
+
+/* ── Strong, visible breathing room between sections ─────────────── */
+.dvf-page > section,
+.dvf-page > .dvf-shell {
+  margin-top: 0 !important;
+  margin-bottom: 32px !important;
+}
+.dvf-page > section + section,
+.dvf-page > section + .dvf-shell,
+.dvf-page > .dvf-shell + section { margin-top: 32px !important; }
+
+/* ── Section eyebrow header (purpose label per section) ──────────── */
+.dvf-section-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+.dvf-section-head h2 {
+  margin: 0;
+  font-size: 1.05rem; font-weight: 800; color: #0f172a;
+  display: flex; align-items: center; gap: 9px;
+}
+.dvf-section-head small {
+  display: block;
+  font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: #6b7280;
+  margin-bottom: 4px;
+}
+.dvf-section-head .dvf-sec-icon {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  font-size: .95rem;
+  background: #eef2ff; color: #4338ca;
+  flex-shrink: 0;
+}
+.dvf-section-meta {
+  font-size: .78rem; color: #64748b; font-weight: 700;
+}
+
+/* ── KPI cards row — clearer breathing & accent stripe ──────────── */
+.dvf-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+.dvf-kpi {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 18px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.dvf-kpi::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0; bottom: 0;
+  width: 4px;
+  background: #6366f1;
+}
+.dvf-kpi.accent-blue::before    { background: linear-gradient(180deg,#3b82f6,#1d4ed8); }
+.dvf-kpi.accent-emerald::before { background: linear-gradient(180deg,#22c55e,#15803d); }
+.dvf-kpi.accent-amber::before   { background: linear-gradient(180deg,#f59e0b,#b45309); }
+.dvf-kpi.accent-violet::before  { background: linear-gradient(180deg,#a855f7,#6d28d9); }
+.dvf-kpi:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, .12);
+  transform: translateY(-2px);
+}
+.dvf-kpi-icon {
+  width: 46px; height: 46px;
+  border-radius: 13px;
+  display: grid; place-items: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  background: #f1f5f9;
+}
+.dvf-kpi.accent-blue    .dvf-kpi-icon { background: #eff6ff; color: #1d4ed8; }
+.dvf-kpi.accent-emerald .dvf-kpi-icon { background: #f0fdf4; color: #15803d; }
+.dvf-kpi.accent-amber   .dvf-kpi-icon { background: #fffbeb; color: #b45309; }
+.dvf-kpi.accent-violet  .dvf-kpi-icon { background: #f5f3ff; color: #6d28d9; }
+.dvf-kpi-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.dvf-kpi-body small {
+  font-size: .72rem; font-weight: 800; color: #6b7280;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.dvf-kpi-body strong {
+  font-size: 1.7rem; font-weight: 900; line-height: 1.1; color: #0f172a;
+}
+.dvf-kpi-body span {
+  font-size: .76rem; color: #94a3b8; font-weight: 600;
+}
+
+/* ── Filter toolbar — clearly its own card ──────────────────────── */
+.dvf-toolbar {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 6px rgba(15,23,42,.04);
+}
+.dvf-filter-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+}
+.dvf-field {
+  display: grid; gap: 6px;
+}
+.dvf-field > span {
+  font-size: .78rem; font-weight: 800; color: #475569;
+}
+.dvf-field input,
+.dvf-field select {
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 10px;
+  font: inherit; font-size: .9rem; font-weight: 600;
+  color: #0f172a;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.dvf-field input:focus,
+.dvf-field select:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(99,102,241,.14);
+}
+.dvf-filter-actions { display: flex; gap: 10px; align-self: end; }
+.dvf-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: .88rem; font-weight: 800;
+  cursor: pointer; text-decoration: none;
+  border: 1.5px solid transparent;
+  transition: transform .15s, box-shadow .15s, background .15s;
+}
+.dvf-btn.primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99,102,241,.32);
+}
+.dvf-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(99,102,241,.4); }
+.dvf-btn.ghost {
+  background: #fff;
+  border-color: #e5e7eb;
+  color: #475569;
+}
+.dvf-btn.ghost:hover { border-color: #6366f1; background: #eef2ff; color: #4338ca; }
+
+/* ── Table block ─────────────────────────────────────────────────── */
+.dvf-table-block {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px 22px 22px;
+  box-shadow: 0 2px 6px rgba(15,23,42,.04);
+}
+.dvf-table-wrap { overflow-x: auto; margin-top: 4px; }
+.dvf-table {
+  width: 100%; border-collapse: collapse;
+  font-size: .9rem;
+}
+.dvf-table thead th {
+  text-align: start;
+  font-size: .72rem; font-weight: 800; color: #6b7280;
+  text-transform: uppercase; letter-spacing: .05em;
+  padding: 12px 10px;
+  border-bottom: 2px solid #e5e7eb;
+  background: #fafbff;
+  white-space: nowrap;
+}
+.dvf-table tbody td {
+  padding: 14px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.dvf-table tbody tr:hover { background: #fafbff; }
+.dvf-table tbody tr:last-child td { border-bottom: none; }
+
+/* Device cell with avatar */
+.dvf-device-cell { display: flex; align-items: center; gap: 12px; }
+.dvf-device-avatar {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  font-weight: 900; font-size: 1rem;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.dvf-device-cell strong {
+  display: block; font-size: .92rem; font-weight: 800; color: #0f172a;
+  margin-bottom: 2px;
+}
+.dvf-device-cell small {
+  display: block; font-size: .72rem; color: #6b7280; font-weight: 600;
+}
+.dvf-device-cell small code {
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: .68rem;
+  color: #475569;
+}
+
+/* Plant / station info cell */
+.dvf-plant-cell strong {
+  display: block; font-size: .85rem; color: #0f172a; font-weight: 700;
+}
+.dvf-plant-cell small { font-size: .72rem; color: #64748b; }
+
+/* Tags / pills */
+.dvf-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: .72rem; font-weight: 800;
+  background: #eef2ff; color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+.dvf-tag.dvf-tag-type { background: #f0fdfa; color: #0f766e; border-color: #99f6e4; }
+
+.dvf-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px; border-radius: 999px;
+  font-size: .74rem; font-weight: 800;
+  border: 1px solid;
+}
+.dvf-pill::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .8;
+}
+.dvf-status-ok,
+.dvf-status-connected,
+.dvf-status-ready  { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.dvf-status-warning { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.dvf-status-failed,
+.dvf-status-error  { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+.dvf-status-new,
+.dvf-status-setup_required { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+/* Owner cell */
+.dvf-owner-cell strong {
+  display: block; font-size: .85rem; color: #0f172a; font-weight: 700;
+}
+.dvf-owner-cell small { font-size: .72rem; color: #64748b; }
+
+/* Last seen cell */
+.dvf-lastseen { display: flex; flex-direction: column; gap: 2px; }
+.dvf-lastseen time { font-size: .82rem; color: #0f172a; font-weight: 700; }
+.dvf-lastseen .dvf-ago { font-size: .7rem; color: #94a3b8; font-weight: 600; }
+.dvf-lastseen.is-stale time { color: #b45309; }
+.dvf-lastseen.is-stale .dvf-ago { color: #d97706; }
+.dvf-lastseen.is-fresh time { color: #15803d; }
+
+/* Empty state */
+.dvf-empty { text-align: center; padding: 36px; }
+.dvf-empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; color: #94a3b8;
+}
+.dvf-empty-state span { font-size: 1rem; font-weight: 700; }
+
+/* ── Insights aside (shell similar to plans page) ───────────────── */
+.dvf-shell {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 1180px) { .dvf-shell { grid-template-columns: 1fr; } }
+[dir="rtl"] .dvf-shell { direction: ltr; }
+[dir="rtl"] .dvf-shell > * { direction: rtl; }
+
+.dvf-aside { display: grid; gap: 14px; position: sticky; top: 18px; }
+@media (max-width: 1180px) { .dvf-aside { position: static; } }
+
+.dvf-as-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 2px 6px rgba(15,23,42,.04);
+}
+.dvf-as-card h4 {
+  font-size: .88rem; font-weight: 800; color: #0f172a;
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e5e7eb;
+  display: flex; align-items: center; gap: 8px;
+}
+.dvf-as-card.explainer {
+  background: linear-gradient(135deg, #eef2ff, #f0fdf4);
+  border-color: #c7d2fe;
+}
+.dvf-as-card.explainer h4 { color: #4338ca; border-bottom-color: #c7d2fe; }
+.dvf-as-card.explainer p {
+  margin: 0; font-size: .82rem; line-height: 1.7; color: #334155;
+}
+.dvf-as-card.explainer p + p { margin-top: 9px; }
+
+.dvf-as-mix { display: grid; gap: 9px; }
+.dvf-as-mix-row {
+  display: grid; gap: 4px;
+}
+.dvf-as-mix-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .76rem; font-weight: 700;
+}
+.dvf-as-mix-meta strong { color: #0f172a; }
+.dvf-as-mix-meta span { color: #64748b; }
+.dvf-as-mix-bar {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: #f1f5f9; border: 1px solid #e5e7eb;
+}
+.dvf-as-mix-bar > span {
+  display: block; height: 100%;
+  border-radius: 999px;
+  transition: width .25s ease;
+  min-width: 2px;
+}
+
+.dvf-as-tip {
+  font-size: .78rem; color: #475569; line-height: 1.6;
+  padding: 10px 12px;
+  background: #fafbff;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+}
+.dvf-as-tip + .dvf-as-tip { margin-top: 8px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v211 — devices polish per feedback (20260506b)
+═══════════════════════════════════════════════════════════════════ */
+
+/* Filter form: TWO equal columns side-by-side, actions on a third row */
+.dvf-toolbar .dvf-filter-form {
+  grid-template-columns: 1fr 1fr !important;
+  align-items: end !important;
+  gap: 14px 18px !important;
+}
+.dvf-filter-actions {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  gap: 10px !important;
+  justify-content: flex-end !important;
+  padding-top: 4px !important;
+}
+@media (max-width: 700px) {
+  .dvf-toolbar .dvf-filter-form { grid-template-columns: 1fr !important; }
+}
+
+/* Center the table cells & headers */
+.dvf-table thead th,
+.dvf-table tbody td { text-align: center !important; vertical-align: middle !important; }
+.dvf-table .dvf-device-cell,
+.dvf-table .dvf-owner-cell,
+.dvf-table .dvf-plant-cell { justify-content: center; align-items: center; }
+.dvf-table .dvf-device-cell { display: inline-flex !important; gap: 12px; }
+.dvf-table .dvf-device-cell strong,
+.dvf-table .dvf-device-cell small,
+.dvf-table .dvf-plant-cell strong,
+.dvf-table .dvf-plant-cell small,
+.dvf-table .dvf-owner-cell strong,
+.dvf-table .dvf-owner-cell small { text-align: center; display: block; }
+.dvf-table .dvf-lastseen { align-items: center; }
+
+/* Aside cards: wider internal spacing */
+.dvf-as-card { padding: 22px 20px !important; }
+.dvf-as-card h4 {
+  margin-bottom: 18px !important;
+  padding-bottom: 14px !important;
+  font-size: .95rem !important;
+}
+.dvf-as-card.explainer p { margin-bottom: 14px !important; line-height: 1.85 !important; }
+.dvf-as-card.explainer p:last-child { margin-bottom: 0 !important; }
+.dvf-as-card.explainer p + p { margin-top: 0 !important; }
+
+/* Wider gap between mix rows */
+.dvf-as-mix { gap: 16px !important; }
+.dvf-as-mix-row { gap: 7px !important; }
+.dvf-as-mix-meta { font-size: .82rem !important; padding-bottom: 2px; }
+.dvf-as-mix-meta strong { letter-spacing: .01em; }
+.dvf-as-mix-bar { height: 9px !important; }
+
+/* More breathing room between aside cards */
+.dvf-aside { gap: 18px !important; }
+
+/* v211 — image column centering for the new dedicated صورة cell */
+.dvf-table td .pg-avatar { display: grid; place-items: center; margin: 0 auto; }
+.dvf-table thead th:first-child,
+.dvf-table tbody td:first-child { text-align: center !important; padding: 12px 8px !important; }
+
+/* v211 — single-row filter: 2 dropdowns + actions all on the same row */
+.dvf-toolbar .dvf-filter-form {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto !important;
+  align-items: end !important;
+  gap: 14px !important;
+}
+.dvf-toolbar .dvf-filter-actions {
+  grid-column: auto !important;
+  display: flex !important;
+  gap: 10px !important;
+  align-self: end !important;
+  padding-top: 0 !important;
+  white-space: nowrap;
+}
+@media (max-width: 800px) {
+  .dvf-toolbar .dvf-filter-form { grid-template-columns: 1fr !important; }
+  .dvf-toolbar .dvf-filter-actions { grid-column: 1 / -1 !important; justify-content: flex-end !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v211 — section-head as a friendly title pill (not floating text)
+═══════════════════════════════════════════════════════════════════ */
+.dvf-section-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  margin-bottom: 14px !important;
+  padding: 14px 18px !important;
+  background: linear-gradient(135deg, #fafbff 0%, #f5f7ff 100%) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 14px !important;
+  border-bottom: 1px solid #e5e7eb !important;   /* override the previous dashed bottom */
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03) !important;
+  position: relative;
+  overflow: hidden;
+}
+/* Accent stripe on the start side, hinting at the section's identity */
+.dvf-section-head::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+  border-start-start-radius: 14px;
+  border-end-start-radius: 14px;
+}
+.dvf-section-head h2 {
+  margin: 0 !important;
+  font-size: 1.05rem; font-weight: 800; color: #0f172a;
+  display: flex; align-items: center; gap: 10px;
+}
+.dvf-section-head small {
+  display: block;
+  font-size: .68rem; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: #6366f1;
+  margin-bottom: 5px !important;
+}
+.dvf-section-head .dvf-sec-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 1.05rem;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: #4338ca;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, .15);
+}
+.dvf-section-meta {
+  font-size: .8rem; color: #475569; font-weight: 700;
+  background: rgba(255, 255, 255, .7);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .dvf-section-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .dvf-section-meta { align-self: flex-start; }
+}
+
+/* v211 — match button height to dropdown height (42px) */
+.dvf-toolbar .dvf-field input,
+.dvf-toolbar .dvf-field select,
+.dvf-toolbar .dvf-btn {
+  height: 42px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+.dvf-toolbar .dvf-btn {
+  padding-inline: 18px !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v211 — merge section-head + body into ONE container per section
+═══════════════════════════════════════════════════════════════════ */
+
+/* Make each <section> a single card that wraps head + body */
+.dvf-page > section {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .04) !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+/* Accent stripe on the start side of the WHOLE section card */
+.dvf-page > section::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+}
+
+/* Header inside the card: no own card frame anymore — just a header bar */
+.dvf-page > section > .dvf-section-head {
+  background: linear-gradient(135deg, #fafbff 0%, #f5f7ff 100%) !important;
+  border: none !important;
+  border-bottom: 1px solid #eef0f5 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 18px 14px 22px !important;
+  margin: 0 !important;
+}
+.dvf-page > section > .dvf-section-head::before { display: none !important; }
+
+/* Body inside the card: the KPI row / form / etc. — gets padding here */
+.dvf-page > section > .dvf-kpi-row,
+.dvf-page > section > .dvf-toolbar {
+  padding: 18px 18px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The toolbar inner card frame is no longer needed (it's inside section card) */
+.dvf-page > section > .dvf-toolbar {
+  padding: 18px 22px 22px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v211 — section uniform color + full-height accent stripe
+═══════════════════════════════════════════════════════════════════ */
+
+/* Make section head identical white to the body — no gradient */
+.dvf-page > section > .dvf-section-head {
+  background: #fff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+/* Ensure the violet stripe spans the WHOLE section height, top to bottom,
+   on both LTR and RTL. Use both `left:0` and inset-inline-start for safety. */
+.dvf-page > section {
+  overflow: visible !important;          /* allow nothing to clip the stripe */
+}
+.dvf-page > section::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  inset-inline-start: 0 !important;
+  width: 4px !important;
+  background: linear-gradient(180deg, #6366f1, #4f46e5) !important;
+  border-top-left-radius: 16px !important;
+  border-bottom-left-radius: 16px !important;
+  z-index: 1;
+}
+[dir="rtl"] .dvf-page > section::before {
+  left: auto !important;
+  right: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 16px !important;
+  border-bottom-right-radius: 16px !important;
+}
+
+/* Re-apply rounded clipping to inner header/body so they don't bleed past
+   the rounded section corners (we removed overflow:hidden above) */
+.dvf-page > section > .dvf-section-head {
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+}
+.dvf-page > section > .dvf-kpi-row,
+.dvf-page > section > .dvf-toolbar {
+  border-bottom-left-radius: 16px !important;
+  border-bottom-right-radius: 16px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v212 — table column widths + readability fix (20260506)
+   Problem: 7 columns squashed into aside-less main column.
+   Fix:  min-width on table → horizontal scroll; per-column widths;
+         text-start alignment for text-heavy cells.
+═══════════════════════════════════════════════════════════════════ */
+
+/* Force the table to a comfortable minimum so scroll kicks in */
+.dvf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.dvf-table      { min-width: 960px; table-layout: fixed; }
+
+/* Per-column minimum widths — predictable, no more squishing */
+.dvf-table thead th:nth-child(1),
+.dvf-table tbody td:nth-child(1) { width: 64px;  min-width: 64px;  padding: 10px 8px !important; text-align: center !important; }
+
+.dvf-table thead th:nth-child(2),
+.dvf-table tbody td:nth-child(2) { width: 220px; min-width: 200px; text-align: start !important; padding: 12px 14px !important; }
+
+.dvf-table thead th:nth-child(3),
+.dvf-table tbody td:nth-child(3) { width: 200px; min-width: 180px; text-align: start !important; padding: 12px 14px !important; }
+
+.dvf-table thead th:nth-child(4),
+.dvf-table tbody td:nth-child(4) { width: 140px; min-width: 120px; text-align: center !important; padding: 12px 10px !important; }
+
+.dvf-table thead th:nth-child(5),
+.dvf-table tbody td:nth-child(5) { width: 190px; min-width: 170px; text-align: start !important; padding: 12px 14px !important; }
+
+.dvf-table thead th:nth-child(6),
+.dvf-table tbody td:nth-child(6) { width: 130px; min-width: 110px; text-align: center !important; padding: 12px 10px !important; }
+
+.dvf-table thead th:nth-child(7),
+.dvf-table tbody td:nth-child(7) { width: 160px; min-width: 140px; text-align: start !important; padding: 12px 14px !important; }
+
+/* device-cell: start-aligned flex, not centered */
+.dvf-table .dvf-device-cell {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  gap: 10px;
+}
+.dvf-table .dvf-device-cell strong,
+.dvf-table .dvf-device-cell small { text-align: start !important; }
+
+/* plant + owner: same — start aligned */
+.dvf-table .dvf-plant-cell,
+.dvf-table .dvf-owner-cell { text-align: start !important; }
+.dvf-table .dvf-plant-cell strong,
+.dvf-table .dvf-plant-cell small,
+.dvf-table .dvf-owner-cell strong,
+.dvf-table .dvf-owner-cell small { text-align: start !important; display: block; }
+
+/* lastseen column — start-aligned stacked */
+.dvf-table .dvf-lastseen { align-items: flex-start !important; }
+
+/* Scrollbar hint: styled thin scrollbar so user knows it's scrollable */
+.dvf-table-wrap::-webkit-scrollbar { height: 6px; }
+.dvf-table-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 99px; }
+.dvf-table-wrap::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 99px; }
+.dvf-table-wrap::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+/* Increase row height for comfort */
+.dvf-table tbody td { min-height: 58px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v213 — per-feedback polish (20260506)
+   1. Re-center all table cells
+   2. Shrink KPI numbers (1.7rem → 1.25rem)
+   3. Tighter cell padding
+   4. Aside 25% narrower  (320px → 240px)
+═══════════════════════════════════════════════════════════════════ */
+
+/* 1 — Re-center all columns */
+.dvf-table thead th,
+.dvf-table tbody td { text-align: center !important; }
+
+.dvf-table .dvf-device-cell {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+.dvf-table .dvf-device-cell strong,
+.dvf-table .dvf-device-cell small,
+.dvf-table .dvf-plant-cell strong,
+.dvf-table .dvf-plant-cell small,
+.dvf-table .dvf-owner-cell strong,
+.dvf-table .dvf-owner-cell small { text-align: center !important; }
+.dvf-table .dvf-lastseen { align-items: center !important; }
+
+/* 2 — Shrink the big KPI numbers */
+.dvf-kpi-body strong { font-size: 1.25rem !important; }
+
+/* 3 — Tighter cell padding across all columns */
+.dvf-table thead th,
+.dvf-table tbody td { padding: 9px 7px !important; }
+/* avatar column stays compact */
+.dvf-table thead th:nth-child(1),
+.dvf-table tbody td:nth-child(1) { padding: 8px 6px !important; }
+
+/* 4 — Aside 25% narrower: 320px → 240px */
+.dvf-shell { grid-template-columns: 240px minmax(0, 1fr) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v214 — center device + owner columns properly (20260506)
+═══════════════════════════════════════════════════════════════════ */
+
+/* Device cell: center the flex container + inner text */
+.dvf-table .dvf-device-cell {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+.dvf-table .dvf-device-cell > div {
+  text-align: center !important;
+}
+.dvf-table .dvf-device-cell strong,
+.dvf-table .dvf-device-cell small,
+.dvf-table .dvf-device-cell code {
+  display: block !important;
+  text-align: center !important;
+}
+
+/* Owner cell: center */
+.dvf-table .dvf-owner-cell {
+  text-align: center !important;
+}
+.dvf-table .dvf-owner-cell strong,
+.dvf-table .dvf-owner-cell small {
+  display: block !important;
+  text-align: center !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v215 — fix header/column misalignment (20260506)
+   Root cause: table-layout:fixed forces arbitrary widths that don't
+   match actual content → header sits above wrong column.
+   Fix: back to auto layout; keep min-width on table for h-scroll.
+═══════════════════════════════════════════════════════════════════ */
+
+.dvf-table {
+  table-layout: auto !important;
+  min-width: 900px !important;
+}
+
+/* Remove the per-column fixed widths set in v212 */
+.dvf-table thead th:nth-child(1),
+.dvf-table tbody td:nth-child(1),
+.dvf-table thead th:nth-child(2),
+.dvf-table tbody td:nth-child(2),
+.dvf-table thead th:nth-child(3),
+.dvf-table tbody td:nth-child(3),
+.dvf-table thead th:nth-child(4),
+.dvf-table tbody td:nth-child(4),
+.dvf-table thead th:nth-child(5),
+.dvf-table tbody td:nth-child(5),
+.dvf-table thead th:nth-child(6),
+.dvf-table tbody td:nth-child(6),
+.dvf-table thead th:nth-child(7),
+.dvf-table tbody td:nth-child(7) {
+  width: auto !important;
+  min-width: unset !important;
+}
+
+/* Avatar col stays small */
+.dvf-table thead th:nth-child(1),
+.dvf-table tbody td:nth-child(1) { width: 56px !important; white-space: nowrap !important; }
+
+/* Prevent any single column from blowing up */
+.dvf-table thead th,
+.dvf-table tbody td { max-width: 240px !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v216 — DEFINITIVE TABLE FIX (20260506)
+   Root causes found:
+   1. unified_theme_v1.css → padding:.85rem 1rem on th only → offset
+   2. Accumulated conflicting rules in v212-v215
+   This block wins over everything with higher specificity.
+═══════════════════════════════════════════════════════════════════ */
+
+/* Same tight padding on BOTH th AND td — this is what aligns headers */
+.dvf-table-block .dvf-table thead th,
+.dvf-table-block .dvf-table tbody td {
+  padding: 10px 8px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* Avatar col smaller */
+.dvf-table-block .dvf-table thead th:first-child,
+.dvf-table-block .dvf-table tbody td:first-child {
+  padding: 8px 6px !important;
+  width: 56px !important;
+}
+
+/* Auto layout — browser distributes columns from content */
+.dvf-table-block .dvf-table {
+  table-layout: auto !important;
+  min-width: 900px !important;
+  width: 100% !important;
+}
+
+/* Center device-cell flex */
+.dvf-table-block .dvf-device-cell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 4px !important;
+}
+.dvf-table-block .dvf-device-cell strong,
+.dvf-table-block .dvf-device-cell small,
+.dvf-table-block .dvf-device-cell code { text-align: center !important; }
+
+/* Center owner cell */
+.dvf-table-block .dvf-owner-cell { text-align: center !important; }
+.dvf-table-block .dvf-owner-cell strong,
+.dvf-table-block .dvf-owner-cell small { text-align: center !important; display: block !important; }
+
+/* Center lastseen */
+.dvf-table-block .dvf-lastseen { align-items: center !important; text-align: center !important; }
+.dvf-table-block .dvf-lastseen time,
+.dvf-table-block .dvf-lastseen .dvf-ago { text-align: center !important; }
+
+/* No max-width capping that distorts columns */
+.dvf-table-block .dvf-table thead th,
+.dvf-table-block .dvf-table tbody td { max-width: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v217 — row polish (20260506)
+   1. ID badge → inline, fits text only
+   2. More row breathing room
+   3. Zebra striping for row contrast
+═══════════════════════════════════════════════════════════════════ */
+
+/* 1 — Badge width = content only */
+.dvf-table-block .dvf-device-cell code,
+.dvf-table-block .dvf-device-cell small code {
+  display: inline-block !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 3px 10px !important;
+  border-radius: 999px !important;
+  font-size: .72rem !important;
+  white-space: nowrap !important;
+}
+
+/* 2 — More row height */
+.dvf-table-block .dvf-table tbody td {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+
+/* 3 — Zebra striping */
+.dvf-table-block .dvf-table tbody tr:nth-child(odd)  td { background: #ffffff !important; }
+.dvf-table-block .dvf-table tbody tr:nth-child(even) td { background: #f5f7ff !important; }
+.dvf-table-block .dvf-table tbody tr:hover           td { background: #eef2ff !important; }

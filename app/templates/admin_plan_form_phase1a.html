@@ -1,72 +1,408 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ ('Edit plan' if plan else 'New plan') if is_en else ('تعديل الباقة' if plan else 'باقة جديدة') }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_plan_form_v3.css', v='v211-plan-form-rebuild-20260506c') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 plan-form-v114">
-    <header class="admin-page-head compact">
-      <div>
-        <span class="eyebrow">{{ 'Plan form' if is_en else 'نموذج الخطة' }}</span>
-        <h1>{{ 'Edit plan' if is_en and plan else ('Create plan' if is_en else ('تعديل الخطة' if plan else 'إنشاء خطة')) }}</h1>
-        <p>{{ 'Plan quotas define what every subscriber receives automatically when attached to this plan.' if is_en else 'كوتا الخطة تحدد الحدود التي يحصل عليها كل مشترك تلقائيًا عند ربطه بهذه الخطة.' }}</p>
-      </div>
-      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">{{ 'Back' if is_en else 'الرجوع' }}</a>
-    </header>
+  <main class="app-main content-area pln-edit-page">
 
-    <form method="post" class="plan-form-stack-v114"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <section class="admin-card-v2 form-v2 ui-reactive" data-hover-card>
-        <div class="section-heading-inline"><div><small>{{ 'Basic data' if is_en else 'البيانات الأساسية' }}</small><h3>{{ 'Plan identity and pricing' if is_en else 'هوية الخطة والسعر' }}</h3></div></div>
-        <div class="form-grid-v2 three">
-          <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control form-control-lg" type="text" name="code" value="{{ plan.code if plan else '' }}" required></label>
-          <label><span>{{ 'Arabic name' if is_en else 'الاسم عربي' }}</span><input class="form-control form-control-lg" type="text" name="name_ar" value="{{ plan.name_ar if plan else '' }}" required></label>
-          <label><span>{{ 'English name' if is_en else 'الاسم إنجليزي' }}</span><input class="form-control form-control-lg" type="text" name="name_en" value="{{ plan.name_en if plan else '' }}" required></label>
-          <label><span>{{ 'Price' if is_en else 'السعر' }}</span><input class="form-control form-control-lg" type="number" step="0.01" name="price" value="{{ plan.price if plan else 0 }}"></label>
-          <label><span>{{ 'Currency' if is_en else 'العملة' }}</span><input class="form-control form-control-lg" type="text" name="currency" value="{{ plan.currency if plan else 'USD' }}"></label>
-          <label><span>{{ 'Duration days' if is_en else 'المدة بالأيام' }}</span><input class="form-control form-control-lg" type="number" name="duration_days_default" value="{{ plan.duration_days_default if plan else 30 }}"></label>
-          <label><span>{{ 'Max devices' if is_en else 'عدد الأجهزة' }}</span><input class="form-control form-control-lg" type="number" name="max_devices" value="{{ plan.max_devices if plan else 1 }}"></label>
-          <label><span>{{ 'Sort order' if is_en else 'الترتيب' }}</span><input class="form-control form-control-lg" type="number" name="sort_order" value="{{ plan.sort_order if plan else 0 }}"></label>
-        </div>
-        <div class="form-toggle-row"><label class="switch-row"><span>{{ 'Active plan' if is_en else 'الخطة مفعلة' }}</span><input type="checkbox" name="is_active" {% if not plan or plan.is_active %}checked{% endif %}></label></div>
-      </section>
-
-      <section class="admin-card-v2 ui-reactive" data-hover-card>
-        <div class="section-heading-inline"><div><small>{{ 'Included features' if is_en else 'المزايا المفعلة' }}</small><h3>{{ 'Feature switches' if is_en else 'مفاتيح الخدمات' }}</h3></div></div>
-        <div class="chip-picker-grid features">
-          {% for key,label_ar,label_en in [('can_manage_devices','إدارة الأجهزة','Device management'),('can_manage_integrations','إدارة الربط','Integrations'),('can_use_telegram','استخدام Telegram','Telegram'),('can_use_sms','استخدام SMS','SMS'),('can_view_diagnostics','التشخيص','Diagnostics'),('can_view_api_explorer','API Explorer','API Explorer')] %}
-          <label class="chip-picker selected"><input type="checkbox" name="{{ key }}" {% if plan is none or (plan.features_json and (key in plan.features_json)) %}checked{% endif %}><span>{{ label_en if is_en else label_ar }}</span></label>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="admin-card-v2 plan-quota-section-v114 ui-reactive" data-hover-card>
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Plan quotas' if is_en else 'كوتا الخطة' }}</small>
-            <h3>{{ 'Automatic limits for subscribers' if is_en else 'حدود تلقائية للمشتركين' }}</h3>
-            <p class="table-sub">{{ 'When a subscriber is attached to this plan, these limits are created automatically. Subscriber-level edits remain overrides.' if is_en else 'عند ربط مشترك بهذه الخطة، يتم إنشاء هذه الحدود تلقائيًا. أي تعديل من ملف المشترك يبقى استثناء خاصًا.' }}</p>
+    {# ── Hero ────────────────────────────────────────────────── #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Plan editor' if is_en else 'محرر الباقة' }}</span>
+          <h1 class="hu-h1">{{ ('Edit plan' if plan else 'Create new plan') if is_en else (('تعديل الباقة: ' ~ (plan.name_ar or plan.name_en or plan.code)) if plan else 'إنشاء باقة جديدة') }}</h1>
+          <p class="hu-tagline">{{ 'Configure pricing, duration, included features, and per-subscriber quota limits.' if is_en else 'حدد السعر والمدة والمزايا المضمنة وحدود الكوتا لكل مشترك.' }}</p>
+          <div class="hu-hero-meta">
+            {% if plan %}
+              <span class="hu-meta-pill"><b>{{ plan.code }}</b></span>
+              <span class="hu-meta-pill"><b>{{ plan.price }}</b> {{ plan.currency }}</span>
+              <span class="hu-meta-pill"><b>{{ plan.duration_days_default }}</b> {{ 'days' if is_en else 'يوم' }}</span>
+              <span class="hu-meta-pill {{ 'ok' if plan.is_active else 'warn' }}">{{ ('Active' if plan.is_active else 'Inactive') if is_en else ('نشطة' if plan.is_active else 'متوقفة') }}</span>
+            {% else %}
+              <span class="hu-meta-pill">{{ 'New' if is_en else 'جديدة' }}</span>
+            {% endif %}
           </div>
         </div>
-        <div class="plan-quota-grid-v114">
-          {% for item in plan_quota_rows %}
-          {% set meta = item.meta %}
-          <article class="plan-quota-card-v114">
-            <div class="plan-quota-card-head-v114">
-              <div><strong>{{ meta.label }}</strong><small>{{ meta.description }}</small></div>
-              <label class="mini-switch-v114"><input type="checkbox" name="quota_enabled_{{ meta.key }}" {% if item.enabled %}checked{% endif %}> <span>{{ 'Enabled' if is_en else 'مفعل' }}</span></label>
-            </div>
-            <label class="quota-unlimited-v114"><input type="checkbox" name="quota_unlimited_{{ meta.key }}" {% if item.unlimited %}checked{% endif %}> {{ 'Unlimited usage' if is_en else 'بدون حد' }}</label>
-            <div class="plan-quota-limits-v114">
-              <label><span>{{ 'Daily' if is_en else 'يومي' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_daily_{{ meta.key }}" value="{{ item.daily }}" placeholder="0"></label>
-              <label><span>{{ 'Monthly' if is_en else 'شهري' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_monthly_{{ meta.key }}" value="{{ item.monthly }}" placeholder="{{ meta.default_monthly }}"></label>
-              <label><span>{{ 'Yearly' if is_en else 'سنوي' }}</span><input class="form-control" type="number" min="0" step="1" name="quota_yearly_{{ meta.key }}" value="{{ item.yearly }}" placeholder="0"></label>
-            </div>
-          </article>
-          {% endfor %}
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.admin_plans', lang=ui_lang) }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            {{ 'Back to plans' if is_en else 'الرجوع للباقات' }}
+          </a>
         </div>
-      </section>
+      </div>
+    </header>
 
-      <div class="action-row-v2 mt-3 plan-save-row-v114"><button class="btn btn-solar" type="submit">{{ 'Save plan and quotas' if is_en else 'حفظ الخطة والكوتا' }}</button></div>
+    {# ── Two-column form ─────────────────────────────────────── #}
+    <form method="post" id="planForm" data-plan-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="pf-shell">
+
+        {# ════════ MAIN COLUMN ════════ #}
+        <div class="pf-main">
+
+          {# 1. Identity & pricing #}
+          <div class="pf-card">
+            <header class="pf-card-head">
+              <span class="pf-card-icon blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 2v4M16 2v4M2 10h20"/></svg>
+              </span>
+              <div class="pf-card-title">
+                <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+                <h3>{{ 'Identity & pricing' if is_en else 'الهوية والسعر' }}</h3>
+              </div>
+            </header>
+
+            <div class="pf-grid-2">
+              <label class="pf-field">
+                <span>{{ 'Code' if is_en else 'الكود' }}</span>
+                <input type="text" name="code" value="{{ plan.code if plan else '' }}" required placeholder="platinum">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Sort order' if is_en else 'الترتيب' }}</span>
+                <input type="number" name="sort_order" value="{{ plan.sort_order if plan else 0 }}">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Arabic name' if is_en else 'الاسم بالعربية' }}</span>
+                <input type="text" name="name_ar" value="{{ plan.name_ar if plan else '' }}" required placeholder="الباقة البلاتينية" dir="rtl">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'English name' if is_en else 'الاسم بالإنجليزية' }}</span>
+                <input type="text" name="name_en" value="{{ plan.name_en if plan else '' }}" required placeholder="Platinum Plan" dir="ltr">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Price' if is_en else 'السعر' }}</span>
+                <input type="number" step="0.01" name="price" value="{{ plan.price if plan else 0 }}" placeholder="0.00">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Currency' if is_en else 'العملة' }}</span>
+                <input type="text" name="currency" value="{{ plan.currency if plan else 'USD' }}" placeholder="USD">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Duration (days)' if is_en else 'المدة (أيام)' }}</span>
+                <input type="number" name="duration_days_default" value="{{ plan.duration_days_default if plan else 30 }}">
+              </label>
+              <label class="pf-field">
+                <span>{{ 'Max devices' if is_en else 'الحد الأقصى للأجهزة' }}</span>
+                <input type="number" name="max_devices" value="{{ plan.max_devices if plan else 1 }}">
+              </label>
+            </div>
+
+            <div class="pf-active-row">
+              <span class="pf-active-row-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                {{ 'Plan is active' if is_en else 'الباقة مفعّلة' }}
+              </span>
+              <label class="pf-toggle">
+                <input type="checkbox" name="is_active" {% if not plan or plan.is_active %}checked{% endif %}>
+                <span class="pf-toggle-track"></span>
+              </label>
+            </div>
+          </div>
+
+          {# 2. Included features #}
+          <div class="pf-card">
+            <header class="pf-card-head">
+              <span class="pf-card-icon violet">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </span>
+              <div class="pf-card-title">
+                <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+                <h3>{{ 'Included features' if is_en else 'المزايا المضمنة' }}</h3>
+              </div>
+            </header>
+            <div class="pf-feat-grid">
+              {% set feat_meta = {
+                'can_manage_devices':       ('🖥️', 'Device management', 'إدارة الأجهزة'),
+                'can_manage_integrations':  ('🔗', 'Integrations',       'التكاملات'),
+                'can_use_telegram':         ('✈️', 'Telegram alerts',    'تنبيهات Telegram'),
+                'can_use_sms':              ('📱', 'SMS alerts',         'تنبيهات SMS'),
+                'can_view_diagnostics':     ('🔍', 'Diagnostics',        'التشخيص'),
+                'can_view_api_explorer':    ('⚙️', 'API explorer',       'مستكشف API'),
+              } %}
+              {% for key, meta in feat_meta.items() %}
+                <label class="pf-feat-chip">
+                  <input type="checkbox" name="{{ key }}" {% if plan is none or (plan.features_json and (key in plan.features_json)) %}checked{% endif %}>
+                  <div class="pf-feat-chip-inner">
+                    <div class="pf-feat-chip-ico">{{ meta[0] }}</div>
+                    <div class="pf-feat-chip-name">{{ meta[1] if is_en else meta[2] }}</div>
+                    <div class="pf-feat-chip-tick"></div>
+                  </div>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          {# 3. Plan quotas #}
+          <div class="pf-card">
+            <header class="pf-card-head">
+              <span class="pf-card-icon teal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              </span>
+              <div class="pf-card-title">
+                <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+                <h3>{{ 'Subscriber quotas' if is_en else 'كوتا المشتركين' }}</h3>
+              </div>
+            </header>
+            <p class="pf-quota-info">
+              {{ 'When a subscriber is attached to this plan these limits are auto-created. Subscriber-level edits remain as overrides.' if is_en else 'عند ربط مشترك بهذه الباقة يتم إنشاء هذه الحدود تلقائيًا. تعديلات المشترك الفردية تبقى استثناءً.' }}
+            </p>
+            <div class="pf-quota-grid">
+              {% for item in plan_quota_rows %}
+                {% set meta = item.meta %}
+                <article class="pf-qcard">
+                  <header class="pf-qcard-head">
+                    <div>
+                      <strong>{{ meta.label }}</strong>
+                      <small>{{ meta.description }}</small>
+                    </div>
+                    <label class="pf-qenabled">
+                      <input type="checkbox" name="quota_enabled_{{ meta.key }}" {% if item.enabled %}checked{% endif %}>
+                      <span class="pf-qenabled-dot"></span>
+                      {{ 'Enabled' if is_en else 'مفعّل' }}
+                    </label>
+                  </header>
+                  <div class="pf-qcard-body">
+                    <label class="pf-qunlim">
+                      <input type="checkbox" name="quota_unlimited_{{ meta.key }}" {% if item.unlimited %}checked{% endif %}>
+                      ∞ {{ 'Unlimited' if is_en else 'بدون حد' }}
+                    </label>
+                    <div class="pf-qlimits">
+                      <label>
+                        <span>{{ 'Daily' if is_en else 'يومي' }}</span>
+                        <input type="number" min="0" step="1" name="quota_daily_{{ meta.key }}" value="{{ item.daily }}" placeholder="0">
+                      </label>
+                      <label>
+                        <span>{{ 'Monthly' if is_en else 'شهري' }}</span>
+                        <input type="number" min="0" step="1" name="quota_monthly_{{ meta.key }}" value="{{ item.monthly }}" placeholder="{{ meta.default_monthly }}">
+                      </label>
+                      <label>
+                        <span>{{ 'Yearly' if is_en else 'سنوي' }}</span>
+                        <input type="number" min="0" step="1" name="quota_yearly_{{ meta.key }}" value="{{ item.yearly }}" placeholder="0">
+                      </label>
+                    </div>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>{# /pf-main #}
+
+        {# ════════ ASIDE COLUMN ════════ #}
+        <aside class="pf-aside">
+
+          {# A1. Subscriber stats — KPI mini grid #}
+          {% if plan %}
+          <div class="pf-aside-card">
+            <h4>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              {{ 'Plan adoption' if is_en else 'تبني الباقة' }}
+            </h4>
+            <div class="pf-mini-grid">
+              <div class="pf-mini-kpi accent-blue">
+                <small>{{ 'Subscribers' if is_en else 'المشتركون' }}</small>
+                <strong>{{ plan_stats.subs_total if plan_stats else 0 }}</strong>
+                <span>{{ 'total' if is_en else 'إجمالي' }}</span>
+              </div>
+              <div class="pf-mini-kpi accent-emerald">
+                <small>{{ 'Active' if is_en else 'نشط' }}</small>
+                <strong>{{ plan_stats.subs_active if plan_stats else 0 }}</strong>
+                <span>{{ 'paid' if is_en else 'مدفوع' }}</span>
+              </div>
+              <div class="pf-mini-kpi accent-amber">
+                <small>{{ 'Trial' if is_en else 'تجريبي' }}</small>
+                <strong>{{ plan_stats.subs_trial if plan_stats else 0 }}</strong>
+                <span>{{ 'evaluating' if is_en else 'قيد التجربة' }}</span>
+              </div>
+              <div class="pf-mini-kpi accent-violet">
+                <small>{{ 'Devices' if is_en else 'الأجهزة' }}</small>
+                <strong>{{ plan_stats.devices if plan_stats else 0 }}</strong>
+                <span>{{ 'connected' if is_en else 'متصل' }}</span>
+              </div>
+            </div>
+          </div>
+
+          {# A2. Revenue snapshot #}
+          <div class="pf-aside-card">
+            <h4>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              {{ 'Revenue & lifecycle' if is_en else 'الإيرادات ودورة الحياة' }}
+            </h4>
+            <div class="pf-sum-rows">
+              <div class="pf-sum-row">
+                <span>{{ 'Total credits' if is_en else 'إجمالي الإيداعات' }}</span>
+                <strong>{{ '%.2f'|format(plan_stats.revenue if plan_stats else 0) }} <small style="color:#94a3b8">USD</small></strong>
+              </div>
+              <div class="pf-sum-row">
+                <span>{{ 'Avg days left' if is_en else 'متوسط الأيام المتبقية' }}</span>
+                <strong>{{ plan_stats.avg_days_left if plan_stats else 0 }} {{ 'days' if is_en else 'يوم' }}</strong>
+              </div>
+              <div class="pf-sum-row">
+                <span>{{ 'Expired' if is_en else 'منتهية' }}</span>
+                <strong>{{ plan_stats.subs_expired if plan_stats else 0 }}</strong>
+              </div>
+              <div class="pf-sum-row">
+                <span>{{ 'Created' if is_en else 'أُنشئت في' }}</span>
+                <strong style="font-size:.78rem">{{ format_local(plan.created_at) if plan.created_at else '—' }}</strong>
+              </div>
+              <div class="pf-sum-row">
+                <span>{{ 'Updated' if is_en else 'حُدّثت في' }}</span>
+                <strong style="font-size:.78rem">{{ format_local(plan.updated_at) if plan.updated_at else '—' }}</strong>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          {# A3. Configuration completeness — LIVE updating #}
+          <div class="pf-aside-card" id="pfCompCard">
+            <h4>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              {{ 'Configuration health' if is_en else 'اكتمال الإعداد' }}
+            </h4>
+            <div class="pf-comp-stats">
+              <span><span data-pf-comp-done>{{ completeness_done if completeness_done is defined else 0 }}</span>/<span data-pf-comp-total>{{ completeness|length if completeness else 6 }}</span> {{ 'complete' if is_en else 'مكتمل' }}</span>
+              <strong><span data-pf-comp-pct>{{ completeness_pct if completeness_pct is defined else 0 }}</span>%</strong>
+            </div>
+            <div class="pf-comp-bar" data-pf-comp-bar>
+              <span style="width:{{ completeness_pct if completeness_pct is defined else 0 }}%"></span>
+            </div>
+            <ul class="pf-comp-list" data-pf-comp-list>
+              {% set _comp_items = completeness if completeness else [
+                {'key':'name_ar','label_en':'Arabic name set','label_ar':'الاسم بالعربية','ok':False},
+                {'key':'name_en','label_en':'English name set','label_ar':'الاسم بالإنجليزية','ok':False},
+                {'key':'price','label_en':'Price configured','label_ar':'تم تحديد السعر','ok':False},
+                {'key':'days','label_en':'Duration set','label_ar':'تم تحديد المدة','ok':False},
+                {'key':'devices','label_en':'Device cap set','label_ar':'حد الأجهزة محدد','ok':False},
+                {'key':'active','label_en':'Plan is active','label_ar':'الباقة مفعّلة','ok':True},
+              ] %}
+              {% for c in _comp_items %}
+                <li class="{{ 'ok' if c.ok else 'miss' }}" data-pf-comp-item="{{ c.key }}">{{ c.label_en if is_en else c.label_ar }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          {# A4. Recent subscribers #}
+          {% if plan %}
+          <div class="pf-aside-card">
+            <h4>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3-3m0 0l-3 3m3-3v12"/></svg>
+              {{ 'Latest activations' if is_en else 'أحدث التفعيلات' }}
+            </h4>
+            {% if recent_subs %}
+              <ul class="pf-recent-list">
+                {% for r in recent_subs %}
+                  <li class="pf-recent-row">
+                    <span class="pf-recent-avatar">{{ ((r.owner.full_name or r.owner.username) if r.owner else (r.tenant.display_name if r.tenant else '?'))[:1]|upper }}</span>
+                    <div class="pf-recent-info">
+                      <strong>{{ (r.owner.full_name or r.owner.username) if r.owner else (r.tenant.display_name if r.tenant else '—') }}</strong>
+                      <small>{{ format_local(r.sub.created_at) if r.sub.created_at else '—' }}</small>
+                    </div>
+                    {% set st = (r.sub.status or 'trial')|lower %}
+                    <span class="pf-recent-status {{ st }}">{{ st if is_en else ({'active':'نشط','trial':'تجريبي','expired':'منتهي','suspended':'موقوف'}.get(st, st)) }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="pf-recent-empty">{{ 'No subscribers yet on this plan.' if is_en else 'لا يوجد مشتركون على هذه الباقة بعد.' }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {# A5. Tips #}
+          <div class="pf-aside-card pf-tips">
+            <h4>💡 {{ 'Quick tips' if is_en else 'نصائح سريعة' }}</h4>
+            <ul>
+              <li>{{ '"Unlimited" lifts all caps for that quota type.' if is_en else '"بدون حد" يلغي القيود لهذا النوع من الكوتا.' }}</li>
+              <li>{{ 'Enabling a quota auto-creates it for new subscribers.' if is_en else 'تفعيل الكوتا يُنشئها تلقائياً للمشتركين الجدد.' }}</li>
+              <li>{{ 'Sort order controls plan display order on the landing page.' if is_en else 'الترتيب يحدد ظهور الباقات في صفحة الهبوط.' }}</li>
+              <li>{{ 'Deactivating a plan hides it from new subscribers but keeps existing ones.' if is_en else 'تعطيل الباقة يخفيها عن المشتركين الجدد لكن يبقي القائمين.' }}</li>
+            </ul>
+          </div>
+
+        </aside>{# /pf-aside #}
+      </div>{# /pf-shell #}
+
+      {# ── Sticky save bar ───────────────────────────────────── #}
+      <div class="pf-save-bar">
+        <span class="pf-save-hint">{{ 'Changes apply immediately to all linked subscribers.' if is_en else 'التعديلات تُطبَّق فوراً على جميع المشتركين المرتبطين.' }}</span>
+        <button class="pf-save-btn" type="submit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          {{ 'Save plan & quotas' if is_en else 'حفظ الباقة والكوتا' }}
+        </button>
+      </div>
+
     </form>
   </main>
 </div>
+
+{# ── LIVE completeness updater ───────────────────────────────── #}
+<script>
+(function(){
+  var form = document.querySelector('[data-plan-form]');
+  if (!form) return;
+  var card = document.getElementById('pfCompCard');
+  if (!card) return;
+
+  var doneEl  = card.querySelector('[data-pf-comp-done]');
+  var totalEl = card.querySelector('[data-pf-comp-total]');
+  var pctEl   = card.querySelector('[data-pf-comp-pct]');
+  var barEl   = card.querySelector('[data-pf-comp-bar]');
+  var barFill = barEl ? barEl.querySelector('span') : null;
+
+  // free/trial codes are exempt from "price > 0" requirement
+  var freeCodes = ['free', 'trial'];
+
+  function val(name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el) return '';
+    if (el.type === 'checkbox') return el.checked ? '1' : '';
+    return (el.value || '').trim();
+  }
+  function num(name) {
+    var v = parseFloat(val(name));
+    return isNaN(v) ? 0 : v;
+  }
+
+  function evaluate() {
+    var checks = {
+      name_ar: val('name_ar').length > 0,
+      name_en: val('name_en').length > 0,
+      price:   num('price') > 0 || freeCodes.indexOf(val('code').toLowerCase()) !== -1,
+      days:    num('duration_days_default') >= 1,
+      devices: num('max_devices') >= 1,
+      active:  val('is_active') === '1',
+    };
+    var done = 0, total = 0;
+    var items = card.querySelectorAll('[data-pf-comp-item]');
+    items.forEach(function(li){
+      total++;
+      var key = li.getAttribute('data-pf-comp-item');
+      var ok = !!checks[key];
+      if (ok) done++;
+      li.classList.toggle('ok', ok);
+      li.classList.toggle('miss', !ok);
+    });
+    var pct = total ? Math.round(done / total * 100) : 0;
+    if (doneEl)  doneEl.textContent = done;
+    if (totalEl) totalEl.textContent = total;
+    if (pctEl)   pctEl.textContent = pct;
+    if (barFill) barFill.style.width = pct + '%';
+    if (barEl)   barEl.classList.toggle('is-full', pct >= 100);
+  }
+
+  // Listen on inputs that affect any check
+  ['name_ar','name_en','code','price','duration_days_default','max_devices','is_active'].forEach(function(n){
+    var el = form.querySelector('[name="' + n + '"]');
+    if (!el) return;
+    el.addEventListener('input',  evaluate);
+    el.addEventListener('change', evaluate);
+  });
+  evaluate();
+})();
+</script>
 {% endblock %}

@@ -363,7 +363,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     const map = {'لا توجد إشعارات مفتوحة حاليًا.':'No open notifications.','وصل تحديث دعم جديد':'New support update received','تحديث على التذكرة':'Ticket update','تحديث على رسالة الدعم':'Support message update','تذكرة جديدة':'New ticket','رسالة دعم جديدة':'New support message','تمت إعادة فتح طلب الدعم':'Support request reopened'};
     let out = String(s || '');
     Object.keys(map).forEach(k => { out = out.split(k).join(map[k]); });
-    if(/[؀-ۿ]/.test(out)) out = out.replace(/[؀-ۿ][؀-ۿ\s،؛؟\-_:()\/\.]+/g, '').replace(/\s{2,}/g,' ').trim() || 'Update';
+    if(/[\u0600-\u06FF]/.test(out)) out = out.replace(/[\u0600-\u06FF][\u0600-\u06FF\s،؛؟\-_:()/\.]+/g, '').replace(/\s{2,}/g,' ').trim() || 'Update';
     return out;
   }
   function toast(message){
@@ -542,8 +542,13 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       });
     });
 
+    // Legacy support reply forms only — the new command center page uses
+    // [data-sc-reply-form] which is handled exclusively by support_center.js.
+    // Skip these bindings on the command center to avoid duplicate submissions.
     document.querySelectorAll('[data-canned-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
+        // Bail if this button belongs to the modern command-center form.
+        if (btn.closest('[data-sc-reply-form]')) return;
         const form = btn.closest('[data-support-reply-form]');
         const drawer = form && form.querySelector('[data-canned-drawer]');
         if(drawer) drawer.hidden = !drawer.hidden;
@@ -551,6 +556,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     });
     document.querySelectorAll('[data-canned-close]').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (btn.closest('[data-sc-reply-form]')) return;
         const drawer = btn.closest('[data-canned-drawer]');
         if(drawer) drawer.hidden = true;
       });
@@ -558,6 +564,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
 
     document.querySelectorAll('[data-canned-action]').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (btn.closest('[data-sc-reply-form]')) return;  // command center uses its own handler
         const card = btn.closest('[data-canned-card]');
         const form = btn.closest('[data-support-reply-form]');
         if(!card || !form) return;
@@ -585,6 +592,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
 
     document.querySelectorAll('[data-reply-mode]').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (btn.closest('[data-sc-reply-form]')) return;  // command center uses its own handler
         const form = btn.closest('[data-support-reply-form]');
         if(!form) return;
         const mode = btn.dataset.replyMode || 'reply';
@@ -973,8 +981,8 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     const escapeRegex = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const replaceKnownPhrase = (text, key, value) => {
       if(!key || !text.includes(key)) return text;
-      if(/^[؀-ۿ]+$/.test(key)){
-        const pattern = new RegExp('(?<![؀-ۿ])' + escapeRegex(key) + '(?![؀-ۿ])', 'g');
+      if(/^[\u0600-\u06FF]+$/.test(key)){
+        const pattern = new RegExp('(?<![\\u0600-\\u06FF])' + escapeRegex(key) + '(?![\\u0600-\\u06FF])', 'g');
         return text.replace(pattern, value);
       }
       return text.split(key).join(value);
@@ -996,15 +1004,15 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
         if(!parent || parent.closest(forbidden)) return NodeFilter.FILTER_REJECT;
         const text = (node.nodeValue || '').trim();
         if(!text || text.length > 500) return NodeFilter.FILTER_SKIP;
-        return /[؀-ۿ]/.test(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        return /[\u0600-\u06FF]/.test(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }
     });
     const nodes = [];
     while(walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(node => { node.nodeValue = translateLegacy(node.nodeValue); });
     document.querySelectorAll('input[placeholder], textarea[placeholder], [title]').forEach(el => {
-      if(el.placeholder && /[؀-ۿ]/.test(el.placeholder)) el.placeholder = translateLegacy(el.placeholder);
-      if(el.title && /[؀-ۿ]/.test(el.title)) el.title = translateLegacy(el.title);
+      if(el.placeholder && /[\u0600-\u06FF]/.test(el.placeholder)) el.placeholder = translateLegacy(el.placeholder);
+      if(el.title && /[\u0600-\u06FF]/.test(el.title)) el.title = translateLegacy(el.title);
     });
   }
 

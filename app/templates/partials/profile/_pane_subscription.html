@@ -1,0 +1,149 @@
+<div class="up-pane" data-up-pane="subscription" {% if tab != 'subscription' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set current_plan = plans|selectattr('id','equalto', tenant.plan_id)|first %}
+  {% set days_left = subscription_day_info.days_left if subscription_day_info.days_left is not none else None %}
+  {% set days_pct = ((days_left / 365 * 100) if (days_left is not none and days_left >= 0) else 0)|round(0,'floor')|int %}
+  {% set is_expired = subscription_day_info.status == 'expired' %}
+
+  {# ─── Subscription summary card with days ring ─── #}
+  <section class="sub-summary">
+    <div class="sub-summary-text">
+      <span class="sub-summary-eyebrow">📅 {{ 'Active subscription' if is_en else 'الاشتراك الحالي' }}</span>
+      <h2>{{ (current_plan.name_en if is_en else current_plan.name_ar) if current_plan else ('No plan' if is_en else 'بدون خطة') }}</h2>
+      <div class="sub-summary-tags">
+        <span class="sub-tag {{ 'is-active' if subscription and subscription.status in ['active','trial'] else 'is-warn' if subscription and subscription.status=='cancelled' else 'is-danger' }}">{{ ui_label(subscription.status, 'status', ui_lang) if subscription else ('—' if is_en else '—') }}</span>
+        <span class="sub-tag {{ 'is-active' if tenant.status == 'active' else 'is-warn' if tenant.status in ['trial','suspended'] else 'is-danger' }}">{{ 'Account: ' if is_en else 'الحساب: ' }}{{ ui_label(tenant.status, 'status', ui_lang) }}</span>
+        {% if tenant.max_devices_override %}<span class="sub-tag is-info">{{ 'Override: ' if is_en else 'تجاوز: ' }}{{ tenant.max_devices_override }} {{ 'devices' if is_en else 'جهاز' }}</span>{% endif %}
+      </div>
+      <div class="sub-summary-rows">
+        <div><small>{{ 'Starts' if is_en else 'تاريخ البداية' }}</small><strong>{% if subscription and subscription.starts_at %}{{ format_local(subscription.starts_at) }}{% else %}—{% endif %}</strong></div>
+        <div><small>{{ 'Ends' if is_en else 'تاريخ الانتهاء' }}</small><strong>{% if subscription and subscription.ends_at %}{{ format_local(subscription.ends_at) }}{% else %}—{% endif %}</strong></div>
+        <div><small>{{ 'Trial ends' if is_en else 'نهاية التجربة' }}</small><strong>{% if subscription and subscription.trial_ends_at %}{{ format_local(subscription.trial_ends_at) }}{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="sub-summary-ring {{ 'is-expired' if is_expired }}" style="--pct:{{ days_pct if days_pct <= 100 else 100 }}">
+      <div class="sub-summary-ring-inner">
+        <span class="sub-summary-ring-num">{% if days_left is not none %}{{ days_left }}{% else %}—{% endif %}</span>
+        <span class="sub-summary-ring-lbl">{{ 'days left' if is_en else 'يوم متبقي' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Plan & lifecycle ─── #}
+      <form method="post" class="prof-form" id="sub-plan-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="save_subscription">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">📋</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3>{{ 'Plan & lifecycle' if is_en else 'الخطة ودورة الحياة' }}</h3>
+            <p>{{ 'Pick a plan and adjust dates. Saving here applies the new plan quotas automatically.' if is_en else 'اختر الخطة واضبط التواريخ. الحفظ يطبق كوتا الخطة الجديدة تلقائياً.' }}</p>
+          </div>
+          <div class="prof-step-body">
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Plan' if is_en else 'الخطة' }}</span>
+              <select class="prof-input" name="plan_id">{% for plan in plans %}<option value="{{ plan.id }}" {% if tenant.plan_id==plan.id %}selected{% endif %}>{{ plan.name_en if is_en else plan.name_ar }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span>
+              <select class="prof-input" name="tenant_status">{% for st in ['trial','active','suspended','expired'] %}<option value="{{ st }}" {% if tenant.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Subscription status' if is_en else 'حالة الاشتراك' }}</span>
+              <select class="prof-input" name="subscription_status">{% for st in ['trial','active','cancelled','expired'] %}<option value="{{ st }}" {% if subscription and subscription.status==st %}selected{% endif %}>{{ ui_label(st, 'status', ui_lang) }}</option>{% endfor %}</select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Start date' if is_en else 'تاريخ البداية' }}</span>
+              <input type="date" class="prof-input" name="starts_at" value="{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'End date' if is_en else 'تاريخ الانتهاء' }}</span>
+              <input type="date" class="prof-input" name="ends_at" id="sub-end-date" value="{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Trial end' if is_en else 'نهاية التجربة' }}</span>
+              <input type="date" class="prof-input" name="trial_ends_at" value="{{ subscription.trial_ends_at.strftime('%Y-%m-%d') if subscription and subscription.trial_ends_at else '' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Device limit override' if is_en else 'حد الأجهزة (تجاوز)' }}</span>
+              <input class="prof-input" type="number" min="0" name="max_devices_override" value="{{ tenant.max_devices_override or '' }}" placeholder="{{ 'Leave blank for plan default' if is_en else 'فارغ = الحد الافتراضي للخطة' }}">
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+              <textarea class="prof-input" name="subscription_notes" rows="3" placeholder="{{ 'Internal notes (admin only)' if is_en else 'ملاحظات داخلية (للمسؤول فقط)' }}">{{ subscription.notes if subscription and subscription.notes else '' }}</textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving applies plan quotas automatically.' if is_en else 'الحفظ يطبق كوتا الخطة الجديدة تلقائياً.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save subscription' if is_en else 'حفظ الاشتراك' }}</button>
+          </div>
+        </div>
+      </form>
+
+      {# ─── Step 2: Page visibility ─── #}
+      <form method="post" class="prof-form" id="sub-pages-form" style="margin-top:18px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="portal_visibility">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">2</span>
+            <span class="prof-step-icon">👁️</span>
+            <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+            <h3>{{ 'Page visibility' if is_en else 'ظهور الصفحات' }}</h3>
+            <p>{{ 'Pick which pages this subscriber can see. The dashboard is always visible.' if is_en else 'اختر الصفحات التي يراها هذا المشترك. النظرة العامة دائماً ظاهرة.' }}</p>
+          </div>
+          <div class="prof-step-body sub-pages">
+            {% for page in portal_page_rows %}
+              <label class="sub-page-card {% if page.is_locked %}is-locked{% endif %} {% if page.is_visible or page.is_locked %}is-on{% endif %}">
+                <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
+                <span class="sub-page-icon">{{ page.icon }}</span>
+                <span class="sub-page-label">{{ page.label }}</span>
+                {% if page.is_locked %}<span class="sub-page-lock">🔒 {{ 'Core' if is_en else 'أساسية' }}</span>{% endif %}
+              </label>
+            {% endfor %}
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Hidden pages disappear from the subscriber sidebar.' if is_en else 'الصفحات المخفية تختفي من قائمة المشترك.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save visibility' if is_en else 'حفظ الظهور' }}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {# ─── Side column ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick lifecycle' if is_en else 'أزرار سريعة' }}</span></header>
+        <div class="prof-side-actions">
+          <button type="button" class="prof-side-btn act-subscription" data-extend-days="30">⏰ <span>{{ 'Extend +30 days' if is_en else 'تمديد +30 يوم' }}</span></button>
+          <button type="button" class="prof-side-btn act-subscription" data-extend-days="90">⏰ <span>{{ 'Extend +90 days' if is_en else 'تمديد +90 يوم' }}</span></button>
+          <button type="button" class="prof-side-btn act-finance" data-extend-days="365">⏰ <span>{{ 'Extend +1 year' if is_en else 'تمديد +سنة' }}</span></button>
+        </div>
+        <small class="sub-side-hint">{{ 'Updates the End date field. Press save to commit.' if is_en else 'يحدّث حقل تاريخ الانتهاء. اضغط حفظ لتطبيق التغيير.' }}</small>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Plan summary' if is_en else 'ملخص الخطة' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span>{{ 'Plan' if is_en else 'الخطة' }}</span><b>{{ (current_plan.name_en if is_en else current_plan.name_ar) if current_plan else '—' }}</b></div>
+          <div><span>{{ 'Devices' if is_en else 'الأجهزة' }}</span><b>{{ devices|length }}{% if tenant.max_devices_override %} / {{ tenant.max_devices_override }}{% elif current_plan and current_plan.max_devices %} / {{ current_plan.max_devices }}{% endif %}</b></div>
+          <div><span>{{ 'Days left' if is_en else 'الأيام المتبقية' }}</span><b>{% if days_left is not none %}{{ days_left }}{% else %}—{% endif %}</b></div>
+          <div><span>{{ 'Wallet' if is_en else 'المحفظة' }}</span><b>{{ '%.2f'|format(wallet_balance or 0) }}</b></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+</div>

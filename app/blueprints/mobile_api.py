@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, request, session
 
 from ..models import NotificationEvent, Reading
 from ..services.energy_integrations import provider_catalog
@@ -9,7 +9,7 @@ from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
 from ..services.utils import format_local_datetime
 from ..services.mobile_auth import user_from_bearer_or_session
-from ..services.api_responses import api_error
+from ..services.api_responses import api_error, api_ok
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 
@@ -66,15 +66,14 @@ def bootstrap():
             'order': page.sort_order,
         })
     providers = [{'code': p.code, 'name': p.name, 'auth_mode': p.auth_mode, 'category': p.category, 'status': p.status} for p in provider_catalog()]
-    return jsonify({
-        'ok': True,
+    return api_ok({
         'version': '10.1',
         'csrf_token': csrf_token(),
         'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name, 'role': user.role, 'role_label': role_label(user.role, lang)},
         'permissions': get_user_permissions(user),
         'navigation': pages,
         'providers': providers,
-    })
+    }, meta={'api_version': 'v1', 'lang': lang})
 
 
 @mobile_api_bp.get('/summary')
@@ -89,7 +88,10 @@ def summary():
     elif user and not user.is_admin:
         q = q.filter_by(user_id=user.id)
     latest = q.first()
-    return jsonify({'ok': True, 'device': {'id': getattr(device, 'id', None), 'name': getattr(device, 'name', None), 'type': getattr(device, 'device_type', None)}, 'latest': _reading_payload(latest)})
+    return api_ok({
+        'device': {'id': getattr(device, 'id', None), 'name': getattr(device, 'name', None), 'type': getattr(device, 'device_type', None)},
+        'latest': _reading_payload(latest),
+    }, meta={'api_version': 'v1'})
 
 
 @mobile_api_bp.get('/notifications')
@@ -98,9 +100,11 @@ def notifications():
     if error:
         return error, status
     rows = NotificationEvent.query.filter_by(target_user_id=user.id).order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc()).limit(30).all()
-    return jsonify({'ok': True, 'items': [sanitize_response_payload({'id': r.id, 'title': r.title, 'message': r.message, 'url': r.direct_url, 'is_read': r.is_read, 'created_at': r.created_at.isoformat() if r.created_at else None}) for r in rows]})
+    return api_ok({
+        'items': [sanitize_response_payload({'id': r.id, 'title': r.title, 'message': r.message, 'url': r.direct_url, 'is_read': r.is_read, 'created_at': r.created_at.isoformat() if r.created_at else None}) for r in rows],
+    }, meta={'api_version': 'v1'})
 
 
 @mobile_api_bp.get('/health')
 def health():
-    return jsonify({'ok': True, 'version': '10.1', 'message': 'SolarDeye mobile API is ready'})
+    return api_ok({'version': '10.1', 'message': 'SolarDeye mobile API is ready'}, meta={'api_version': 'v1'})

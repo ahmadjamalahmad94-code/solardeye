@@ -1,629 +1,278 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set page_dir = 'ltr' if is_en else 'rtl' %}
-<style>
-.sp-page{
-  --sp-ink:#0b1220;
-  --sp-ink-soft:#1f2a44;
-  --sp-muted:#5e6f8c;
-  --sp-line:#e3eaf6;
-  --sp-line-strong:#cfd9ec;
-  --sp-card:#ffffff;
-  --sp-bg:#eef3fb;
-  --sp-violet:#6d3aff;
-  --sp-amber:#f59e0b;
-  --sp-amber-soft:#fbbf24;
-  --sp-emerald:#10b981;
-  --sp-emerald-soft:#34d399;
-  --sp-sky:#2563eb;
-  --sp-sky-soft:#60a5fa;
-  --sp-rose:#f43f5e;
-  --sp-shadow-sm:0 6px 18px rgba(15,23,42,.06);
-  --sp-shadow:0 22px 60px rgba(15,23,42,.09);
-  --sp-radius:22px;
-  --sp-radius-lg:30px;
-  --sp-radius-xl:38px;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
-  padding:18px clamp(14px,2.4vw,32px) 80px;
-  font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--sp-ink);
-  display:flex;flex-direction:column;gap:24px;
-}
-.sp-page *,.sp-page *::before,.sp-page *::after{box-sizing:border-box}
-
-/* HERO — sky→amber gradient like dashboard */
-.sp-hero{
-  position:relative;border-radius:var(--sp-radius-xl);
-  padding:clamp(22px,3vw,34px) clamp(20px,3vw,38px);
-  overflow:hidden;color:#fff;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);
-  isolation:isolate;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-}
-.sp-hero::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
-    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
-}
-.sp-hero-grid{
-  position:relative;z-index:1;display:grid;gap:18px;
-  grid-template-columns:minmax(0,1.4fr) minmax(0,auto);
-  align-items:center;
-}
-@media (max-width:980px){.sp-hero-grid{grid-template-columns:1fr;justify-items:start}}
-.sp-hero-text{display:flex;flex-direction:column;gap:8px;min-width:0}
-.sp-eyebrow{
-  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
-  font-size:.72rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
-  color:#0b1531;background:rgba(255,255,255,.92);
-  padding:.35rem .75rem;border-radius:999px;
-  box-shadow:0 6px 16px rgba(11,21,49,.18);
-}
-.sp-eyebrow .sp-pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--sp-amber);
-  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:spPulse 1.8s infinite;
-}
-@keyframes spPulse{
-  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
-  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
-  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
-}
-.sp-plan-name{
-  font-size:clamp(1.55rem,2.6vw,2.05rem);font-weight:950;
-  margin:0;line-height:1.18;color:#fff;
-  text-shadow:0 4px 18px rgba(11,21,49,.22);
-}
-.sp-tenant-name{margin:0;font-size:.95rem;color:rgba(255,255,255,.92);font-weight:600}
-.sp-hero-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
-.sp-hero-meta-item{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);padding:.36rem .75rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
-}
-.sp-hero-meta-item b{color:#0b1531;font-weight:900}
-
-/* Status ring (days left) */
-.sp-status-ring{
-  display:flex;flex-direction:column;align-items:center;gap:.55rem;
-  background:rgba(255,255,255,.95);
-  padding:14px 18px;border-radius:18px;
-  box-shadow:0 14px 30px rgba(11,21,49,.18);
-}
-.sp-ring-wrap{position:relative;width:96px;height:96px}
-.sp-ring-svg{width:96px;height:96px;transform:rotate(-90deg)}
-.sp-ring-bg{fill:none;stroke:#eef2f9;stroke-width:8}
-.sp-ring-arc{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .8s ease}
-.sp-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.sp-ring-days{font-size:1.55rem;font-weight:950;color:var(--sp-ink);line-height:1;font-variant-numeric:tabular-nums}
-.sp-ring-label{font-size:.62rem;color:var(--sp-muted);font-weight:800;letter-spacing:.3px;margin-top:2px;text-transform:uppercase}
-.sp-status-pill{
-  display:inline-flex;align-items:center;gap:.35rem;
-  font-size:.74rem;font-weight:900;
-  padding:.32rem .75rem;border-radius:999px;
-  border:1px solid transparent;
-}
-.sp-status-pill.active   {background:#d1fae5;color:#047857;border-color:#a7f3d0}
-.sp-status-pill.trial    {background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
-.sp-status-pill.expired,
-.sp-status-pill.cancelled{background:#ffe4e6;color:#be123c;border-color:#fecdd3}
-.sp-status-pill.paused,
-.sp-status-pill.warning  {background:#fef3c7;color:#b45309;border-color:#fde68a}
-
-/* SUMMARY STRIP — 4 white cards w/ colored top accents */
-.sp-stats{display:grid;gap:18px;grid-template-columns:repeat(4,minmax(0,1fr))}
-@media (max-width:1024px){.sp-stats{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:560px) {.sp-stats{grid-template-columns:1fr}}
-.sp-stat{
-  position:relative;background:var(--sp-card);
-  border:1px solid var(--sp-line);border-radius:var(--sp-radius-lg);
-  padding:18px 20px 20px;box-shadow:var(--sp-shadow-sm);overflow:hidden;
-  transition:all .2s;display:flex;flex-direction:column;gap:.4rem;
-}
-.sp-stat:hover{transform:translateY(-3px);box-shadow:var(--sp-shadow);border-color:var(--sp-line-strong)}
-.sp-stat::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--sp-radius-lg) var(--sp-radius-lg) 0 0;opacity:.95;
-}
-.sp-stat.amber  ::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.sp-stat.emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}
-.sp-stat.sky    ::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.sp-stat.violet ::before{background:linear-gradient(90deg,#6d3aff,#a78bfa)}
-.sp-stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;margin-top:.2rem}
-.sp-stat-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
-.sp-stat.amber   .sp-stat-icon{background:rgba(245,158,11,.12);color:#b45309}
-.sp-stat.emerald .sp-stat-icon{background:rgba(16,185,129,.12);color:#047857}
-.sp-stat.sky     .sp-stat-icon{background:rgba(37,99,235,.12);color:#1d4ed8}
-.sp-stat.violet  .sp-stat-icon{background:rgba(109,58,255,.12);color:#5b21b6}
-.sp-stat-trend{font-size:.7rem;font-weight:900;padding:.3rem .65rem;border-radius:999px;background:#f1f5fc;color:var(--sp-ink-soft);border:1px solid var(--sp-line)}
-.sp-stat-label{font-size:.78rem;color:var(--sp-muted);font-weight:800;letter-spacing:.2px}
-.sp-stat-value{font-size:1.4rem;font-weight:950;color:var(--sp-ink);line-height:1.2;font-variant-numeric:tabular-nums}
-.sp-stat.amber   .sp-stat-value{color:#b45309}
-.sp-stat.emerald .sp-stat-value{color:#047857}
-.sp-stat.sky     .sp-stat-value{color:#1d4ed8}
-.sp-stat.violet  .sp-stat-value{color:#5b21b6}
-
-/* SECTION HEADER */
-.sp-section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;padding:0 6px}
-.sp-section-head h2{font-size:1.15rem;font-weight:950;color:var(--sp-ink);margin:0;display:inline-flex;align-items:center;gap:.5rem}
-.sp-section-head h2 .sp-section-icon{
-  width:32px;height:32px;border-radius:9px;
-  background:rgba(37,99,235,.12);color:#1d4ed8;
-  display:inline-flex;align-items:center;justify-content:center;font-size:1rem;
-}
-.sp-section-head small{display:block;color:var(--sp-muted);font-weight:700;font-size:.82rem}
-.sp-section-head .sp-pill{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:var(--sp-ink-soft);
-  background:#fff;padding:.4rem .75rem;border-radius:999px;
-  border:1px solid var(--sp-line);box-shadow:var(--sp-shadow-sm);
-}
-
-/* PENDING REQUEST BANNER */
-.sp-pending-banner{
-  display:flex;align-items:center;gap:.85rem;
-  background:linear-gradient(135deg,rgba(109,58,255,.10),rgba(165,180,252,.06));
-  border:1px solid rgba(109,58,255,.22);
-  border-radius:18px;padding:14px 18px;
-  box-shadow:var(--sp-shadow-sm);
-}
-.sp-pb-icon{
-  width:42px;height:42px;border-radius:12px;
-  background:rgba(109,58,255,.15);color:#5b21b6;
-  display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;
-}
-.sp-pb-text{flex:1;min-width:0}
-.sp-pb-title{font-size:.92rem;font-weight:900;color:#5b21b6;line-height:1.3}
-.sp-pb-sub{font-size:.78rem;color:var(--sp-muted);font-weight:600;margin-top:2px}
-
-/* QUOTA GRID */
-.sp-quota-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-.sp-quota-card{
-  position:relative;background:var(--sp-card);
-  border:1px solid var(--sp-line);border-radius:18px;
-  padding:16px 18px 14px;box-shadow:var(--sp-shadow-sm);
-  display:flex;flex-direction:column;gap:.7rem;
-  transition:all .2s;overflow:hidden;
-}
-.sp-quota-card:hover{transform:translateY(-1px);box-shadow:var(--sp-shadow);border-color:var(--sp-line-strong)}
-.sp-quota-card.is-danger{border-color:rgba(244,63,94,.30)}
-.sp-quota-card.is-warn  {border-color:rgba(245,158,11,.32)}
-.sp-quota-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
-.sp-quota-top strong{font-size:.92rem;color:var(--sp-ink);font-weight:900;line-height:1.3}
-.sp-quota-top small{font-size:.72rem;color:var(--sp-muted);margin-top:.25rem;display:block;font-weight:600}
-.sp-q-pill{
-  font-size:.66rem;font-weight:900;padding:.22rem .6rem;border-radius:999px;
-  white-space:nowrap;flex-shrink:0;border:1px solid transparent;
-}
-.sp-q-pill.active  {background:#d1fae5;color:#047857;border-color:#a7f3d0}
-.sp-q-pill.inactive{background:#f1f5fc;color:var(--sp-muted);border-color:var(--sp-line)}
-.sp-quota-nums{display:flex;gap:1.1rem;align-items:flex-end}
-.sp-quota-nums span{display:flex;flex-direction:column;gap:.1rem}
-.sp-quota-nums b{font-size:1.18rem;font-weight:950;color:var(--sp-ink);font-variant-numeric:tabular-nums;line-height:1}
-.sp-quota-nums small{font-size:.66rem;color:var(--sp-muted);font-weight:800;text-transform:uppercase;letter-spacing:.4px}
-.sp-meter{height:6px;background:#eef2f9;border-radius:999px;overflow:hidden}
-.sp-meter i{display:block;height:100%;border-radius:999px;transition:width .8s cubic-bezier(.4,0,.2,1)}
-.is-ok    .sp-meter i{background:linear-gradient(90deg,#10b981,#34d399)}
-.is-warn  .sp-meter i{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.is-danger.sp-meter i,.is-danger .sp-meter i{background:linear-gradient(90deg,#f43f5e,#fb7185)}
-.sp-quota-foot{font-size:.74rem;color:var(--sp-muted);font-weight:700;display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
-.sp-quota-foot b{color:var(--sp-ink-soft);font-weight:900}
-.sp-quota-empty{
-  grid-column:1/-1;background:var(--sp-card);border:2px dashed var(--sp-line-strong);
-  border-radius:var(--sp-radius-lg);padding:40px;text-align:center;
-  color:var(--sp-muted);font-weight:700;box-shadow:var(--sp-shadow-sm);
-}
-
-/* PLAN PICKER GRID */
-.sp-plans-grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-.sp-plan-card{
-  position:relative;background:var(--sp-card);
-  border:1px solid var(--sp-line);border-radius:var(--sp-radius-lg);
-  padding:22px 22px 20px;box-shadow:var(--sp-shadow-sm);
-  display:flex;flex-direction:column;gap:1rem;
-  transition:all .2s;overflow:hidden;
-}
-.sp-plan-card:hover{transform:translateY(-3px);box-shadow:var(--sp-shadow);border-color:var(--sp-line-strong)}
-.sp-plan-card::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--sp-radius-lg) var(--sp-radius-lg) 0 0;
-  background:linear-gradient(90deg,#cfd9ec,#e3eaf6);opacity:.7;
-}
-.sp-plan-card.current-plan{
-  border-color:rgba(245,158,11,.40);
-  box-shadow:0 0 0 3px rgba(245,158,11,.10),var(--sp-shadow);
-}
-.sp-plan-card.current-plan::before{background:linear-gradient(90deg,#fbbf24,#f59e0b);opacity:1;height:6px}
-.sp-plan-card.current-plan::after{
-  content:attr(data-current-label);
-  position:absolute;top:14px;inset-inline-end:14px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  font-size:.66rem;font-weight:900;
-  padding:.25rem .65rem;border-radius:999px;letter-spacing:.3px;
-  box-shadow:0 6px 14px rgba(245,158,11,.30);
-}
-.sp-pc-head{display:flex;align-items:center;gap:.7rem}
-.sp-pc-icon{
-  width:50px;height:50px;border-radius:14px;
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.10));
-  color:#b45309;font-size:1.55rem;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-}
-.sp-pc-name{font-size:1.1rem;font-weight:950;color:var(--sp-ink);line-height:1.25;margin:0}
-.sp-pc-price{font-size:.82rem;color:var(--sp-muted);font-weight:700;margin-top:2px}
-.sp-pc-price b{color:var(--sp-ink-soft);font-weight:900;font-variant-numeric:tabular-nums}
-.sp-pc-feats{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem}
-.sp-pc-feats li{
-  display:flex;align-items:center;gap:.55rem;
-  font-size:.84rem;color:var(--sp-ink-soft);font-weight:700;
-}
-.sp-pc-feats li .sp-fi{
-  width:20px;height:20px;border-radius:6px;
-  display:inline-flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;
-}
-.sp-pc-feats li:not(.disabled) .sp-fi{background:rgba(16,185,129,.14);color:#047857}
-.sp-pc-feats li.disabled{color:var(--sp-muted)}
-.sp-pc-feats li.disabled .sp-fi{background:#f1f5fc;color:var(--sp-muted)}
-.sp-pc-btn{
-  margin-top:auto;width:100%;padding:.7rem 1rem;border-radius:12px;
-  font-size:.85rem;font-weight:900;font-family:inherit;cursor:pointer;
-  border:1px solid transparent;transition:all .15s;
-}
-.sp-pc-btn.active-btn{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  box-shadow:0 8px 22px rgba(245,158,11,.28);
-}
-.sp-pc-btn.active-btn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(245,158,11,.38)}
-.sp-pc-btn.current-btn{
-  background:#f1f5fc;color:var(--sp-muted);
-  border-color:var(--sp-line);cursor:default;pointer-events:none;
-}
-
-/* ALERTS / FLASH */
-.sp-alert{
-  border-radius:14px;padding:.85rem 1.1rem;font-size:.88rem;font-weight:700;
-  display:flex;align-items:center;gap:.6rem;
-  border:1px solid transparent;
-}
-.sp-alert-success{background:#d1fae5;color:#047857;border-color:#a7f3d0}
-.sp-alert-warning{background:#fef3c7;color:#b45309;border-color:#fde68a}
-.sp-alert-danger {background:#ffe4e6;color:#be123c;border-color:#fecdd3}
-
-/* MODAL */
-.sp-modal-backdrop{
-  position:fixed;inset:0;
-  background:rgba(15,23,42,.50);backdrop-filter:blur(6px);
-  z-index:1050;display:none;align-items:center;justify-content:center;padding:1rem;
-}
-.sp-modal-backdrop.open{display:flex}
-.sp-modal{
-  background:var(--sp-card);border:1px solid var(--sp-line);
-  border-radius:var(--sp-radius-lg);
-  max-width:480px;width:100%;
-  box-shadow:0 32px 80px rgba(15,23,42,.30);
-  animation:spModalIn .3s ease both;overflow:hidden;
-}
-@keyframes spModalIn{from{opacity:0;transform:scale(.93) translateY(12px)}to{opacity:1;transform:none}}
-.sp-modal-head{
-  position:relative;padding:18px 22px 16px;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 80%);color:#fff;
-}
-.sp-modal-head::after{
-  content:"";position:absolute;inset:auto 0 0 0;height:3px;
-  background:linear-gradient(90deg,#fbbf24,#f59e0b);
-}
-.sp-modal-head h4{font-size:1.05rem;font-weight:950;margin:0 0 .2rem;color:#fff}
-.sp-modal-head .sp-m-sub{font-size:.82rem;color:rgba(255,255,255,.85);margin:0;font-weight:600}
-.sp-modal-body{padding:18px 22px 8px;display:flex;flex-direction:column;gap:1rem}
-.sp-m-target{
-  display:flex;align-items:center;gap:.85rem;
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));
-  border:1px solid rgba(245,158,11,.30);border-radius:14px;padding:.75rem 1rem;
-}
-.sp-mt-icon{
-  width:42px;height:42px;border-radius:12px;
-  background:rgba(245,158,11,.18);color:#b45309;
-  display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;
-}
-.sp-mt-name{font-size:1rem;font-weight:950;color:var(--sp-ink);line-height:1.2}
-.sp-mt-price{font-size:.78rem;color:var(--sp-muted);font-weight:700;margin-top:2px}
-.sp-modal textarea{
-  width:100%;background:#fff;border:1px solid var(--sp-line);border-radius:12px;
-  padding:.7rem .9rem;color:var(--sp-ink);font-size:.88rem;font-weight:600;
-  resize:vertical;min-height:84px;outline:none;font-family:inherit;
-  transition:border-color .15s,box-shadow .15s;
-}
-.sp-modal textarea:focus{border-color:var(--sp-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
-.sp-modal textarea::placeholder{color:var(--sp-muted);font-weight:500}
-.sp-modal-foot{
-  display:flex;gap:.65rem;padding:14px 22px;
-  background:#f8fbff;border-top:1px solid var(--sp-line);
-}
-.sp-m-cancel{
-  flex:1;padding:.7rem;border-radius:12px;
-  background:#fff;color:var(--sp-ink-soft);
-  border:1px solid var(--sp-line);font-size:.88rem;font-weight:900;
-  cursor:pointer;transition:all .15s;font-family:inherit;
-}
-.sp-m-cancel:hover{background:#f5f9ff;border-color:var(--sp-line-strong)}
-.sp-m-submit{
-  flex:2;padding:.7rem;border-radius:12px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  border:none;font-size:.88rem;font-weight:900;cursor:pointer;
-  transition:all .15s;font-family:inherit;
-  box-shadow:0 8px 22px rgba(245,158,11,.28);
-}
-.sp-m-submit:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(245,158,11,.38)}
-</style>
-
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'My Subscription' if is_en else 'اشتراكي' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area">
-    <div class="sp-page" dir="{{ page_dir }}">
+  <main class="app-main content-area sub-page">
 
-      {# flash messages #}
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="sp-alert sp-alert-{{ 'danger' if category in ['danger','error'] else category }}">
-              <span>{{ '✅' if category == 'success' else ('⚠️' if category == 'warning' else '❌') }}</span>
-              <span>{{ message }}</span>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      {# pending request banner #}
-      {% if pending_request %}
-      <div class="sp-pending-banner">
-        <div class="sp-pb-icon">⏳</div>
-        <div class="sp-pb-text">
-          <div class="sp-pb-title">{{ 'Plan change request is pending review' if is_en else 'طلب تغيير الخطة قيد المراجعة' }}</div>
-          <div class="sp-pb-sub">{{ pending_request.subject }}</div>
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Account · Subscription' if is_en else 'الحساب · الاشتراك' }}</span>
+          <h1 class="hu-h1">{{ 'My subscription & plan' if is_en else 'اشتراكي وباقتي' }}</h1>
+          <p class="hu-tagline">{{ 'See your current plan, remaining time, used quotas, and the available plans you can upgrade to.' if is_en else 'اعرف باقتك الحالية، المدة المتبقية، حدود الاستخدام، والباقات المتاحة للترقية إليها.' }}</p>
+          <div class="hu-hero-meta">
+            {% if plan %}
+              <span class="hu-meta-pill"><b>{{ plan.name_en if is_en else plan.name_ar }}</b></span>
+              <span class="hu-meta-pill"><b>{{ days_left_num }}</b> {{ 'days left' if is_en else 'يوم متبقي' }}</span>
+            {% endif %}
+            {% if subscription %}
+              <span class="hu-meta-pill {% if subscription.status == 'active' %}ok{% endif %}">{{ subscription.status }}</span>
+            {% endif %}
+          </div>
         </div>
       </div>
-      {% endif %}
+    </header>
 
-      {# ── HERO ── #}
-      {% set status_val = subscription.status if subscription else 'trial' %}
-      {% set arc_color = '#10b981' if status_val in ('active','trial') else ('#f59e0b' if status_val == 'paused' else '#f43f5e') %}
-      <section class="sp-hero">
-        <div class="sp-hero-grid">
-          <div class="sp-hero-text">
-            <span class="sp-eyebrow"><span class="sp-pulse"></span>{{ 'Subscription · My plan' if is_en else 'الاشتراك · خطتي' }}</span>
-            <h1 class="sp-plan-name">
-              {{ plan.name_en if is_en and plan else (plan.name_ar if plan else ('No active plan' if is_en else 'لا توجد خطة نشطة')) }}
-            </h1>
-            <p class="sp-tenant-name">
-              {{ tenant.display_name if tenant else (user.full_name or user.username) }}
-            </p>
-            <div class="sp-hero-meta">
-              <span class="sp-hero-meta-item">📅 <b>{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '—' }}</b></span>
-              <span class="sp-hero-meta-item">⌛ <b>{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '—' }}</b></span>
-              <span class="sp-hero-meta-item">📱 <b>{{ plan.max_devices if plan else '—' }} {{ 'devices' if is_en else 'جهاز' }}</b></span>
-            </div>
-          </div>
-
-          <div class="sp-status-ring">
-            <div class="sp-ring-wrap">
-              <svg class="sp-ring-svg" viewBox="0 0 96 96">
-                <circle class="sp-ring-bg" cx="48" cy="48" r="38"/>
-                <circle class="sp-ring-arc" cx="48" cy="48" r="38"
-                        stroke="{{ arc_color }}"
-                        stroke-dasharray="239"
-                        stroke-dashoffset="{{ (239 - (239 * pct_left / 100))|round(1) }}"/>
-              </svg>
-              <div class="sp-ring-inner">
-                <span class="sp-ring-days">{{ days_left_num }}</span>
-                <span class="sp-ring-label">{{ 'days' if is_en else 'يوم' }}</span>
-              </div>
-            </div>
-            <span class="sp-status-pill {{ status_val }}">
-              {% if status_val == 'active' %}✅{% elif status_val == 'trial' %}🔬{% elif status_val == 'expired' %}⛔{% elif status_val == 'paused' %}⏸{% else %}❌{% endif %}
-              {{ ui_label(status_val, 'status', ui_lang) if subscription else '-' }}
-            </span>
-          </div>
+    <div class="sub-shell">
+      <aside class="sub-aside">
+        <div class="sub-as-card explainer">
+          <h4>📘 {{ 'Subscription basics' if is_en else 'أساسيات الاشتراك' }}</h4>
+          <p>{{ 'Your plan defines what features and quotas you have. The countdown shows how much time you have left before renewal.' if is_en else 'الباقة تحدد المزايا والحدود المتاحة لك. العداد يعرض الوقت المتبقي قبل التجديد.' }}</p>
+          <p>{{ 'You can request a plan upgrade from the available plans below. The team will contact you to confirm.' if is_en else 'يمكنك طلب ترقية الباقة من الباقات المتاحة أدناه، وسيتواصل معك الفريق للتأكيد.' }}</p>
         </div>
-      </section>
-
-      {# ── 4-CARD SUMMARY STRIP ── #}
-      <section class="sp-stats">
-        <article class="sp-stat amber">
-          <div class="sp-stat-top"><div class="sp-stat-icon">📅</div><span class="sp-stat-trend">{{ 'Start' if is_en else 'البداية' }}</span></div>
-          <div class="sp-stat-label">{{ 'Start date' if is_en else 'تاريخ البداية' }}</div>
-          <div class="sp-stat-value">{{ subscription.starts_at.strftime('%Y-%m-%d') if subscription and subscription.starts_at else '—' }}</div>
-        </article>
-        <article class="sp-stat sky">
-          <div class="sp-stat-top"><div class="sp-stat-icon">⌛</div><span class="sp-stat-trend">{{ 'End' if is_en else 'النهاية' }}</span></div>
-          <div class="sp-stat-label">{{ 'End date' if is_en else 'تاريخ الانتهاء' }}</div>
-          <div class="sp-stat-value">{{ subscription.ends_at.strftime('%Y-%m-%d') if subscription and subscription.ends_at else '—' }}</div>
-        </article>
-        <article class="sp-stat emerald">
-          <div class="sp-stat-top"><div class="sp-stat-icon">📱</div><span class="sp-stat-trend">{{ 'Cap' if is_en else 'الحد' }}</span></div>
-          <div class="sp-stat-label">{{ 'Max devices' if is_en else 'عدد الأجهزة المسموح' }}</div>
-          <div class="sp-stat-value">{{ plan.max_devices if plan else '—' }}</div>
-        </article>
-        <article class="sp-stat violet">
-          <div class="sp-stat-top"><div class="sp-stat-icon">⚙️</div><span class="sp-stat-trend">{{ 'Mode' if is_en else 'النمط' }}</span></div>
-          <div class="sp-stat-label">{{ 'Activation mode' if is_en else 'نمط التفعيل' }}</div>
-          <div class="sp-stat-value">{{ ui_label(subscription.activation_mode, 'status', ui_lang) if subscription and subscription.activation_mode else '—' }}</div>
-        </article>
-      </section>
-
-      {# ── QUOTAS ── #}
-      <div class="sp-section-head">
-        <div>
-          <h2><span class="sp-section-icon">📊</span>{{ 'Services & quotas' if is_en else 'الخدمات والكوتا' }}</h2>
-          <small>{{ 'Counters of your current usage within this subscription.' if is_en else 'عدّادات استخدامك الحالي ضمن اشتراكك.' }}</small>
-        </div>
-        {% if quota_rows|default([])|length %}<span class="sp-pill">{{ quota_rows|length }} {{ 'quotas' if is_en else 'كوتا' }}</span>{% endif %}
-      </div>
-
-      <section class="sp-quota-grid">
-        {% for item in quota_rows|default([]) %}
-        {% set pct = item.percent or 0 %}
-        {% set state = 'is-danger' if pct >= 100 else ('is-warn' if pct >= 75 else 'is-ok') %}
-        <article class="sp-quota-card {{ state }}">
-          <div class="sp-quota-top">
-            <div>
-              <strong>{{ item.label }}</strong>
-              <small>{{ item.quota.quota_key }} · {{ ui_label(item.quota.reset_period, 'status', ui_lang) }}</small>
-            </div>
-            <span class="sp-q-pill {{ 'active' if item.quota.status == 'active' else 'inactive' }}">
-              {{ ui_label(item.quota.status, 'status', ui_lang) }}
-            </span>
-          </div>
-          <div class="sp-quota-nums">
-            <span><b>{{ item.used|round(0)|int }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
-            <span><b>{% if item.is_unlimited %}∞{% else %}{{ item.limit|round(0)|int }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
-            <span><b>{{ item.remaining }}</b><small>{{ 'Left' if is_en else 'متبقي' }}</small></span>
-          </div>
-          <div class="sp-meter"><i style="width:{{ [pct, 100]|min }}%"></i></div>
-          <div class="sp-quota-foot">
-            <b>{{ pct|round(1) }}%</b>
-            <span>{{ item.description }}</span>
-          </div>
-        </article>
-        {% else %}
-        <div class="sp-quota-empty">
-          <strong>{{ 'No quota limits configured for this plan.' if is_en else 'لا توجد حدود كوتا لهذه الخطة.' }}</strong>
-        </div>
-        {% endfor %}
-      </section>
-
-      {# ── PLAN PICKER ── #}
-      {% set feat_icons = {
-        'can_use_sms': '📱', 'can_use_telegram': '✈️',
-        'can_view_diagnostics': '🔬', 'can_view_api_explorer': '🔌',
-        'can_manage_integrations': '🔗', 'can_manage_devices': '⚙️',
-      } %}
-      {% set feat_labels_ar = {
-        'can_use_sms': 'رسائل SMS', 'can_use_telegram': 'Telegram',
-        'can_view_diagnostics': 'تشخيص متقدم', 'can_view_api_explorer': 'API Explorer',
-        'can_manage_integrations': 'إدارة التكاملات', 'can_manage_devices': 'إدارة الأجهزة',
-      } %}
-      {% set feat_labels_en = {
-        'can_use_sms': 'SMS Messages', 'can_use_telegram': 'Telegram',
-        'can_view_diagnostics': 'Advanced Diagnostics', 'can_view_api_explorer': 'API Explorer',
-        'can_manage_integrations': 'Manage Integrations', 'can_manage_devices': 'Manage Devices',
-      } %}
-      {% set plan_icons = {'basic':'🌱','pro':'⚡','platinum':'🏆'} %}
-
-      <div class="sp-section-head">
-        <div>
-          <h2><span class="sp-section-icon">🎯</span>{{ 'Available plans' if is_en else 'الخطط المتاحة' }}</h2>
-          <small>{{ 'Choose a plan and send a request — the team will activate it for you.' if is_en else 'اختر الخطة المناسبة وأرسل طلبًا، وسيقوم الفريق بتفعيلها.' }}</small>
-        </div>
-      </div>
-
-      <section class="sp-plans-grid">
-        {% for p in all_plans|default([]) %}
-        {% set is_current = (plan and plan.id == p.id) %}
-        {% set pf = plan_features_map.get(p.id, {}) %}
-        <article class="sp-plan-card {{ 'current-plan' if is_current }}"
-                 data-current-label="{{ 'Current' if is_en else 'الحالية' }}">
-          <div class="sp-pc-head">
-            <span class="sp-pc-icon">{{ plan_icons.get(p.code, '📦') }}</span>
-            <div>
-              <h3 class="sp-pc-name">{{ p.name_en if is_en else p.name_ar }}</h3>
-              <div class="sp-pc-price">
-                {% if p.price %}
-                  <b>{{ p.price|round(0)|int }} {{ p.currency or 'USD' }}</b> / {{ p.duration_days_default or 30 }} {{ 'days' if is_en else 'يوم' }}
-                {% else %}
-                  <b>{{ 'Free' if is_en else 'مجاني' }}</b>
-                {% endif %}
-                · {{ p.max_devices }} {{ 'device(s)' if is_en else 'جهاز' }}
-              </div>
-            </div>
-          </div>
-          <ul class="sp-pc-feats">
-            {% for feat_key in ['can_manage_devices','can_manage_integrations','can_use_telegram','can_use_sms','can_view_diagnostics','can_view_api_explorer'] %}
-            {% set enabled = pf.get(feat_key, false) if pf else false %}
-            <li class="{{ '' if enabled else 'disabled' }}">
-              <span class="sp-fi">{{ feat_icons.get(feat_key,'·') if enabled else '✗' }}</span>
-              {{ (feat_labels_en if is_en else feat_labels_ar).get(feat_key, feat_key) }}
-            </li>
-            {% endfor %}
+        <div class="sub-as-card">
+          <h4>🔑 {{ 'Status meanings' if is_en else 'معاني الحالات' }}</h4>
+          <ul class="sub-legend-list">
+            <li><span class="sub-legend-dot" style="background:#22c55e"></span><strong>{{ 'Active' if is_en else 'نشطة' }}</strong><small>{{ 'paid & in use' if is_en else 'مدفوعة وفعّالة' }}</small></li>
+            <li><span class="sub-legend-dot" style="background:#3b82f6"></span><strong>{{ 'Trial' if is_en else 'تجريبي' }}</strong><small>{{ 'free evaluation' if is_en else 'تجربة مجانية' }}</small></li>
+            <li><span class="sub-legend-dot" style="background:#f59e0b"></span><strong>{{ 'Pending' if is_en else 'قيد الانتظار' }}</strong><small>{{ 'awaiting activation' if is_en else 'بانتظار التفعيل' }}</small></li>
+            <li><span class="sub-legend-dot" style="background:#ef4444"></span><strong>{{ 'Expired' if is_en else 'منتهية' }}</strong><small>{{ 'needs renewal' if is_en else 'تحتاج تجديد' }}</small></li>
           </ul>
-          {% if is_current %}
-            <button type="button" class="sp-pc-btn current-btn">
-              {{ 'Current plan' if is_en else 'خطتك الحالية' }}
-            </button>
-          {% elif pending_request %}
-            <button type="button" class="sp-pc-btn current-btn">
-              {{ 'Request pending…' if is_en else 'طلب قيد المراجعة…' }}
-            </button>
-          {% else %}
-            <button type="button" class="sp-pc-btn active-btn"
-                    onclick='openPlanModal({{ p.id|tojson }}, {{ (p.name_en if is_en else p.name_ar)|tojson }}, {{ plan_icons.get(p.code, "📦")|tojson }}, {{ ((p.price|round(0)|int|string) ~ " " ~ (p.currency or "USD"))|tojson }})'>
-              {% set cur_order = (plan.sort_order or 0) if plan else 0 %}
-              {% set this_order = p.sort_order or 0 %}
-              {{ ('⬆ Request upgrade' if this_order > cur_order else '↻ Request change') if is_en else ('⬆ طلب ترقية' if this_order > cur_order else '↻ طلب تغيير') }}
-            </button>
-          {% endif %}
-        </article>
-        {% else %}
-        <div class="sp-quota-empty">{{ 'No plans available.' if is_en else 'لا توجد خطط متاحة.' }}</div>
-        {% endfor %}
-      </section>
-
-    </div><!-- .sp-page -->
-
-    {# ── PLAN CHANGE MODAL ── #}
-    <div class="sp-modal-backdrop" id="spModalBackdrop" onclick="if(event.target===this)closePlanModal()">
-      <div class="sp-modal" dir="{{ page_dir }}">
-        <div class="sp-modal-head">
-          <h4>📨 {{ 'Request plan change' if is_en else 'طلب تغيير الخطة' }}</h4>
-          <p class="sp-m-sub">{{ 'Your request will be sent to our team who will process it and activate the new plan.' if is_en else 'سيُرسَل طلبك إلى الفريق الذي سيعالجه ويفعّل الخطة الجديدة.' }}</p>
         </div>
-        <div class="sp-modal-body">
-          <div class="sp-m-target">
-            <span class="sp-mt-icon" id="spModalIcon">📦</span>
+        <div class="sub-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Renew before expiry to avoid service interruption.' if is_en else 'جدّد قبل انتهاء المدة لتفادي انقطاع الخدمة.' }}</li>
+            <li>{{ 'Quotas reset per the plan rules (daily/monthly/yearly).' if is_en else 'الحدود تُعاد كل فترة حسب قواعد الباقة (يومي/شهري/سنوي).' }}</li>
+            <li>{{ 'Upgrade requests are reviewed within 24 hours.' if is_en else 'طلبات الترقية تُراجع خلال 24 ساعة.' }}</li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="sub-main">
+
+        {# Section 1: Current plan summary #}
+        <section class="sub-section" data-help="{{ 'Your current plan with countdown to renewal. The percentage shows how much time is left.' if is_en else 'باقتك الحالية مع العد التنازلي للتجديد. النسبة تعرض الوقت المتبقي.' }}">
+          <div class="sub-sec-head">
             <div>
-              <div class="sp-mt-name" id="spModalName">—</div>
-              <div class="sp-mt-price" id="spModalPrice"></div>
+              <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+              <h2><span class="sub-sec-icon">💎</span> {{ 'Current subscription' if is_en else 'اشتراكك الحالي' }}</h2>
+            </div>
+            <span class="sub-sec-meta">{{ subscription.status if subscription else ('—' if not plan else 'active') }}</span>
+          </div>
+          <div class="sub-sec-body">
+            {% if plan %}
+            <div class="sub-current-card">
+              <div class="sub-current-info">
+                <span class="sub-current-eyebrow">{{ 'Plan' if is_en else 'الباقة' }}</span>
+                <h3>{{ plan.name_en if is_en else plan.name_ar }}</h3>
+                <p class="sub-current-price">{{ plan.price }} <em>{{ plan.currency }}</em> / {{ plan.duration_days_default }} {{ 'days' if is_en else 'يوم' }}</p>
+                <ul class="sub-current-feats">
+                  <li>📱 <b>{{ plan.max_devices }}</b> {{ 'devices' if is_en else 'جهاز' }}</li>
+                  <li>📅 <b>{{ plan.duration_days_default }}</b> {{ 'days' if is_en else 'يوم' }}</li>
+                  {% if subscription and subscription.ends_at %}
+                  <li>⏰ {{ 'Ends' if is_en else 'تنتهي' }} <b>{{ subscription.ends_at.strftime('%Y-%m-%d') }}</b></li>
+                  {% endif %}
+                </ul>
+              </div>
+              <div class="sub-current-progress">
+                <div class="sub-progress-ring" style="--pct: {{ pct_left }}">
+                  <svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="42"/><circle class="fg" cx="50" cy="50" r="42" stroke-dasharray="{{ (pct_left * 264 / 100)|round(1) }} 999"/></svg>
+                  <div class="sub-progress-text">
+                    <strong>{{ days_left_num }}</strong>
+                    <small>{{ 'days left' if is_en else 'يوم متبقي' }}</small>
+                  </div>
+                </div>
+                <span class="sub-progress-pct">{{ pct_left }}% {{ 'remaining' if is_en else 'متبقّي' }}</span>
+              </div>
+            </div>
+            {% else %}
+            <div class="sub-empty">
+              <span>📦</span>
+              <strong>{{ 'No active plan' if is_en else 'لا توجد باقة نشطة' }}</strong>
+              <p>{{ 'Choose a plan from below to get started.' if is_en else 'اختر باقة من الأسفل للبدء.' }}</p>
+            </div>
+            {% endif %}
+          </div>
+        </section>
+
+        {# Section 2: Quotas #}
+        {% if quota_rows %}
+        <section class="sub-section" data-help="{{ 'Your usage limits. Each bar shows used vs. allowed for that resource. When a bar fills, that limit is exhausted for the period.' if is_en else 'حدود الاستخدام. كل شريط يعرض المستخدم مقابل المسموح لذلك المورد. عند امتلاء الشريط ينفد الحد للفترة.' }}">
+          <div class="sub-sec-head">
+            <div>
+              <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+              <h2><span class="sub-sec-icon">📊</span> {{ 'My quotas' if is_en else 'حدودي' }}</h2>
+            </div>
+            <span class="sub-sec-meta">{{ quota_rows|length }} {{ 'limits' if is_en else 'حد' }}</span>
+          </div>
+          <div class="sub-sec-body">
+            <div class="sub-quotas-grid">
+              {% for q in quota_rows %}
+              <article class="sub-quota">
+                <header>
+                  <strong>{{ q.label_en if is_en and q.label_en else q.label }}</strong>
+                  <span class="sub-quota-period">{{ q.reset_period or 'monthly' }}</span>
+                </header>
+                <div class="sub-quota-bar"><span style="width:{{ q.percent if q.percent else 0 }}%"></span></div>
+                <footer>
+                  <small><b>{{ q.used }}</b> / {{ q.limit if q.limit else '∞' }}</small>
+                  <small>{{ q.percent }}%</small>
+                </footer>
+              </article>
+              {% endfor %}
             </div>
           </div>
-          <form method="post" id="spModalForm" action="{{ url_for('billing.account_subscription_request_change', lang=ui_lang) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="plan_id" id="spModalPlanId" value="">
-            <textarea name="message"
-                      placeholder="{{ 'Any notes for the team? (optional)' if is_en else 'ملاحظات إضافية للفريق؟ (اختياري)' }}"></textarea>
-          </form>
-        </div>
-        <div class="sp-modal-foot">
-          <button type="button" class="sp-m-cancel" onclick="closePlanModal()">
-            {{ 'Cancel' if is_en else 'إلغاء' }}
-          </button>
-          <button type="submit" form="spModalForm" class="sp-m-submit">
-            ✉️ {{ 'Send request' if is_en else 'إرسال الطلب' }}
-          </button>
-        </div>
+        </section>
+        {% endif %}
+
+        {# Section 3: Available plans #}
+        {% if all_plans %}
+        <section class="sub-section" data-help="{{ 'Compare available plans and request an upgrade. Pricing and features for each plan are shown.' if is_en else 'قارن الباقات المتاحة واطلب الترقية. السعر والمزايا معروضة لكل باقة.' }}">
+          <div class="sub-sec-head">
+            <div>
+              <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+              <h2><span class="sub-sec-icon">🚀</span> {{ 'Available plans' if is_en else 'الباقات المتاحة' }}</h2>
+            </div>
+            <span class="sub-sec-meta">{{ all_plans|length }} {{ 'plans' if is_en else 'باقة' }}</span>
+          </div>
+          <div class="sub-sec-body">
+            <div class="sub-plans-grid">
+              {% for p in all_plans %}
+              {% set is_current = plan and plan.id == p.id %}
+              <article class="sub-plan {% if is_current %}is-current{% endif %}">
+                {% if is_current %}<span class="sub-plan-badge">✓ {{ 'Your plan' if is_en else 'باقتك' }}</span>{% endif %}
+                <header>
+                  <small>{{ p.code }}</small>
+                  <h3>{{ p.name_en if is_en else p.name_ar }}</h3>
+                </header>
+                <div class="sub-plan-price"><strong>{{ p.price }}</strong><em>{{ p.currency }}</em></div>
+                <p class="sub-plan-period">/ {{ p.duration_days_default }} {{ 'days' if is_en else 'يوم' }}</p>
+                <ul class="sub-plan-feats">
+                  <li>📱 <b>{{ p.max_devices }}</b> {{ 'devices' if is_en else 'جهاز' }}</li>
+                  <li>📅 <b>{{ p.duration_days_default }}</b> {{ 'days' if is_en else 'يوم' }}</li>
+                </ul>
+                {% if not is_current %}
+                <form method="post" action="{{ url_for('main.account_subscription_request_change', lang=ui_lang) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="plan_id" value="{{ p.id }}">
+                  <button type="submit" class="sub-btn primary">⬆ {{ 'Request this plan' if is_en else 'اطلب هذه الباقة' }}</button>
+                </form>
+                {% else %}
+                <div class="sub-current-tag">{{ '✓ Currently active' if is_en else '✓ مفعّلة حالياً' }}</div>
+                {% endif %}
+              </article>
+              {% endfor %}
+            </div>
+            {% if pending_request %}
+            <div class="sub-pending-banner">⏳ {{ 'You already have a pending plan-change request.' if is_en else 'لديك طلب ترقية باقة قيد المراجعة.' }}</div>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+
       </div>
     </div>
-
   </main>
 </div>
 
-<script>
-function openPlanModal(planId, planName, planIcon, planPrice){
-  document.getElementById('spModalPlanId').value = planId;
-  document.getElementById('spModalName').textContent = planName;
-  document.getElementById('spModalIcon').textContent = planIcon;
-  document.getElementById('spModalPrice').textContent = planPrice;
-  document.getElementById('spModalBackdrop').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closePlanModal(){
-  document.getElementById('spModalBackdrop').classList.remove('open');
-  document.body.style.overflow = '';
-}
-document.addEventListener('keydown', function(e){ if(e.key==='Escape') closePlanModal(); });
-</script>
+<style>
+  .sub-current-card {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 24px; align-items: center;
+    padding: 24px;
+    background: linear-gradient(135deg, #eef2ff, #f0fdf4);
+    border: 1px solid #c7d2fe;
+    border-radius: 16px;
+  }
+  @media (max-width: 720px) { .sub-current-card { grid-template-columns: 1fr; } }
+  .sub-current-eyebrow { font-size: .72rem; font-weight: 800; color: #6366f1; text-transform: uppercase; letter-spacing: .07em; }
+  .sub-current-card h3 { margin: 6px 0 4px; font-size: 1.6rem; font-weight: 900; color: #0f172a; }
+  .sub-current-price { margin: 0 0 12px; font-size: 1.05rem; font-weight: 800; color: #4338ca; }
+  .sub-current-price em { font-size: .85rem; font-weight: 600; color: #64748b; font-style: normal; }
+  .sub-current-feats { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+  .sub-current-feats li { font-size: .9rem; color: #334155; }
+  .sub-current-feats b { color: #4338ca; font-weight: 800; }
+  .sub-progress-ring {
+    position: relative; width: 130px; height: 130px;
+  }
+  .sub-progress-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .sub-progress-ring circle { fill: none; stroke-width: 9; }
+  .sub-progress-ring circle.bg { stroke: #e0e7ff; }
+  .sub-progress-ring circle.fg { stroke: url(#sub-grad); transition: stroke-dasharray .35s; }
+  .sub-progress-ring circle.fg { stroke: #6366f1; stroke-linecap: round; }
+  .sub-progress-text {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    text-align: center;
+  }
+  .sub-progress-text strong { display: block; font-size: 1.6rem; font-weight: 900; color: #0f172a; }
+  .sub-progress-text small { display: block; font-size: .7rem; color: #64748b; font-weight: 600; }
+  .sub-progress-pct { display: block; text-align: center; margin-top: 8px; font-size: .82rem; color: #64748b; font-weight: 700; }
+
+  .sub-quotas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+  .sub-quota { padding: 14px 16px; background: #fafbff; border: 1px solid #e5e7eb; border-radius: 12px; }
+  .sub-quota header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .sub-quota header strong { font-size: .92rem; color: #0f172a; font-weight: 800; }
+  .sub-quota-period { font-size: .72rem; padding: 3px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-weight: 700; }
+  .sub-quota-bar { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+  .sub-quota-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #6366f1, #4f46e5); border-radius: 999px; transition: width .25s; }
+  .sub-quota footer { display: flex; justify-content: space-between; margin-top: 8px; font-size: .78rem; color: #64748b; }
+  .sub-quota footer b { color: #0f172a; font-weight: 800; }
+
+  .sub-plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 16px;
+  }
+  .sub-plan {
+    position: relative;
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 22px 18px;
+    text-align: center;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .sub-plan:hover { border-color: #6366f1; box-shadow: 0 8px 24px rgba(99,102,241,.12); transform: translateY(-3px); }
+  .sub-plan.is-current {
+    background: linear-gradient(135deg, #f0fdf4, #fff);
+    border-color: #86efac;
+  }
+  .sub-plan-badge {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #22c55e, #15803d);
+    color: #fff;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: .75rem; font-weight: 800;
+    box-shadow: 0 4px 10px rgba(34,197,94,.3);
+  }
+  .sub-plan header small { font-size: .68rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: .07em; }
+  .sub-plan h3 { margin: 4px 0 12px; font-size: 1.15rem; font-weight: 900; color: #0f172a; }
+  .sub-plan-price { display: flex; justify-content: center; align-items: baseline; gap: 6px; }
+  .sub-plan-price strong { font-size: 2rem; font-weight: 900; color: #4338ca; line-height: 1; }
+  .sub-plan-price em { font-size: .85rem; color: #64748b; font-weight: 700; font-style: normal; }
+  .sub-plan-period { margin: 4px 0 12px; font-size: .8rem; color: #94a3b8; }
+  .sub-plan-feats { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 6px; }
+  .sub-plan-feats li { font-size: .85rem; color: #475569; }
+  .sub-plan-feats b { color: #0f172a; font-weight: 800; }
+  .sub-current-tag {
+    padding: 8px 14px;
+    background: #f0fdf4; color: #15803d;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    font-weight: 800; font-size: .85rem;
+  }
+  .sub-pending-banner {
+    margin-top: 14px; padding: 12px 16px;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 10px; color: #b45309;
+    font-weight: 700; font-size: .88rem; text-align: center;
+  }
+</style>
 {% endblock %}

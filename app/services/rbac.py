@@ -145,11 +145,11 @@ STAFF_ROLE_PRESETS = (
         'permissions': {'can_manage_users': True, 'can_manage_portal_visibility': True, 'can_manage_devices': True, 'can_manage_support': True, 'can_manage_subscriptions': True, 'can_view_logs': True, 'can_access_mobile_api': True},
     },
     {
-        'code': 'technical_support', 'name_ar': 'دعم فني', 'name_en': 'Technical Support', 'summary_ar': 'التذاكر والمراسلات ومراجعة الأجهزة بدون صلاحيات مالية.', 'summary_en': 'Tickets, messages, and device review without finance access.', 'is_system': True, 'sort_order': 12,
+        'code': 'technical_support', 'name_ar': 'دعم فني', 'name_en': 'Technical Support', 'summary_ar': 'متابعة التذاكر والمراسلات ومراجعة الأجهزة دون صلاحيات مالية.', 'summary_en': 'Tickets, messages, and device review without finance access.', 'is_system': True, 'sort_order': 12,
         'permissions': {'can_manage_support': True, 'can_manage_devices': True, 'can_view_logs': True, 'can_access_mobile_api': True},
     },
     {
-        'code': 'finance_manager', 'name_ar': 'مدير مالي', 'name_en': 'Finance Manager', 'summary_ar': 'إدارة المالية والاشتراكات والخطط والتقارير المالية.', 'summary_en': 'Finance, subscriptions, plans, and financial reporting.', 'is_system': True, 'sort_order': 21,
+        'code': 'finance_manager', 'name_ar': 'مدير مالي', 'name_en': 'Finance Manager', 'summary_ar': 'إدارة الحسابات والاشتراكات والباقات والتقارير المالية.', 'summary_en': 'Finance, subscriptions, plans, and financial reporting.', 'is_system': True, 'sort_order': 21,
         'permissions': {'can_manage_finance': True, 'can_manage_subscriptions': True, 'can_manage_users': True, 'can_view_logs': True},
     },
     {
@@ -157,26 +157,26 @@ STAFF_ROLE_PRESETS = (
         'permissions': {'can_manage_users': True, 'can_manage_support': True, 'can_manage_subscriptions': True, 'can_access_mobile_api': True},
     },
     {
-        'code': 'developer', 'name_ar': 'مبرمج', 'name_en': 'Developer', 'summary_ar': 'التكاملات، صحة الخدمات، النسخ الاحتياطي، والسجلات التقنية.', 'summary_en': 'Integrations, service health, backups, and technical logs.', 'is_system': True, 'sort_order': 35,
+        'code': 'developer', 'name_ar': 'مطوّر النظام', 'name_en': 'Developer', 'summary_ar': 'إدارة التكاملات وصحة الخدمات والنسخ الاحتياطية والسجلات التقنية.', 'summary_en': 'Integrations, service health, backups, and technical logs.', 'is_system': True, 'sort_order': 35,
         'permissions': {'can_manage_devices': True, 'can_manage_integrations': True, 'can_configure_integrations': True, 'can_manage_backups': True, 'can_view_logs': True},
     },
 )
 
 DEFAULT_ROLES = (
     {
-        'code': 'admin', 'name_ar': 'مدير كامل', 'name_en': 'Full Admin', 'summary_ar': 'تحكم كامل في المنصة.', 'summary_en': 'Full platform control.', 'is_system': True, 'sort_order': 1,
+        'code': 'admin', 'name_ar': 'مدير النظام', 'name_en': 'Full Admin', 'summary_ar': 'تحكم كامل في المنصة وكل الصلاحيات.', 'summary_en': 'Full platform control.', 'is_system': True, 'sort_order': 1,
         'permissions': {key: True for key in PERMISSION_KEYS},
     },
     {
-        'code': 'support_admin', 'name_ar': 'مدير دعم', 'name_en': 'Support Admin', 'summary_ar': 'الدعم، التذاكر، وسجل العمليات.', 'summary_en': 'Support, tickets, and operational logs.', 'is_system': True, 'sort_order': 10,
+        'code': 'support_admin', 'name_ar': 'مسؤول الدعم', 'name_en': 'Support Admin', 'summary_ar': 'إدارة الدعم والتذاكر وسجل العمليات.', 'summary_en': 'Support, tickets, and operational logs.', 'is_system': True, 'sort_order': 10,
         'permissions': {'can_manage_support': True, 'can_view_logs': True, 'can_access_mobile_api': True},
     },
     {
-        'code': 'finance_admin', 'name_ar': 'مدير مالية', 'name_en': 'Finance Admin', 'summary_ar': 'المالية، الاشتراكات، والمحفظة.', 'summary_en': 'Finance, subscriptions, and wallet operations.', 'is_system': True, 'sort_order': 20,
+        'code': 'finance_admin', 'name_ar': 'مسؤول المالية', 'name_en': 'Finance Admin', 'summary_ar': 'إدارة الحسابات والاشتراكات والمحافظ.', 'summary_en': 'Finance, subscriptions, and wallet operations.', 'is_system': True, 'sort_order': 20,
         'permissions': {'can_manage_finance': True, 'can_manage_subscriptions': True, 'can_view_logs': True},
     },
     {
-        'code': 'integration_admin', 'name_ar': 'مدير تكاملات', 'name_en': 'Integration Admin', 'summary_ar': 'الأجهزة والتكاملات وصحة الخدمات.', 'summary_en': 'Devices, integrations, and service health.', 'is_system': True, 'sort_order': 30,
+        'code': 'integration_admin', 'name_ar': 'مسؤول التكاملات', 'name_en': 'Integration Admin', 'summary_ar': 'إدارة الأجهزة والتكاملات وحالة الخدمات.', 'summary_en': 'Devices, integrations, and service health.', 'is_system': True, 'sort_order': 30,
         'permissions': {'can_manage_devices': True, 'can_manage_integrations': True, 'can_configure_integrations': True, 'can_view_logs': True},
     },
     {
@@ -185,6 +185,7 @@ DEFAULT_ROLES = (
     },
 )
 DEFAULT_ROLE_CATALOG = DEFAULT_ROLES[:1] + STAFF_ROLE_PRESETS + DEFAULT_ROLES[1:]
+DELETED_ROLE_CODES_SETTING = 'access_control.deleted_role_codes'
 
 PORTAL_PAGES = (
     {'page_key': 'dashboard', 'endpoint': 'main.dashboard', 'label_ar': 'النظرة العامة', 'label_en': 'Overview', 'icon': '🏠', 'group_key': 'portal', 'sort_order': 1, 'is_locked': True},
@@ -278,8 +279,10 @@ def role_permissions(role_code: str | None) -> dict[str, bool]:
     code = (role_code or 'user').strip().lower() or 'user'
     if code == 'admin':
         return all_permission_defaults(True)
-    row = AppRole.query.filter_by(code=code, is_active=True).first()
+    row = AppRole.query.filter_by(code=code).first()
     if row:
+        if not row.is_active:
+            return all_permission_defaults(False)
         perms = all_permission_defaults(False)
         perms.update(_parse_permissions(row.permissions_json))
         return perms
@@ -432,12 +435,24 @@ def portal_page_visible(page_key: str) -> bool:
 
 def seed_access_control(commit: bool = True):
     changed = False
+    deleted_role_codes: set[str] = set()
+    deleted_row = Setting.query.filter_by(key=DELETED_ROLE_CODES_SETTING).first()
+    if deleted_row and deleted_row.value:
+        try:
+            parsed_deleted = json.loads(deleted_row.value or '[]')
+            if isinstance(parsed_deleted, list):
+                deleted_role_codes = {str(code).strip().lower() for code in parsed_deleted if str(code).strip()}
+        except Exception:
+            deleted_role_codes = set()
     for data in DEFAULT_ROLE_CATALOG:
         row = AppRole.query.filter_by(code=data['code']).first()
         if row is None:
+            if data['code'] in deleted_role_codes:
+                continue
             row = AppRole(code=data['code'], created_at=datetime.utcnow())
             db.session.add(row)
             changed = True
+            row.is_active = True
         row.name_ar = row.name_ar or data['name_ar']
         row.name_en = row.name_en or data['name_en']
         row.summary_ar = row.summary_ar or data.get('summary_ar', '')
@@ -446,7 +461,6 @@ def seed_access_control(commit: bool = True):
         row.sort_order = data.get('sort_order', row.sort_order or 100)
         if not row.permissions_json:
             row.permissions_json = json.dumps(data.get('permissions') or {}, ensure_ascii=False)
-        row.is_active = True
     for data in PORTAL_PAGES:
         row = PortalPageSetting.query.filter_by(page_key=data['page_key']).first()
         if row is None:
@@ -511,4 +525,3 @@ def register_access_control(app):
         if endpoint != 'main.dashboard' and portal_page_visible('dashboard'):
             return redirect(url_for('main.dashboard', lang=lang))
         abort(403)
-

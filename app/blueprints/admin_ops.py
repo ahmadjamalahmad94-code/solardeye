@@ -11,7 +11,7 @@ from ..services.i18n import translate
 from ..services.labels import label
 from ..services.scope import has_permission, is_system_admin
 from ..services.rbac import admin_landing_url
-from ..services.service_monitor import service_display_name, service_message
+from ..services.service_monitor import service_display_name, service_message, service_source_label
 from ..services.subscriptions import ensure_user_tenant_and_subscription
 from ..services.utils import format_local_datetime
 
@@ -41,11 +41,58 @@ def admin_subscribers_v9():
         db.or_(AppUser.role.is_(None), AppUser.role.in_(subscriber_roles)),
     ).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
     plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
+    user_ids = [user.id for user in users]
+    tenant_ids = {user.tenant_id for user in users if getattr(user, 'tenant_id', None)}
+    tenants_by_id = {
+        tenant.id: tenant
+        for tenant in (
+            TenantAccount.query.filter(TenantAccount.id.in_(tenant_ids)).all()
+            if tenant_ids else []
+        )
+    }
+    for user in users:
+        if not getattr(user, 'tenant_id', None) or user.tenant_id not in tenants_by_id:
+            tenant, _ = ensure_user_tenant_and_subscription(user)
+            if tenant:
+                tenants_by_id[tenant.id] = tenant
+                tenant_ids.add(tenant.id)
+    subscription_rows = (
+        TenantSubscription.query
+        .filter(TenantSubscription.tenant_id.in_(tenant_ids))
+        .order_by(TenantSubscription.tenant_id.asc(), TenantSubscription.created_at.desc(), TenantSubscription.id.desc())
+        .all()
+        if tenant_ids else []
+    )
+    subscriptions_by_tenant = {}
+    for sub in subscription_rows:
+        subscriptions_by_tenant.setdefault(sub.tenant_id, sub)
+    device_counts = {
+        owner_id: count
+        for owner_id, count in (
+            db.session.query(AppDevice.owner_user_id, db.func.count(AppDevice.id))
+            .filter(AppDevice.owner_user_id.in_(user_ids), AppDevice.is_active.is_(True))
+            .group_by(AppDevice.owner_user_id)
+            .all()
+            if user_ids else []
+        )
+    }
+    support_open = db.or_(SupportCase.status.is_(None), ~SupportCase.status.in_(('closed', 'resolved')))
+    support_cases = (
+        SupportCase.query
+        .with_entities(SupportCase.id, SupportCase.tenant_id, SupportCase.user_id, SupportCase.case_type)
+        .filter(
+            support_open,
+            db.or_(SupportCase.tenant_id.in_(tenant_ids), SupportCase.user_id.in_(user_ids)),
+        )
+        .all()
+        if tenant_ids or user_ids else []
+    )
     stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
     rows = []
     now = datetime.utcnow()
     for user in users:
-        tenant, sub = ensure_user_tenant_and_subscription(user)
+        tenant = tenants_by_id.get(user.tenant_id)
+        sub = subscriptions_by_tenant.get(getattr(tenant, 'id', None))
         status = (sub.status if sub else getattr(tenant, 'status', 'trial')) or 'trial'
         stats['total'] += 1
         if not user.is_active:
@@ -56,10 +103,14 @@ def admin_subscribers_v9():
         days_left = None
         if sub and sub.ends_at:
             days_left = (sub.ends_at.date() - now.date()).days
-        support_scope = db.or_(SupportCase.tenant_id == tenant.id, SupportCase.user_id == user.id)
-        support_open = db.or_(SupportCase.status.is_(None), ~SupportCase.status.in_(('closed', 'resolved')))
-        open_message_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'message').count()
-        open_ticket_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'ticket').count()
+        open_message_count = 0
+        open_ticket_count = 0
+        for case in support_cases:
+            if case.tenant_id == getattr(tenant, 'id', None) or case.user_id == user.id:
+                if case.case_type == 'message':
+                    open_message_count += 1
+                elif case.case_type == 'ticket':
+                    open_ticket_count += 1
         rows.append({
             'user': user,
             'tenant': tenant,
@@ -67,7 +118,7 @@ def admin_subscribers_v9():
             'plan': plan,
             'status': status,
             'days_left': days_left,
-            'device_count': AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count(),
+            'device_count': device_counts.get(user.id, 0),
             'open_message_count': open_message_count,
             'open_ticket_count': open_ticket_count,
         })
@@ -113,6 +164,7 @@ def admin_services_health_v9():
             'row': row,
             'label': service_display_name(row.service_key or row.service_label, _lang()),
             'message': service_message(row.message, _lang()),
+            'source_label': service_source_label(row.source, _lang()),
         })
     return render_template(
         'admin_services_health.html',
@@ -153,7 +205,51 @@ def admin_devices_center_v9():
         'inactive': sum(1 for row in rows if not bool(getattr(row['device'], 'is_active', True))),
         'types': len(device_types),
     }
-    return render_template('admin_devices_center.html', rows=rows, device_types=device_types, device_stats=device_stats, ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
+    # ── Insights for aside ─────────────────────────────────────────
+    from datetime import datetime, timedelta
+    now_utc = datetime.utcnow()
+    type_counts = {}
+    status_counts = {}
+    fresh_count = 0   # last seen <= 1h
+    recent_count = 0  # last seen 1-24h
+    stale_count = 0   # 1-7 days
+    very_stale_count = 0  # > 7 days
+    never_count = 0   # never connected
+    for row in rows:
+        dev = row['device']
+        t = (getattr(dev, 'device_type', None) or 'other').lower()
+        type_counts[t] = type_counts.get(t, 0) + 1
+        st = (getattr(dev, 'connection_status', None) or 'new').lower()
+        status_counts[st] = status_counts.get(st, 0) + 1
+        last = getattr(dev, 'last_connected_at', None)
+        if not last:
+            never_count += 1
+            continue
+        delta = now_utc - last
+        if delta < timedelta(hours=1):
+            fresh_count += 1
+        elif delta < timedelta(hours=24):
+            recent_count += 1
+        elif delta < timedelta(days=7):
+            stale_count += 1
+        else:
+            very_stale_count += 1
+    type_mix = sorted(type_counts.items(), key=lambda x: -x[1])
+    status_mix = sorted(status_counts.items(), key=lambda x: -x[1])
+    health = {
+        'fresh': fresh_count,
+        'recent': recent_count,
+        'stale': stale_count,
+        'very_stale': very_stale_count,
+        'never': never_count,
+    }
+    return render_template(
+        'admin_devices_center.html',
+        rows=rows, device_types=device_types, device_stats=device_stats,
+        type_mix=type_mix, status_mix=status_mix, health=health,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+    )
 
 
 @admin_ops_bp.route('/admin/design-qa')

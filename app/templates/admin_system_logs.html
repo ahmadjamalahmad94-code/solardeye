@@ -1,21 +1,63 @@
-{% extends 'base.html' %}
-{% block body %}
+{% extends "base.html" %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% set level_labels = {
+  'info': 'معلومة',
+  'success': 'نجاح',
+  'ok': 'نجاح',
+  'warning': 'تحذير',
+  'warn': 'تحذير',
+  'error': 'خطأ',
+  'danger': 'خطر',
+  'debug': 'تشخيص'
+} %}
+{% block title %}{{ 'System Logs' if is_en else 'سجل النظام' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_logs_v2.css', v='v300-logs-rebuild-20260507') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2">
-    <header class="admin-page-head compact">
-      <div><span class="eyebrow">{{ 'Observability' if is_en else 'المراقبة' }}</span><h1>{{ 'System and service logs' if is_en else 'سجل النظام والخدمات' }}</h1><p>{{ 'Background jobs, sync activity, and notification traces for the platform—not subscriber runtime pages.' if is_en else 'مهام الخلفية وأنشطة المزامنة وآثار الإشعارات الخاصة بالمنصة—وليس صفحات تشغيل المشترك.' }}</p></div>
+  <main class="app-main content-area lgs-page">
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Observability' if is_en else 'مراقبة النظام' }}</span>
+          <h1 class="hu-h1">{{ 'System and service logs' if is_en else 'سجلات النظام والخدمات' }}</h1>
+          <p class="hu-tagline">{{ 'Background jobs, sync activity, and notification traces.' if is_en else 'مهام الخلفية ونشاط المزامنة وأثر التنبيهات.' }}</p>
+          <div class="hu-hero-meta"><span class="hu-meta-pill"><b>{{ service_logs|length if service_logs else 0 }}</b> {{ 'service logs' if is_en else 'سجل خدمة' }}</span></div>
+        </div>
+      </div>
     </header>
-    <section class="admin-kpi-grid-v2 slim">
-      <article class="admin-kpi-card"><small>{{ 'Scheduler' if is_en else 'Scheduler' }}</small><strong>{{ health.scheduler_status }}</strong><span>{{ health.scheduler_message }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Auto sync' if is_en else 'المزامنة' }}</small><strong>{{ health.auto_sync_status }}</strong><span>{{ health.auto_sync_message }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Notifications' if is_en else 'الإشعارات' }}</small><strong>{{ health.notification_status }}</strong><span>{{ health.notification_message }}</span></article>
-    </section>
-    <section class="admin-layout-v2 single">
-      <div class="admin-card-v2">
-        <h3>{{ 'Service logs' if is_en else 'سجل الخدمات' }}</h3>
-        <div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Time' if is_en else 'الوقت' }}</th><th>{{ 'Level' if is_en else 'المستوى' }}</th><th>{{ 'Message' if is_en else 'الرسالة' }}</th></tr></thead><tbody>{% for row in service_logs[:120] %}<tr><td>{{ format_local(row.created_at) }}</td><td><span class="status-pill {% if row.level in ['success','ok','info'] %}success{% elif row.level == 'warning' %}warning{% else %}danger{% endif %}">{{ row.level }}</span></td><td>{{ row.message }}</td></tr>{% endfor %}</tbody></table></div>
+    <section class="lgs-table-block">
+      <header class="lgs-block-head">
+        <div>
+          <small class="lgs-block-eyebrow">{{ 'Service logs' if is_en else 'سجلات الخدمات' }}</small>
+          <h2>{{ 'Recent platform activity' if is_en else 'أحدث نشاط للمنصة' }}</h2>
+        </div>
+        <span class="lgs-block-meta">{{ service_logs|length if service_logs else 0 }} {{ 'rows' if is_en else 'سجل' }}</span>
+      </header>
+      <div class="lgs-table-wrap">
+        <table class="lgs-table" data-paginate data-page-size="20">
+          <thead>
+            <tr>
+              <th>{{ 'Time' if is_en else 'الوقت' }}</th>
+              <th>{{ 'Level' if is_en else 'المستوى' }}</th>
+              <th>{{ 'Message' if is_en else 'الرسالة' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in service_logs[:120] %}
+              {% set level_key = (row.level or 'info')|lower %}
+              <tr class="row-{{ level_key }}">
+                <td><time>{{ format_local(row.created_at) }}</time></td>
+                <td><span class="lgs-pill lgs-pill-{{ level_key }}">{{ (row.level or 'info')|upper if is_en else level_labels.get(level_key, row.level or '-') }}</span></td>
+                <td class="lgs-summary">{{ row.message }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3" class="lgs-empty"><div class="lgs-empty-state"><span>📭</span><strong>{{ 'No logs yet' if is_en else 'لا توجد سجلات بعد' }}</strong></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </section>
   </main>

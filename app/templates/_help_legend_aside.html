@@ -1,0 +1,40 @@
+{# ─── Reusable left-side legend / help panel ────────────────────────
+   Usage:
+     {% set help_items = [
+        {'icon':'🟢', 'label':'متصل', 'desc':'الجهاز يعمل ويرسل بيانات حية'},
+        {'icon':'⚠️', 'label':'تنبيه', 'desc':'يحتاج لمراجعة'},
+     ] %}
+     {% set help_intro = 'ما تحتاج معرفته' %}
+     {% include '_help_legend_aside.html' %}
+   ─────────────────────────────────────────────────────────────────── #}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<aside class="legend-aside" aria-label="{{ 'Help & legend' if is_en else 'شرح ومفاتيح' }}">
+  <div class="legend-aside-card explainer">
+    <h4>📘 {{ help_title or ('How to use this page' if is_en else 'كيف تستخدم هذه الصفحة') }}</h4>
+    {% if help_intro %}<p>{{ help_intro }}</p>{% endif %}
+  </div>
+  {% if help_items %}
+  <div class="legend-aside-card">
+    <h4>🔑 {{ 'Symbols & meanings' if is_en else 'الرموز والمعاني' }}</h4>
+    <ul class="legend-list">
+      {% for it in help_items %}
+        <li class="legend-item">
+          <span class="legend-icon">{{ it.icon }}</span>
+          <div class="legend-info">
+            <strong>{{ it.label }}</strong>
+            {% if it.desc %}<small>{{ it.desc }}</small>{% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if help_tips %}
+  <div class="legend-aside-card tips">
+    <h4>💡 {{ 'Quick tips' if is_en else 'نصائح سريعة' }}</h4>
+    <ul>
+      {% for tip in help_tips %}<li>{{ tip }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</aside>

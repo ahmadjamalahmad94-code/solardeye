@@ -1,0 +1,394 @@
+<div class="up-pane" data-up-pane="support" {% if tab != 'support' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set _open_threads = thread_rows|rejectattr('thread.status','in',['closed','resolved'])|list %}
+  {% set _closed_threads = thread_rows|selectattr('thread.status','in',['closed','resolved'])|list %}
+  {% set _open_tickets = ticket_rows|rejectattr('ticket.status','in',['closed','resolved'])|list %}
+  {% set _closed_tickets = ticket_rows|selectattr('ticket.status','in',['closed','resolved'])|list %}
+  {% set _total_open = _open_threads|length + _open_tickets|length %}
+  {% set _total_closed = _closed_threads|length + _closed_tickets|length %}
+  {% set _total = _total_open + _total_closed %}
+
+  {# ─── Compact hero ─── #}
+  <section class="md-hero">
+    <div class="md-hero-text">
+      <span class="md-hero-eyebrow">💬 {{ 'Support' if is_en else 'الدعم' }}</span>
+      <h2>{{ 'Triage and reply, one conversation at a time.' if is_en else 'فرز ورد، محادثة واحدة في نفس الوقت.' }}</h2>
+    </div>
+    <div class="md-hero-pills">
+      <span class="md-pill md-pill-total">📨 {{ _total }} {{ 'total' if is_en else 'إجمالي' }}</span>
+      <span class="md-pill md-pill-open">🔥 {{ _total_open }} {{ 'open' if is_en else 'مفتوح' }}</span>
+      <span class="md-pill md-pill-closed">🔒 {{ _total_closed }} {{ 'closed' if is_en else 'مغلق' }}</span>
+      <a class="md-pill md-pill-link" href="{{ url_for('main.admin_support_command_center', lang=ui_lang, filter='all') }}">🎯 {{ 'Command center' if is_en else 'مركز القيادة' }}</a>
+    </div>
+  </section>
+
+  {# ─── Master/Detail layout ─── #}
+  <div class="md-layout" data-md-layout>
+    {# ─── Master: compact list ─── #}
+    <aside class="md-list" data-md-list>
+      <div class="md-list-tools">
+        <input type="search" class="md-search" placeholder="{{ 'Search…' if is_en else 'ابحث…' }}" data-md-search>
+        <div class="md-tabs" role="tablist">
+          <button type="button" class="md-tab is-on" data-md-tab="open">{{ 'Open' if is_en else 'مفتوح' }} <b>{{ _total_open }}</b></button>
+          <button type="button" class="md-tab" data-md-tab="closed">{{ 'Closed' if is_en else 'مغلق' }} <b>{{ _total_closed }}</b></button>
+        </div>
+      </div>
+
+      <div class="md-list-section" data-md-section="open">
+        {% if _total_open == 0 %}
+          <div class="md-list-empty">
+            <span>📭</span>
+            <p>{{ 'No open conversations.' if is_en else 'لا توجد محادثات مفتوحة.' }}</p>
+          </div>
+        {% endif %}
+
+        {% macro list_thread(row, is_closed) %}
+          {% set last_msg = row.messages|last %}
+          {% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}
+          {% set key = 'thread-' ~ row.thread.id %}
+          <button type="button" class="md-row md-row-message status-{{ row.thread.status }} {{ 'is-closed' if is_closed else '' }}"
+                  data-md-row data-md-key="{{ key }}"
+                  data-md-search-text="{{ (row.thread.subject ~ ' ' ~ (last_msg.body if last_msg else ''))|lower }}">
+            <span class="md-row-stripe"></span>
+            <span class="md-row-icon">✉️</span>
+            <div class="md-row-body">
+              <div class="md-row-line1">
+                <strong>#{{ row.thread.id }} — {{ row.thread.subject }}</strong>
+                <small class="md-row-time">{{ format_local(last_msg.created_at)[:10] if last_msg and last_msg.created_at else '' }}</small>
+              </div>
+              <div class="md-row-line2">
+                <span class="md-row-status">{{ status_label }}</span>
+                <span class="md-row-msg-count">{{ row.messages|length }} {{ 'msg' if is_en else 'رسالة' }}</span>
+              </div>
+            </div>
+          </button>
+        {% endmacro %}
+
+        {% macro list_ticket(row, is_closed) %}
+          {% set last_msg = row.messages|last %}
+          {% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}
+          {% set key = 'ticket-' ~ row.ticket.id %}
+          <button type="button" class="md-row md-row-ticket status-{{ row.ticket.status }} {{ 'is-closed' if is_closed else '' }}"
+                  data-md-row data-md-key="{{ key }}"
+                  data-md-search-text="{{ (row.ticket.subject ~ ' ' ~ (last_msg.body if last_msg else ''))|lower }}">
+            <span class="md-row-stripe"></span>
+            <span class="md-row-icon">🎫</span>
+            <div class="md-row-body">
+              <div class="md-row-line1">
+                <strong>#{{ row.ticket.id }} — {{ row.ticket.subject }}</strong>
+                <small class="md-row-time">{{ format_local(last_msg.created_at)[:10] if last_msg and last_msg.created_at else '' }}</small>
+              </div>
+              <div class="md-row-line2">
+                <span class="md-row-status">{{ status_label }}</span>
+                <span class="md-row-msg-count">{{ row.messages|length }} {{ 'msg' if is_en else 'رسالة' }}</span>
+              </div>
+            </div>
+          </button>
+        {% endmacro %}
+
+        {% for row in _open_threads %}{{ list_thread(row, false) }}{% endfor %}
+        {% for row in _open_tickets %}{{ list_ticket(row, false) }}{% endfor %}
+      </div>
+
+      <div class="md-list-section" data-md-section="closed" hidden>
+        {% if _total_closed == 0 %}
+          <div class="md-list-empty">
+            <span>🗄️</span>
+            <p>{{ 'No closed items yet.' if is_en else 'لا توجد عناصر مغلقة بعد.' }}</p>
+          </div>
+        {% endif %}
+        {% for row in _closed_threads %}{{ list_thread(row, true) }}{% endfor %}
+        {% for row in _closed_tickets %}{{ list_ticket(row, true) }}{% endfor %}
+      </div>
+    </aside>
+
+    {# ─── Detail: thread + reply ─── #}
+    <main class="md-detail" data-md-detail>
+
+      {% macro detail_thread(row, is_closed) %}
+        {% set last_msg = row.messages|last %}
+        {% set key = 'thread-' ~ row.thread.id %}
+        {% set status_label = labels['status'].get(row.thread.status, row.thread.status) %}
+        {% set priority_label = labels['priority'].get(row.thread.priority, row.thread.priority) %}
+        <article class="md-pane" data-md-pane="{{ key }}" hidden>
+          <header class="md-pane-head">
+            <div class="md-pane-title">
+              <span class="md-pane-title-icon md-pane-title-icon-message">✉️</span>
+              <div>
+                <h3>#{{ row.thread.id }} — {{ row.thread.subject }}</h3>
+                <small>{{ row.thread.category or ('Conversation' if is_en else 'محادثة') }}</small>
+              </div>
+            </div>
+            <div class="md-pane-pills">
+              <span class="md-detail-pill status-{{ row.thread.status }}">{{ status_label }}</span>
+              <span class="md-detail-pill priority-{{ row.thread.priority }}">{{ priority_label }}</span>
+              {% if row.assignee %}<span class="md-detail-pill assignee">🧑‍💼 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}
+            </div>
+          </header>
+
+          <div class="md-thread">
+            {% for msg in row.messages %}
+              {% set is_admin = msg.sender_scope == 'admin' %}
+              <div class="md-msg {{ 'md-msg-admin' if is_admin else 'md-msg-user' }} {{ 'md-msg-internal' if msg.is_internal_note else '' }}">
+                <div class="md-msg-avatar">
+                  {% if msg.is_internal_note %}🔒
+                  {% elif is_admin %}🛡️
+                  {% else %}{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}{% endif %}
+                </div>
+                <div class="md-msg-body">
+                  <div class="md-msg-meta">
+                    <strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}
+                    {% elif is_admin %}{{ 'Admin' if is_en else 'الإدارة' }}
+                    {% else %}{{ user_obj.full_name or user_obj.username }}{% endif %}</strong>
+                    <time>{{ format_local(msg.created_at) if msg.created_at else '' }}</time>
+                  </div>
+                  <p class="md-msg-text">{{ msg.body }}</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="md-thread-empty">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>
+            {% endfor %}
+          </div>
+
+          {% if not is_closed %}
+          <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#{{ key }}" class="md-reply" data-support-reply-form data-case-key="{{ 'mail-' ~ row.thread.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="mail_reply">
+            <input type="hidden" name="thread_id" value="{{ row.thread.id }}">
+            <div class="md-reply-toolbar">
+              <label class="md-reply-field">
+                <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                <select class="prof-input md-reply-select" name="status" data-status-select>
+                  {% for st in status_options %}<option value="{{ st }}" {% if row.thread.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field">
+                <span>{{ 'Manager' if is_en else 'المدير' }}</span>
+                <select class="prof-input md-reply-select" name="assigned_admin_user_id">
+                  <option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>
+                  {% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field md-reply-field-toggle">
+                <span>{{ 'Type' if is_en else 'النوع' }}</span>
+                <span class="md-reply-toggle">
+                  <input type="checkbox" name="is_internal_note" value="1">
+                  <em>🔒 {{ 'Internal' if is_en else 'داخلية' }}</em>
+                </span>
+              </label>
+            </div>
+            <textarea class="prof-input md-reply-text" name="body" rows="3" data-reply-textarea placeholder="{{ 'Write a reply…' if is_en else 'اكتب رداً…' }}"></textarea>
+            <div class="md-reply-actions">
+              <span class="canned-anchor">
+                <button type="button" class="prof-btn prof-btn-ghost" data-canned-toggle>⚡ {{ 'Canned' if is_en else 'جاهزة' }}</button>
+                {% include '_support_canned_drawer_v62.html' %}
+              </span>
+              <button class="prof-btn prof-btn-ghost" type="submit" name="assignment_only" value="1">{{ 'Assign only' if is_en else 'تعيين' }}</button>
+              <button class="prof-btn prof-btn-primary" type="submit" data-default-submit>📤 {{ 'Send' if is_en else 'إرسال' }}</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="md-frozen">🔒 {{ 'This conversation is closed. Reopen from command center to continue.' if is_en else 'المحادثة مغلقة. أعد فتحها من مركز القيادة للمتابعة.' }}</div>
+          {% endif %}
+        </article>
+      {% endmacro %}
+
+      {% macro detail_ticket(row, is_closed) %}
+        {% set last_msg = row.messages|last %}
+        {% set key = 'ticket-' ~ row.ticket.id %}
+        {% set status_label = labels['status'].get(row.ticket.status, row.ticket.status) %}
+        {% set priority_label = labels['priority'].get(row.ticket.priority, row.ticket.priority) %}
+        <article class="md-pane" data-md-pane="{{ key }}" hidden>
+          <header class="md-pane-head">
+            <div class="md-pane-title">
+              <span class="md-pane-title-icon md-pane-title-icon-ticket">🎫</span>
+              <div>
+                <h3>#{{ row.ticket.id }} — {{ row.ticket.subject }}</h3>
+                <small>{{ row.ticket.category or ('Ticket' if is_en else 'تذكرة') }}{% if row.device %} · ⚡ {{ row.device.name }}{% endif %}</small>
+              </div>
+            </div>
+            <div class="md-pane-pills">
+              <span class="md-detail-pill status-{{ row.ticket.status }}">{{ status_label }}</span>
+              <span class="md-detail-pill priority-{{ row.ticket.priority }}">{{ priority_label }}</span>
+              {% if row.assignee %}<span class="md-detail-pill assignee">🧑‍💼 {{ row.assignee.full_name or row.assignee.username }}</span>{% endif %}
+            </div>
+          </header>
+
+          <div class="md-thread">
+            {% for msg in row.messages %}
+              {% set is_admin = msg.sender_scope == 'admin' %}
+              <div class="md-msg {{ 'md-msg-admin' if is_admin else 'md-msg-user' }} {{ 'md-msg-internal' if msg.is_internal_note else '' }}">
+                <div class="md-msg-avatar">
+                  {% if msg.is_internal_note %}🔒
+                  {% elif is_admin %}🛡️
+                  {% else %}{{ (user_obj.full_name or user_obj.username or 'U')[:1]|upper }}{% endif %}
+                </div>
+                <div class="md-msg-body">
+                  <div class="md-msg-meta">
+                    <strong>{% if msg.is_internal_note %}{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}
+                    {% elif is_admin %}{{ 'Admin' if is_en else 'الإدارة' }}
+                    {% else %}{{ user_obj.full_name or user_obj.username }}{% endif %}</strong>
+                    <time>{{ format_local(msg.created_at) if msg.created_at else '' }}</time>
+                  </div>
+                  <p class="md-msg-text">{{ msg.body }}</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="md-thread-empty">{{ 'No messages yet.' if is_en else 'لا توجد رسائل بعد.' }}</div>
+            {% endfor %}
+          </div>
+
+          {% if not is_closed %}
+          <form method="post" action="{{ url_for('main.admin_user_profile', user_id=user_obj.id, lang=ui_lang, tab='support') }}#{{ key }}" class="md-reply" data-support-reply-form data-case-key="{{ 'ticket-' ~ row.ticket.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="ticket_reply">
+            <input type="hidden" name="ticket_id" value="{{ row.ticket.id }}">
+            <div class="md-reply-toolbar">
+              <label class="md-reply-field">
+                <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                <select class="prof-input md-reply-select" name="status" data-status-select>
+                  {% for st in status_options %}<option value="{{ st }}" {% if row.ticket.status==st %}selected{% endif %}>{{ labels['status'].get(st, st) }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field">
+                <span>{{ 'Manager' if is_en else 'المدير' }}</span>
+                <select class="prof-input md-reply-select" name="assigned_admin_user_id">
+                  <option value="">{{ 'Unassigned' if is_en else 'بدون مدير' }}</option>
+                  {% for admin in admin_users %}<option value="{{ admin.id }}" {% if row.assignee and row.assignee.id==admin.id %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}
+                </select>
+              </label>
+              <label class="md-reply-field md-reply-field-toggle">
+                <span>{{ 'Type' if is_en else 'النوع' }}</span>
+                <span class="md-reply-toggle">
+                  <input type="checkbox" name="is_internal_note" value="1">
+                  <em>🔒 {{ 'Internal' if is_en else 'داخلية' }}</em>
+                </span>
+              </label>
+            </div>
+            <textarea class="prof-input md-reply-text" name="body" rows="3" data-reply-textarea placeholder="{{ 'Reply to the ticket…' if is_en else 'اكتب رداً على التذكرة…' }}"></textarea>
+            <div class="md-reply-actions">
+              <span class="canned-anchor">
+                <button type="button" class="prof-btn prof-btn-ghost" data-canned-toggle>⚡ {{ 'Canned' if is_en else 'جاهزة' }}</button>
+                {% include '_support_canned_drawer_v62.html' %}
+              </span>
+              <button class="prof-btn prof-btn-ghost" type="submit" name="assignment_only" value="1">{{ 'Assign only' if is_en else 'تعيين' }}</button>
+              <button class="prof-btn prof-btn-primary" type="submit" data-default-submit>📤 {{ 'Send' if is_en else 'إرسال' }}</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="md-frozen">🔒 {{ 'This ticket is closed. Reopen from command center to continue.' if is_en else 'التذكرة مغلقة. أعد فتحها من مركز القيادة للمتابعة.' }}</div>
+          {% endif %}
+        </article>
+      {% endmacro %}
+
+      {% for row in _open_threads %}{{ detail_thread(row, false) }}{% endfor %}
+      {% for row in _open_tickets %}{{ detail_ticket(row, false) }}{% endfor %}
+      {% for row in _closed_threads %}{{ detail_thread(row, true) }}{% endfor %}
+      {% for row in _closed_tickets %}{{ detail_ticket(row, true) }}{% endfor %}
+
+      <div class="md-empty" data-md-empty>
+        <span>👋</span>
+        <strong>{{ 'Pick a conversation' if is_en else 'اختر محادثة' }}</strong>
+        <small>{{ 'Click any item from the list to read and reply.' if is_en else 'اضغط أي عنصر من القائمة لقراءة الثريد والرد.' }}</small>
+      </div>
+    </main>
+  </div>
+</div>{# /.prof-shell #}
+
+<script>
+window.SolarSupportInit = function(preserveKey){
+  const pane = document.querySelector('[data-up-pane="support"]');
+  if(!pane) return;
+  const layout = pane.querySelector('[data-md-layout]');
+  if(!layout) return;
+  const list = layout.querySelector('[data-md-list]');
+  const detail = layout.querySelector('[data-md-detail]');
+  const empty = detail.querySelector('[data-md-empty]');
+  const rows = layout.querySelectorAll('[data-md-row]');
+  const panes = detail.querySelectorAll('[data-md-pane]');
+  const sections = list.querySelectorAll('[data-md-section]');
+  const tabs = list.querySelectorAll('[data-md-tab]');
+  const search = list.querySelector('[data-md-search]');
+
+  function activate(key){
+    rows.forEach(function(r){ r.classList.toggle('is-active', r.dataset.mdKey === key); });
+    panes.forEach(function(p){
+      if(p.dataset.mdPane === key){ p.removeAttribute('hidden'); }
+      else { p.setAttribute('hidden',''); }
+    });
+    if(empty) empty.style.display = key ? 'none' : '';
+    const target = detail.querySelector('[data-md-pane="' + key + '"]');
+    if(target){
+      const thread = target.querySelector('.md-thread');
+      if(thread) thread.scrollTop = thread.scrollHeight;
+    }
+  }
+
+  rows.forEach(function(r){ r.addEventListener('click', function(){ activate(r.dataset.mdKey); }); });
+
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.classList.remove('is-on'); });
+      t.classList.add('is-on');
+      const target = t.dataset.mdTab;
+      sections.forEach(function(s){
+        if(s.dataset.mdSection === target) s.removeAttribute('hidden');
+        else s.setAttribute('hidden','');
+      });
+    });
+  });
+
+  if(search){
+    search.addEventListener('input', function(){
+      const q = (search.value || '').trim().toLowerCase();
+      rows.forEach(function(r){
+        const txt = r.dataset.mdSearchText || '';
+        r.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  }
+
+  // Reliable submit: regular form POST (page reloads). Show "saving" briefly so user sees feedback.
+  pane.querySelectorAll('form[data-support-reply-form]').forEach(function(form){
+    form.addEventListener('submit', function(ev){
+      // Strip URL fragment from action attribute so the POST goes to a clean URL.
+      // NOTE: form.action returns the <input name="action"> element due to property shadowing,
+      // so we must use getAttribute/setAttribute to read/write the actual action attribute.
+      try{
+        const rawAction = form.getAttribute('action') || window.location.href;
+        const cleanAction = rawAction.split('#')[0];
+        if(cleanAction !== rawAction){ form.setAttribute('action', cleanAction); }
+      }catch(_){}
+      // Close any open canned popover so it does not flash during reload
+      const openDrawer = form.querySelector('[data-canned-drawer]:not([hidden])');
+      if(openDrawer) openDrawer.hidden = true;
+      // Lock submitter button briefly so user gets feedback
+      const submitBtn = ev.submitter || form.querySelector('button[type="submit"][data-default-submit]');
+      if(submitBtn){
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ ' + (document.documentElement.lang === 'en' ? 'Sending…' : 'جاري الحفظ…');
+      }
+      // Form submits normally. Page reloads to the support tab via the redirect after save.
+    });
+  });
+
+  // After clicking a canned reply: insert text, focus textarea, close the popover (clear UX)
+  pane.querySelectorAll('[data-canned-card][data-canned-action]').forEach(function(item){
+    item.addEventListener('click', function(){
+      const drawer = item.closest('[data-canned-drawer]');
+      // Small delay so the global app.js handler can insert the text first
+      setTimeout(function(){ if(drawer) drawer.hidden = true; }, 50);
+    });
+  });
+
+  // Pick which row to activate
+  let key = preserveKey || null;
+  if(!key){
+    const first = layout.querySelector('[data-md-row]:not(.is-closed)') || layout.querySelector('[data-md-row]');
+    key = first ? first.dataset.mdKey : null;
+  }
+  if(key) activate(key);
+};
+window.SolarSupportInit();
+</script>
+</div>

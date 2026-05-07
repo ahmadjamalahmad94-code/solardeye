@@ -429,7 +429,7 @@
     }
   });
 
-  /* ────────────────────── Inbox search (client-side over rendered cards) ────────────────────── */
+  /* Inbox search (client-side over rendered cards) */
   const searchInput = root.querySelector('[data-inbox-search]');
   if (searchInput) {
     searchInput.addEventListener('input', () => {

@@ -1,62 +1,205 @@
 {% extends "base.html" %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set type_filter = selected_type if selected_type in ['mail','ticket'] else 'all' %}
-{% set status_labels = {'new': ('New' if is_en else 'جديد'), 'open': ('Open' if is_en else 'مفتوح'), 'assigned': ('Assigned' if is_en else 'مخصص'), 'pending': ('Pending' if is_en else 'قيد الانتظار'), 'in_progress': ('In progress' if is_en else 'قيد المتابعة'), 'waiting_user': ('Waiting for you' if is_en else 'بانتظار ردك'), 'resolved': ('Resolved' if is_en else 'تم الحل'), 'closed': ('Closed' if is_en else 'مغلق')} %}
-{% set priority_labels = {'low': ('Low' if is_en else 'منخفض'), 'normal': ('Normal' if is_en else 'عادي'), 'high': ('Important' if is_en else 'مهم'), 'urgent': ('Urgent' if is_en else 'عاجل')} %}
-{% set category_labels = {'support': ('Support' if is_en else 'دعم'), 'billing': ('Billing' if is_en else 'فوترة'), 'complaint': ('Complaint' if is_en else 'شكوى'), 'device': ('Device' if is_en else 'جهاز'), 'general': ('General' if is_en else 'عام')} %}
-{% set ns = namespace(mail=0, ticket=0, filtered=0, open=0, closed=0, waiting=0, selected_key='') %}
+
+{# Status / priority / category labels — Arabic + English #}
+{% set status_labels = {
+  'new': ('New' if is_en else 'جديد'),
+  'open': ('Open' if is_en else 'مفتوح'),
+  'assigned': ('Assigned' if is_en else 'مخصص'),
+  'pending': ('Pending' if is_en else 'قيد الانتظار'),
+  'in_progress': ('In progress' if is_en else 'قيد المتابعة'),
+  'waiting_user': ('Waiting for you' if is_en else 'بانتظار ردك'),
+  'resolved': ('Resolved' if is_en else 'تم الحل'),
+  'closed': ('Closed' if is_en else 'مغلق')
+} %}
+{% set priority_labels = {
+  'low': ('Low' if is_en else 'منخفض'),
+  'normal': ('Normal' if is_en else 'عادي'),
+  'high': ('Important' if is_en else 'مهم'),
+  'urgent': ('Urgent' if is_en else 'عاجل')
+} %}
+{% set category_labels = {
+  'support': ('Support' if is_en else 'دعم'),
+  'billing': ('Billing' if is_en else 'فوترة'),
+  'complaint': ('Complaint' if is_en else 'شكوى'),
+  'device': ('Device' if is_en else 'جهاز'),
+  'general': ('General' if is_en else 'عام')
+} %}
+
+{# Aggregate counters #}
+{% set ns = namespace(mail=0, ticket=0, filtered=0, open=0, closed=0, waiting=0, urgent=0, selected_key='') %}
 {% for row in rows %}
   {% if row.kind == 'mail' %}{% set ns.mail = ns.mail + 1 %}{% endif %}
   {% if row.kind == 'ticket' %}{% set ns.ticket = ns.ticket + 1 %}{% endif %}
   {% if type_filter == 'all' or row.kind == type_filter %}
     {% set ns.filtered = ns.filtered + 1 %}
-    {% if row.status in ['closed','resolved'] %}{% set ns.closed = ns.closed + 1 %}{% else %}{% set ns.open = ns.open + 1 %}{% if row.status in ['waiting_user','pending'] %}{% set ns.waiting = ns.waiting + 1 %}{% endif %}{% if not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}{% endif %}
+    {% if row.status in ['closed','resolved'] %}
+      {% set ns.closed = ns.closed + 1 %}
+    {% else %}
+      {% set ns.open = ns.open + 1 %}
+      {% if row.status in ['waiting_user','pending'] %}{% set ns.waiting = ns.waiting + 1 %}{% endif %}
+      {% if row.priority == 'urgent' %}{% set ns.urgent = ns.urgent + 1 %}{% endif %}
+      {% if not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}
+    {% endif %}
   {% endif %}
 {% endfor %}
-{% if not ns.selected_key %}{% for row in rows %}{% if (type_filter == 'all' or row.kind == type_filter) and not ns.selected_key %}{% set ns.selected_key = row.kind ~ '-' ~ row.id %}{% endif %}{% endfor %}{% endif %}
-{% block title %}{{ 'Mail & Support Center' if is_en else 'مركز البريد والدعم' }}{% endblock %}
+{% if not ns.selected_key %}
+  {% for row in rows %}
+    {% if (type_filter == 'all' or row.kind == type_filter) and not ns.selected_key %}
+      {% set ns.selected_key = row.kind ~ '-' ~ row.id %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% block title %}{{ 'My Support Center' if is_en else 'مركز الدعم الشخصي' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/support_center.css', v='v211-portal-mirror-20260506') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/portal_support_v3.css', v='v211-portal-rebuild-20260506') }}">
+{% endblock %}
+
 {% block body %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+<div class="app-shell has-layout-sidebar sidebar-collapsed support-center-shell" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area portal-support-mailbox-page-v63 support-desk-v151 support-desk-portal-v151">
-    <aside class="support-rail-v151 portal-rail-v151" aria-label="Support navigation">
-      <div class="support-rail-logo-v151">☊</div>
-      <a class="active" href="{{ url_for('main.portal_support', lang=ui_lang) }}"><span>▣</span><b>{{ 'Chats' if is_en else 'المحادثات' }}</b></a>
-      <a href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}"><span>✉</span><b>{{ 'All' if is_en else 'كل الرسائل' }}</b></a>
-      <a href="#new-support-request-v151"><span>＋</span><b>{{ 'New' if is_en else 'طلب جديد' }}</b></a>
-      <a href="#support-attachments-v151"><span>⌘</span><b>{{ 'Files' if is_en else 'المرفقات' }}</b></a>
-      <button type="button" data-support-theme-toggle><span>◐</span><b>{{ 'Night' if is_en else 'الوضع الليلي' }}</b></button>
-      <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit"><span>↵</span><b>{{ 'Sign out' if is_en else 'تسجيل خروج' }}</b></button></form>
-    </aside>
+  <main class="app-main content-area support-center-main psp-page" data-portal-support-page>
 
-    <section class="support-desk-main-v151">
-      <header class="support-desk-head-v151">
-        <div>
-          <h1>{{ 'Mail & Support Center' if is_en else 'مركز البريد والدعم' }}</h1>
-          <p>{{ 'Track messages and requests from one clean workspace.' if is_en else 'تابع رسائلك وطلباتك من مساحة واحدة واضحة.' }}</p>
+    {# ════════ HERO (matches admin .hu-hero) ════════ #}
+    <header class="hu-hero sc-page-head">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a10 10 0 0 1 20 0v7a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>
+            {{ 'My Support' if is_en else 'الدعم الشخصي' }}
+          </span>
+          <h1 class="hu-h1">{{ 'My messages & support requests' if is_en else 'رسائلي وطلبات الدعم الخاصة بي' }}</h1>
+          <p class="hu-tagline">{{ 'Send messages, follow up on tickets, and reply to the support team — all in one place.' if is_en else 'أرسل الرسائل، تابع تذاكرك، وردّ على فريق الدعم — كل ذلك من مكان واحد.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ ns.filtered }}</b> {{ 'total' if is_en else 'الإجمالي' }}</span>
+            {% if ns.open %}<span class="hu-meta-pill warn">⌛ <b>{{ ns.open }}</b> {{ 'open' if is_en else 'مفتوح' }}</span>{% endif %}
+            {% if ns.closed %}<span class="hu-meta-pill ok">✓ <b>{{ ns.closed }}</b> {{ 'solved' if is_en else 'محلولة' }}</span>{% endif %}
+            {% if ns.urgent %}<span class="hu-meta-pill warn">🔴 <b>{{ ns.urgent }}</b> {{ 'urgent' if is_en else 'عاجل' }}</span>{% endif %}
+          </div>
         </div>
-        <a class="btn btn-primary" href="#new-support-request-v151">{{ 'New request' if is_en else 'رسالة جديدة' }}</a>
-      </header>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-primary" href="#psp-new-request">＋ {{ 'New request' if is_en else 'رسالة جديدة' }}</a>
+        </div>
+      </div>
+    </header>
 
-      <section class="support-kpis-v151 support-kpis-portal-v151">
-        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}"><span>✉</span><small>{{ 'All messages' if is_en else 'كل الرسائل' }}</small><strong>{{ ns.filtered }}</strong></a>
-        <button type="button" data-portal-filter="open"><span>⌛</span><small>{{ 'Open' if is_en else 'بانتظار الرد' }}</small><strong>{{ ns.open }}</strong></button>
-        <button type="button" data-portal-filter="closed"><span>✓</span><small>{{ 'Solved' if is_en else 'تم الحل' }}</small><strong>{{ ns.closed }}</strong></button>
-        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}"><span>▤</span><small>{{ 'Messages' if is_en else 'رسائل' }}</small><strong>{{ ns.mail }}</strong></a>
-        <a href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}"><span>▧</span><small>{{ 'Tickets' if is_en else 'تذاكر' }}</small><strong>{{ ns.ticket }}</strong></a>
-      </section>
+    {# ════════ SECTION 1: KPI strip ════════ #}
+    <section data-help="{{ 'Live counters showing total, open, waiting on you, urgent, and solved messages. Click any pill to filter the list below.' if is_en else 'عدّادات حيّة لإجمالي رسائلك، المفتوحة، المنتظرة لردك، العاجلة، والمحلولة. اضغط أي شارة لتصفية القائمة أدناه.' }}">
+      <div class="psp-section-head">
+        <div>
+          <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+          <h2><span class="psp-sec-icon">📊</span> {{ 'Quick counters' if is_en else 'العدّادات السريعة' }}</h2>
+        </div>
+        <span class="psp-section-meta">{{ 'Click any to filter' if is_en else 'اضغط أيها للتصفية' }}</span>
+      </div>
+      <div class="psp-kpi-row">
+        <a class="psp-kpi accent-blue {% if type_filter == 'all' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}">
+          <span class="psp-kpi-icon">✉</span>
+          <div class="psp-kpi-body">
+            <small>{{ 'All messages' if is_en else 'كل الرسائل' }}</small>
+            <strong>{{ ns.filtered }}</strong>
+            <span>{{ 'total threads' if is_en else 'إجمالي المحادثات' }}</span>
+          </div>
+        </a>
+        <button type="button" class="psp-kpi accent-amber" data-portal-filter="open">
+          <span class="psp-kpi-icon">⌛</span>
+          <div class="psp-kpi-body">
+            <small>{{ 'Open' if is_en else 'مفتوحة' }}</small>
+            <strong>{{ ns.open }}</strong>
+            <span>{{ 'awaiting reply' if is_en else 'بانتظار رد' }}</span>
+          </div>
+        </button>
+        <button type="button" class="psp-kpi accent-emerald" data-portal-filter="closed">
+          <span class="psp-kpi-icon">✓</span>
+          <div class="psp-kpi-body">
+            <small>{{ 'Solved' if is_en else 'محلولة' }}</small>
+            <strong>{{ ns.closed }}</strong>
+            <span>{{ 'closed/resolved' if is_en else 'مغلقة/تم حلها' }}</span>
+          </div>
+        </button>
+        <a class="psp-kpi accent-violet {% if type_filter == 'mail' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}">
+          <span class="psp-kpi-icon">▤</span>
+          <div class="psp-kpi-body">
+            <small>{{ 'Messages' if is_en else 'الرسائل' }}</small>
+            <strong>{{ ns.mail }}</strong>
+            <span>{{ 'general mail' if is_en else 'بريد عام' }}</span>
+          </div>
+        </a>
+        <a class="psp-kpi accent-rose {% if type_filter == 'ticket' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}">
+          <span class="psp-kpi-icon">▧</span>
+          <div class="psp-kpi-body">
+            <small>{{ 'Tickets' if is_en else 'التذاكر' }}</small>
+            <strong>{{ ns.ticket }}</strong>
+            <span>{{ 'support tickets' if is_en else 'طلبات دعم رسمية' }}</span>
+          </div>
+        </a>
+      </div>
+    </section>
 
-      <section class="support-workspace-v151 support-portal-workspace-v151" data-support-mailbox data-portal-support-mailbox>
-        <aside class="support-list-v151">
-          <div class="support-search-row-v151">
-            <input id="portalSupportSearch" type="search" class="form-control" placeholder="{{ 'Search your support history' if is_en else 'ابحث في الرسائل أو رقم التذكرة' }}">
+    {# ════════ SECTION 2: Workspace (left aside legend + thread list + thread detail) ════════ #}
+    <div class="psp-shell">
+
+      {# ─── ASIDE (LEFT in RTL) — Help & legend ─── #}
+      <aside class="psp-aside" aria-label="{{ 'Help & legend' if is_en else 'شرح ومفاتيح' }}">
+        <div class="psp-as-card explainer">
+          <h4>📘 {{ 'How to use this page' if is_en else 'كيف تستخدم هذه الصفحة' }}</h4>
+          <p>{{ 'Send a new message or open a ticket from the form on the right. Your conversations appear in the middle list — click any to read and reply.' if is_en else 'أرسل رسالة جديدة أو افتح تذكرة من النموذج على يسار الشاشة. محادثاتك تظهر في القائمة الوسطى — اضغط أيها لقراءتها والرد عليها.' }}</p>
+          <p>{{ 'Use the counters at the top to quickly jump to open / solved threads.' if is_en else 'استخدم العدّادات أعلى الصفحة للانتقال السريع للمحادثات المفتوحة أو المحلولة.' }}</p>
+        </div>
+
+        <div class="psp-as-card">
+          <h4>🔑 {{ 'Status meanings' if is_en else 'معاني الحالات' }}</h4>
+          <ul class="psp-legend-list">
+            <li><span class="psp-legend-dot status-new"></span><strong>{{ 'New' if is_en else 'جديد' }}</strong><small>{{ 'Just submitted' if is_en else 'تم إرسالها للتو' }}</small></li>
+            <li><span class="psp-legend-dot status-open"></span><strong>{{ 'Open' if is_en else 'مفتوح' }}</strong><small>{{ 'Awaiting team reply' if is_en else 'بانتظار رد الفريق' }}</small></li>
+            <li><span class="psp-legend-dot status-in_progress"></span><strong>{{ 'In progress' if is_en else 'قيد المتابعة' }}</strong><small>{{ 'Team is working on it' if is_en else 'الفريق يعمل عليه' }}</small></li>
+            <li><span class="psp-legend-dot status-waiting_user"></span><strong>{{ 'Waiting for you' if is_en else 'بانتظار ردك' }}</strong><small>{{ 'Team needs more info' if is_en else 'الفريق يحتاج معلومات' }}</small></li>
+            <li><span class="psp-legend-dot status-resolved"></span><strong>{{ 'Resolved' if is_en else 'تم الحل' }}</strong><small>{{ 'Issue solved' if is_en else 'تم حل المشكلة' }}</small></li>
+            <li><span class="psp-legend-dot status-closed"></span><strong>{{ 'Closed' if is_en else 'مغلق' }}</strong><small>{{ 'Conversation closed' if is_en else 'المحادثة مغلقة' }}</small></li>
+          </ul>
+        </div>
+
+        <div class="psp-as-card">
+          <h4>⭐ {{ 'Priority meanings' if is_en else 'معاني الأولويات' }}</h4>
+          <ul class="psp-legend-list">
+            <li><span class="psp-legend-dot priority-low"></span><strong>{{ 'Low' if is_en else 'منخفض' }}</strong></li>
+            <li><span class="psp-legend-dot priority-normal"></span><strong>{{ 'Normal' if is_en else 'عادي' }}</strong></li>
+            <li><span class="psp-legend-dot priority-high"></span><strong>{{ 'Important' if is_en else 'مهم' }}</strong></li>
+            <li><span class="psp-legend-dot priority-urgent"></span><strong>{{ 'Urgent' if is_en else 'عاجل' }}</strong></li>
+          </ul>
+        </div>
+
+        <div class="psp-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Use Tickets for technical issues that need tracking.' if is_en else 'استخدم التذاكر للمشاكل التقنية التي تحتاج تتبّعاً.' }}</li>
+            <li>{{ 'Use Messages for general questions and follow-ups.' if is_en else 'استخدم الرسائل للأسئلة العامة والمتابعات.' }}</li>
+            <li>{{ 'Set "Urgent" only for critical service-affecting issues.' if is_en else 'استخدم "عاجل" فقط للمشاكل الحرجة التي توقف الخدمة.' }}</li>
+            <li>{{ 'You can attach files when creating or replying to a ticket.' if is_en else 'يمكنك إرفاق ملفات عند إنشاء التذكرة أو الرد عليها.' }}</li>
+          </ul>
+        </div>
+      </aside>
+
+      {# ─── MAIN — Two columns: thread list + thread detail ─── #}
+      <section class="psp-workspace" data-help="{{ 'Left: your conversation list with subjects, status badges, and last message snippet. Right: full thread of the selected conversation with reply box at the bottom.' if is_en else 'يمين: قائمة محادثاتك مع العناوين والحالات وآخر رسالة. يسار: المحادثة الكاملة للمحادثة المختارة مع صندوق الرد في الأسفل.' }}">
+        {# ─ Thread list ─ #}
+        <aside class="psp-list">
+          <div class="psp-list-head">
+            <small class="psp-list-eyebrow">{{ 'Conversations' if is_en else 'المحادثات' }}</small>
+            <h3>{{ 'Your support history' if is_en else 'سجل دعمك' }}</h3>
           </div>
-          <div class="support-filter-row-v151">
-            <a class="{{ 'active' if type_filter == 'all' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}">{{ 'All' if is_en else 'الكل' }} <b>{{ rows|length }}</b></a>
-            <a class="{{ 'active' if type_filter == 'mail' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}">{{ 'Messages' if is_en else 'الرسائل' }} <b>{{ ns.mail }}</b></a>
-            <a class="{{ 'active' if type_filter == 'ticket' else '' }}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}">{{ 'Tickets' if is_en else 'التذاكر' }} <b>{{ ns.ticket }}</b></a>
+          <div class="psp-search-row">
+            <input id="portalSupportSearch" type="search" class="psp-search-input" placeholder="{{ '🔎 Search subject or ticket #' if is_en else '🔎 ابحث عن عنوان أو رقم تذكرة' }}">
           </div>
-          <div class="support-case-list-v151">
+          <div class="psp-filter-row">
+            <a class="{% if type_filter == 'all' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='all') }}">{{ 'All' if is_en else 'الكل' }} <b>{{ rows|length }}</b></a>
+            <a class="{% if type_filter == 'mail' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='mail') }}">{{ 'Messages' if is_en else 'الرسائل' }} <b>{{ ns.mail }}</b></a>
+            <a class="{% if type_filter == 'ticket' %}is-active{% endif %}" href="{{ url_for('main.portal_support', lang=ui_lang, type='ticket') }}">{{ 'Tickets' if is_en else 'التذاكر' }} <b>{{ ns.ticket }}</b></a>
+          </div>
+          <div class="psp-list-scroll">
             {% for row in rows %}
               {% if type_filter == 'all' or row.kind == type_filter %}
                 {% set key = row.kind ~ '-' ~ row.id %}
@@ -64,23 +207,31 @@
                 {% set priority_value = row.priority or 'normal' %}
                 {% set is_closed = status_value in ['closed','resolved'] %}
                 {% set last_msg = row.messages[-1] if row.messages else none %}
-                <button class="support-case-row-v151 {{ 'is-active' if key == ns.selected_key else '' }} status-{{ status_value }} priority-{{ priority_value }}" type="button" data-case-row data-case-target="{{ key }}" data-case-state="{{ 'closed' if is_closed else 'open' }}" data-title="{{ row.subject|lower }}" data-owner="{{ (row.category or '')|lower }}" data-status="{{ status_labels.get(status_value, status_value)|lower }} {{ priority_labels.get(priority_value, priority_value)|lower }}" id="case-{{ key }}">
-                  <i>{{ (row.subject or '?')[:1] }}</i>
-                  <span>
+                <button class="psp-row {{ 'is-active' if key == ns.selected_key else '' }} status-{{ status_value }} priority-{{ priority_value }}" type="button" data-case-row data-case-target="{{ key }}" data-case-state="{{ 'closed' if is_closed else 'open' }}" data-title="{{ (row.subject or '')|lower }}" id="case-{{ key }}">
+                  <span class="psp-row-icon">{{ '▧' if row.kind == 'ticket' else '▤' }}</span>
+                  <span class="psp-row-info">
                     <strong>{{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</strong>
                     <small>#SUP-{{ '%06d'|format(row.id) }} · {{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }}</small>
-                    <em>{{ last_msg.body if last_msg else ('No conversation yet' if is_en else 'لا توجد محادثة بعد') }}</em>
+                    <em>{{ (last_msg.body if last_msg else ('No conversation yet' if is_en else 'لا توجد محادثة بعد'))[:80] }}</em>
                   </span>
-                  <b class="support-status-chip-v151 status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</b>
+                  <span class="psp-row-meta">
+                    <span class="psp-pill status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
+                    {% if priority_value == 'urgent' %}<span class="psp-pill priority-urgent">🔴</span>{% endif %}
+                  </span>
                 </button>
               {% endif %}
             {% else %}
-              <div class="support-empty-v151">{{ 'No support history yet.' if is_en else 'لا يوجد سجل دعم بعد.' }}</div>
+              <div class="psp-empty-row">
+                <span>📭</span>
+                <strong>{{ 'No conversations yet' if is_en else 'لا توجد محادثات بعد' }}</strong>
+                <small>{{ 'Start by sending a new request below.' if is_en else 'ابدأ بإرسال رسالة جديدة من النموذج بالأسفل.' }}</small>
+              </div>
             {% endfor %}
           </div>
         </aside>
 
-        <section class="support-thread-area-v151">
+        {# ─ Thread detail ─ #}
+        <section class="psp-thread-area">
           {% for row in rows %}
             {% if type_filter == 'all' or row.kind == type_filter %}
               {% set key = row.kind ~ '-' ~ row.id %}
@@ -88,83 +239,157 @@
               {% set priority_value = row.priority or 'normal' %}
               {% set is_closed = status_value in ['closed','resolved'] %}
               {% set atts = attachment_map.get(key, []) %}
-              <article class="support-thread-v151 {{ 'is-active' if key == ns.selected_key else '' }}" data-case-panel="{{ key }}">
-                <header>
-                  <div>
+              <article class="psp-thread {% if key == ns.selected_key %}is-active{% endif %}" data-case-panel="{{ key }}">
+                <header class="psp-thread-head">
+                  <div class="psp-thread-title">
                     <h2>{{ row.subject or ('No subject' if is_en else 'بدون عنوان') }}</h2>
                     <p>#SUP-{{ '%06d'|format(row.id) }} · {{ category_labels.get(row.category, row.category or ('General' if is_en else 'عام')) }} · {{ format_local(row.updated_at) if row.updated_at else '' }}</p>
                   </div>
-                  <div class="support-thread-badges-v151">
-                    <span class="status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
-                    <span class="priority-{{ priority_value }}">{{ priority_labels.get(priority_value, priority_value) }}</span>
+                  <div class="psp-thread-badges">
+                    <span class="psp-pill status-{{ status_value }}">{{ status_labels.get(status_value, status_value) }}</span>
+                    <span class="psp-pill priority-{{ priority_value }}">{{ priority_labels.get(priority_value, priority_value) }}</span>
+                    <span class="psp-pill kind">{{ ('Ticket' if is_en else 'تذكرة') if row.kind == 'ticket' else ('Mail' if is_en else 'رسالة') }}</span>
                   </div>
                 </header>
-                <div class="support-message-stream-v151" data-thread-scroll>
+                <div class="psp-message-stream" data-thread-scroll>
                   {% for msg in row.messages %}
-                    <div class="support-message-v151 {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}">
-                      <div><strong>{% if msg.sender_scope == 'admin' %}{{ 'Support team' if is_en else 'فريق الدعم' }}{% else %}{{ 'You' if is_en else 'أنت' }}{% endif %}</strong><small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small></div>
+                    <div class="psp-message {{ 'from-admin' if msg.sender_scope == 'admin' else 'from-user' }}">
+                      <div class="psp-message-head">
+                        <strong>{% if msg.sender_scope == 'admin' %}🛟 {{ 'Support team' if is_en else 'فريق الدعم' }}{% else %}👤 {{ 'You' if is_en else 'أنت' }}{% endif %}</strong>
+                        <small>{{ format_local(msg.created_at) if msg.created_at else '' }}</small>
+                      </div>
                       <p>{{ msg.body }}</p>
                     </div>
                   {% else %}
-                    <div class="support-empty-v151">{{ 'No conversation yet.' if is_en else 'لا توجد محادثة بعد.' }}</div>
+                    <div class="psp-empty-thread">
+                      <span>💬</span>
+                      <strong>{{ 'No conversation yet' if is_en else 'لا توجد محادثة بعد' }}</strong>
+                    </div>
                   {% endfor %}
                 </div>
-                <div class="support-client-actions-v151">
-                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="{{ row.kind }}">{% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}{% if is_closed %}<input type="hidden" name="action" value="reopen"><button class="btn btn-warning">{{ 'Reopen' if is_en else 'إعادة فتح' }}</button>{% else %}<input type="hidden" name="action" value="close"><button class="btn btn-outline-danger">{{ 'Close request' if is_en else 'إغلاق الطلب' }}</button>{% endif %}</form>
+
+                {% if atts %}
+                <div class="psp-attachments">
+                  <small class="psp-attachments-label">📎 {{ 'Attachments' if is_en else 'المرفقات' }}</small>
+                  <div class="psp-attachments-list">
+                    {% for att in atts %}
+                      <a href="{{ att.url }}" target="_blank" class="psp-attachment">📎 {{ att.original_name or att.stored_name }}</a>
+                    {% endfor %}
+                  </div>
                 </div>
-                {% if not is_closed %}
-                  <form method="post" enctype="multipart/form-data" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="support-reply-v151" data-support-reply-form data-case-key="{{ key }}">
+                {% endif %}
+
+                <div class="psp-thread-actions">
+                  <form method="post" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="reply">
                     <input type="hidden" name="kind" value="{{ row.kind }}">
                     {% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}
-                    <textarea class="form-control" name="body" rows="4" required data-reply-textarea placeholder="{{ 'Write your reply clearly...' if is_en else 'اكتب ردك بوضوح...' }}"></textarea>
-                    <div class="support-composer-tools-v151"><label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach file' if is_en else 'إرفاق ملف' }}</span></label><span class="support-muted-v151">{{ 'Your reply notifies the support team.' if is_en else 'سيصل ردك لفريق الدعم مباشرة.' }}</span><button class="btn btn-primary" type="submit" data-default-submit>{{ 'Send reply' if is_en else 'إرسال الرد' }}</button></div>
+                    {% if is_closed %}
+                      <input type="hidden" name="action" value="reopen">
+                      <button type="submit" class="psp-btn warning">↻ {{ 'Reopen' if is_en else 'إعادة فتح' }}</button>
+                    {% else %}
+                      <input type="hidden" name="action" value="close">
+                      <button type="submit" class="psp-btn ghost">✓ {{ 'Mark as solved' if is_en else 'وضع علامة محلولة' }}</button>
+                    {% endif %}
                   </form>
+                </div>
+
+                {% if not is_closed %}
+                <form method="post" enctype="multipart/form-data" action="{{ url_for('main.portal_support', lang=ui_lang, type=row.kind) }}#case-{{ key }}" class="psp-reply-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="reply">
+                  <input type="hidden" name="kind" value="{{ row.kind }}">
+                  {% if row.kind == 'mail' %}<input type="hidden" name="thread_id" value="{{ row.id }}">{% else %}<input type="hidden" name="ticket_id" value="{{ row.id }}">{% endif %}
+                  <textarea name="body" rows="3" placeholder="{{ 'Type your reply…' if is_en else 'اكتب ردّك…' }}" required></textarea>
+                  <div class="psp-reply-actions">
+                    <label class="psp-attach-btn">📎 {{ 'Attach' if is_en else 'إرفاق' }}<input type="file" name="attachment" hidden></label>
+                    <button type="submit" class="psp-btn primary">📤 {{ 'Send reply' if is_en else 'إرسال الرد' }}</button>
+                  </div>
+                </form>
                 {% endif %}
               </article>
             {% endif %}
           {% endfor %}
+
+          {% if ns.filtered == 0 %}
+            <article class="psp-thread is-active">
+              <div class="psp-empty-thread">
+                <span style="font-size:3rem">💌</span>
+                <strong>{{ 'Welcome to your support center' if is_en else 'مرحباً بك في مركز الدعم' }}</strong>
+                <p>{{ 'Send a new message or open a ticket using the form below.' if is_en else 'أرسل رسالة جديدة أو افتح تذكرة باستخدام النموذج أدناه.' }}</p>
+              </div>
+            </article>
+          {% endif %}
         </section>
 
-        <aside class="support-info-v151">
-          {% for row in rows %}
-            {% if type_filter == 'all' or row.kind == type_filter %}
-              {% set key = row.kind ~ '-' ~ row.id %}
-              {% set status_value = row.status or 'open' %}
-              {% set priority_value = row.priority or 'normal' %}
-              {% set atts = attachment_map.get(key, []) %}
-              <section class="support-info-panel-v151 {{ 'is-active' if key == ns.selected_key else '' }}" data-inspector-panel="{{ key }}">
-                <article>
-                  <h3>{{ 'Request details' if is_en else 'تفاصيل الطلب' }}</h3>
-                  <dl><div><dt>{{ 'Type' if is_en else 'النوع' }}</dt><dd>{{ ('Message' if is_en else 'رسالة') if row.kind == 'mail' else ('Ticket' if is_en else 'تذكرة') }}</dd></div><div><dt>{{ 'Status' if is_en else 'الحالة' }}</dt><dd>{{ status_labels.get(status_value, status_value) }}</dd></div><div><dt>{{ 'Priority' if is_en else 'الأولوية' }}</dt><dd>{{ priority_labels.get(priority_value, priority_value) }}</dd></div><div><dt>{{ 'Manager' if is_en else 'المسؤول' }}</dt><dd>{% if row.assignee %}{{ row.assignee.full_name or row.assignee.username }}{% else %}{{ 'Support team' if is_en else 'فريق الدعم' }}{% endif %}</dd></div><div><dt>{{ 'Last update' if is_en else 'آخر تحديث' }}</dt><dd>{{ format_local(row.updated_at) if row.updated_at else '—' }}</dd></div></dl>
-                </article>
-                <article id="support-attachments-v151">
-                  <h3>{{ 'Attachments' if is_en else 'الملفات المرفقة' }}</h3>
-                  {% for att in atts %}<a class="support-attachment-v151" href="{{ url_for('support.support_attachment_download', attachment_id=att.id) }}"><span>PDF</span><b>{{ att.original_filename or att.filename }}</b><small>{{ (att.file_size / 1024)|round(1) }} KB</small></a>{% else %}<p class="support-muted-v151">{{ 'No attachments.' if is_en else 'لا توجد مرفقات.' }}</p>{% endfor %}
-                </article>
-                <article class="support-new-card-v151" id="new-support-request-v151">
-                  <h3>{{ 'New request' if is_en else 'طلب جديد' }}</h3>
-                  <form method="post" enctype="multipart/form-data" class="support-create-v151" data-support-reply-form>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="create">
-                    <div class="support-form-pair-v151"><select name="kind" class="form-control"><option value="mail">{{ 'Message' if is_en else 'رسالة' }}</option><option value="ticket">{{ 'Ticket' if is_en else 'تذكرة' }}</option></select><select name="priority" class="form-control"><option value="normal">{{ priority_labels.get('normal') }}</option><option value="high">{{ priority_labels.get('high') }}</option><option value="urgent">{{ priority_labels.get('urgent') }}</option></select></div>
-                    <select name="category" class="form-control"><option value="support">{{ category_labels.get('support') }}</option><option value="billing">{{ category_labels.get('billing') }}</option><option value="device">{{ category_labels.get('device') }}</option><option value="complaint">{{ category_labels.get('complaint') }}</option></select>
-                    <input name="subject" class="form-control" required placeholder="{{ 'Subject' if is_en else 'العنوان' }}">
-                    <textarea name="body" rows="4" class="form-control" required placeholder="{{ 'Write the details' if is_en else 'اكتب التفاصيل' }}"></textarea>
-                    <label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach files' if is_en else 'إرفاق ملفات' }}</span></label>
-                    <button class="btn btn-solar" type="submit">{{ 'Send request' if is_en else 'إرسال الطلب' }}</button>
-                  </form>
-                </article>
-              </section>
-            {% endif %}
-          {% endfor %}
-          {% if ns.filtered == 0 %}
-            <section class="support-info-panel-v151 is-active"><article class="support-new-card-v151" id="new-support-request-v151"><h3>{{ 'New request' if is_en else 'طلب جديد' }}</h3><form method="post" enctype="multipart/form-data" class="support-create-v151" data-support-reply-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create"><input type="hidden" name="kind" value="mail"><input name="subject" class="form-control" required placeholder="{{ 'Subject' if is_en else 'العنوان' }}"><textarea name="body" rows="4" class="form-control" required placeholder="{{ 'Write the details' if is_en else 'اكتب التفاصيل' }}"></textarea><label class="support-file-drop-v151"><input type="file" name="attachments" multiple><span>{{ 'Attach files' if is_en else 'إرفاق ملفات' }}</span></label><button class="btn btn-solar" type="submit">{{ 'Send request' if is_en else 'إرسال الطلب' }}</button></form></article></section>
-          {% endif %}
-        </aside>
       </section>
+    </div>{# /psp-shell #}
+
+    {# ════════ SECTION 3: New request form ════════ #}
+    <section id="psp-new-request" data-help="{{ 'Compose a new request: choose Mail (general question) or Ticket (technical issue), enter a subject, set priority, and write your message. The team will respond as soon as possible.' if is_en else 'أنشئ طلباً جديداً: اختر رسالة (سؤال عام) أو تذكرة (مشكلة تقنية)، أدخل عنواناً، حدد الأولوية، واكتب رسالتك. سيرد الفريق في أقرب وقت ممكن.' }}">
+      <div class="psp-section-head">
+        <div>
+          <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+          <h2><span class="psp-sec-icon">＋</span> {{ 'Send a new request' if is_en else 'أرسل طلباً جديداً' }}</h2>
+        </div>
+        <span class="psp-section-meta">{{ 'Mail or ticket' if is_en else 'رسالة أو تذكرة' }}</span>
+      </div>
+      <form method="post" enctype="multipart/form-data" class="psp-new-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="create">
+        <div class="psp-new-grid">
+          <label class="psp-field">
+            <span>{{ 'Type' if is_en else 'النوع' }}</span>
+            <select name="kind" required>
+              <option value="mail">{{ '✉ Message (general)' if is_en else '✉ رسالة (عام)' }}</option>
+              <option value="ticket">{{ '▧ Ticket (technical issue)' if is_en else '▧ تذكرة (مشكلة تقنية)' }}</option>
+            </select>
+          </label>
+          <label class="psp-field">
+            <span>{{ 'Category' if is_en else 'الفئة' }}</span>
+            <select name="category">
+              {% for code, label in category_labels.items() %}
+                <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="psp-field">
+            <span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
+            <select name="priority">
+              {% for code, label in priority_labels.items() %}
+                <option value="{{ code }}" {% if code == 'normal' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="psp-field">
+            <span>{{ 'Related device (optional)' if is_en else 'الجهاز المتعلق (اختياري)' }}</span>
+            <select name="related_device_id">
+              <option value="">— {{ 'None' if is_en else 'بدون' }} —</option>
+              {% for d in (devices or []) %}
+                <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="psp-field full">
+            <span>{{ 'Subject' if is_en else 'العنوان' }}</span>
+            <input type="text" name="subject" required placeholder="{{ 'Brief title…' if is_en else 'عنوان مختصر…' }}">
+          </label>
+          <label class="psp-field full">
+            <span>{{ 'Message body' if is_en else 'نص الرسالة' }}</span>
+            <textarea name="body" rows="6" required placeholder="{{ 'Describe your request in detail…' if is_en else 'اشرح طلبك بالتفصيل…' }}"></textarea>
+          </label>
+          <label class="psp-field full">
+            <span>{{ 'Attachments (optional)' if is_en else 'مرفقات (اختياري)' }}</span>
+            <input type="file" name="attachment">
+          </label>
+        </div>
+        <div class="psp-new-actions">
+          <button type="reset" class="psp-btn ghost">↺ {{ 'Reset' if is_en else 'تفريغ' }}</button>
+          <button type="submit" class="psp-btn primary">📤 {{ 'Send request' if is_en else 'إرسال الطلب' }}</button>
+        </div>
+      </form>
     </section>
+
   </main>
 </div>
 {% endblock %}

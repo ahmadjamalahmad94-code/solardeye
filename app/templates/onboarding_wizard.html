@@ -1,614 +1,247 @@
 {% extends 'base.html' %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'Welcome — Get started' if is_en else 'مرحباً — ابدأ من هنا' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
 {% block body %}
-<style>
-/* ════════════════════════════════════════════════════════════════════════
-   ONBOARDING WIZARD — unified light theme (ob-* prefix)
-═══════════════════════════════════════════════════════════════════════════ */
-.ob-page{
-  --ob-ink:#0b1220;
-  --ob-ink-soft:#1f2a44;
-  --ob-muted:#5e6f8c;
-  --ob-line:#e3eaf6;
-  --ob-line-strong:#cfd9ec;
-  --ob-card:#ffffff;
-  --ob-amber:#f59e0b;
-  --ob-amber-soft:#fbbf24;
-  --ob-emerald:#10b981;
-  --ob-sky:#2563eb;
-  --ob-rose:#f43f5e;
-  --ob-violet:#6d3aff;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:24px clamp(14px,3vw,40px);position:relative;overflow:hidden;
-  font-family:'Cairo','Inter',system-ui,sans-serif;color:var(--ob-ink);
-}
-.ob-page *,.ob-page *::before,.ob-page *::after{box-sizing:border-box}
-.ob-orb{display:none}
+{% set step_num = step|int if step else 1 %}
+{% set steps = [
+  {'n': 1, 'icon': '👤', 'ar': 'الملف الشخصي', 'en': 'Profile'},
+  {'n': 2, 'icon': '📱', 'ar': 'أول جهاز', 'en': 'First device'},
+  {'n': 3, 'icon': '🔔', 'ar': 'التنبيهات', 'en': 'Notifications'},
+  {'n': 4, 'icon': '✓', 'ar': 'انتهيت', 'en': 'Done'},
+] %}
 
-.ob-shell{position:relative;z-index:1;width:100%;max-width:820px}
-.ob-card{
-  background:#fff;border:1px solid var(--ob-line);
-  border-radius:30px;padding:32px clamp(20px,3vw,38px) 26px;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);
-  position:relative;overflow:hidden;
-}
-.ob-card::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:30px 30px 0 0;
-  background:linear-gradient(90deg,#0e3b86,#3aa7ff,#ffd66e);
-}
-@media (max-width:600px){.ob-card{padding:22px 18px 18px;border-radius:22px}}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area ob-page">
 
-.ob-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:1rem}
-.ob-brand{
-  display:inline-flex;align-items:center;gap:.5rem;
-  font-size:1rem;font-weight:950;color:var(--ob-ink);
-}
-.ob-brand::before{
-  content:"⚡";width:36px;height:36px;border-radius:11px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;
-  box-shadow:0 6px 14px rgba(245,158,11,.30);
-}
-.ob-skip-btn{
-  font-size:.78rem;font-weight:800;color:var(--ob-muted);
-  background:#fff;border:1px solid var(--ob-line);border-radius:10px;
-  padding:.42rem .85rem;cursor:pointer;transition:all .15s;font-family:inherit;
-}
-.ob-skip-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,23,42,.08);background:#f5f9ff;color:var(--ob-ink-soft)}
-
-/* STEPS */
-.ob-steps{
-  display:flex;align-items:center;gap:0;margin-bottom:24px;
-  background:#f8fbff;border:1px solid var(--ob-line);
-  border-radius:14px;padding:6px;
-}
-.ob-step-pill{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:.3rem;
-  padding:.55rem .4rem;border-radius:10px;transition:all .25s;cursor:default;
-}
-.ob-step-pill .ob-sp-icon{font-size:1.25rem;opacity:.5;transition:opacity .2s}
-.ob-step-pill .ob-sp-label{font-size:.66rem;color:var(--ob-muted);font-weight:800;text-align:center;transition:color .2s}
-.ob-step-pill.active{background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));box-shadow:0 4px 12px rgba(245,158,11,.10)}
-.ob-step-pill.active .ob-sp-icon{opacity:1}
-.ob-step-pill.active .ob-sp-label{color:#b45309;font-weight:900}
-.ob-step-pill.done .ob-sp-icon{opacity:.85}
-.ob-step-pill.done .ob-sp-label{color:var(--ob-emerald);font-weight:900}
-.ob-step-sep{width:2px;height:24px;background:var(--ob-line);flex-shrink:0}
-
-.ob-pane{animation:obFadeUp .3s ease both}
-@keyframes obFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-
-/* WELCOME */
-.ob-welcome-hero{text-align:center;padding:18px 0 12px}
-.ob-sun{
-  font-size:3.5rem;display:inline-block;animation:obSpin 12s linear infinite;
-  filter:drop-shadow(0 12px 24px rgba(245,158,11,.30));
-}
-@keyframes obSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.ob-welcome-hero h2{font-size:1.55rem;font-weight:950;color:var(--ob-ink);margin:.85rem 0 .35rem;line-height:1.25}
-.ob-welcome-hero p{color:var(--ob-muted);font-size:.92rem;font-weight:600;margin:0;line-height:1.55;max-width:55ch;margin-inline:auto}
-
-.ob-feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-top:1.6rem}
-@media (max-width:560px){.ob-feat-grid{grid-template-columns:1fr}}
-.ob-feat-card{
-  background:linear-gradient(180deg,#fff,#f8fbff);
-  border:1px solid var(--ob-line);border-radius:16px;
-  padding:1.1rem .9rem;text-align:center;
-  transition:all .15s;
-}
-.ob-feat-card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,23,42,.08);border-color:var(--ob-line-strong)}
-.ob-feat-card .ob-fc-icon{
-  font-size:1.5rem;margin-bottom:.5rem;
-  width:46px;height:46px;border-radius:13px;
-  background:rgba(245,158,11,.14);color:#b45309;
-  display:flex;align-items:center;justify-content:center;margin:0 auto .55rem;
-}
-.ob-feat-card:nth-child(2) .ob-fc-icon{background:rgba(16,185,129,.14);color:#047857}
-.ob-feat-card:nth-child(3) .ob-fc-icon{background:rgba(37,99,235,.14);color:#1d4ed8}
-.ob-feat-card .ob-fc-title{font-size:.84rem;font-weight:900;color:var(--ob-ink);line-height:1.25}
-.ob-feat-card .ob-fc-desc{font-size:.72rem;color:var(--ob-muted);font-weight:600;margin-top:.25rem;line-height:1.45}
-
-/* SECTION TITLE / SEARCH */
-.ob-section-title{
-  font-size:.74rem;font-weight:900;color:var(--ob-muted);
-  text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px;
-}
-.ob-search-wrap{position:relative;margin-bottom:14px}
-.ob-search-wrap input{
-  width:100%;background:#fff;border:1px solid var(--ob-line);
-  border-radius:11px;padding:.6rem 1rem .6rem 2.4rem;
-  color:var(--ob-ink);font-size:.88rem;font-weight:600;font-family:inherit;
-  outline:none;transition:border-color .15s,box-shadow .15s;
-}
-.ob-search-wrap input:focus{border-color:var(--ob-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
-.ob-search-wrap input::placeholder{color:var(--ob-muted);font-weight:500}
-.ob-search-icon{position:absolute;top:50%;transform:translateY(-50%);color:var(--ob-muted);font-size:.95rem;pointer-events:none}
-[dir="rtl"] .ob-search-icon{right:.85rem}
-[dir="ltr"] .ob-search-icon{left:.85rem}
-[dir="rtl"] .ob-search-wrap input{padding-right:2.4rem;padding-left:1rem}
-
-/* PROVIDER GRID */
-.ob-prov-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:.55rem;
-  max-height:260px;overflow-y:auto;padding:2px;margin-bottom:16px;
-}
-.ob-prov-grid::-webkit-scrollbar{width:6px}
-.ob-prov-grid::-webkit-scrollbar-thumb{background:var(--ob-line-strong);border-radius:6px}
-.ob-prov-card{
-  background:#fff;border:1.5px solid var(--ob-line);border-radius:13px;
-  padding:.75rem .55rem;
-  display:flex;flex-direction:column;align-items:center;gap:.35rem;
-  cursor:pointer;transition:all .15s;user-select:none;
-}
-.ob-prov-card:hover{transform:translateY(-2px);border-color:var(--ob-amber);box-shadow:0 8px 18px rgba(245,158,11,.18)}
-.ob-prov-card.active{
-  border-color:var(--ob-amber);
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));
-  box-shadow:0 0 0 2px rgba(245,158,11,.30);
-}
-.ob-prov-card .ob-pc-icon{
-  width:38px;height:38px;border-radius:10px;
-  background:rgba(245,158,11,.10);color:#b45309;
-  display:flex;align-items:center;justify-content:center;font-size:1.3rem;
-}
-.ob-prov-card.active .ob-pc-icon{background:rgba(245,158,11,.20)}
-.ob-prov-card .ob-pc-name{font-size:.74rem;font-weight:800;color:var(--ob-ink);text-align:center;line-height:1.25}
-
-/* SELECTED PROVIDER BANNER */
-.ob-prov-banner{
-  display:none;
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));
-  border:1px solid rgba(245,158,11,.30);border-radius:14px;
-  padding:.75rem 1rem;margin-bottom:14px;align-items:center;gap:.75rem;
-}
-.ob-prov-banner.visible{display:flex}
-.ob-prov-banner .ob-pb-icon{
-  width:38px;height:38px;border-radius:11px;
-  background:rgba(245,158,11,.20);color:#b45309;
-  display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;
-}
-.ob-prov-banner .ob-pb-info{flex:1;min-width:0}
-.ob-prov-banner .ob-pb-name{font-size:.92rem;font-weight:950;color:var(--ob-ink);line-height:1.2}
-.ob-prov-banner .ob-pb-note{font-size:.74rem;color:var(--ob-muted);font-weight:600;margin-top:2px}
-
-/* DEVICE FORM */
-.ob-dev-form{display:grid;grid-template-columns:1fr 1fr;gap:.85rem}
-@media (max-width:540px){.ob-dev-form{grid-template-columns:1fr}}
-.ob-dev-form .ob-full{grid-column:1/-1}
-.ob-field label{
-  display:block;font-size:.76rem;font-weight:800;color:var(--ob-ink-soft);
-  margin-bottom:.35rem;letter-spacing:.2px;
-}
-.ob-field input,.ob-field textarea,.ob-field select{
-  width:100%;background:#fff;border:1px solid var(--ob-line);border-radius:11px;
-  padding:.55rem .85rem;color:var(--ob-ink);
-  font-size:.9rem;font-weight:600;font-family:inherit;outline:none;
-  transition:border-color .15s,box-shadow .15s;
-}
-.ob-field input:focus,.ob-field textarea:focus,.ob-field select:focus{
-  border-color:var(--ob-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18);
-}
-.ob-field input::placeholder{color:var(--ob-muted);font-weight:500}
-.ob-field select option{background:#fff;color:var(--ob-ink)}
-.ob-dyn-fields{grid-column:1/-1}
-.ob-prov-note{
-  display:none;
-  font-size:.78rem;color:var(--ob-ink-soft);font-weight:600;
-  background:#f5f9ff;border:1px solid var(--ob-line);
-  border-radius:11px;padding:.65rem .9rem;margin-top:6px;line-height:1.45;
-}
-.ob-prov-note.visible{display:block}
-
-/* NOTIFICATIONS */
-.ob-notif-grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-top:1rem}
-@media (max-width:480px){.ob-notif-grid{grid-template-columns:1fr}}
-.ob-notif-card{
-  border:2px solid var(--ob-line);border-radius:16px;
-  padding:1.3rem 1.2rem;cursor:pointer;
-  transition:all .2s;text-align:center;
-  background:linear-gradient(180deg,#fff,#f8fbff);
-}
-.ob-notif-card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,23,42,.08);border-color:var(--ob-line-strong)}
-.ob-notif-card.selected{
-  border-color:var(--ob-amber);
-  background:linear-gradient(135deg,rgba(255,207,77,.18),rgba(245,158,11,.06));
-  box-shadow:0 0 0 3px rgba(245,158,11,.10);
-}
-.ob-notif-card .ob-nc-icon{font-size:2rem;margin-bottom:.6rem}
-.ob-notif-card .ob-nc-title{font-size:.95rem;font-weight:950;color:var(--ob-ink);margin-bottom:.3rem}
-.ob-notif-card .ob-nc-desc{font-size:.78rem;color:var(--ob-muted);font-weight:600;line-height:1.45}
-.ob-notif-card input[type=radio]{display:none}
-
-/* FINISH */
-.ob-finish-hero{text-align:center;padding:18px 0 6px}
-.ob-finish-hero .ob-confetti{
-  font-size:3.2rem;display:inline-block;animation:obPop .5s ease both;
-  filter:drop-shadow(0 12px 24px rgba(16,185,129,.30));
-}
-@keyframes obPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
-.ob-finish-hero h2{font-size:1.55rem;font-weight:950;color:var(--ob-ink);margin:.85rem 0 .35rem;line-height:1.25}
-.ob-finish-hero p{color:var(--ob-muted);font-size:.92rem;font-weight:600;margin:0;line-height:1.55;max-width:55ch;margin-inline:auto}
-
-/* SUMMARY (finish step) */
-.ob-summary{
-  background:linear-gradient(135deg,rgba(255,207,77,.10),rgba(58,167,255,.06));
-  border:1px solid var(--ob-line);border-radius:18px;
-  padding:18px 20px;margin-top:18px;
-  display:flex;flex-direction:column;gap:.65rem;
-}
-.ob-summary-row{display:flex;align-items:center;gap:.7rem}
-.ob-summary-icon{
-  width:36px;height:36px;border-radius:10px;
-  background:rgba(245,158,11,.14);color:#b45309;
-  display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;
-}
-.ob-summary-row:nth-child(2) .ob-summary-icon{background:rgba(16,185,129,.14);color:#047857}
-.ob-summary-row:nth-child(3) .ob-summary-icon{background:rgba(37,99,235,.14);color:#1d4ed8}
-.ob-summary-text strong{display:block;font-size:.84rem;font-weight:950;color:var(--ob-ink)}
-.ob-summary-text small{font-size:.74rem;color:var(--ob-muted);font-weight:700}
-
-/* ACTIONS */
-.ob-actions{
-  display:flex;align-items:center;justify-content:space-between;gap:.65rem;
-  padding-top:18px;margin-top:18px;border-top:1px solid var(--ob-line);
-  flex-wrap:wrap;
-}
-.ob-back-btn,.ob-next-btn,.ob-finish-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
-  padding:.7rem 1.15rem;border-radius:12px;
-  font-size:.88rem;font-weight:900;font-family:inherit;cursor:pointer;
-  border:1px solid transparent;transition:all .15s;
-}
-.ob-back-btn{background:#fff;color:var(--ob-ink-soft);border-color:var(--ob-line)}
-.ob-back-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,23,42,.08);background:#f5f9ff}
-.ob-next-btn,.ob-finish-btn{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;
-  box-shadow:0 10px 24px rgba(245,158,11,.28);
-}
-.ob-next-btn:hover,.ob-finish-btn:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(245,158,11,.40)}
-.ob-counter{font-size:.78rem;color:var(--ob-muted);font-weight:800}
-.ob-counter b{color:var(--ob-ink);font-weight:950;font-variant-numeric:tabular-nums}
-</style>
-
-<div class="ob-page" dir="{{ dir }}">
-  <!-- ambient orbs -->
-  <div class="ob-orb ob-orb-1"></div>
-  <div class="ob-orb ob-orb-2"></div>
-  <div class="ob-orb ob-orb-3"></div>
-
-  <div class="ob-shell">
-    <div class="ob-card">
-
-      <!-- top bar -->
-      <div class="ob-topbar">
-        <span class="ob-brand">☀️ SolarDeyA</span>
-        <form method="post" action="{{ url_for('main.onboarding_skip', lang=ui_lang) }}" style="margin:0;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="ob-skip-btn">
-            {{ 'Skip wizard' if ui_lang == 'en' else 'تخطي المعالج' }}
-          </button>
-        </form>
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Get started' if is_en else 'ابدأ من هنا' }}</span>
+          <h1 class="hu-h1">{{ 'Welcome to SolarDeye' if is_en else 'أهلاً بك في SolarDeye' }}</h1>
+          <p class="hu-tagline">{{ 'A short setup wizard to connect your first device, configure notifications, and start monitoring your energy in minutes.' if is_en else 'مساعد إعداد قصير لربط أول جهاز وإعداد التنبيهات والبدء بمراقبة طاقتك خلال دقائق.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ step_num }}</b>/4 {{ 'steps' if is_en else 'خطوات' }}</span>
+            <span class="hu-meta-pill ok"><b>{{ ((step_num-1)*100/3)|round(0)|int }}%</b> {{ 'complete' if is_en else 'مكتمل' }}</span>
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <form method="post" action="{{ url_for('main.onboarding_skip', lang=ui_lang) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="hu-btn hu-btn-ghost">⏩ {{ 'Skip wizard' if is_en else 'تخطّي المعالج' }}</button>
+          </form>
+        </div>
       </div>
+    </header>
 
-      <!-- flash messages -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="ob-alert ob-alert-{{ 'danger' if category in ['danger','error'] else 'success' }}">{{ message }}</div>
+    {# Step indicator #}
+    <section class="ob-section" data-help="{{ 'Your progress through setup. Each step takes about 1 minute.' if is_en else 'تقدّمك في الإعداد. كل خطوة تأخذ دقيقة تقريباً.' }}">
+      <div class="ob-sec-head">
+        <div>
+          <small>{{ 'Wizard progress' if is_en else 'تقدّم المعالج' }}</small>
+          <h2><span class="ob-sec-icon">🧭</span> {{ 'Setup steps' if is_en else 'خطوات الإعداد' }}</h2>
+        </div>
+        <span class="ob-sec-meta">{{ '~1 min each' if is_en else 'دقيقة لكل خطوة' }}</span>
+      </div>
+      <div class="ob-sec-body">
+        <ol class="ob-stepper">
+          {% for s in steps %}
+          <li class="ob-step {% if s.n == step_num %}is-current{% elif s.n < step_num %}is-done{% endif %}">
+            <span class="ob-step-num">{% if s.n < step_num %}✓{% else %}{{ s.n }}{% endif %}</span>
+            <span class="ob-step-icon">{{ s.icon }}</span>
+            <strong>{{ s.en if is_en else s.ar }}</strong>
+          </li>
           {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      <!-- step pills -->
-      {% set step_defs = [
-          ('welcome',  '👋', 'ترحيب'    if ui_lang != 'en' else 'Welcome'),
-          ('device',   '🔌', 'الجهاز'   if ui_lang != 'en' else 'Device'),
-          ('notifications','🔔','الإشعارات' if ui_lang != 'en' else 'Alerts'),
-          ('finish',   '🚀', 'الإنهاء'  if ui_lang != 'en' else 'Finish'),
-      ] %}
-      {% set step_order = ['welcome','device','notifications','finish'] %}
-      {% set cur_idx = step_order.index(step) %}
-      <div class="ob-steps">
-        {% for key, icon, label in step_defs %}
-          {% set idx = loop.index0 %}
-          {% if not loop.first %}<div class="ob-step-sep"></div>{% endif %}
-          <div class="ob-step-pill {% if key == step %}active{% elif idx < cur_idx %}done{% endif %}">
-            <span class="ob-sp-icon">{{ '✅' if idx < cur_idx else icon }}</span>
-            <span class="ob-sp-label">{{ label }}</span>
-          </div>
-        {% endfor %}
+        </ol>
       </div>
+    </section>
 
-      <!-- main form -->
-      <form method="post" id="ob-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="step" value="{{ step }}">
-        <!-- hidden selects consumed by app.js dynamic field renderer -->
-        <input type="hidden" id="ob-hidden-type" name="device_type"
-               value="{{ (wizard_device.device_type if wizard_device else (devices_list[0].device_type if devices_list else 'deye')) }}">
-        <select id="ob-dyn-select" name="_provider_select_ui" style="display:none;"
-                data-provider-select
-                data-device-provider-form="ob-device-form-inner">
-        </select>
-        <input type="hidden" id="ob-base-url" name="api_base_url"
-               value="{{ (wizard_device.api_base_url if wizard_device else '') }}"
-               data-provider-base-url>
-
-        <!-- ── WELCOME ─────────────────────────────── -->
-        {% if step == 'welcome' %}
-        <div class="ob-pane">
-          <div class="ob-welcome-hero">
-            <div class="ob-sun">☀️</div>
-            <h2>
-              {% if ui_lang == 'en' %}
-                Welcome, {{ user_obj.full_name or user_obj.username }}!
-              {% else %}
-                أهلًا {{ user_obj.full_name or user_obj.username }}! 👋
-              {% endif %}
-            </h2>
-            <p>
-              {% if ui_lang == 'en' %}
-                A quick setup to personalise your experience — you can skip any step.
-              {% else %}
-                إعداد خفيف وسريع لتجهيز حسابك — يمكنك تخطي أي خطوة.
-              {% endif %}
-            </p>
-          </div>
-          <div class="ob-feat-grid">
-            <div class="ob-feat-card">
-              <div class="ob-fc-icon">🔌</div>
-              <div class="ob-fc-title">{{ 'Device' if ui_lang == 'en' else 'الأجهزة' }}</div>
-              <div class="ob-fc-desc">{{ 'Connect your solar inverter or monitor.' if ui_lang == 'en' else 'ربط محول الطاقة الشمسية أو جهاز المراقبة الخاص بك.' }}</div>
-            </div>
-            <div class="ob-feat-card">
-              <div class="ob-fc-icon">📊</div>
-              <div class="ob-fc-title">{{ 'Live Data' if ui_lang == 'en' else 'بيانات حية' }}</div>
-              <div class="ob-fc-desc">{{ 'Monitor production, consumption & savings.' if ui_lang == 'en' else 'تتبع الإنتاج والاستهلاك والوفورات في الوقت الفعلي.' }}</div>
-            </div>
-            <div class="ob-feat-card">
-              <div class="ob-fc-icon">🔔</div>
-              <div class="ob-fc-title">{{ 'Alerts' if ui_lang == 'en' else 'التنبيهات' }}</div>
-              <div class="ob-fc-desc">{{ 'Get notified when something needs attention.' if ui_lang == 'en' else 'احصل على تنبيه فوري عند الحاجة.' }}</div>
-            </div>
-          </div>
+    <div class="ob-shell">
+      <aside class="ob-aside">
+        <div class="ob-as-card explainer">
+          <h4>📘 {{ 'Why this matters' if is_en else 'لماذا الإعداد مهم' }}</h4>
+          <p>{{ 'A complete setup means you get accurate live data, on-time notifications, and meaningful statistics. Skipping steps may limit features.' if is_en else 'الإعداد الكامل يعني بيانات حيّة دقيقة وتنبيهات في وقتها وإحصاءات مفيدة. تخطي الخطوات قد يحدّ من المزايا.' }}</p>
+          <p>{{ 'You can come back to any of these settings later from the sidebar.' if is_en else 'يمكنك العودة لأي من هذه الإعدادات لاحقاً من الشريط الجانبي.' }}</p>
         </div>
-
-        <!-- ── DEVICE ──────────────────────────────── -->
-        {% elif step == 'device' %}
-        {% set dev = wizard_device if wizard_device else (devices_list[0] if devices_list else None) %}
-        <div class="ob-pane" id="ob-device-form-inner">
-
-          <!-- device name + plant name always shown -->
-          <div class="ob-dev-form" style="margin-bottom:1.25rem;">
-            <div class="ob-field">
-              <label>{{ 'Device Name' if ui_lang == 'en' else 'اسم الجهاز' }}</label>
-              <input name="name" value="{{ dev.name if dev else ('My Solar Device' if ui_lang == 'en' else 'جهازي الشمسي') }}" placeholder="{{ 'Device Name' if ui_lang == 'en' else 'اسم الجهاز' }}">
-            </div>
-            <div class="ob-field">
-              <label>{{ 'Plant / Station Name' if ui_lang == 'en' else 'اسم المحطة' }}</label>
-              <input name="plant_name" value="{{ dev.plant_name if dev else '' }}" placeholder="{{ 'My Plant' if ui_lang == 'en' else 'محطتي' }}">
-            </div>
-          </div>
-
-          <!-- provider search -->
-          <div class="ob-section-title">
-            {{ 'Choose your device provider' if ui_lang == 'en' else 'اختر مزوّد الجهاز' }}
-          </div>
-          <div class="ob-search-wrap">
-            <span class="ob-search-icon">🔍</span>
-            <input type="text" id="ob-prov-search" placeholder="{{ 'Search providers…' if ui_lang == 'en' else 'بحث…' }}" autocomplete="off">
-          </div>
-
-          <!-- provider grid -->
-          <div class="ob-prov-grid" id="ob-prov-grid">
-            <!-- populated by JS -->
-          </div>
-
-          <!-- selected provider banner -->
-          <div class="ob-prov-banner" id="ob-prov-banner">
-            <span class="ob-pb-icon" id="ob-pb-icon">⚡</span>
-            <div class="ob-pb-info">
-              <div class="ob-pb-name" id="ob-pb-name">—</div>
-              <div class="ob-pb-note" id="ob-pb-note" data-provider-note></div>
-            </div>
-          </div>
-
-          <!-- dynamic fields injected by app.js -->
-          <div class="ob-dev-form">
-            <div class="ob-dyn-fields ob-full" data-provider-fields></div>
-          </div>
-
+        <div class="ob-as-card">
+          <h4>🔑 {{ 'Step meanings' if is_en else 'معاني الخطوات' }}</h4>
+          <ul class="ob-legend-list">
+            <li><span class="ob-legend-dot" style="background:#3b82f6"></span><strong>👤 {{ 'Profile' if is_en else 'الملف الشخصي' }}</strong><small>{{ 'name & contact' if is_en else 'الاسم والتواصل' }}</small></li>
+            <li><span class="ob-legend-dot" style="background:#22c55e"></span><strong>📱 {{ 'Device' if is_en else 'جهاز' }}</strong><small>{{ 'add inverter' if is_en else 'أضف الإنفرتر' }}</small></li>
+            <li><span class="ob-legend-dot" style="background:#f59e0b"></span><strong>🔔 {{ 'Alerts' if is_en else 'التنبيهات' }}</strong><small>{{ 'how to be notified' if is_en else 'كيف تُنبَّه' }}</small></li>
+            <li><span class="ob-legend-dot" style="background:#a855f7"></span><strong>✓ {{ 'Done' if is_en else 'انتهيت' }}</strong><small>{{ 'go to dashboard' if is_en else 'لوحة التحكم' }}</small></li>
+          </ul>
         </div>
-
-        <!-- ── NOTIFICATIONS ───────────────────────── -->
-        {% elif step == 'notifications' %}
-        <div class="ob-pane">
-          <div class="ob-section-title">{{ 'Notifications' if ui_lang == 'en' else 'الإشعارات' }}</div>
-          <p style="color:rgba(255,255,255,.55);font-size:.88rem;margin-bottom:.5rem;">
-            {% if ui_lang == 'en' %}
-              Choose whether to enable notifications now — you can change this anytime from notification settings.
-            {% else %}
-              اختر ما إذا كنت تريد تفعيل الإشعارات الآن — يمكنك تغيير ذلك لاحقًا.
-            {% endif %}
-          </p>
-          <div class="ob-notif-grid">
-            <label class="ob-notif-card selected" id="ob-notif-yes" onclick="selectNotif('yes')">
-              <input type="radio" name="enable_notifications" value="yes"
-                     {% if (settings.get('notifications_enabled','true')|lower) == 'true' %}checked{% endif %}>
-              <div class="ob-nc-icon">🔔</div>
-              <div class="ob-nc-title">{{ 'Enable Alerts' if ui_lang == 'en' else 'تفعيل التنبيهات' }}</div>
-              <div class="ob-nc-desc">{{ 'Stay informed about your system status.' if ui_lang == 'en' else 'ابقَ على اطلاع بحالة منظومتك الشمسية.' }}</div>
-            </label>
-            <label class="ob-notif-card" id="ob-notif-no" onclick="selectNotif('no')">
-              <input type="radio" name="enable_notifications" value="no"
-                     {% if (settings.get('notifications_enabled','true')|lower) != 'true' %}checked{% endif %}>
-              <div class="ob-nc-icon">🔕</div>
-              <div class="ob-nc-title">{{ 'Not Now' if ui_lang == 'en' else 'ليس الآن' }}</div>
-              <div class="ob-nc-desc">{{ "I'll set up notifications later." if ui_lang == 'en' else 'سأضبط الإشعارات لاحقًا.' }}</div>
-            </label>
-          </div>
+        <div class="ob-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Have your inverter credentials ready (username, password, station ID).' if is_en else 'احضر بيانات الإنفرتر (المستخدم وكلمة المرور ومعرّف المحطة).' }}</li>
+            <li>{{ 'Test alerts before relying on them.' if is_en else 'اختبر التنبيهات قبل الاعتماد عليها.' }}</li>
+            <li>{{ 'Setup typically takes 3–5 minutes.' if is_en else 'الإعداد يستغرق عادةً 3-5 دقائق.' }}</li>
+          </ul>
         </div>
+      </aside>
 
-        <!-- ── FINISH ──────────────────────────────── -->
+      <div class="ob-main">
+        {% if step_num == 1 %}
+          <section class="ob-section" data-help="{{ 'Set your name, email, and phone for invoices, support contact, and password resets.' if is_en else 'أدخل اسمك وبريدك وهاتفك للفواتير والتواصل وإعادة تعيين كلمة المرور.' }}">
+            <div class="ob-sec-head">
+              <div>
+                <small>{{ 'Step 1 of 4' if is_en else 'الخطوة 1 من 4' }}</small>
+                <h2><span class="ob-sec-icon">👤</span> {{ 'Tell us about you' if is_en else 'عرّفنا بنفسك' }}</h2>
+              </div>
+              <span class="ob-sec-meta">{{ 'profile basics' if is_en else 'بيانات أساسية' }}</span>
+            </div>
+            <div class="ob-sec-body">
+              <form method="post" class="ob-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="step" value="1">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+                  <label class="ob-field"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input type="text" name="full_name" value="{{ user_obj.full_name or '' }}" required></label>
+                  <label class="ob-field"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input type="email" name="email" value="{{ user_obj.email or '' }}" dir="ltr"></label>
+                  <label class="ob-field"><span>{{ 'Phone' if is_en else 'الهاتف' }}</span><input type="tel" name="phone_number" value="{{ user_obj.phone_number or '' }}" dir="ltr"></label>
+                  <label class="ob-field"><span>{{ 'Country' if is_en else 'الدولة' }}</span><input type="text" name="country" value="{{ user_obj.country or '' }}"></label>
+                </div>
+                <div class="ob-actions"><button type="submit" class="ob-btn primary">{{ 'Next →' if is_en else 'التالي →' }}</button></div>
+              </form>
+            </div>
+          </section>
+        {% elif step_num == 2 %}
+          <section class="ob-section" data-help="{{ 'Add your first inverter / battery / gateway. Pick a provider and enter your credentials. The system will validate the connection.' if is_en else 'أضف أول إنفرتر/بطارية/بوابة. اختر مزوّداً وأدخل البيانات. سيتحقق النظام من الاتصال.' }}">
+            <div class="ob-sec-head">
+              <div>
+                <small>{{ 'Step 2 of 4' if is_en else 'الخطوة 2 من 4' }}</small>
+                <h2><span class="ob-sec-icon">📱</span> {{ 'Connect your first device' if is_en else 'اربط أول جهاز' }}</h2>
+              </div>
+              <span class="ob-sec-meta">{{ 'inverter / gateway' if is_en else 'إنفرتر / بوابة' }}</span>
+            </div>
+            <div class="ob-sec-body">
+              <form method="post" class="ob-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="step" value="2">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+                  <label class="ob-field"><span>{{ 'Device name' if is_en else 'اسم الجهاز' }}</span><input type="text" name="device_name" value="{{ wizard_device.name if wizard_device else '' }}" required placeholder="{{ 'e.g. Home roof' if is_en else 'مثلاً: سطح المنزل' }}"></label>
+                  <label class="ob-field">
+                    <span>{{ 'Provider' if is_en else 'المزوّد' }}</span>
+                    <select name="provider_code" required>
+                      {% for spec in provider_specs %}
+                        <option value="{{ spec.code }}" {% if wizard_device and wizard_device.api_provider == spec.code %}selected{% endif %}>{{ spec.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label class="ob-field"><span>{{ 'Username / API key' if is_en else 'اسم المستخدم / مفتاح API' }}</span><input type="text" name="api_username" value="{{ wizard_creds.username if wizard_creds else '' }}" dir="ltr"></label>
+                  <label class="ob-field"><span>{{ 'Password / secret' if is_en else 'كلمة المرور / السر' }}</span><input type="password" name="api_password" dir="ltr"></label>
+                </div>
+                <div class="ob-actions">
+                  <a class="ob-btn ghost" href="?step=1&lang={{ ui_lang }}">← {{ 'Back' if is_en else 'السابق' }}</a>
+                  <button type="submit" class="ob-btn primary">{{ 'Next →' if is_en else 'التالي →' }}</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        {% elif step_num == 3 %}
+          <section class="ob-section" data-help="{{ 'Pick how you want to be notified about important events. Telegram is the easiest and fastest. SMS works without internet.' if is_en else 'اختر كيف تُنبَّه عن الأحداث المهمة. Telegram الأسهل والأسرع، وSMS يعمل بدون إنترنت.' }}">
+            <div class="ob-sec-head">
+              <div>
+                <small>{{ 'Step 3 of 4' if is_en else 'الخطوة 3 من 4' }}</small>
+                <h2><span class="ob-sec-icon">🔔</span> {{ 'Set up notifications' if is_en else 'فعّل التنبيهات' }}</h2>
+              </div>
+              <span class="ob-sec-meta">{{ 'pick channels' if is_en else 'اختر القنوات' }}</span>
+            </div>
+            <div class="ob-sec-body">
+              <p style="margin:0 0 16px;color:#475569;line-height:1.7">{{ 'You can configure detailed notification rules later from the Notifications page. For now, just decide which channels to use.' if is_en else 'يمكنك إعداد قواعد التنبيهات تفصيلياً لاحقاً من صفحة التنبيهات. الآن فقط حدّد القنوات.' }}</p>
+              <form method="post" class="ob-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="step" value="3">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+                  <label class="ob-field" style="background:#fafbff;padding:14px;border-radius:12px;border:1px solid #e5e7eb;cursor:pointer">
+                    <span style="display:flex;align-items:center;gap:10px">
+                      <input type="checkbox" name="enable_telegram" {% if (settings.telegram_enabled or '').lower() in ['true','1','on'] %}checked{% endif %} style="width:20px;height:20px;accent-color:#6366f1">
+                      <strong style="font-size:.95rem;color:#0f172a">📱 {{ 'Enable Telegram' if is_en else 'فعّل Telegram' }}</strong>
+                    </span>
+                    <small style="font-size:.8rem;color:#64748b;margin-top:4px;display:block">{{ 'Free, fast, real-time. Configure later in /channels.' if is_en else 'مجاني، سريع، فوري. أعدّه لاحقاً في /channels.' }}</small>
+                  </label>
+                  <label class="ob-field" style="background:#fafbff;padding:14px;border-radius:12px;border:1px solid #e5e7eb;cursor:pointer">
+                    <span style="display:flex;align-items:center;gap:10px">
+                      <input type="checkbox" name="enable_sms" {% if (settings.sms_enabled or '').lower() in ['true','1','on'] %}checked{% endif %} style="width:20px;height:20px;accent-color:#6366f1">
+                      <strong style="font-size:.95rem;color:#0f172a">✉ {{ 'Enable SMS' if is_en else 'فعّل SMS' }}</strong>
+                    </span>
+                    <small style="font-size:.8rem;color:#64748b;margin-top:4px;display:block">{{ 'Works without internet. May incur cost.' if is_en else 'يعمل بدون إنترنت. قد يكون مدفوعاً.' }}</small>
+                  </label>
+                </div>
+                <div class="ob-actions">
+                  <a class="ob-btn ghost" href="?step=2&lang={{ ui_lang }}">← {{ 'Back' if is_en else 'السابق' }}</a>
+                  <button type="submit" class="ob-btn primary">{{ 'Next →' if is_en else 'التالي →' }}</button>
+                </div>
+              </form>
+            </div>
+          </section>
         {% else %}
-        <div class="ob-pane">
-          <div class="ob-finish-hero">
-            <div class="ob-confetti">🎉</div>
-            <h2>{{ "You're all set!" if ui_lang == 'en' else 'كل شيء جاهز!' }}</h2>
-            <p>{{ 'Your account is configured. Head to the dashboard to see your solar data.' if ui_lang == 'en' else 'تم إعداد حسابك. توجّه إلى لوحة التحكم لمشاهدة بيانات الطاقة الشمسية.' }}</p>
-          </div>
-          <div class="ob-recap-grid">
-            <div class="ob-recap-card">
-              <div class="ob-rc-icon">🔌</div>
-              <div class="ob-rc-text">{{ 'Your device is connected and ready.' if ui_lang == 'en' else 'جهازك متصل وجاهز للعمل.' }}</div>
+          <section class="ob-section" data-help="{{ 'Wizard complete. You will be redirected to your dashboard. You can revisit any setting from the sidebar.' if is_en else 'انتهى المعالج. سيتم تحويلك للوحة التحكم. يمكنك العودة لأي إعداد من الشريط الجانبي.' }}">
+            <div class="ob-sec-head">
+              <div>
+                <small>{{ 'Step 4 of 4' if is_en else 'الخطوة 4 من 4' }}</small>
+                <h2><span class="ob-sec-icon">🎉</span> {{ 'Setup complete!' if is_en else 'تم الإعداد!' }}</h2>
+              </div>
+              <span class="ob-sec-meta">{{ 'all done' if is_en else 'انتهيت' }}</span>
             </div>
-            <div class="ob-recap-card">
-              <div class="ob-rc-icon">👤</div>
-              <div class="ob-rc-text">{{ 'Your profile is set up inside the system.' if ui_lang == 'en' else 'ملفك الشخصي جاهز داخل النظام.' }}</div>
+            <div class="ob-sec-body" style="text-align:center;padding:40px 22px">
+              <div style="font-size:5rem;margin-bottom:16px">🎉</div>
+              <h3 style="margin:0 0 12px;font-size:1.4rem;font-weight:900;color:#0f172a">{{ 'You are all set!' if is_en else 'كل شيء جاهز!' }}</h3>
+              <p style="margin:0 0 24px;color:#475569;line-height:1.7;max-width:520px;margin-inline:auto">{{ 'Your account is ready. Visit the dashboard to see your live energy data, statistics, and reports.' if is_en else 'حسابك جاهز. زُر لوحة التحكم لرؤية بيانات الطاقة الحيّة والإحصاءات والتقارير.' }}</p>
+              <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+                <a class="ob-btn primary" href="{{ url_for('main.dashboard', lang=ui_lang) }}">🏠 {{ 'Go to dashboard' if is_en else 'لوحة التحكم' }}</a>
+                <a class="ob-btn ghost" href="{{ url_for('main.live_data', lang=ui_lang) }}">⚡ {{ 'See live data' if is_en else 'البيانات الحيّة' }}</a>
+              </div>
             </div>
-            <div class="ob-recap-card">
-              <div class="ob-rc-icon">⚙️</div>
-              <div class="ob-rc-text">{{ 'You can adjust all settings anytime.' if ui_lang == 'en' else 'يمكنك ضبط كل الإعدادات في أي وقت.' }}</div>
-            </div>
-          </div>
-        </div>
+          </section>
         {% endif %}
+      </div>
+    </div>
+  </main>
+</div>
 
-        <!-- nav row -->
-        <div class="ob-nav">
-          {% if step != 'welcome' %}
-            <button type="submit" class="ob-btn ob-btn-back" name="action" value="back">
-              {% if dir == 'rtl' %}← {% endif %}{{ 'Back' if ui_lang == 'en' else 'السابق' }}{% if dir == 'ltr' %} →{% endif %}
-            </button>
-          {% endif %}
-          {% if step != 'finish' %}
-            <button type="submit" class="ob-btn ob-btn-skip" name="action" value="skip">
-              {{ 'Skip' if ui_lang == 'en' else 'تخطي' }}
-            </button>
-          {% endif %}
-          <button type="submit" class="ob-btn ob-btn-next" name="action"
-                  value="{{ 'complete' if step == 'finish' else 'next' }}">
-            {{ ('Start Now' if step == 'finish' else 'Next') if ui_lang == 'en' else ('ابدأ الآن' if step == 'finish' else 'التالي') }}
-            {% if step != 'finish' %}{% if dir == 'rtl' %} →{% else %} →{% endif %}{% endif %}
-          </button>
-        </div>
-      </form>
-
-    </div><!-- .ob-card -->
-  </div><!-- .ob-shell -->
-</div><!-- .ob-page -->
-
-<script>
-(function(){
-  /* ── provider specs injected from backend ── */
-  var SPECS = {{ provider_specs | tojson }};
-  window.SOLARDEYE_PROVIDER_SPECS = SPECS;
-
-  {% if wizard_device %}
-  window.SOLARDEYE_DEVICE_VALUES = {
-    station_id : {{ (wizard_device.station_id  or '') | tojson }},
-    device_uid : {{ (wizard_device.device_uid  or '') | tojson }},
-    api_provider: {{ (wizard_device.api_provider or '') | tojson }},
-    api_base_url: {{ (wizard_device.api_base_url or '') | tojson }},
-    {% if wizard_creds %}
-    deye_email  : {{ (wizard_creds.get('deye_email',''))   | tojson }},
-    deye_app_id : {{ (wizard_creds.get('deye_app_id',''))  | tojson }},
-    deye_region : {{ (wizard_device_settings.get('deye_region','EMEA')) | tojson }}
-    {% endif %}
-  };
-  {% endif %}
-
-  /* device step only */
-  if (document.getElementById('ob-prov-grid')) {
-    var grid     = document.getElementById('ob-prov-grid');
-    var search   = document.getElementById('ob-prov-search');
-    var banner   = document.getElementById('ob-prov-banner');
-    var pbIcon   = document.getElementById('ob-pb-icon');
-    var pbName   = document.getElementById('ob-pb-name');
-    var pbNote   = document.getElementById('ob-pb-note');
-    var hidType  = document.getElementById('ob-hidden-type');
-    var dynSel   = document.getElementById('ob-dyn-select');
-
-    var ICONS = {
-      deye:'🌞', goodwe:'⚡', solis:'🔋', huawei:'🏭', sofar:'🔆',
-      saj:'💡', growatt:'🌱', sma:'🔵', fronius:'🟡', enphase:'🌀',
-      solaredge:'🔴', delta:'⬛', ginlong:'🌿', kstar:'⭐',
-      custom:'🔧', mqtt:'📡', modbus:'🔌', victron:'⚓',
-      solax:'🌊', foxess:'🦊', sungrow:'🌅'
-    };
-
-    var curCode = hidType ? (hidType.value || '') : '';
-
-    function provIcon(code){ return ICONS[code] || '⚡'; }
-
-    function buildGrid(filter){
-      grid.innerHTML = '';
-      var fl = (filter||'').toLowerCase();
-      SPECS.forEach(function(s){
-        if(fl && s.name.toLowerCase().indexOf(fl)<0 && s.code.toLowerCase().indexOf(fl)<0) return;
-        var card = document.createElement('div');
-        card.className = 'ob-prov-card' + (s.code === curCode ? ' active' : '');
-        card.dataset.code = s.code;
-        card.innerHTML = '<span class="ob-pc-icon">'+provIcon(s.code)+'</span>'
-                       + '<span class="ob-pc-name">'+s.name+'</span>';
-        card.addEventListener('click', function(){ selectProv(s.code, s.name, s); });
-        grid.appendChild(card);
-      });
-    }
-
-    function selectProv(code, name, spec){
-      curCode = code;
-      grid.querySelectorAll('.ob-prov-card').forEach(function(c){
-        c.classList.toggle('active', c.dataset.code === code);
-      });
-      if(hidType) hidType.value = code;
-      if(dynSel){ dynSel.value = code; dynSel.dispatchEvent(new Event('change')); }
-      if(pbIcon) pbIcon.textContent = provIcon(code);
-      if(pbName) pbName.textContent = name;
-      var note = (spec && (spec.notes_ar || spec.notes_en)) ? (spec.notes_ar || spec.notes_en) : '';
-      if(pbNote){ pbNote.textContent = note; pbNote.classList.toggle('visible', !!note); }
-      if(banner) banner.classList.add('visible');
-    }
-
-    if(search){
-      search.addEventListener('input', function(){ buildGrid(this.value); });
-    }
-
-    buildGrid('');
-
-    /* auto-select current provider */
-    if(curCode){
-      var sp = SPECS.find(function(s){ return s.code === curCode; });
-      if(sp) selectProv(sp.code, sp.name, sp);
-    }
+<style>
+  .ob-stepper {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; list-style: none; margin: 0; padding: 0;
   }
-
-  /* notifications radio cards */
-  function selectNotif(val){
-    var yes = document.getElementById('ob-notif-yes');
-    var no  = document.getElementById('ob-notif-no');
-    if(!yes || !no) return;
-    yes.classList.toggle('selected', val==='yes');
-    no.classList.toggle('selected', val==='no');
-    var r = (val==='yes') ? yes.querySelector('input') : no.querySelector('input');
-    if(r) r.checked = true;
+  @media (max-width: 720px) { .ob-stepper { grid-template-columns: 1fr 1fr; } }
+  .ob-step {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 18px 14px;
+    background: #fafbff; border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    position: relative;
+    transition: all .15s;
   }
-  window.selectNotif = selectNotif;
-
-  /* init radio state on load */
-  (function(){
-    var yes = document.getElementById('ob-notif-yes');
-    var no  = document.getElementById('ob-notif-no');
-    if(!yes || !no) return;
-    var yr = yes.querySelector('input');
-    var nr = no.querySelector('input');
-    if(nr && nr.checked){ yes.classList.remove('selected'); no.classList.add('selected'); }
-  })();
-
-})();
-</script>
+  .ob-step.is-current {
+    background: linear-gradient(135deg, #eef2ff, #fff);
+    border-color: #6366f1; box-shadow: 0 4px 14px rgba(99,102,241,.18);
+  }
+  .ob-step.is-done {
+    background: linear-gradient(135deg, #f0fdf4, #fff);
+    border-color: #86efac;
+  }
+  .ob-step-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: #e5e7eb; color: #64748b;
+    font-weight: 900; font-size: .9rem;
+  }
+  .ob-step.is-current .ob-step-num { background: #6366f1; color: #fff; }
+  .ob-step.is-done .ob-step-num { background: #22c55e; color: #fff; }
+  .ob-step-icon { font-size: 1.4rem; }
+  .ob-step strong {
+    font-size: .85rem; font-weight: 800; color: #0f172a;
+    text-align: center;
+  }
+  .ob-actions {
+    display: flex; gap: 10px; justify-content: flex-end;
+    margin-top: 18px;
+  }
+</style>
 {% endblock %}

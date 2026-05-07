@@ -15,7 +15,7 @@
   {% else %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='v168-support-polish-20260505') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='v215-bell-side-by-lang-20260507') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_rebuild_v11.css', v='v168-support-polish-20260505') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/unified_theme_v1.css', v='v168-support-polish-20260505') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/unified_hero_v1.css', v='v168-support-polish-20260505') }}">
@@ -42,14 +42,17 @@
       {% endif %}
     {% endwith %}
   {% endif %}
-  <div class="dev-build-badge-v11">Build: v168-support-polish-20260505</div>
+  <div class="dev-build-badge-v11">Build: v212-sidebar-qa-jsfix-20260506</div>
 
   {% block body %}{% endblock %}
   {% block content %}{% endblock %}
   <script>window.SOLARDEYE_I18N = {{ i18n_client_catalog_json|safe }};</script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script defer src="{{ url_for('static', filename='js/app.js', v='v168-support-polish-20260505') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/app.js', v='v212-sidebar-qa-jsfix-20260506') }}"></script>
   <script src="{{ url_for('static', filename='js/sidebar_rebuild_v11.js', v='v168-support-polish-20260505') }}"></script>
   <script defer src="{{ url_for('static', filename='js/location_picker.js', v='v168-support-polish-20260505') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/table_paginate_v1.js', v='v211-table-paginate-20260506') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/help_tooltip_v1.js', v='v211-help-tooltip-20260506') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/portal_support_v3.js', v='v211-portal-rebuild-20260506') }}"></script>
 </body>
 </html>

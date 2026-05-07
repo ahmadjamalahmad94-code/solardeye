@@ -255,6 +255,16 @@ def _migrate_database():
         'portal_page_setting': {'page_key': 'VARCHAR(80)', 'endpoint': "VARCHAR(120) DEFAULT ''", 'label_ar': "VARCHAR(120) DEFAULT ''", 'label_en': "VARCHAR(120) DEFAULT ''", 'icon': "VARCHAR(20) DEFAULT '•'", 'group_key': "VARCHAR(40) DEFAULT 'portal'", 'is_visible': 'BOOLEAN DEFAULT TRUE', 'is_locked': 'BOOLEAN DEFAULT FALSE', 'sort_order': 'INTEGER DEFAULT 100', 'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP'},
         'mobile_refresh_token': {'user_id': 'INTEGER', 'token_hash': 'VARCHAR(128)', 'device_label': 'VARCHAR(160)', 'ip_address': 'VARCHAR(80)', 'user_agent': 'VARCHAR(255)', 'created_at': 'TIMESTAMP', 'last_used_at': 'TIMESTAMP', 'expires_at': 'TIMESTAMP', 'revoked_at': 'TIMESTAMP'},
         'mobile_push_token': {'user_id': 'INTEGER', 'platform': "VARCHAR(30) DEFAULT 'android'", 'token': 'TEXT', 'token_hash': 'VARCHAR(128)', 'device_label': 'VARCHAR(160)', 'app_version': 'VARCHAR(60)', 'is_active': 'BOOLEAN DEFAULT TRUE', 'created_at': 'TIMESTAMP', 'last_seen_at': 'TIMESTAMP', 'revoked_at': 'TIMESTAMP'},
+        # Finance v3 — wallet ledger enrichment
+        # Finance v5 — payment_method + attachment_path + attachment_name
+        'wallet_ledger': {
+            'category': "VARCHAR(60) DEFAULT 'general'",
+            'is_recurring': 'BOOLEAN DEFAULT FALSE',
+            'recurring_period': 'VARCHAR(30)',
+            'payment_method': 'VARCHAR(40)',
+            'attachment_path': 'VARCHAR(255)',
+            'attachment_name': 'VARCHAR(255)',
+        },
     }
 
 

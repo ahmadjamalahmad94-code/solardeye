@@ -1,675 +1,164 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<style>
-.rp-page{
-  --rp-ink:#0b1220;
-  --rp-ink-soft:#1f2a44;
-  --rp-muted:#5e6f8c;
-  --rp-line:#e3eaf6;
-  --rp-line-strong:#cfd9ec;
-  --rp-card:#ffffff;
-  --rp-card-2:#f9fbff;
-  --rp-bg:#eef3fb;
-  --rp-violet:#6d3aff;
-  --rp-amber:#f59e0b;
-  --rp-amber-soft:#fbbf24;
-  --rp-emerald:#10b981;
-  --rp-emerald-soft:#34d399;
-  --rp-sky:#2563eb;
-  --rp-sky-soft:#60a5fa;
-  --rp-rose:#f43f5e;
-  --rp-rose-soft:#fb7185;
-  --rp-orange:#f97316;
-  --rp-shadow-sm:0 6px 18px rgba(15,23,42,.06);
-  --rp-shadow:0 22px 60px rgba(15,23,42,.09);
-  --rp-radius:22px;
-  --rp-radius-lg:30px;
-  --rp-radius-xl:38px;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
-  padding:18px clamp(14px,2.4vw,32px) 80px;
-  font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--rp-ink);
-  display:flex;
-  flex-direction:column;
-  gap:30px;
-}
-.rp-page>*+*{margin-top:0}
-.rp-page *,.rp-page *::before,.rp-page *::after{box-sizing:border-box}
-
-/* HERO HEADER (sky gradient — matches dashboard) */
-.rp-hero{
-  position:relative;border-radius:var(--rp-radius-xl);
-  padding:clamp(22px,3vw,34px) clamp(20px,3vw,38px);
-  overflow:hidden;color:#fff;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);
-  isolation:isolate;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-  margin-bottom:0;
-}
-.rp-hero::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
-    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
-}
-.rp-hero-grid{position:relative;z-index:1;display:grid;gap:18px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:center}
-@media (max-width:980px){.rp-hero-grid{grid-template-columns:1fr}}
-.rp-hero-text{display:flex;flex-direction:column;gap:8px;min-width:0}
-.rp-eyebrow{
-  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
-  font-size:.72rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
-  color:#0b1531;background:rgba(255,255,255,.92);
-  padding:.35rem .75rem;border-radius:999px;
-  box-shadow:0 6px 16px rgba(11,21,49,.18);
-}
-.rp-eyebrow .rp-pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--rp-amber);
-  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:rpPulse 1.8s infinite;
-}
-@keyframes rpPulse{
-  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
-  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
-  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
-}
-.rp-hero h1{
-  font-size:clamp(1.55rem,2.6vw,2.05rem);font-weight:950;
-  margin:0;line-height:1.18;color:#fff;
-  text-shadow:0 4px 18px rgba(11,21,49,.22);
-}
-.rp-hero p{margin:0;font-size:.95rem;color:rgba(255,255,255,.92);max-width:64ch;line-height:1.55;font-weight:600}
-.rp-hero-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
-.rp-hero-meta-item{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);padding:.36rem .75rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
-}
-.rp-hero-meta-item b{color:#0b1531;font-weight:900}
-.rp-hero-actions{display:flex;flex-wrap:wrap;gap:.55rem;justify-content:flex-end;position:relative;z-index:1}
-@media (max-width:980px){.rp-hero-actions{justify-content:flex-start}}
-.rp-export-btn{
-  display:inline-flex;align-items:center;gap:.45rem;
-  padding:.6rem 1.05rem;border-radius:14px;
-  font-size:.83rem;font-weight:900;
-  text-decoration:none;border:1px solid transparent;cursor:pointer;
-  transition:all .15s ease;font-family:inherit;
-}
-.rp-export-btn.csv{background:#fff;color:var(--rp-ink-soft);border-color:var(--rp-line)}
-.rp-export-btn.csv:hover{transform:translateY(-1px);box-shadow:var(--rp-shadow-sm)}
-.rp-export-btn.pdf{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 14px 30px rgba(245,158,11,.28)}
-.rp-export-btn.pdf:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(245,158,11,.38)}
-
-/* PERIOD NAV BAR */
-.rp-nav-bar{
-  position:relative;z-index:5;
-  background:rgba(255,255,255,.92);backdrop-filter:saturate(160%) blur(14px);
-  border:1px solid var(--rp-line);border-radius:var(--rp-radius);
-  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:12px;box-shadow:var(--rp-shadow);
-}
-.rp-seg{display:flex;background:#f1f5fc;border-radius:14px;padding:4px;gap:2px;border:1px solid var(--rp-line)}
-.rp-seg-btn{
-  padding:.55rem 1.1rem;border-radius:10px;border:none;background:none;
-  color:var(--rp-muted);font-size:.85rem;font-weight:900;
-  cursor:pointer;transition:all .18s ease;font-family:inherit;
-  display:inline-flex;align-items:center;gap:.35rem;
-}
-.rp-seg-btn:hover{color:var(--rp-ink-soft)}
-.rp-seg-btn.active{background:linear-gradient(135deg,#ffcf4d,#f59e0b);color:#0b1531;box-shadow:0 6px 14px rgba(245,158,11,.28)}
-.rp-date-nav{display:flex;align-items:center;gap:.5rem}
-.rp-date-arrow{
-  width:38px;height:38px;border-radius:12px;
-  background:#fff;border:1px solid var(--rp-line);color:var(--rp-ink-soft);
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.15rem;text-decoration:none;font-weight:900;line-height:1;
-  transition:all .15s;
-}
-.rp-date-arrow:hover{background:#f5f9ff;border-color:var(--rp-line-strong);transform:translateY(-1px);box-shadow:var(--rp-shadow-sm)}
-.rp-date-arrow.dim{opacity:.35;pointer-events:none}
-.rp-date-input{
-  background:#fff;border:1px solid var(--rp-line);border-radius:12px;
-  color:var(--rp-ink);padding:.55rem .8rem;font-size:.88rem;
-  outline:none;min-width:140px;font-family:inherit;font-weight:700;
-  transition:border-color .18s,box-shadow .18s;
-}
-.rp-date-input:focus{border-color:var(--rp-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
-.rp-apply-btn{
-  padding:.55rem 1.1rem;border-radius:12px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
-  border:none;color:#0b1531;font-size:.85rem;font-weight:900;cursor:pointer;
-  transition:all .15s;font-family:inherit;
-  box-shadow:0 6px 16px rgba(245,158,11,.25);
-}
-.rp-apply-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35)}
-.rp-title-hint{
-  font-size:.84rem;color:var(--rp-ink-soft);font-weight:700;
-  display:inline-flex;align-items:center;gap:.4rem;
-  background:#f5f9ff;padding:.4rem .8rem;border-radius:12px;
-  border:1px solid var(--rp-line);
-}
-
-/* INSIGHT HERO CARDS (4 big cards with colored top bars) */
-.rp-insights{
-  display:grid;gap:18px;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-}
-@media (max-width:1024px){.rp-insights{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:560px){.rp-insights{grid-template-columns:1fr}}
-.rp-insight{
-  position:relative;
-  background:var(--rp-card);border:1px solid var(--rp-line);
-  border-radius:var(--rp-radius-lg);
-  padding:18px 20px 20px;
-  box-shadow:var(--rp-shadow-sm);overflow:hidden;
-  transition:all .2s ease;
-  display:flex;flex-direction:column;gap:.4rem;
-}
-.rp-insight:hover{transform:translateY(-3px);box-shadow:var(--rp-shadow);border-color:var(--rp-line-strong)}
-.rp-insight::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--rp-radius-lg) var(--rp-radius-lg) 0 0;opacity:.95;
-}
-.rp-insight.self::before    {background:linear-gradient(90deg,#10b981,#34d399)}
-.rp-insight.solar::before   {background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.rp-insight.batt::before    {background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.rp-insight.surplus::before {background:linear-gradient(90deg,#f97316,#fb923c)}
-
-.rp-insight-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;margin-top:.2rem}
-.rp-insight-icon{
-  width:46px;height:46px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.4rem;
-}
-.rp-insight.self    .rp-insight-icon{background:rgba(16,185,129,.12);color:#047857}
-.rp-insight.solar   .rp-insight-icon{background:rgba(245,158,11,.12);color:#b45309}
-.rp-insight.batt    .rp-insight-icon{background:rgba(37,99,235,.12);color:#1d4ed8}
-.rp-insight.surplus .rp-insight-icon{background:rgba(249,115,22,.12);color:#c2410c}
-.rp-insight-trend{
-  font-size:.7rem;font-weight:900;
-  padding:.3rem .65rem;border-radius:999px;
-  background:#f1f5fc;color:var(--rp-ink-soft);
-  border:1px solid var(--rp-line);
-}
-.rp-insight-label{font-size:.78rem;color:var(--rp-muted);font-weight:800;letter-spacing:.2px}
-.rp-insight-value{
-  font-size:2rem;font-weight:950;color:var(--rp-ink);
-  line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
-  display:flex;align-items:baseline;gap:.35rem;
-}
-.rp-insight-value .rp-unit{font-size:.95rem;font-weight:800;color:var(--rp-muted);letter-spacing:0}
-.rp-insight.self    .rp-insight-value{color:#047857}
-.rp-insight.solar   .rp-insight-value{color:#b45309}
-.rp-insight.batt    .rp-insight-value{color:#1d4ed8}
-.rp-insight.surplus .rp-insight-value{color:#c2410c}
-.rp-insight-desc{font-size:.78rem;color:var(--rp-muted);line-height:1.55;font-weight:600}
-.rp-insight-bar{margin-top:.65rem;height:6px;border-radius:999px;background:#eef2f9;overflow:hidden}
-.rp-insight-bar-fill{display:block;height:100%;border-radius:999px;transition:width .8s cubic-bezier(.4,0,.2,1)}
-.rp-insight.self    .rp-insight-bar-fill{background:linear-gradient(90deg,#10b981,#34d399)}
-.rp-insight.solar   .rp-insight-bar-fill{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.rp-insight.batt    .rp-insight-bar-fill{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-.rp-insight.surplus .rp-insight-bar-fill{background:linear-gradient(90deg,#f97316,#fb923c)}
-
-/* KPI STRIP */
-.rp-kpis{
-  display:grid;gap:12px;
-  grid-template-columns:repeat(6,minmax(0,1fr));
-}
-@media (max-width:1100px){.rp-kpis{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:600px){.rp-kpis{grid-template-columns:repeat(2,1fr)}}
-.rp-kpi{
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--rp-line);border-radius:16px;
-  padding:14px 14px;
-  box-shadow:var(--rp-shadow-sm);
-  position:relative;overflow:hidden;
-  transition:transform .15s ease,box-shadow .15s ease;
-}
-.rp-kpi:hover{transform:translateY(-1px);box-shadow:var(--rp-shadow)}
-.rp-kpi::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:3px;border-radius:16px 16px 0 0;
-  background:linear-gradient(90deg,var(--rp-sky),var(--rp-sky-soft));opacity:.7;
-}
-.rp-kpi-label{font-size:.7rem;color:var(--rp-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.4rem}
-.rp-kpi-val{font-size:1.15rem;font-weight:950;color:var(--rp-ink);line-height:1.2;font-variant-numeric:tabular-nums}
-.rp-kpi-unit{font-size:.74rem;color:var(--rp-muted);font-weight:700}
-
-/* MAIN CHART + SIDE STACK */
-.rp-body{
-  display:grid;gap:18px;
-  grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);
-}
-@media (max-width:1100px){.rp-body{grid-template-columns:1fr}}
-.rp-card{
-  background:var(--rp-card);
-  border:1px solid var(--rp-line);
-  border-radius:var(--rp-radius-lg);
-  overflow:hidden;
-  box-shadow:var(--rp-shadow-sm);
-  transition:all .2s ease;
-}
-.rp-card:hover{box-shadow:var(--rp-shadow);border-color:var(--rp-line-strong)}
-.rp-card-head{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  padding:18px 20px 4px;flex-wrap:wrap;gap:.75rem;
-}
-.rp-card-head h3{font-size:1.02rem;font-weight:950;color:var(--rp-ink);margin:0 0 .2rem;line-height:1.3}
-.rp-card-head small{font-size:.78rem;color:var(--rp-muted);font-weight:700;display:block}
-.rp-chart-wrap{padding:.5rem 1.1rem 1.2rem}
-.rp-chart-wrap canvas{width:100% !important}
-.rp-side-stack{display:flex;flex-direction:column;gap:24px}
-
-/* WEATHER CARD */
-.rp-weather-head{display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:.6rem}
-.rp-weather-chip{
-  display:inline-flex;align-items:center;gap:.4rem;
-  background:#dbeafe;border:1px solid #bfdbfe;color:#1d4ed8;
-  border-radius:999px;padding:.32rem .8rem;font-size:.78rem;font-weight:800;
-}
-.rp-weather-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:.65rem;
-  padding:0 1.1rem 1.2rem;
-}
-.rp-weather-cell{
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--rp-line);border-radius:14px;padding:.85rem .95rem;
-}
-.rp-weather-cell span{display:block;font-size:.7rem;color:var(--rp-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem}
-.rp-weather-cell strong{font-size:1.05rem;font-weight:950;color:var(--rp-ink)}
-.rp-empty{padding:1.5rem;font-size:.85rem;color:var(--rp-muted);text-align:center;font-weight:700}
-
-/* MIX CARD */
-.rp-mix-chart-wrap{padding:.4rem 1.1rem .8rem}
-.rp-mix-legend{display:flex;gap:.55rem;padding:.3rem 1.1rem 1.1rem;flex-wrap:wrap}
-.rp-mix-tag{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.76rem;font-weight:800;
-  padding:.32rem .7rem;border-radius:999px;
-}
-.rp-mix-tag.solar  {background:#fef3c7;color:#b45309}
-.rp-mix-tag.batt   {background:#d1fae5;color:#047857}
-.rp-mix-tag.grid   {background:#e2e8f0;color:#1f2937}
-.rp-mix-tag .rp-mix-dot{width:8px;height:8px;border-radius:50%}
-.rp-mix-tag.solar .rp-mix-dot{background:#f59e0b}
-.rp-mix-tag.batt  .rp-mix-dot{background:#10b981}
-.rp-mix-tag.grid  .rp-mix-dot{background:#94a3b8}
-
-/* SMART LOADS CARD */
-.rp-loads-list{
-  padding:.2rem 1.1rem 0;
-  display:flex;
-  flex-direction:column;
-  gap:.55rem;
-  max-height:260px;
-  overflow:auto;
-}
-.rp-load-row{
-  display:flex;align-items:center;justify-content:space-between;
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--rp-line);border-radius:13px;
-  padding:.7rem .9rem;
-  transition:all .15s ease;
-}
-.rp-load-row:hover{transform:translateX(2px);box-shadow:var(--rp-shadow-sm)}
-.rp-load-row .rp-load-name{font-size:.85rem;font-weight:800;color:var(--rp-ink-soft)}
-.rp-load-row .rp-load-watt{
-  font-size:.8rem;font-weight:900;color:#047857;
-  background:#d1fae5;padding:.22rem .65rem;border-radius:999px;
-  font-variant-numeric:tabular-nums;
-}
-.rp-loads-note{
-  padding:.85rem 1.1rem 1.2rem;font-size:.8rem;color:var(--rp-muted);
-  line-height:1.6;font-weight:700;
-}
-
-/* TABLE */
-.rp-table-card{margin-bottom:0}
-.rp-table-card .rp-card-head{padding-bottom:14px}
-.rp-table-scroll{
-  overflow:auto;
-  max-height:min(62vh,520px);
-}
-.rp-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
-.rp-table thead th{
-  padding:.85rem 1rem;text-align:start;
-  font-size:.7rem;font-weight:900;
-  color:var(--rp-muted);text-transform:uppercase;letter-spacing:.5px;
-  background:#f5f9ff;
-  border-bottom:1px solid var(--rp-line);
-  white-space:nowrap;
-}
-.rp-table tbody tr{border-bottom:1px solid var(--rp-line);transition:background .15s}
-.rp-table tbody tr:last-child{border-bottom:none}
-.rp-table tbody tr:hover{background:#f8fbff}
-.rp-table tbody td{padding:.85rem 1rem;color:var(--rp-ink-soft);white-space:nowrap;font-weight:700}
-.rp-table tbody td:first-child{color:var(--rp-muted)}
-.rp-period-pill{
-  display:inline-block;padding:.28rem .75rem;border-radius:999px;
-  background:#eef3ff;color:#1d4ed8;
-  font-size:.78rem;font-weight:900;
-  border:1px solid #dbe5fb;
-}
-.rp-table-empty{padding:3rem 1.5rem;text-align:center;color:var(--rp-muted);font-size:.95rem;font-weight:700}
-.rp-val-solar{color:#b45309 !important}
-.rp-val-home {color:#be123c !important}
-.rp-val-batt {color:#047857 !important}
-.rp-val-grid {color:#1f2937 !important}
-
-#rp-content{
-  transition:opacity .18s ease;
-  display:flex;
-  flex-direction:column;
-  gap:30px;
-}
-@media (max-width:720px){
-  .rp-page{gap:20px}
-  #rp-content{gap:20px}
-  .rp-side-stack{gap:18px}
-  .rp-table-scroll{max-height:420px}
-  .rp-loads-list{max-height:220px}
-}
-</style>
-
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Reports' if is_en else 'التقارير' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area">
-    <div class="rp-page" dir="{{ dir }}">
-      <div id="rp-content">
+  <main class="app-main content-area rp-page">
 
-      <section class="rp-hero">
-        <div class="rp-hero-grid">
-          <div class="rp-hero-text">
-            <span class="rp-eyebrow"><span class="rp-pulse"></span>{{ 'Performance Analytics' if is_en else 'تحليل الأداء' }}</span>
-            <h1>{{ 'Reports Dashboard' if is_en else 'لوحة التقارير' }}</h1>
-            <p>{{ 'A visual executive summary of energy performance, efficiency indicators, and smart recommendations.' if is_en else 'ملخص تنفيذي مرئي لأداء الطاقة ومؤشرات الكفاءة والتوصيات الذكية.' }}</p>
-            <div class="rp-hero-meta">
-              <span class="rp-hero-meta-item">📅 <b>{{ title_hint }}</b></span>
-              <span class="rp-hero-meta-item">
-                {% if selected_view == 'day' %}🌅{% elif selected_view == 'week' %}🗓️{% else %}📆{% endif %}
-                <b>{% if selected_view == 'day' %}{{ 'Daily view' if is_en else 'عرض يومي' }}{% elif selected_view == 'week' %}{{ 'Weekly view' if is_en else 'عرض أسبوعي' }}{% else %}{{ 'Monthly view' if is_en else 'عرض شهري' }}{% endif %}</b>
-              </span>
-              {% if weather %}
-              <span class="rp-hero-meta-item">{{ weather.icon }} <b>{{ weather.temperature }}°</b></span>
-              {% endif %}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Energy · Reports' if is_en else 'الطاقة · التقارير' }}</span>
+          <h1 class="hu-h1">{{ 'Exportable energy reports' if is_en else 'تقارير الطاقة القابلة للتصدير' }}</h1>
+          <p class="hu-tagline">{{ 'Generate downloadable reports of your production, consumption, and grid usage in CSV or PDF format.' if is_en else 'أنشئ تقارير قابلة للتنزيل لإنتاجك واستهلاكك والشبكة بصيغة CSV أو PDF.' }}</p>
+          {% if title_hint %}<div class="hu-hero-meta"><span class="hu-meta-pill"><b>{{ title_hint }}</b></span></div>{% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="rp-shell">
+      <aside class="rp-aside">
+        <div class="rp-as-card explainer">
+          <h4>📘 {{ 'How reports work' if is_en else 'كيف تعمل التقارير' }}</h4>
+          <p>{{ 'Pick a period (day / month / year) and a date. Then choose CSV (raw data for Excel) or PDF (printable summary).' if is_en else 'اختر الفترة (يوم/شهر/سنة) والتاريخ. ثم اختر CSV (بيانات خام لـExcel) أو PDF (ملخص قابل للطباعة).' }}</p>
+          <p>{{ 'Reports include production, consumption, battery usage, and grid import/export totals.' if is_en else 'تتضمن التقارير الإنتاج والاستهلاك واستخدام البطارية واستيراد/تصدير الشبكة.' }}</p>
+        </div>
+        <div class="rp-as-card">
+          <h4>🔑 {{ 'Format meanings' if is_en else 'معاني الصيغ' }}</h4>
+          <ul class="rp-legend-list">
+            <li><span class="rp-legend-dot" style="background:#22c55e"></span><strong>📊 CSV</strong><small>{{ 'Open in Excel/Sheets' if is_en else 'افتح في Excel/Sheets' }}</small></li>
+            <li><span class="rp-legend-dot" style="background:#ef4444"></span><strong>📄 PDF</strong><small>{{ 'Printable / shareable' if is_en else 'قابل للطباعة/المشاركة' }}</small></li>
+          </ul>
+        </div>
+        <div class="rp-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Monthly reports are best for comparing seasons.' if is_en else 'التقارير الشهرية الأفضل لمقارنة المواسم.' }}</li>
+            <li>{{ 'CSV preserves raw numbers — best for analysis.' if is_en else 'CSV يحفظ الأرقام الخام — الأفضل للتحليل.' }}</li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="rp-main">
+
+        {# Section 1: Period chooser & export buttons #}
+        <section class="rp-section" data-help="{{ 'Pick a period and click an export button to download. Files generate on the fly with your data.' if is_en else 'اختر الفترة واضغط زر التصدير للتنزيل. يتم توليد الملفات لحظياً ببياناتك.' }}">
+          <div class="rp-sec-head">
+            <div>
+              <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+              <h2><span class="rp-sec-icon">📥</span> {{ 'Generate report' if is_en else 'أنشئ تقريراً' }}</h2>
+            </div>
+            <span class="rp-sec-meta">{{ 'CSV / PDF' if is_en else 'CSV / PDF' }}</span>
+          </div>
+          <div class="rp-sec-body">
+            <form method="get" class="rp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+              <input type="hidden" name="lang" value="{{ ui_lang }}">
+              <label class="rp-field">
+                <span>{{ 'Period' if is_en else 'الفترة' }}</span>
+                <select name="view">
+                  <option value="day" {% if selected_view=='day' %}selected{% endif %}>{{ 'Day' if is_en else 'يوم' }}</option>
+                  <option value="month" {% if selected_view=='month' %}selected{% endif %}>{{ 'Month' if is_en else 'شهر' }}</option>
+                  <option value="year" {% if selected_view=='year' %}selected{% endif %}>{{ 'Year' if is_en else 'سنة' }}</option>
+                </select>
+              </label>
+              <label class="rp-field">
+                <span>{{ 'Date' if is_en else 'التاريخ' }}</span>
+                <input type="date" name="date" value="{{ selected_date or '' }}">
+              </label>
+              <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+                <button type="submit" class="rp-btn primary">{{ '🔎 Preview' if is_en else '🔎 معاينة' }}</button>
+                <a href="{{ url_for('main.statistics_export_csv', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📊 CSV</a>
+                <a href="{{ url_for('main.statistics_export_pdf', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📄 PDF</a>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        {# Section 2: Period summary #}
+        {% if stats %}
+        <section class="rp-section" data-help="{{ 'Quick summary of the selected period — these are the headline numbers that will appear in your exported report.' if is_en else 'ملخص سريع للفترة المختارة — هذه الأرقام الرئيسية التي ستظهر في التقرير المُصدَّر.' }}">
+          <div class="rp-sec-head">
+            <div>
+              <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+              <h2><span class="rp-sec-icon">📊</span> {{ 'Period summary' if is_en else 'ملخص الفترة' }}</h2>
+            </div>
+            <span class="rp-sec-meta">{{ title_hint or '' }}</span>
+          </div>
+          <div class="rp-sec-body">
+            <div class="rp-kpi-row">
+              <article class="rp-kpi accent-amber">
+                <span class="rp-kpi-icon">☀</span>
+                <div class="rp-kpi-body">
+                  <small>{{ 'Production' if is_en else 'الإنتاج' }}</small>
+                  <strong>{{ format_energy(stats.production_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'PV total' if is_en else 'إجمالي الإنتاج الشمسي' }}</span>
+                </div>
+              </article>
+              <article class="rp-kpi accent-blue">
+                <span class="rp-kpi-icon">🏠</span>
+                <div class="rp-kpi-body">
+                  <small>{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
+                  <strong>{{ format_energy(stats.consumption_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'home total' if is_en else 'إجمالي المنزل' }}</span>
+                </div>
+              </article>
+              <article class="rp-kpi accent-emerald">
+                <span class="rp-kpi-icon">🔋</span>
+                <div class="rp-kpi-body">
+                  <small>{{ 'Battery cycle' if is_en else 'دورة البطارية' }}</small>
+                  <strong>{{ format_energy(stats.battery_in_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'in / out' if is_en else 'دخول / خروج' }}</span>
+                </div>
+              </article>
+              <article class="rp-kpi accent-violet">
+                <span class="rp-kpi-icon">⚡</span>
+                <div class="rp-kpi-body">
+                  <small>{{ 'Grid usage' if is_en else 'استخدام الشبكة' }}</small>
+                  <strong>{{ format_energy(stats.grid_in_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'imported' if is_en else 'مستورد' }}</span>
+                </div>
+              </article>
             </div>
           </div>
-          <div class="rp-hero-actions">
-            <a class="rp-export-btn csv"
-               href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
-              📋 {{ 'Export CSV' if is_en else 'تصدير CSV' }}
-            </a>
-            <a class="rp-export-btn pdf"
-               href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
-              📄 {{ 'Export PDF' if is_en else 'تصدير PDF' }}
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <form id="rp-nav-form" method="get" action="{{ url_for('main.reports') }}">
-        <div class="rp-nav-bar">
-          <div class="rp-seg" role="tablist">
-            <button class="rp-seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">🌅 {{ 'Daily' if is_en else 'يومي' }}</button>
-            <button class="rp-seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">🗓️ {{ 'Weekly' if is_en else 'أسبوعي' }}</button>
-            <button class="rp-seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">📆 {{ 'Monthly' if is_en else 'شهري' }}</button>
-          </div>
-          <div class="rp-date-nav">
-            <a class="rp-date-arrow" title="{{ 'Previous' if is_en else 'السابق' }}" href="{{ url_for('main.reports', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
-            <input class="rp-date-input" type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-            <a class="rp-date-arrow {{ '' if can_go_next else 'dim' }}" title="{{ 'Next' if is_en else 'التالي' }}" href="{{ url_for('main.reports', view=selected_view, date=next_date.strftime('%Y-%m-%d')) if can_go_next else '#' }}">›</a>
-            <button class="rp-apply-btn" type="submit">{{ 'Apply' if is_en else 'تطبيق' }}</button>
-          </div>
-          <span class="rp-title-hint">📍 <span>{{ title_hint }}</span></span>
-        </div>
-      </form>
-
-      <div class="rp-insights">
-        {% set self_p   = (self_sufficiency or 0)|float %}
-        {% set solar_p  = (solar_share or 0)|float %}
-        {% set batt_p   = (battery_share or 0)|float %}
-        {% set surplus_v = (solar_surplus or 0)|float %}
-        {% set surplus_total = (stats.solar_generated_kwh or 0)|float %}
-        {% set surplus_pct = 0 %}
-        {% if surplus_total > 0 %}
-          {% set raw = (surplus_v / surplus_total) * 100 %}
-          {% set surplus_pct = 100 if raw > 100 else raw|int %}
+        </section>
         {% endif %}
 
-        <div class="rp-insight self">
-          <div class="rp-insight-top"><div class="rp-insight-icon">🛡️</div><span class="rp-insight-trend">{{ 'Self' if is_en else 'استقلالية' }}</span></div>
-          <div class="rp-insight-label">{{ 'Energy Self-Sufficiency' if is_en else 'الاستقلالية الطاقوية' }}</div>
-          <div class="rp-insight-value"><span>{{ self_sufficiency }}</span><span class="rp-unit">%</span></div>
-          <div class="rp-insight-desc">{{ 'Higher means less reliance on the public grid — the goal is 100% on sunny days.' if is_en else 'كلما ارتفعت قلّ اعتمادك على الشبكة العامة — الهدف 100% في الأيام المشمسة.' }}</div>
-          <div class="rp-insight-bar"><span class="rp-insight-bar-fill" style="width:{{ self_p if self_p<=100 else 100 }}%"></span></div>
-        </div>
-
-        <div class="rp-insight solar">
-          <div class="rp-insight-top"><div class="rp-insight-icon">☀️</div><span class="rp-insight-trend">{{ 'Solar' if is_en else 'شمس' }}</span></div>
-          <div class="rp-insight-label">{{ 'Solar Share of Consumption' if is_en else 'تغطية الشمس للاستهلاك' }}</div>
-          <div class="rp-insight-value"><span>{{ solar_share }}</span><span class="rp-unit">%</span></div>
-          <div class="rp-insight-desc">{{ 'Portion of home energy demand met directly by solar power.' if is_en else 'حصة الطاقة الشمسية من إجمالي الاستهلاك المنزلي خلال هذه الفترة.' }}</div>
-          <div class="rp-insight-bar"><span class="rp-insight-bar-fill" style="width:{{ solar_p if solar_p<=100 else 100 }}%"></span></div>
-        </div>
-
-        <div class="rp-insight batt">
-          <div class="rp-insight-top"><div class="rp-insight-icon">🔋</div><span class="rp-insight-trend">{{ 'Battery' if is_en else 'بطارية' }}</span></div>
-          <div class="rp-insight-label">{{ 'Battery Charging from Solar' if is_en else 'شحن البطارية من الشمس' }}</div>
-          <div class="rp-insight-value"><span>{{ battery_share }}</span><span class="rp-unit">%</span></div>
-          <div class="rp-insight-desc">{{ 'Share of solar energy that was stored in the battery for later use.' if is_en else 'نسبة الطاقة الشمسية التي خُزّنت في البطارية للاستخدام لاحقًا.' }}</div>
-          <div class="rp-insight-bar"><span class="rp-insight-bar-fill" style="width:{{ batt_p if batt_p<=100 else 100 }}%"></span></div>
-        </div>
-
-        <div class="rp-insight surplus">
-          <div class="rp-insight-top"><div class="rp-insight-icon">⚡</div><span class="rp-insight-trend">{{ 'Surplus' if is_en else 'فائض' }}</span></div>
-          <div class="rp-insight-label">{{ 'Solar Surplus Energy' if is_en else 'فائض الطاقة الشمسية' }}</div>
-          <div class="rp-insight-value"><span>{{ solar_surplus }}</span><span class="rp-unit">kWh</span></div>
-          <div class="rp-insight-desc">{{ 'Solar production that exceeded immediate home consumption — available for export or storage.' if is_en else 'الإنتاج الشمسي الذي تجاوز الاستهلاك الفوري — متاح للتخزين أو التصدير.' }}</div>
-          <div class="rp-insight-bar"><span class="rp-insight-bar-fill" style="width:{{ surplus_pct }}%"></span></div>
-        </div>
-      </div>
-
-      <div class="rp-kpis">
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Solar Generated' if is_en else 'إنتاج الشمس' }}</div><div class="rp-kpi-val">{{ stats.solar_generated_kwh }} <span class="rp-kpi-unit">kWh</span></div></div>
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Home Consumed' if is_en else 'استهلاك المنزل' }}</div><div class="rp-kpi-val">{{ stats.home_consumed_kwh }} <span class="rp-kpi-unit">kWh</span></div></div>
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Stored in Battery' if is_en else 'مخزّن في البطارية' }}</div><div class="rp-kpi-val">{{ stats.solar_to_battery_kwh }} <span class="rp-kpi-unit">kWh</span></div></div>
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Avg Battery SOC' if is_en else 'متوسط شحن البطارية' }}</div><div class="rp-kpi-val">{{ stats.avg_battery_soc }}<span class="rp-kpi-unit">%</span></div></div>
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Peak Solar Power' if is_en else 'ذروة الإنتاج' }}</div><div class="rp-kpi-val">{{ stats.max_solar_w }} <span class="rp-kpi-unit">W</span></div></div>
-        <div class="rp-kpi"><div class="rp-kpi-label">{{ 'Avg Load' if is_en else 'متوسط الحمل' }}</div><div class="rp-kpi-val">{{ avg_load }} <span class="rp-kpi-unit">W</span></div></div>
-      </div>
-
-      <div class="rp-body">
-
-        <div class="rp-card">
-          <div class="rp-card-head">
-            <div><h3>📈 {{ 'Energy Time Profile' if is_en else 'الملف الزمني للطاقة' }}</h3><small>{{ title_hint }}</small></div>
+        {# Section 3: Detailed table #}
+        {% if table_rows %}
+        <section class="rp-section" data-help="{{ 'Detailed breakdown that will be exported. Sorted chronologically.' if is_en else 'تفاصيل سيتم تصديرها. مرتّبة زمنياً.' }}">
+          <div class="rp-sec-head">
+            <div>
+              <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+              <h2><span class="rp-sec-icon">📋</span> {{ 'Report data' if is_en else 'بيانات التقرير' }}</h2>
+            </div>
+            <span class="rp-sec-meta">{{ table_rows|length }} {{ 'rows' if is_en else 'صف' }}</span>
           </div>
-          <div class="rp-chart-wrap">
-            <canvas id="reportsMainChart" height="300"
-              data-kind="{{ selected_view }}"
-              data-labels='{{ chart.labels|tojson }}'
-              data-solar='{{ chart.solar|tojson }}'
-              data-home='{{ chart.home|tojson }}'
-              data-battery='{{ chart.battery|tojson }}'
-              data-grid='{{ chart.grid|tojson }}'
-              data-soc='{{ chart.soc|tojson }}'></canvas>
-          </div>
-        </div>
-
-        <div class="rp-side-stack">
-
-          <div class="rp-card">
-            <div class="rp-card-head">
-              <div class="rp-weather-head">
-                <div>
-                  <h3>🌤️ {{ 'Current Weather' if is_en else 'حالة الطقس الحالية' }}</h3>
-                  <small>{{ 'Links atmospheric conditions to solar output' if is_en else 'يربط الحالة الجوية بالإنتاج الشمسي' }}</small>
-                </div>
-                {% if weather %}<div class="rp-weather-chip">{{ weather.icon }} {{ weather.condition_ar }}</div>{% endif %}
-              </div>
-            </div>
-            {% if weather %}
-            <div class="rp-weather-grid">
-              <div class="rp-weather-cell"><span>{{ 'Now' if is_en else 'الآن' }}</span><strong>{{ weather.temperature }}°</strong></div>
-              <div class="rp-weather-cell"><span>{{ 'Cloud Cover' if is_en else 'الغيوم' }}</span><strong>{{ weather.cloud_cover }}%</strong></div>
-              <div class="rp-weather-cell"><span>{{ 'In 1 Hour' if is_en else 'بعد ساعة' }}</span><strong>{{ weather.next_hour.condition_ar if weather.next_hour else '—' }}</strong></div>
-              <div class="rp-weather-cell"><span>{{ 'Forecast Temp.' if is_en else 'الحرارة المتوقعة' }}</span><strong>{{ weather.next_hour.temperature if weather.next_hour else '—' }}°</strong></div>
-            </div>
-            {% else %}
-            <div class="rp-empty">{{ 'No weather data available for this location.' if is_en else 'لا تتوفر بيانات طقس للموقع الحالي.' }}</div>
-            {% endif %}
-          </div>
-
-          <div class="rp-card">
-            <div class="rp-card-head">
-              <div><h3>🧩 {{ 'Energy Source Mix' if is_en else 'توزيع مصادر الطاقة' }}</h3><small>{{ 'Solar / Battery / Grid contribution' if is_en else 'شمس / بطارية / شبكة' }}</small></div>
-            </div>
-            <div class="rp-mix-chart-wrap">
-              <canvas id="reportsMixChart" height="180"
-                data-values='{{ [stats.solar_to_home_kwh, stats.battery_to_home_kwh, stats.grid_to_home_kwh]|tojson }}'></canvas>
-            </div>
-            <div class="rp-mix-legend">
-              <span class="rp-mix-tag solar"><span class="rp-mix-dot"></span>{{ solar_share }}% {{ 'Solar' if is_en else 'شمس' }}</span>
-              <span class="rp-mix-tag batt"><span class="rp-mix-dot"></span>{{ battery_share }}% {{ 'Battery' if is_en else 'بطارية' }}</span>
-              <span class="rp-mix-tag grid"><span class="rp-mix-dot"></span>{{ grid_share }}% {{ 'Grid' if is_en else 'شبكة' }}</span>
+          <div class="rp-sec-body">
+            <div class="rp-table-wrap">
+              <table class="rp-table" data-paginate data-page-size="20">
+                <thead><tr><th>{{ 'Time' if is_en else 'الوقت' }}</th><th>{{ 'Prod' if is_en else 'إنتاج' }}</th><th>{{ 'Cons' if is_en else 'استهلاك' }}</th><th>{{ 'Battery' if is_en else 'بطارية' }}</th><th>{{ 'Grid' if is_en else 'شبكة' }}</th></tr></thead>
+                <tbody>
+                  {% for r in table_rows %}
+                  <tr>
+                    <td><time>{{ r.label or r.date or r.timestamp or '' }}</time></td>
+                    <td>{{ format_energy(r.production_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.consumption_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.battery_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.grid_kwh or 0) }} <em>kWh</em></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
-
-          <div class="rp-card">
-            <div class="rp-card-head">
-              <div><h3>💡 {{ 'Load Suggestions Now' if is_en else 'اقتراح الأحمال الآن' }}</h3><small>{{ 'Based on current surplus and battery state' if is_en else 'مبني على الفائض الحالي وحالة البطارية' }}</small></div>
-            </div>
-            {% if smart_loads.can_run %}
-            <div class="rp-loads-list">
-              {% for item in smart_loads.can_run[:4] %}
-              <div class="rp-load-row">
-                <span class="rp-load-name">{{ item.name }}</span>
-                <span class="rp-load-watt">{{ item.power_w|round(0)|int }} W</span>
-              </div>
-              {% endfor %}
-            </div>
-            {% else %}
-            <div class="rp-empty">{{ 'No suitable loads to run right now.' if is_en else 'لا يوجد حمل مناسب للتشغيل حاليًا.' }}</div>
-            {% endif %}
-            <div class="rp-loads-note">{{ smart_loads.headline_en if is_en else smart_loads.headline_ar }}</div>
-          </div>
-
-        </div>
-      </div>
-
-      <div class="rp-card rp-table-card">
-        <div class="rp-card-head">
-          <div><h3>📋 {{ 'Executive Report Table' if is_en else 'الجدول التنفيذي' }}</h3><small>{{ 'Detailed sub-period breakdown for ' if is_en else 'تفصيل الفترات الفرعية لـ ' }}{{ title_hint }}</small></div>
-        </div>
-        <div class="rp-table-scroll">
-          <table class="rp-table">
-            <thead><tr>
-              <th>{{ 'Period' if is_en else 'الفترة' }}</th>
-              <th>{{ 'Solar' if is_en else 'شمس' }}</th>
-              <th>{{ 'Home' if is_en else 'منزل' }}</th>
-              <th>{{ 'Sun → Home' if is_en else 'شمس ← بيت' }}</th>
-              <th>{{ 'Sun → Battery' if is_en else 'شمس ← بطارية' }}</th>
-              <th>{{ 'Battery → Home' if is_en else 'بطارية ← بيت' }}</th>
-              <th>{{ 'Grid → Home' if is_en else 'شبكة ← بيت' }}</th>
-              <th>{{ 'Battery %' if is_en else 'بطارية %' }}</th>
-            </tr></thead>
-            <tbody>
-              {% for row in table_rows %}
-              <tr>
-                <td><span class="rp-period-pill">{{ row.label }}</span></td>
-                <td class="rp-val-solar">{{ row.solar_generated_kwh }}</td>
-                <td class="rp-val-home">{{ row.home_consumed_kwh }}</td>
-                <td>{{ row.solar_to_home_kwh }}</td>
-                <td>{{ row.solar_to_battery_kwh }}</td>
-                <td class="rp-val-batt">{{ row.battery_to_home_kwh }}</td>
-                <td class="rp-val-grid">{{ row.grid_to_home_kwh }}</td>
-                <td>{{ row.avg_battery_soc }}%</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="8"><div class="rp-table-empty">{{ 'No data for this period yet.' if is_en else 'لا توجد بيانات لهذه الفترة بعد.' }}</div></td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+        </section>
+        {% endif %}
       </div>
     </div>
   </main>
 </div>
-
-<script>
-(function(){
-  var _rpBusy=false;
-  function rpParse(v,fb){try{return JSON.parse(v||'[]')}catch(e){return fb||[]}}
-  function rpLabel(ar,en){return document.body.dataset.lang==='en'?en:ar}
-  var rpBase={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{position:'bottom',labels:{color:'#1f2a44',font:{family:'Cairo',weight:'700'},usePointStyle:true,padding:14}},
-    tooltip:{backgroundColor:'rgba(15,23,42,.95)',borderColor:'rgba(255,255,255,.12)',borderWidth:1,titleColor:'#fff',bodyColor:'rgba(255,255,255,.92)',titleFont:{family:'Cairo',weight:'800'},bodyFont:{family:'Cairo'},padding:10,cornerRadius:10,rtl:true}},
-    scales:{x:{grid:{color:'rgba(15,23,42,.05)'},ticks:{color:'#5e6f8c',font:{family:'Cairo',weight:'600'},maxRotation:0,minRotation:0}},y:{beginAtZero:true,grid:{color:'rgba(15,23,42,.05)'},ticks:{color:'#5e6f8c',font:{family:'Cairo',weight:'600'}}}}};
-  function rpDestroyCharts(){['reportsMainChart','reportsMixChart'].forEach(function(id){var c=document.getElementById(id);if(c&&typeof Chart!=='undefined'&&Chart.getChart){var ci=Chart.getChart(c);if(ci)ci.destroy()}})}
-  function rpInitCharts(){
-    if(typeof Chart==='undefined')return;
-    var rmc=document.getElementById('reportsMainChart');
-    if(rmc){
-      var kind=rmc.dataset.kind||'day';
-      var lineDS=[
-        {label:rpLabel('الطاقة الشمسية','Solar power'),data:rpParse(rmc.dataset.solar),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.18)',fill:true,tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3},
-        {label:rpLabel('استهلاك البيت','Home load'),data:rpParse(rmc.dataset.home),borderColor:'#f43f5e',backgroundColor:'rgba(244,63,94,.10)',tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3,fill:false},
-        {label:rpLabel('البطارية','Battery'),data:rpParse(rmc.dataset.battery),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.10)',tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3,fill:false},
-        {label:'% SOC',data:rpParse(rmc.dataset.soc),borderColor:'#2563eb',borderDash:[6,4],yAxisID:'y1',tension:.4,pointRadius:2,pointHoverRadius:5,borderWidth:2}
-      ];
-      var barDS=[
-        {label:rpLabel('الطاقة الشمسية','Solar power'),data:rpParse(rmc.dataset.solar),backgroundColor:'rgba(245,158,11,.85)',borderRadius:8,maxBarThickness:34},
-        {label:rpLabel('استهلاك البيت','Home load'),data:rpParse(rmc.dataset.home),backgroundColor:'rgba(244,63,94,.85)',borderRadius:8,maxBarThickness:34},
-        {label:rpLabel('البطارية','Battery'),data:rpParse(rmc.dataset.battery),backgroundColor:'rgba(16,185,129,.85)',borderRadius:8,maxBarThickness:34},
-        {label:rpLabel('الشبكة','Grid'),data:rpParse(rmc.dataset.grid),backgroundColor:'rgba(148,163,184,.85)',borderRadius:8,maxBarThickness:34}
-      ];
-      new Chart(rmc.getContext('2d'),{type:kind==='day'?'line':'bar',
-        data:{labels:rpParse(rmc.dataset.labels),datasets:kind==='day'?lineDS:barDS},
-        options:Object.assign({},rpBase,{
-          layout:{padding:{top:6,right:10,bottom:0,left:6}},
-          scales:{x:rpBase.scales.x,y:rpBase.scales.y,y1:{beginAtZero:true,suggestedMax:100,position:'right',grid:{drawOnChartArea:false},ticks:{color:'#2563eb',font:{family:'Cairo',weight:'600'},padding:6}}}
-        })});
-    }
-    var rxc=document.getElementById('reportsMixChart');
-    if(rxc){
-      var mixVals=rpParse(rxc.dataset.values).map(function(v){return Number(v||0)});
-      var total=mixVals.reduce(function(a,b){return a+b},0);
-      new Chart(rxc.getContext('2d'),{type:'doughnut',
-        data:{labels:[rpLabel('شمس → المنزل','Solar → Home'),rpLabel('بطارية → المنزل','Battery → Home'),rpLabel('شبكة → المنزل','Grid → Home')],
-          datasets:[{data:total>0?mixVals:[1,0,0],
-            backgroundColor:['#f59e0b','#10b981','#94a3b8'],
-            borderColor:['#ffffff','#ffffff','#ffffff'],borderWidth:4,hoverOffset:8}]},
-        options:{responsive:true,maintainAspectRatio:false,cutout:'66%',
-          plugins:{legend:{position:'bottom',labels:{color:'#1f2a44',usePointStyle:true,boxWidth:10,padding:14,font:{family:'Cairo',weight:'700'}}},
-            tooltip:{backgroundColor:'rgba(15,23,42,.95)',rtl:true,titleFont:{family:'Cairo',weight:'800'},bodyFont:{family:'Cairo'},padding:10,cornerRadius:10,callbacks:{label:function(ctx){return ctx.label+': '+ctx.parsed+' kWh'}}}}}});
-    }
-  }
-  function rpSetupNav(){
-    var form=document.getElementById('rp-nav-form');if(!form)return;
-    form.addEventListener('submit',function(e){e.preventDefault();var url=new URL(form.action,window.location.href);new FormData(form).forEach(function(v,k){url.searchParams.set(k,v)});rpNavigate(url.toString())});
-    form.querySelectorAll('.rp-seg-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();var url=new URL(form.action,window.location.href);new FormData(form).forEach(function(v,k){url.searchParams.set(k,v)});url.searchParams.set('view',btn.value);rpNavigate(url.toString())})});
-    document.querySelectorAll('#rp-content .rp-date-arrow:not(.dim)').forEach(function(a){a.addEventListener('click',function(e){var href=a.getAttribute('href');if(href&&href!=='#'){e.preventDefault();rpNavigate(href)}})});
-  }
-  function rpNavigate(url){
-    if(_rpBusy)return;_rpBusy=true;
-    var oldEl=document.getElementById('rp-content');if(oldEl)oldEl.style.opacity='0.35';
-    fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(html){
-      var doc=new DOMParser().parseFromString(html,'text/html');
-      var newEl=doc.getElementById('rp-content');var curEl=document.getElementById('rp-content');
-      if(newEl&&curEl){rpDestroyCharts();curEl.replaceWith(newEl);history.pushState({rpUrl:url},'',url);
-        newEl.style.opacity='0';rpInitCharts();rpSetupNav();
-        requestAnimationFrame(function(){requestAnimationFrame(function(){newEl.style.opacity='1'})})}
-    }).catch(function(){window.location.href=url}).finally(function(){_rpBusy=false});
-      }
-      window.addEventListener('popstate',function(){window.location.reload()});
-      document.addEventListener('DOMContentLoaded',function(){rpSetupNav();rpInitCharts()});
-      window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('reportsMainChart');if(c&&!Chart.getChart(c))rpInitCharts()}});
-    })();
-    </script>
-    {% endblock %}
-    
+{% endblock %}

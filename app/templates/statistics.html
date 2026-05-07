@@ -1,671 +1,183 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<style>
-.st-page{
-  --st-ink:#0b1220;
-  --st-ink-soft:#1f2a44;
-  --st-muted:#5e6f8c;
-  --st-line:#e3eaf6;
-  --st-line-strong:#cfd9ec;
-  --st-card:#ffffff;
-  --st-card-2:#f9fbff;
-  --st-bg:#eef3fb;
-  --st-violet:#6d3aff;
-  --st-amber:#f59e0b;
-  --st-amber-soft:#fbbf24;
-  --st-emerald:#10b981;
-  --st-emerald-soft:#34d399;
-  --st-sky:#2563eb;
-  --st-sky-soft:#60a5fa;
-  --st-rose:#f43f5e;
-  --st-rose-soft:#fb7185;
-  --st-shadow-sm:0 6px 18px rgba(15,23,42,.06);
-  --st-shadow:0 22px 60px rgba(15,23,42,.09);
-  --st-radius:22px;
-  --st-radius-lg:30px;
-  --st-radius-xl:38px;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
-  padding:18px clamp(14px,2.4vw,32px) 80px;
-  font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--st-ink);
-  display:flex;
-  flex-direction:column;
-  gap:30px;
-}
-.st-page>*+*{margin-top:0}
-.st-page *,.st-page *::before,.st-page *::after{box-sizing:border-box}
-
-/* HERO HEADER (sky gradient like dashboard hero) */
-.st-hero{
-  position:relative;
-  border-radius:var(--st-radius-xl);
-  padding:clamp(22px,3vw,34px) clamp(20px,3vw,38px);
-  overflow:hidden;
-  color:#fff;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);
-  isolation:isolate;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-  margin-bottom:0;
-}
-.st-hero::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
-    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
-}
-.st-hero-grid{
-  position:relative;z-index:1;
-  display:grid;gap:18px;
-  grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);
-  align-items:center;
-}
-@media (max-width:980px){.st-hero-grid{grid-template-columns:1fr}}
-.st-hero-text{display:flex;flex-direction:column;gap:8px;min-width:0}
-.st-eyebrow{
-  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
-  font-size:.72rem;font-weight:900;letter-spacing:.6px;
-  text-transform:uppercase;
-  color:#0b1531;
-  background:rgba(255,255,255,.92);
-  padding:.35rem .75rem;border-radius:999px;
-  box-shadow:0 6px 16px rgba(11,21,49,.18);
-}
-.st-eyebrow .st-pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--st-amber);
-  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:stPulse 1.8s infinite;
-}
-@keyframes stPulse{
-  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
-  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
-  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
-}
-.st-hero h1{
-  font-size:clamp(1.55rem,2.6vw,2.05rem);font-weight:950;
-  margin:0;line-height:1.18;color:#fff;
-  text-shadow:0 4px 18px rgba(11,21,49,.22);
-}
-.st-hero p{margin:0;font-size:.95rem;color:rgba(255,255,255,.92);max-width:64ch;line-height:1.55;font-weight:600}
-.st-hero-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
-.st-hero-meta-item{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);
-  padding:.36rem .75rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
-}
-.st-hero-meta-item b{color:#0b1531;font-weight:900}
-.st-live-chip{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.36rem .75rem;border-radius:12px;
-  background:linear-gradient(135deg,#10b981,#34d399);
-  color:#04221b;font-size:.78rem;font-weight:900;
-  box-shadow:0 6px 16px rgba(16,185,129,.32);
-}
-.st-live-chip .st-live-dot{
-  width:7px;height:7px;border-radius:50%;background:#04221b;
-  animation:stPulseG 1.6s infinite;
-}
-@keyframes stPulseG{
-  0%{box-shadow:0 0 0 0 rgba(4,34,27,.55)}
-  70%{box-shadow:0 0 0 8px rgba(4,34,27,0)}
-  100%{box-shadow:0 0 0 0 rgba(4,34,27,0)}
-}
-
-.st-hero-actions{display:flex;flex-wrap:wrap;gap:.55rem;justify-content:flex-end;position:relative;z-index:1}
-@media (max-width:980px){.st-hero-actions{justify-content:flex-start}}
-.st-export-btn{
-  display:inline-flex;align-items:center;gap:.45rem;
-  padding:.6rem 1.05rem;border-radius:14px;
-  font-size:.83rem;font-weight:900;
-  text-decoration:none;border:1px solid transparent;cursor:pointer;
-  transition:transform .15s ease,box-shadow .15s ease;
-  font-family:inherit;
-}
-.st-export-btn.csv{
-  background:#fff;color:var(--st-ink-soft);
-  border-color:var(--st-line);
-}
-.st-export-btn.csv:hover{transform:translateY(-1px);box-shadow:var(--st-shadow-sm)}
-.st-export-btn.pdf{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
-  color:#0b1531;
-  box-shadow:0 14px 30px rgba(245,158,11,.28);
-}
-.st-export-btn.pdf:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(245,158,11,.38)}
-.st-refresh-btn{
-  display:inline-flex;align-items:center;gap:.45rem;
-  padding:.6rem 1rem;border-radius:14px;
-  background:#fff;color:var(--st-sky);
-  border:1px solid var(--st-line);cursor:pointer;
-  font-size:.83rem;font-weight:900;font-family:inherit;
-  transition:transform .15s ease,box-shadow .15s ease,background .2s ease;
-}
-.st-refresh-btn:hover{transform:translateY(-1px);box-shadow:var(--st-shadow-sm);background:#f5f9ff}
-.st-refresh-btn .st-spin-icon{display:inline-block;transition:transform .5s ease}
-.st-refresh-btn.is-loading .st-spin-icon{animation:stSpin .8s linear infinite}
-@keyframes stSpin{to{transform:rotate(360deg)}}
-
-/* PERIOD NAV BAR (sticky-style white card) */
-.st-nav-bar{
-  position:relative;z-index:5;
-  background:rgba(255,255,255,.92);
-  backdrop-filter:saturate(160%) blur(14px);
-  border:1px solid var(--st-line);
-  border-radius:var(--st-radius);
-  padding:12px 16px;
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:12px;
-  box-shadow:var(--st-shadow);
-}
-.st-seg{
-  display:flex;background:#f1f5fc;border-radius:14px;padding:4px;gap:2px;
-  border:1px solid var(--st-line);
-}
-.st-seg-btn{
-  padding:.55rem 1.1rem;border-radius:10px;border:none;background:none;
-  color:var(--st-muted);font-size:.85rem;font-weight:900;
-  cursor:pointer;transition:all .18s ease;font-family:inherit;
-  display:inline-flex;align-items:center;gap:.35rem;
-}
-.st-seg-btn:hover{color:var(--st-ink-soft)}
-.st-seg-btn.active{
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
-  color:#0b1531;
-  box-shadow:0 6px 14px rgba(245,158,11,.28);
-}
-.st-date-nav{display:flex;align-items:center;gap:.5rem}
-.st-date-arrow{
-  width:38px;height:38px;border-radius:12px;
-  background:#fff;border:1px solid var(--st-line);
-  color:var(--st-ink-soft);
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.15rem;text-decoration:none;font-weight:900;line-height:1;
-  transition:all .15s;
-}
-.st-date-arrow:hover{background:#f5f9ff;border-color:var(--st-line-strong);transform:translateY(-1px);box-shadow:var(--st-shadow-sm)}
-.st-date-arrow.dim{opacity:.35;pointer-events:none}
-.st-date-input{
-  background:#fff;border:1px solid var(--st-line);
-  border-radius:12px;color:var(--st-ink);padding:.55rem .8rem;
-  font-size:.88rem;outline:none;min-width:140px;
-  font-family:inherit;font-weight:700;
-  transition:border-color .18s,box-shadow .18s;
-}
-.st-date-input:focus{border-color:var(--st-amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
-.st-apply-btn{
-  padding:.55rem 1.1rem;border-radius:12px;
-  background:linear-gradient(135deg,#ffcf4d,#f59e0b);
-  border:none;color:#0b1531;
-  font-size:.85rem;font-weight:900;cursor:pointer;
-  transition:all .15s;font-family:inherit;
-  box-shadow:0 6px 16px rgba(245,158,11,.25);
-}
-.st-apply-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(245,158,11,.35)}
-.st-title-hint{
-  font-size:.84rem;color:var(--st-ink-soft);font-weight:700;
-  display:inline-flex;align-items:center;gap:.4rem;
-  background:#f5f9ff;
-  padding:.4rem .8rem;border-radius:12px;
-  border:1px solid var(--st-line);
-}
-
-/* HERO METRIC CARDS */
-.st-metrics{
-  display:grid;gap:18px;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-}
-@media (max-width:1024px){.st-metrics{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:560px){.st-metrics{grid-template-columns:1fr}}
-.st-metric{
-  position:relative;
-  background:var(--st-card);
-  border:1px solid var(--st-line);
-  border-radius:var(--st-radius-lg);
-  padding:18px 20px 20px;
-  box-shadow:var(--st-shadow-sm);
-  overflow:hidden;
-  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
-  display:flex;flex-direction:column;gap:.4rem;
-}
-.st-metric:hover{transform:translateY(-3px);box-shadow:var(--st-shadow);border-color:var(--st-line-strong)}
-.st-metric::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;border-radius:var(--st-radius-lg) var(--st-radius-lg) 0 0;
-  opacity:.95;
-}
-.st-metric.solar::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.st-metric.home::before {background:linear-gradient(90deg,#f43f5e,#fb7185)}
-.st-metric.batt::before {background:linear-gradient(90deg,#10b981,#34d399)}
-.st-metric.soc::before  {background:linear-gradient(90deg,#2563eb,#60a5fa)}
-
-.st-metric-top{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:.4rem;margin-top:.2rem;
-}
-.st-metric-icon{
-  width:46px;height:46px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.4rem;
-}
-.st-metric.solar .st-metric-icon{background:rgba(245,158,11,.12);color:#b45309}
-.st-metric.home  .st-metric-icon{background:rgba(244,63,94,.12);color:#be123c}
-.st-metric.batt  .st-metric-icon{background:rgba(16,185,129,.12);color:#047857}
-.st-metric.soc   .st-metric-icon{background:rgba(37,99,235,.12);color:#1d4ed8}
-.st-metric-trend{
-  font-size:.7rem;font-weight:900;
-  padding:.3rem .65rem;border-radius:999px;
-  background:#f1f5fc;color:var(--st-ink-soft);
-  border:1px solid var(--st-line);
-}
-.st-metric-label{font-size:.78rem;color:var(--st-muted);font-weight:800;letter-spacing:.2px}
-.st-metric-value{
-  font-size:1.85rem;font-weight:950;color:var(--st-ink);
-  line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
-  display:flex;align-items:baseline;gap:.35rem;
-}
-.st-metric-value .st-unit{font-size:.85rem;font-weight:800;color:var(--st-muted);letter-spacing:0}
-.st-metric-sub{font-size:.78rem;color:var(--st-muted);line-height:1.5;font-weight:600}
-.st-metric-bar{
-  margin-top:.65rem;height:6px;border-radius:999px;
-  background:#eef2f9;overflow:hidden;
-}
-.st-metric-bar-fill{
-  display:block;height:100%;border-radius:999px;
-  transition:width .8s cubic-bezier(.4,0,.2,1);
-}
-.st-metric.solar .st-metric-bar-fill{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.st-metric.home  .st-metric-bar-fill{background:linear-gradient(90deg,#f43f5e,#fb7185)}
-.st-metric.batt  .st-metric-bar-fill{background:linear-gradient(90deg,#10b981,#34d399)}
-.st-metric.soc   .st-metric-bar-fill{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-
-/* CHART CARDS */
-.st-charts{
-  display:grid;gap:24px;
-  grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);
-}
-@media (max-width:1100px){.st-charts{grid-template-columns:1fr}}
-.st-card{
-  background:var(--st-card);
-  border:1px solid var(--st-line);
-  border-radius:var(--st-radius-lg);
-  overflow:hidden;
-  box-shadow:var(--st-shadow-sm);
-  transition:box-shadow .2s ease,border-color .2s ease;
-}
-.st-card:hover{box-shadow:var(--st-shadow);border-color:var(--st-line-strong)}
-.st-card-head{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  padding:18px 20px 4px;flex-wrap:wrap;gap:.75rem;
-}
-.st-card-head h3{font-size:1.02rem;font-weight:950;color:var(--st-ink);margin:0 0 .2rem;line-height:1.3}
-.st-card-head small{font-size:.78rem;color:var(--st-muted);font-weight:700;display:block}
-.st-legend{display:flex;gap:.85rem;flex-wrap:wrap}
-.st-legend-item{display:inline-flex;align-items:center;gap:.4rem;font-size:.76rem;color:var(--st-ink-soft);font-weight:800}
-.st-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px rgba(255,255,255,.7)}
-.st-chart-wrap{padding:.5rem 1.1rem 1.2rem}
-.st-chart-wrap canvas{width:100% !important}
-
-.st-mini-stats{
-  padding:0 1.1rem 1.2rem;
-  display:grid;grid-template-columns:1fr 1fr;gap:.7rem;
-}
-.st-mini-stat{
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--st-line);
-  border-radius:16px;
-  padding:.85rem .95rem;
-  display:flex;flex-direction:column;gap:.3rem;
-  transition:transform .15s ease,box-shadow .15s ease;
-}
-.st-mini-stat:hover{transform:translateY(-1px);box-shadow:var(--st-shadow-sm)}
-.st-mini-label{font-size:.7rem;color:var(--st-muted);font-weight:900;text-transform:uppercase;letter-spacing:.5px}
-.st-mini-value{font-size:1.02rem;font-weight:950;font-variant-numeric:tabular-nums;color:var(--st-ink);display:inline-flex;align-items:center;gap:.35rem}
-.st-mini-stat .st-icon-mini{font-size:1rem}
-.st-val-solar  {color:#b45309 !important}
-.st-val-home   {color:#be123c !important}
-.st-val-batt   {color:#047857 !important}
-.st-val-grid   {color:#1f2937 !important}
-
-/* TABLE */
-.st-table-card .st-card-head{padding-bottom:14px}
-.st-table-scroll{
-  overflow:auto;
-  max-height:min(62vh,520px);
-}
-.st-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
-.st-table thead th{
-  padding:.85rem 1rem;text-align:start;
-  font-size:.7rem;font-weight:900;
-  color:var(--st-muted);text-transform:uppercase;letter-spacing:.5px;
-  background:#f5f9ff;
-  border-bottom:1px solid var(--st-line);
-  white-space:nowrap;
-}
-.st-table tbody tr{border-bottom:1px solid var(--st-line);transition:background .15s}
-.st-table tbody tr:last-child{border-bottom:none}
-.st-table tbody tr:hover{background:#f8fbff}
-.st-table tbody td{padding:.85rem 1rem;color:var(--st-ink-soft);white-space:nowrap;font-weight:700}
-.st-table tbody td:first-child{color:var(--st-muted)}
-.st-period-pill{
-  display:inline-block;padding:.28rem .75rem;border-radius:999px;
-  background:#eef3ff;color:#1d4ed8;
-  font-size:.78rem;font-weight:900;
-  border:1px solid #dbe5fb;
-}
-.st-table-empty{padding:3rem 1.5rem;text-align:center;color:var(--st-muted);font-size:.95rem;font-weight:700}
-.st-table-empty .st-empty-icon{font-size:2.4rem;display:block;margin-bottom:.6rem;opacity:.6}
-
-/* AJAX */
-#st-content{
-  transition:opacity .18s ease;
-  display:flex;
-  flex-direction:column;
-  gap:30px;
-}
-.st-updating .st-metric-value,.st-updating .st-mini-value{opacity:.6;transition:opacity .2s ease}
-.st-toast{
-  position:fixed;inset-block-end:24px;inset-inline-end:24px;z-index:60;
-  padding:.7rem 1.05rem;border-radius:14px;
-  background:linear-gradient(135deg,#10b981,#34d399);color:#04221b;
-  font-size:.85rem;font-weight:900;
-  box-shadow:0 18px 42px rgba(16,185,129,.32);
-  opacity:0;transform:translateY(8px);
-  transition:all .25s ease;pointer-events:none;
-}
-.st-toast.is-show{opacity:1;transform:translateY(0)}
-@media (max-width:720px){
-  .st-page{gap:20px}
-  #st-content{gap:20px}
-  .st-charts{gap:18px}
-  .st-table-scroll{max-height:420px}
-}
-</style>
-
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Statistics' if is_en else 'الإحصاءات' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area">
-    <div class="st-page" dir="{{ dir }}"
-         data-stats-url="{{ url_for('main.statistics') }}"
-         data-view="{{ selected_view }}"
-         data-date="{{ selected_date.strftime('%Y-%m-%d') }}">
-      <div id="st-content">
+  <main class="app-main content-area st-page">
 
-      <section class="st-hero">
-        <div class="st-hero-grid">
-          <div class="st-hero-text">
-            <span class="st-eyebrow">
-              <span class="st-pulse"></span>
-              {{ 'Energy Analytics' if is_en else 'تحليل الطاقة' }}
-            </span>
-            <h1>{{ 'Statistics Center' if is_en else 'مركز الإحصائيات' }}</h1>
-            <p>{{ 'All readings are stored permanently — explore any day, week, or month with full export, real-time updates, and rich analytics.' if is_en else 'جميع القراءات محفوظة بشكل دائم — استعرض أي يوم أو أسبوع أو شهر مع تصدير كامل وتحديث مباشر وتحليلات غنية.' }}</p>
-            <div class="st-hero-meta">
-              <span class="st-hero-meta-item">📅 <b>{{ title_hint }}</b></span>
-              <span class="st-hero-meta-item">
-                {% if selected_view == 'day' %}🌅{% elif selected_view == 'week' %}🗓️{% else %}📆{% endif %}
-                <b>{% if selected_view == 'day' %}{{ 'Daily view' if is_en else 'عرض يومي' }}{% elif selected_view == 'week' %}{{ 'Weekly view' if is_en else 'عرض أسبوعي' }}{% else %}{{ 'Monthly view' if is_en else 'عرض شهري' }}{% endif %}</b>
-              </span>
-              <span class="st-live-chip"><span class="st-live-dot"></span>
-                {{ 'Auto-refreshing' if is_en else 'تحديث تلقائي' }}
-              </span>
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Energy · Statistics' if is_en else 'الطاقة · الإحصاءات' }}</span>
+          <h1 class="hu-h1">{{ 'Energy production & consumption statistics' if is_en else 'إحصاءات إنتاج واستهلاك الطاقة' }}</h1>
+          <p class="hu-tagline">{{ 'Browse daily, monthly, or yearly summaries of your solar system performance.' if is_en else 'تصفّح ملخصات يومية أو شهرية أو سنوية لأداء نظامك الشمسي.' }}</p>
+          {% if title_hint %}<div class="hu-hero-meta"><span class="hu-meta-pill"><b>{{ title_hint }}</b></span></div>{% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="st-shell">
+      <aside class="st-aside">
+        <div class="st-as-card explainer">
+          <h4>📘 {{ 'How to read this page' if is_en else 'كيف تقرأ هذه الصفحة' }}</h4>
+          <p>{{ 'Use the time-range buttons (day / month / year) to switch the view. The KPIs show totals for the selected period. Below them you will find a chart and detailed table.' if is_en else 'استخدم أزرار الفترة الزمنية (يوم / شهر / سنة) لتغيير العرض. تعرض البطاقات إجماليات الفترة المحددة، وأسفلها رسم بياني وجدول تفصيلي.' }}</p>
+          <p>{{ 'Energy values are in kilowatt-hours (kWh). Power values are in watts (W).' if is_en else 'قيم الطاقة بالكيلوواط ساعة (kWh). قيم القدرة بالواط (W).' }}</p>
+        </div>
+        <div class="st-as-card">
+          <h4>🔑 {{ 'Symbols' if is_en else 'الرموز' }}</h4>
+          <ul class="st-legend-list">
+            <li><span class="st-legend-dot" style="background:#f59e0b"></span><strong>☀ {{ 'Production' if is_en else 'الإنتاج' }}</strong><small>{{ 'PV → kWh' if is_en else 'الإنتاج الشمسي' }}</small></li>
+            <li><span class="st-legend-dot" style="background:#3b82f6"></span><strong>🏠 {{ 'Consumption' if is_en else 'الاستهلاك' }}</strong><small>{{ 'home draw' if is_en else 'استهلاك المنزل' }}</small></li>
+            <li><span class="st-legend-dot" style="background:#22c55e"></span><strong>🔋 {{ 'Battery' if is_en else 'بطارية' }}</strong><small>{{ 'charge cycles' if is_en else 'دورات الشحن' }}</small></li>
+            <li><span class="st-legend-dot" style="background:#a855f7"></span><strong>⚡ {{ 'Grid' if is_en else 'الشبكة' }}</strong><small>{{ 'import / export' if is_en else 'استيراد / تصدير' }}</small></li>
+          </ul>
+        </div>
+        <div class="st-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Compare consecutive periods to spot trends.' if is_en else 'قارن فترات متتابعة لرصد الاتجاهات.' }}</li>
+            <li>{{ 'Need a downloadable file? Use /reports.' if is_en else 'تحتاج ملفاً للتنزيل؟ استخدم /reports.' }}</li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="st-main">
+
+        {# Section 1: View switcher #}
+        <section class="st-section" data-help="{{ 'Pick a time range. The page reloads with figures for that period.' if is_en else 'اختر الفترة الزمنية. تُحدَّث الصفحة بالأرقام لتلك الفترة.' }}">
+          <div class="st-sec-head">
+            <div>
+              <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+              <h2><span class="st-sec-icon">📅</span> {{ 'Choose period' if is_en else 'اختر الفترة' }}</h2>
+            </div>
+            <span class="st-sec-meta">{{ 'day / month / year' if is_en else 'يوم / شهر / سنة' }}</span>
+          </div>
+          <div class="st-sec-body">
+            <form method="get" class="st-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+              <input type="hidden" name="lang" value="{{ ui_lang }}">
+              <label class="st-field">
+                <span>{{ 'View' if is_en else 'العرض' }}</span>
+                <select name="view">
+                  <option value="day" {% if selected_view=='day' %}selected{% endif %}>{{ 'Day' if is_en else 'يوم' }}</option>
+                  <option value="month" {% if selected_view=='month' %}selected{% endif %}>{{ 'Month' if is_en else 'شهر' }}</option>
+                  <option value="year" {% if selected_view=='year' %}selected{% endif %}>{{ 'Year' if is_en else 'سنة' }}</option>
+                </select>
+              </label>
+              <label class="st-field">
+                <span>{{ 'Date' if is_en else 'التاريخ' }}</span>
+                <input type="date" name="date" value="{{ selected_date or '' }}">
+              </label>
+              <div style="display:flex;gap:10px;align-items:end">
+                <button type="submit" class="st-btn primary">{{ '🔎 Apply' if is_en else '🔎 تطبيق' }}</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        {# Section 2: KPI summary #}
+        {% if stats %}
+        <section class="st-section" data-help="{{ 'Headline numbers for the selected period. Click any tile to see more detail in the table below.' if is_en else 'الأرقام الرئيسية للفترة المختارة. اضغط أي بطاقة لمزيد من التفاصيل في الجدول أدناه.' }}">
+          <div class="st-sec-head">
+            <div>
+              <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+              <h2><span class="st-sec-icon">📊</span> {{ 'Period totals' if is_en else 'إجماليات الفترة' }}</h2>
+            </div>
+            <span class="st-sec-meta">{{ title_hint or '' }}</span>
+          </div>
+          <div class="st-sec-body">
+            <div class="st-kpi-row">
+              <article class="st-kpi accent-amber">
+                <span class="st-kpi-icon">☀</span>
+                <div class="st-kpi-body">
+                  <small>{{ 'Production' if is_en else 'الإنتاج' }}</small>
+                  <strong>{{ format_energy(stats.production_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'PV total' if is_en else 'إجمالي الشمسي' }}</span>
+                </div>
+              </article>
+              <article class="st-kpi accent-blue">
+                <span class="st-kpi-icon">🏠</span>
+                <div class="st-kpi-body">
+                  <small>{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
+                  <strong>{{ format_energy(stats.consumption_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'home total' if is_en else 'إجمالي المنزل' }}</span>
+                </div>
+              </article>
+              <article class="st-kpi accent-emerald">
+                <span class="st-kpi-icon">🔋</span>
+                <div class="st-kpi-body">
+                  <small>{{ 'Battery in' if is_en else 'بطارية - شحن' }}</small>
+                  <strong>{{ format_energy(stats.battery_in_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'charged' if is_en else 'تم شحنها' }}</span>
+                </div>
+              </article>
+              <article class="st-kpi accent-violet">
+                <span class="st-kpi-icon">⚡</span>
+                <div class="st-kpi-body">
+                  <small>{{ 'Grid use' if is_en else 'استخدام الشبكة' }}</small>
+                  <strong>{{ format_energy(stats.grid_in_kwh or 0) }}<em>kWh</em></strong>
+                  <span>{{ 'imported' if is_en else 'مستورد' }}</span>
+                </div>
+              </article>
             </div>
           </div>
-          <div class="st-hero-actions">
-            <button type="button" class="st-refresh-btn" id="st-refresh-btn" title="{{ 'Refresh now' if is_en else 'تحديث الآن' }}">
-              <span class="st-spin-icon">↻</span>
-              <span>{{ 'Refresh' if is_en else 'تحديث' }}</span>
-            </button>
-            <a class="st-export-btn csv"
-               href="{{ url_for('main.export_statistics_csv', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
-              📋 {{ 'Export CSV' if is_en else 'تصدير CSV' }}
-            </a>
-            <a class="st-export-btn pdf"
-               href="{{ url_for('main.export_statistics_pdf', view=selected_view, date=selected_date.strftime('%Y-%m-%d')) }}">
-              📄 {{ 'Export PDF' if is_en else 'تصدير PDF' }}
-            </a>
+        </section>
+        {% endif %}
+
+        {# Section 3: Detailed rows table #}
+        {% if table_rows %}
+        <section class="st-section" data-help="{{ 'Detailed breakdown for each interval in the selected period. Sort and search by clicking column headers (where available).' if is_en else 'تفصيل لكل فاصل زمني في الفترة المحددة. يمكن الترتيب والبحث بالنقر على العناوين (حيث يتوفر).' }}">
+          <div class="st-sec-head">
+            <div>
+              <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+              <h2><span class="st-sec-icon">📋</span> {{ 'Detailed rows' if is_en else 'التفاصيل اليومية' }}</h2>
+            </div>
+            <span class="st-sec-meta">{{ table_rows|length }} {{ 'rows' if is_en else 'صف' }}</span>
           </div>
-        </div>
-      </section>
-
-      <form id="st-nav-form" method="get" action="{{ url_for('main.statistics') }}">
-        <div class="st-nav-bar">
-          <div class="st-seg" role="tablist" aria-label="{{ 'Period selector' if is_en else 'اختيار الفترة' }}">
-            <button class="st-seg-btn {% if selected_view == 'day' %}active{% endif %}" name="view" value="day" type="submit">🌅 {{ 'Daily' if is_en else 'يومي' }}</button>
-            <button class="st-seg-btn {% if selected_view == 'week' %}active{% endif %}" name="view" value="week" type="submit">🗓️ {{ 'Weekly' if is_en else 'أسبوعي' }}</button>
-            <button class="st-seg-btn {% if selected_view == 'month' %}active{% endif %}" name="view" value="month" type="submit">📆 {{ 'Monthly' if is_en else 'شهري' }}</button>
-          </div>
-          <div class="st-date-nav">
-            <a class="st-date-arrow" title="{{ 'Previous' if is_en else 'السابق' }}" href="{{ url_for('main.statistics', view=selected_view, date=prev_date.strftime('%Y-%m-%d')) }}">‹</a>
-            <input class="st-date-input" type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-            <a class="st-date-arrow {{ '' if can_go_next else 'dim' }}" title="{{ 'Next' if is_en else 'التالي' }}" href="{{ url_for('main.statistics', view=selected_view, date=next_date.strftime('%Y-%m-%d')) if can_go_next else '#' }}">›</a>
-            <button class="st-apply-btn" type="submit">{{ 'Apply' if is_en else 'تطبيق' }}</button>
-          </div>
-          <span class="st-title-hint">📍 <span>{{ title_hint }}</span></span>
-        </div>
-      </form>
-
-      <div class="st-metrics">
-        {% set total_consumed = (stats.home_consumed_kwh or 0)|float %}
-        {% set total_solar = (stats.solar_generated_kwh or 0)|float %}
-        {% set batt_to_home = (stats.battery_to_home_kwh or 0)|float %}
-        {% set home_bar_pct = 0 %}
-        {% if total_solar > 0 %}{% set raw = (total_consumed / total_solar) * 100 %}{% set home_bar_pct = 100 if raw > 100 else raw|int %}{% endif %}
-        {% set batt_bar_pct = 0 %}
-        {% if total_consumed > 0 %}{% set raw2 = (batt_to_home / total_consumed) * 100 %}{% set batt_bar_pct = 100 if raw2 > 100 else raw2|int %}{% endif %}
-        {% set soc_pct = (stats.avg_battery_soc or 0)|float %}
-        {% if soc_pct > 100 %}{% set soc_pct = 100 %}{% endif %}
-
-        <div class="st-metric solar">
-          <div class="st-metric-top"><div class="st-metric-icon">☀️</div><span class="st-metric-trend">{{ 'Generation' if is_en else 'إنتاج' }}</span></div>
-          <div class="st-metric-label">{{ 'Solar Generated' if is_en else 'إنتاج الشمس' }}</div>
-          <div class="st-metric-value"><span data-value="solar_generated_kwh">{{ stats.solar_generated_kwh }}</span> <span class="st-unit">kWh</span></div>
-          <div class="st-metric-sub">{{ 'Total solar energy captured during this period' if is_en else 'إجمالي الطاقة الشمسية المنتجة خلال الفترة' }}</div>
-          <div class="st-metric-bar"><span class="st-metric-bar-fill" style="width:100%"></span></div>
-        </div>
-
-        <div class="st-metric home">
-          <div class="st-metric-top"><div class="st-metric-icon">🏠</div><span class="st-metric-trend">{{ 'Consumption' if is_en else 'استهلاك' }}</span></div>
-          <div class="st-metric-label">{{ 'Home Consumption' if is_en else 'استهلاك المنزل' }}</div>
-          <div class="st-metric-value"><span data-value="home_consumed_kwh">{{ stats.home_consumed_kwh }}</span> <span class="st-unit">kWh</span></div>
-          <div class="st-metric-sub">{{ 'Total energy consumed by the household' if is_en else 'إجمالي الطاقة المستهلكة في المنزل خلال الفترة' }}</div>
-          <div class="st-metric-bar"><span class="st-metric-bar-fill" style="width:{{ home_bar_pct }}%"></span></div>
-        </div>
-
-        <div class="st-metric batt">
-          <div class="st-metric-top"><div class="st-metric-icon">🔋</div><span class="st-metric-trend">{{ 'Discharge' if is_en else 'تفريغ' }}</span></div>
-          <div class="st-metric-label">{{ 'Battery → Home' if is_en else 'بطارية → منزل' }}</div>
-          <div class="st-metric-value"><span data-value="battery_to_home_kwh">{{ stats.battery_to_home_kwh }}</span> <span class="st-unit">kWh</span></div>
-          <div class="st-metric-sub">{{ 'Energy discharged from battery to power the home' if is_en else 'الطاقة التي فرّغتها البطارية لتشغيل المنزل' }}</div>
-          <div class="st-metric-bar"><span class="st-metric-bar-fill" style="width:{{ batt_bar_pct }}%"></span></div>
-        </div>
-
-        <div class="st-metric soc">
-          <div class="st-metric-top"><div class="st-metric-icon">📊</div><span class="st-metric-trend">SOC</span></div>
-          <div class="st-metric-label">{{ 'Average Battery SOC' if is_en else 'متوسط شحن البطارية' }}</div>
-          <div class="st-metric-value"><span data-value="avg_battery_soc">{{ stats.avg_battery_soc }}</span> <span class="st-unit">%</span></div>
-          <div class="st-metric-sub">{{ 'Average state of charge across all readings in this period' if is_en else 'متوسط نسبة الشحن عبر كل قراءات الفترة' }}</div>
-          <div class="st-metric-bar"><span class="st-metric-bar-fill" style="width:{{ soc_pct }}%"></span></div>
-        </div>
-      </div>
-
-      <div class="st-charts">
-        <div class="st-card">
-          <div class="st-card-head">
-            <div><h3>📈 {{ 'Energy Time Profile' if is_en else 'الملف الزمني للطاقة' }}</h3><small>{{ title_hint }}</small></div>
-            <div class="st-legend">
-              <span class="st-legend-item"><i class="st-legend-dot" style="background:#f59e0b"></i>{{ 'Solar' if is_en else 'شمس' }}</span>
-              <span class="st-legend-item"><i class="st-legend-dot" style="background:#f43f5e"></i>{{ 'Home' if is_en else 'منزل' }}</span>
-              <span class="st-legend-item"><i class="st-legend-dot" style="background:#10b981"></i>{{ 'Battery' if is_en else 'بطارية' }}</span>
-              <span class="st-legend-item"><i class="st-legend-dot" style="background:#2563eb"></i>SOC</span>
+          <div class="st-sec-body">
+            <div class="st-table-wrap">
+              <table class="st-table" data-paginate data-page-size="20">
+                <thead>
+                  <tr>
+                    <th>{{ 'Time' if is_en else 'الوقت' }}</th>
+                    <th>{{ 'Production' if is_en else 'الإنتاج' }}</th>
+                    <th>{{ 'Consumption' if is_en else 'الاستهلاك' }}</th>
+                    <th>{{ 'Battery' if is_en else 'البطارية' }}</th>
+                    <th>{{ 'Grid' if is_en else 'الشبكة' }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in table_rows %}
+                  <tr>
+                    <td><time>{{ r.label or r.date or r.timestamp or '' }}</time></td>
+                    <td>{{ format_energy(r.production_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.consumption_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.battery_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.grid_kwh or 0) }} <em>kWh</em></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
-          <div class="st-chart-wrap">
-            <canvas id="statsProfileChart" height="260"
-              data-kind="{{ selected_view }}"
-              data-labels='{{ chart.labels|tojson }}'
-              data-solar='{{ chart.solar|tojson }}'
-              data-home='{{ chart.home|tojson }}'
-              data-battery='{{ chart.battery|tojson }}'
-              data-grid='{{ chart.grid|tojson }}'
-              data-soc='{{ chart.soc|tojson }}'></canvas>
+        </section>
+        {% else %}
+        <section class="st-section">
+          <div class="st-sec-body">
+            <div class="st-empty">
+              <span>📊</span>
+              <strong>{{ 'No data for this period' if is_en else 'لا توجد بيانات لهذه الفترة' }}</strong>
+              <p>{{ 'Try a different date range, or wait for more readings to accumulate.' if is_en else 'جرّب فترة مختلفة، أو انتظر تجميع قراءات أكثر.' }}</p>
+            </div>
           </div>
-        </div>
-
-        <div class="st-card">
-          <div class="st-card-head"><div><h3>🧩 {{ 'Usage Breakdown' if is_en else 'توزيع الاستخدام' }}</h3><small>{{ 'Visual summary for this period' if is_en else 'تلخيص بصري للفترة' }}</small></div></div>
-          <div class="st-chart-wrap">
-            <canvas id="statsUsageChart" height="200"
-              data-labels='{{ summary_chart.labels|tojson }}'
-              data-solar='{{ summary_chart.solar|tojson }}'
-              data-home='{{ summary_chart.home|tojson }}'
-              data-battery='{{ summary_chart.battery|tojson }}'
-              data-grid='{{ summary_chart.grid|tojson }}'></canvas>
-          </div>
-          <div class="st-mini-stats">
-            <div class="st-mini-stat"><div class="st-mini-label">{{ 'Solar → Home' if is_en else 'شمس → منزل' }}</div><div class="st-mini-value st-val-solar"><span class="st-icon-mini">☀️</span> <span data-value="solar_to_home_kwh">{{ stats.solar_to_home_kwh }}</span> kWh</div></div>
-            <div class="st-mini-stat"><div class="st-mini-label">{{ 'Solar → Battery' if is_en else 'شمس → بطارية' }}</div><div class="st-mini-value st-val-batt"><span class="st-icon-mini">🔋</span> <span data-value="solar_to_battery_kwh">{{ stats.solar_to_battery_kwh }}</span> kWh</div></div>
-            <div class="st-mini-stat"><div class="st-mini-label">{{ 'Grid → Home' if is_en else 'شبكة → منزل' }}</div><div class="st-mini-value st-val-grid"><span class="st-icon-mini">⚡</span> <span data-value="grid_to_home_kwh">{{ stats.grid_to_home_kwh }}</span> kWh</div></div>
-            <div class="st-mini-stat"><div class="st-mini-label">{{ 'Peak Solar' if is_en else 'ذروة الإنتاج' }}</div><div class="st-mini-value st-val-solar"><span class="st-icon-mini">⚡</span> <span data-value="max_solar_w">{{ stats.max_solar_w }}</span> W</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="st-card st-table-card">
-        <div class="st-card-head"><div><h3>📋 {{ 'Analytical Table' if is_en else 'الجدول التحليلي' }}</h3><small>{{ 'Detailed breakdown of all sub-periods within this range' if is_en else 'تفصيل دقيق لكل فترة فرعية ضمن النطاق المحدد' }}</small></div></div>
-        <div class="st-table-scroll">
-          <table class="st-table">
-            <thead><tr>
-              <th>{{ 'Period' if is_en else 'الفترة' }}</th>
-              <th>{{ 'Solar Gen.' if is_en else 'إنتاج الشمس' }}</th>
-              <th>{{ 'Home Cons.' if is_en else 'استهلاك المنزل' }}</th>
-              <th>{{ 'Sun → Home' if is_en else 'شمس ← بيت' }}</th>
-              <th>{{ 'Sun → Battery' if is_en else 'شمس ← بطارية' }}</th>
-              <th>{{ 'Battery → Home' if is_en else 'بطارية ← بيت' }}</th>
-              <th>{{ 'Grid → Home' if is_en else 'شبكة ← بيت' }}</th>
-              <th>{{ 'Avg SOC' if is_en else 'متوسط SOC' }}</th>
-            </tr></thead>
-            <tbody>
-              {% for row in table_rows %}
-              <tr>
-                <td><span class="st-period-pill">{{ row.label }}</span></td>
-                <td class="st-val-solar">{{ row.solar_generated_kwh }} kWh</td>
-                <td class="st-val-home">{{ row.home_consumed_kwh }} kWh</td>
-                <td>{{ row.solar_to_home_kwh }} kWh</td>
-                <td>{{ row.solar_to_battery_kwh }} kWh</td>
-                <td class="st-val-batt">{{ row.battery_to_home_kwh }} kWh</td>
-                <td class="st-val-grid">{{ row.grid_to_home_kwh }} kWh</td>
-                <td>{{ row.avg_battery_soc }}%</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="8"><div class="st-table-empty"><span class="st-empty-icon">📭</span>{{ 'No data available for this period yet.' if is_en else 'لا توجد بيانات كافية لهذه الفترة بعد.' }}</div></td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        </section>
+        {% endif %}
 
       </div>
-      <div class="st-toast" id="st-toast" role="status" aria-live="polite"></div>
     </div>
   </main>
 </div>
-
-<script>
-(function(){
-  var _stBusy=false,_stAutoTimer=null,ST_AUTO_INTERVAL_MS=30000;
-  function stParse(v,fb){try{return JSON.parse(v||'[]')}catch(e){return fb||[]}}
-  function stLabel(ar,en){return document.body.dataset.lang==='en'?en:ar}
-  var stBase={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{position:'bottom',labels:{color:'#1f2a44',font:{family:'Cairo',weight:'700'},usePointStyle:true,padding:14}},
-    tooltip:{backgroundColor:'rgba(15,23,42,.95)',borderColor:'rgba(255,255,255,.12)',borderWidth:1,titleColor:'#fff',bodyColor:'rgba(255,255,255,.92)',titleFont:{family:'Cairo',weight:'800'},bodyFont:{family:'Cairo'},padding:10,cornerRadius:10}},
-    scales:{x:{grid:{color:'rgba(15,23,42,.05)'},ticks:{color:'#5e6f8c',font:{family:'Cairo',weight:'600'},maxRotation:0,minRotation:0}},y:{beginAtZero:true,grid:{color:'rgba(15,23,42,.05)'},ticks:{color:'#5e6f8c',font:{family:'Cairo',weight:'600'}}}}};
-  function stDestroyCharts(){['statsProfileChart','statsUsageChart'].forEach(function(id){var c=document.getElementById(id);if(c&&typeof Chart!=='undefined'&&Chart.getChart){var ci=Chart.getChart(c);if(ci)ci.destroy()}})}
-  function stInitCharts(){
-    if(typeof Chart==='undefined')return;
-    var spc=document.getElementById('statsProfileChart');
-    if(spc){var kind=spc.dataset.kind||'day';
-      new Chart(spc.getContext('2d'),{type:kind==='day'?'line':'bar',data:{labels:stParse(spc.dataset.labels),
-        datasets:kind==='day'?[
-          {label:stLabel('الطاقة الشمسية','Solar power'),data:stParse(spc.dataset.solar),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.18)',tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3,fill:true},
-          {label:stLabel('استهلاك البيت','Home load'),data:stParse(spc.dataset.home),borderColor:'#f43f5e',backgroundColor:'rgba(244,63,94,.10)',tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3,fill:false},
-          {label:stLabel('البطارية','Battery'),data:stParse(spc.dataset.battery),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.10)',tension:.4,pointRadius:3,pointHoverRadius:6,borderWidth:3,fill:false},
-          {label:'% SOC',data:stParse(spc.dataset.soc),borderColor:'#2563eb',borderDash:[6,4],yAxisID:'y1',tension:.4,pointRadius:2,pointHoverRadius:5,borderWidth:2}
-        ]:[
-          {label:stLabel('الطاقة الشمسية','Solar power'),data:stParse(spc.dataset.solar),backgroundColor:'rgba(245,158,11,.85)',borderRadius:6,barPercentage:.8},
-          {label:stLabel('استهلاك البيت','Home load'),data:stParse(spc.dataset.home),backgroundColor:'rgba(244,63,94,.85)',borderRadius:6,barPercentage:.8},
-          {label:stLabel('البطارية','Battery'),data:stParse(spc.dataset.battery),backgroundColor:'rgba(16,185,129,.85)',borderRadius:6,barPercentage:.8},
-          {label:stLabel('الشبكة','Grid'),data:stParse(spc.dataset.grid),backgroundColor:'rgba(148,163,184,.85)',borderRadius:6,barPercentage:.8}
-        ]},
-        options:Object.assign({},stBase,{scales:{x:stBase.scales.x,y:stBase.scales.y,y1:{beginAtZero:true,suggestedMax:100,position:'right',grid:{drawOnChartArea:false},ticks:{color:'#2563eb',font:{family:'Cairo',weight:'600'}}}}})});
-    }
-    var suc=document.getElementById('statsUsageChart');
-    if(suc){new Chart(suc.getContext('2d'),{type:'bar',data:{labels:stParse(suc.dataset.labels),
-      datasets:[
-        {label:stLabel('الطاقة الشمسية','Solar'),data:stParse(suc.dataset.solar),backgroundColor:'rgba(245,158,11,.85)',borderRadius:8,barPercentage:.7},
-        {label:stLabel('استهلاك البيت','Home'),data:stParse(suc.dataset.home),backgroundColor:'rgba(244,63,94,.85)',borderRadius:8,barPercentage:.7},
-        {label:stLabel('البطارية','Battery'),data:stParse(suc.dataset.battery),backgroundColor:'rgba(16,185,129,.85)',borderRadius:8,barPercentage:.7},
-        {label:stLabel('الشبكة','Grid'),data:stParse(suc.dataset.grid),backgroundColor:'rgba(148,163,184,.85)',borderRadius:8,barPercentage:.7}
-      ]},options:stBase});}
-  }
-  function stShowToast(msg){var t=document.getElementById('st-toast');if(!t)return;t.textContent=msg;t.classList.add('is-show');clearTimeout(t._hideT);t._hideT=setTimeout(function(){t.classList.remove('is-show')},1800)}
-  function stSetupNav(){
-    var form=document.getElementById('st-nav-form');if(!form)return;
-    form.addEventListener('submit',function(e){e.preventDefault();var url=new URL(form.action,window.location.href);new FormData(form).forEach(function(v,k){url.searchParams.set(k,v)});stNavigate(url.toString())});
-    form.querySelectorAll('.st-seg-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();var url=new URL(form.action,window.location.href);new FormData(form).forEach(function(v,k){url.searchParams.set(k,v)});url.searchParams.set('view',btn.value);stNavigate(url.toString())})});
-    document.querySelectorAll('#st-content .st-date-arrow:not(.dim)').forEach(function(a){a.addEventListener('click',function(e){var href=a.getAttribute('href');if(href&&href!=='#'){e.preventDefault();stNavigate(href)}})});
-    var btn=document.getElementById('st-refresh-btn');
-    if(btn){btn.addEventListener('click',function(){if(_stBusy)return;var page=document.querySelector('.st-page');var url=page?page.dataset.statsUrl:null;var view=page?page.dataset.view:'day';var date=page?page.dataset.date:'';if(url){var u=new URL(url,window.location.href);if(view)u.searchParams.set('view',view);if(date)u.searchParams.set('date',date);stRefreshSilent(u.toString(),true)}})}
-  }
-  function stNavigate(url){
-    if(_stBusy)return;_stBusy=true;
-    var oldEl=document.getElementById('st-content');if(oldEl)oldEl.style.opacity='0.35';
-    fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(html){
-      var doc=new DOMParser().parseFromString(html,'text/html');
-      var newEl=doc.getElementById('st-content');var curEl=document.getElementById('st-content');
-      if(newEl&&curEl){stDestroyCharts();curEl.replaceWith(newEl);history.pushState({stUrl:url},'',url);
-        var u=new URL(url,window.location.href);var page=document.querySelector('.st-page');
-        if(page){page.dataset.view=u.searchParams.get('view')||page.dataset.view;page.dataset.date=u.searchParams.get('date')||page.dataset.date}
-        newEl.style.opacity='0';stInitCharts();stSetupNav();
-        requestAnimationFrame(function(){requestAnimationFrame(function(){newEl.style.opacity='1'})});
-        stScheduleAutoRefresh();}
-    }).catch(function(){window.location.href=url}).finally(function(){_stBusy=false});
-  }
-  function stRefreshSilent(url,manual){
-    if(_stBusy)return;_stBusy=true;
-    var btn=document.getElementById('st-refresh-btn');if(btn)btn.classList.add('is-loading');
-    var content=document.getElementById('st-content');if(content)content.classList.add('st-updating');
-    fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(html){
-      var doc=new DOMParser().parseFromString(html,'text/html');
-      var newEl=doc.getElementById('st-content');var curEl=document.getElementById('st-content');
-      if(newEl&&curEl){stDestroyCharts();curEl.replaceWith(newEl);stInitCharts();stSetupNav();}
-      if(manual)stShowToast(stLabel('تم التحديث','Updated'));
-    }).catch(function(){}).finally(function(){
-      _stBusy=false;
-      var btn2=document.getElementById('st-refresh-btn');if(btn2)btn2.classList.remove('is-loading');
-      var content2=document.getElementById('st-content');if(content2)content2.classList.remove('st-updating');
-      stScheduleAutoRefresh();
-    });
-  }
-  function stScheduleAutoRefresh(){
-    if(_stAutoTimer)clearTimeout(_stAutoTimer);
-    _stAutoTimer=setTimeout(function(){
-      var page=document.querySelector('.st-page');if(!page)return;
-      var view=page.dataset.view||'day';var date=page.dataset.date||'';var url=page.dataset.statsUrl;
-      if(!url||document.hidden){stScheduleAutoRefresh();return;}
-      var u=new URL(url,window.location.href);if(view)u.searchParams.set('view',view);if(date)u.searchParams.set('date',date);
-      var today=new Date().toISOString().slice(0,10);
-      if(date===today){stRefreshSilent(u.toString(),false)}else{stScheduleAutoRefresh()}
-    },ST_AUTO_INTERVAL_MS);
-  }
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)stScheduleAutoRefresh()});
-  window.addEventListener('popstate',function(){window.location.reload()});
-  document.addEventListener('DOMContentLoaded',function(){stSetupNav();stInitCharts();stScheduleAutoRefresh()});
-      window.addEventListener('load',function(){if(typeof Chart!=='undefined'){var c=document.getElementById('statsProfileChart');if(c&&!Chart.getChart(c))stInitCharts()}});
-    })();
-    </script>
-    {% endblock %}
-    
+{% endblock %}

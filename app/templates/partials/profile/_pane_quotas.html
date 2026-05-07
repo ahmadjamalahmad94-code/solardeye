@@ -1,0 +1,257 @@
+<div class="up-pane" data-up-pane="quotas" {% if tab != 'quotas' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set q_active = quota_rows|selectattr('status','equalto','active')|list %}
+  {% set q_paused = quota_rows|selectattr('status','equalto','paused')|list %}
+  {% set q_warn = quota_rows|selectattr('limit_value')|list %}
+
+  {# ─── Quotas summary hero with multi-ring ─── #}
+  <section class="qta-hero">
+    <div class="qta-hero-text">
+      <span class="qta-hero-eyebrow">📊 {{ 'Quotas' if is_en else 'الكوتا' }}</span>
+      <h2>{{ 'Usage limits and service quotas' if is_en else 'حدود الاستخدام والكوتا' }}</h2>
+      <p>{{ 'Choose a quota type, set the limit, period, and status. The subscriber is already selected from this 360 profile.' if is_en else 'اختر نوع الكوتا وحدد الحد والفترة والحالة. لا تحتاج كتابة اسم المشترك لأنك داخل ملفه الشخصي.' }}</p>
+      <div class="qta-hero-stats">
+        <div class="qta-mini" style="--c:#7c3aed"><span>📊</span><div><small>{{ 'Total quotas' if is_en else 'إجمالي البنود' }}</small><strong>{{ quota_rows|length }}</strong></div></div>
+        <div class="qta-mini" style="--c:#10b981"><span>✓</span><div><small>{{ 'Active' if is_en else 'نشطة' }}</small><strong>{{ q_active|length }}</strong></div></div>
+        <div class="qta-mini" style="--c:#f59e0b"><span>⏸</span><div><small>{{ 'Paused' if is_en else 'متوقفة' }}</small><strong>{{ q_paused|length }}</strong></div></div>
+      </div>
+    </div>
+    {# rings removed — replaced by per-card donuts below #}
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Create / update quota ─── #}
+      <form method="post" class="prof-form" id="quotaFormV111">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="quota_save">
+        <input type="hidden" name="quota_id" id="quotaIdV113" value="">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">📐</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3 id="quotaFormTitleV113">{{ 'Create or update quota' if is_en else 'إنشاء أو تحديث كوتا' }}</h3>
+            <p>{{ 'If the same quota already exists, this form updates it automatically.' if is_en else 'إذا كانت الكوتا موجودة مسبقاً سيتم تحديثها تلقائياً بدل بند مكرر.' }}</p>
+          </div>
+          <div class="prof-step-body">
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Quota type' if is_en else 'نوع الكوتا' }}</span>
+              <select class="prof-input" name="quota_key" id="quotaPresetV111">
+                {% for opt in quota_key_options %}<option value="{{ opt.value }}" data-label="{{ opt.label }}" data-limit="{{ opt.default_limit or '' }}" data-period="{{ opt.default_period or 'manual' }}" data-unit="{{ opt.unit or '' }}" data-description="{{ opt.description or '' }}">{{ opt.label }}</option>{% endfor %}
+              </select>
+              <small id="quotaPresetHintV111" class="qta-hint"></small>
+            </label>
+            <label class="prof-field prof-field-full" id="quotaCustomWrapV111" style="display:none">
+              <span>{{ 'Custom quota key' if is_en else 'مفتاح مخصص' }}</span>
+              <input class="prof-input prof-input-ltr" name="custom_key" id="quotaCustomKeyV111" placeholder="custom_limit">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Display name' if is_en else 'الاسم الظاهر' }}</span>
+              <input class="prof-input" name="quota_label" id="quotaLabelV111" placeholder="{{ 'Shown in summaries' if is_en else 'يظهر في الملخصات' }}">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Limit' if is_en else 'الحد' }} <em>*</em></span>
+              <input class="prof-input" name="limit_value" id="quotaLimitV111" type="number" min="0" step="1" required placeholder="50">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Reset period' if is_en else 'فترة التصفير' }}</span>
+              <select class="prof-input" name="reset_period" id="quotaResetV111">
+                <option value="manual">{{ ui_label('manual', 'status', ui_lang) }}</option>
+                <option value="daily">{{ ui_label('daily', 'status', ui_lang) }}</option>
+                <option value="weekly">{{ ui_label('weekly', 'status', ui_lang) }}</option>
+                <option value="monthly">{{ ui_label('monthly', 'status', ui_lang) }}</option>
+                <option value="yearly">{{ ui_label('yearly', 'status', ui_lang) }}</option>
+              </select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Status' if is_en else 'الحالة' }}</span>
+              <select class="prof-input" name="status">
+                <option value="active">{{ ui_label('active', 'status', ui_lang) }}</option>
+                <option value="paused">{{ ui_label('paused', 'status', ui_lang) }}</option>
+                <option value="exhausted">{{ ui_label('exhausted', 'status', ui_lang) }}</option>
+              </select>
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Notes' if is_en else 'ملاحظات' }}</span>
+              <textarea class="prof-input" name="notes" id="quotaNotesV111" rows="2" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving creates or updates the quota. Restart needed for some types.' if is_en else 'الحفظ ينشئ أو يحدّث البند فوراً.' }}</span>
+          <div class="prof-savebar-actions">
+            <button type="button" class="prof-btn prof-btn-ghost" id="quotaResetFormV113">+ {{ 'New quota' if is_en else 'كوتا جديدة' }}</button>
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save quota' if is_en else 'حفظ الكوتا' }}</button>
+          </div>
+        </div>
+      </form>
+
+      {# ─── Step 2: Current quotas as donut cards ─── #}
+      <article class="prof-step" style="margin-top:18px">
+        <div class="prof-step-side">
+          <span class="prof-step-num">2</span>
+          <span class="prof-step-icon">📈</span>
+          <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+          <h3>{{ 'Current quotas' if is_en else 'الكوتا الحالية' }}</h3>
+          <p>{{ 'Color-coded by usage. Green = healthy, amber = warning, red = exceeded.' if is_en else 'مرمَّز بالألوان. أخضر = جيد، برتقالي = تحذير، أحمر = متجاوز.' }}</p>
+        </div>
+        <div class="prof-step-body qta-grid" style="grid-template-columns:1fr">
+          {% for row in quota_rows %}
+            {% set is_unlim = row.is_unlimited or row.reset_period == 'unlimited' %}
+            {% set raw_pct = 0 if is_unlim else (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0) %}
+            {% set pct = raw_pct|round(0)|int %}
+            {% set cap = 100 if pct > 100 else pct %}
+            {% set tone = 'danger' if pct >= 100 else ('warn' if pct >= 75 else 'ok') %}
+            {% set remaining = '∞' if is_unlim else ((row.limit_value or 0) - (row.used_value or 0)) %}
+            <article class="qta-card qta-card-{{ tone }}">
+              <div class="qta-card-donut" style="--pct:{{ cap if not is_unlim else 100 }};--c:{{ '#ef4444' if tone=='danger' else '#f59e0b' if tone=='warn' else '#10b981' }}">
+                <div class="qta-card-donut-inner">
+                  <span class="qta-card-donut-num">{% if is_unlim %}∞{% else %}{{ pct }}%{% endif %}</span>
+                </div>
+              </div>
+              <div class="qta-card-body">
+                <div class="qta-card-head">
+                  <strong>{{ row.quota_label or row.quota_key }}</strong>
+                  <span class="status-pill {{ 'success' if row.status=='active' else 'warning' }}">{{ ui_label(row.status, 'status', ui_lang) }}</span>
+                </div>
+                <small class="qta-card-meta">{{ row.quota_key }} · {{ ui_label(row.reset_period, 'status', ui_lang) }} · {% if row.source == 'plan' %}{{ 'From plan' if is_en else 'من الخطة' }}{% elif row.source == 'override' %}{{ 'Override' if is_en else 'تعديل' }}{% else %}{{ 'Custom' if is_en else 'مخصص' }}{% endif %}</small>
+                <div class="qta-card-stats">
+                  <span><b>{{ row.used_value|round(0)|int }}</b><small>{{ 'Used' if is_en else 'مستخدم' }}</small></span>
+                  <span><b>{% if is_unlim %}∞{% else %}{{ row.limit_value|round(0)|int }}{% endif %}</b><small>{{ 'Limit' if is_en else 'الحد' }}</small></span>
+                  <span><b>{% if is_unlim %}∞{% else %}{{ 0 if remaining < 0 else remaining|round(0)|int }}{% endif %}</b><small>{{ 'Left' if is_en else 'متبقي' }}</small></span>
+                </div>
+                <div class="qta-card-bar"><i style="width:{{ cap if not is_unlim else 100 }}%;background:{{ '#ef4444' if tone=='danger' else '#f59e0b' if tone=='warn' else '#10b981' }}"></i></div>
+                <div class="qta-card-actions">
+                  <button class="qta-card-btn qta-card-edit" type="button"
+                    data-id="{{ row.id }}"
+                    data-key="{{ row.quota_key }}"
+                    data-label="{{ row.quota_label or '' }}"
+                    data-limit="{{ row.limit_value or 0 }}"
+                    data-used="{{ row.used_value or 0 }}"
+                    data-period="{{ row.reset_period or 'manual' }}"
+                    data-status="{{ row.status or 'active' }}"
+                    data-unlimited="{{ '1' if is_unlim else '0' }}"
+                    data-notes="{{ row.notes or '' }}">✎ {{ 'Edit' if is_en else 'تعديل' }}</button>
+                  <form method="post" class="qta-card-delete" onsubmit="return confirm('{{ 'Delete this quota permanently?' if is_en else 'حذف هذا الحد نهائياً؟' }}');" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="quota_delete">
+                    <input type="hidden" name="quota_id" value="{{ row.id }}">
+                    <button class="qta-card-btn qta-card-del" type="submit">🗑 {{ 'Delete' if is_en else 'حذف' }}</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          {% else %}
+            <div class="qta-empty">
+              <span>📊</span>
+              <strong>{{ 'No quotas yet.' if is_en else 'لا توجد كوتا بعد.' }}</strong>
+              <small>{{ 'Add the first quota from the form above. Start with SMS or devices.' if is_en else 'أضف أول كوتا من النموذج أعلاه. ابدأ بحد الرسائل أو الأجهزة.' }}</small>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick legend' if is_en else 'دلالة الألوان' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span style="color:#10b981">●</span><span>{{ '< 75% — healthy' if is_en else '< 75% — جيد' }}</span><b></b></div>
+          <div><span style="color:#f59e0b">●</span><span>{{ '75–99% — warning' if is_en else '75–99% — تحذير' }}</span><b></b></div>
+          <div><span style="color:#ef4444">●</span><span>{{ '≥ 100% — exceeded' if is_en else '≥ 100% — متجاوز' }}</span><b></b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Top consumers' if is_en else 'الأعلى استهلاكاً' }}</span></header>
+        <div class="prof-side-rows">
+          {% set sorted_quotas = quota_rows|rejectattr('is_unlimited')|sort(attribute='used_value', reverse=true) %}
+          {% for row in sorted_quotas[:4] %}
+          {% set p = (((row.used_value or 0) / row.limit_value * 100) if row.limit_value else 0)|round(0)|int %}
+          <div><span>{{ row.quota_label or row.quota_key }}</span><b>{{ p }}%</b></div>
+          {% else %}
+          <div><span>—</span><b>—</b></div>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+
+<script>
+(function(){
+  const preset = document.getElementById('quotaPresetV111');
+  const hint = document.getElementById('quotaPresetHintV111');
+  const label = document.getElementById('quotaLabelV111');
+  const limit = document.getElementById('quotaLimitV111');
+  const reset = document.getElementById('quotaResetV111');
+  const notes = document.getElementById('quotaNotesV111');
+  const customWrap = document.getElementById('quotaCustomWrapV111');
+  const customKey = document.getElementById('quotaCustomKeyV111');
+  const quotaId = document.getElementById('quotaIdV113');
+  const title = document.getElementById('quotaFormTitleV113');
+  const resetBtn = document.getElementById('quotaResetFormV113');
+  const form = document.getElementById('quotaFormV111');
+  if(!form || !preset) return;
+  const statusSelect = form.querySelector('[name="status"]');
+
+  function optionFor(value){ return Array.from(preset.options).find(o => o.value === value); }
+  function setCustomMode(key){
+    const found = optionFor(key);
+    preset.value = found ? key : 'custom';
+    if(!found && customKey) customKey.value = key || '';
+    if(customWrap) customWrap.style.display = preset.value === 'custom' ? 'flex' : 'none';
+  }
+  function syncQuotaPreset(forceDefaults){
+    const opt = preset.options[preset.selectedIndex];
+    const isCustom = opt && opt.value === 'custom';
+    if(customWrap) customWrap.style.display = isCustom ? 'flex' : 'none';
+    if(hint) hint.textContent = (opt && opt.dataset.description) || '';
+    if(forceDefaults){
+      if(label) label.value = (opt && opt.dataset.label) || '';
+      if(limit) limit.value = (opt && opt.dataset.limit) || '';
+      if(reset && opt && opt.dataset.period) reset.value = opt.dataset.period;
+      if(notes) notes.value = '';
+      if(customKey && !isCustom) customKey.value = '';
+    } else {
+      if(label && !label.value && opt) label.value = opt.dataset.label || '';
+      if(limit && (!limit.value || limit.value === '0') && opt) limit.value = opt.dataset.limit || '';
+      if(reset && opt && opt.dataset.period && !reset.value) reset.value = opt.dataset.period;
+    }
+  }
+  preset.addEventListener('change', function(){ syncQuotaPreset(true); });
+
+  document.querySelectorAll('.qta-card-edit').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      if(quotaId) quotaId.value = btn.dataset.id || '';
+      setCustomMode(btn.dataset.key || '');
+      if(label) label.value = btn.dataset.label || btn.dataset.key || '';
+      if(limit) limit.value = btn.dataset.limit || '0';
+      if(reset) reset.value = btn.dataset.period || 'manual';
+      if(statusSelect) statusSelect.value = btn.dataset.status || 'active';
+      if(notes) notes.value = btn.dataset.notes || '';
+      if(title) title.textContent = '{{ "Edit quota" if is_en else "تعديل الكوتا" }}';
+      syncQuotaPreset(false);
+      form.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+
+  if(resetBtn){
+    resetBtn.addEventListener('click', function(){
+      form.reset();
+      if(quotaId) quotaId.value = '';
+      if(customKey) customKey.value = '';
+      if(title) title.textContent = '{{ "Create or update quota" if is_en else "إنشاء أو تحديث كوتا" }}';
+      syncQuotaPreset(true);
+      form.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  }
+  syncQuotaPreset(false);
+})();
+</script>
+</div>
+

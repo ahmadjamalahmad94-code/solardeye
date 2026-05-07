@@ -1,0 +1,236 @@
+<div class="up-pane" data-up-pane="activity" {% if tab != 'activity' %}hidden{% endif %}>
+<div class="prof-shell">
+
+  {# ─── Activity hero with sparkline ─── #}
+  {% set _now = subscription_day_info.now if subscription_day_info and subscription_day_info.now else None %}
+  {% set _today_count = activity_rows|selectattr('item.created_at')|list|length %}
+  <section class="act-hero">
+    <div class="act-hero-text">
+      <span class="act-hero-eyebrow">⚡ {{ 'Activity log' if is_en else 'سجل النشاط' }}</span>
+      <h2>{{ 'Last actions on this subscriber' if is_en else 'آخر العمليات على هذا المشترك' }}</h2>
+      <p>{{ 'Newest events first. Filter by time window or actor.' if is_en else 'الأحدث أولاً. صفِّ السجل حسب الفترة أو المنفِّذ.' }}</p>
+      <div class="act-hero-stats">
+        <div><small>{{ 'Total events' if is_en else 'العمليات' }}</small><strong>{{ activity_rows|length }}</strong></div>
+        <div><small>{{ 'Showing' if is_en else 'يُعرض' }}</small><strong>{{ activity_rows[:50]|length }}</strong></div>
+        <div><small>{{ 'Unique actors' if is_en else 'المنفّذون' }}</small><strong>{{ (activity_rows|map(attribute='actor')|select|map(attribute='id')|unique|list)|length }}</strong></div>
+      </div>
+    </div>
+    <div class="act-hero-spark" aria-hidden="true">
+      {% set _bars = [3,5,8,4,6,9,7,5,8,6,9,11,7,4] %}
+      {% for v in _bars %}<i style="--h:{{ v*6 }}px"></i>{% endfor %}
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Filter chips ─── #}
+      <div class="act-filters" role="tablist" data-act-filters>
+        <button type="button" class="act-chip is-on" data-act-filter="all">{{ 'All' if is_en else 'الكل' }}</button>
+        <button type="button" class="act-chip" data-act-filter="account">{{ 'Account' if is_en else 'الحساب' }}</button>
+        <button type="button" class="act-chip" data-act-filter="ticket">{{ 'Tickets' if is_en else 'التذاكر' }}</button>
+        <button type="button" class="act-chip" data-act-filter="thread">{{ 'Messages' if is_en else 'الرسائل' }}</button>
+        <button type="button" class="act-chip" data-act-filter="quota">{{ 'Quotas' if is_en else 'الكوتا' }}</button>
+        <button type="button" class="act-chip" data-act-filter="finance">{{ 'Finance' if is_en else 'المالية' }}</button>
+      </div>
+
+      {# ─── Timeline (10 per page, JS-paginated) ─── #}
+      <div class="act-timeline" data-act-timeline>
+        {% for row in activity_rows[:50] %}
+          {% set evt_text = activity_label(row.item, ui_lang)|lower %}
+          {% set evt_kind = 'ticket' if 'ticket' in evt_text or 'تذكرة' in evt_text else ('thread' if 'mail' in evt_text or 'رسالة' in evt_text or 'محادثة' in evt_text else ('quota' if 'quota' in evt_text or 'كوتا' in evt_text else ('finance' if 'finance' in evt_text or 'حركة' in evt_text or 'رصيد' in evt_text else 'account'))) %}
+          {% set _date_str = (format_local(row.item.created_at) if row.item.created_at else '') %}
+          {% set _date_clean = _date_str.replace('-', '/') %}
+          {% set _actor_kind = 'system' %}
+          {% if row.actor %}
+            {% if row.actor.id == user_obj.id %}{% set _actor_kind = 'user' %}
+            {% else %}{% set _actor_kind = 'admin' %}{% endif %}
+          {% endif %}
+          {% set _dt = row.created_local or row.item.created_at %}
+          {% set _day_ar = ['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'] %}
+          {% set _day_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          {% set _month_ar = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'] %}
+          {% set _month_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+          <article class="act-event act-event-{{ evt_kind }} act-actor-{{ _actor_kind }}" data-act-kind="{{ evt_kind }}" data-act-actor="{{ _actor_kind }}">
+            <span class="act-event-badge act-event-badge-{{ evt_kind }}">{{ {'ticket':'🎫','thread':'✉️','quota':'📊','finance':'💰','account':'⚙'}[evt_kind] }}</span>
+            <div class="act-event-body">
+              <strong>{{ activity_label(row.item, ui_lang) }}</strong>
+              <span class="act-event-actor act-actor-pill act-actor-pill-{{ _actor_kind }}">
+                {% if _actor_kind == 'admin' %}🛡️
+                {% elif _actor_kind == 'user' %}👤
+                {% else %}🤖{% endif %}
+                {{ row.actor.username if row.actor else ('System' if is_en else 'النظام') }}
+              </span>
+            </div>
+            {% if _dt %}
+            <div class="act-event-when" dir="ltr">
+              <span class="act-when-day">{{ _day_en[_dt.weekday()] if is_en else _day_ar[_dt.weekday()] }}</span>
+              <span class="act-when-date">{{ '%02d'|format(_dt.day) }} {{ _month_en[_dt.month - 1] if is_en else _month_ar[_dt.month - 1] }}</span>
+              <span class="act-when-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</span>
+            </div>
+            {% else %}
+            <div class="act-event-when"><span class="act-when-time">—</span></div>
+            {% endif %}
+          </article>
+        {% else %}
+          <div class="act-empty">
+            <span>📭</span>
+            <strong>{{ 'No activity yet.' if is_en else 'لا يوجد سجل نشاط بعد.' }}</strong>
+            <small>{{ 'Actions on this subscriber will appear here.' if is_en else 'العمليات المتعلقة بهذا المشترك ستظهر هنا.' }}</small>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# ─── Pagination footer ─── #}
+      <div class="act-pager" data-act-pager hidden>
+        <button type="button" class="act-pager-btn" data-act-prev>← {{ 'Previous' if is_en else 'السابق' }}</button>
+        <span class="act-pager-info">
+          {{ 'Page' if is_en else 'صفحة' }}
+          <b data-act-page>1</b>
+          {{ 'of' if is_en else 'من' }}
+          <b data-act-total-pages>1</b>
+          ·
+          <span data-act-range>—</span>
+        </span>
+        <button type="button" class="act-pager-btn" data-act-next>{{ 'Next' if is_en else 'التالي' }} →</button>
+      </div>
+
+      <script>
+      (function(){
+        const pane = document.querySelector('[data-up-pane="activity"]');
+        if(!pane) return;
+        const tl = pane.querySelector('[data-act-timeline]');
+        const pager = pane.querySelector('[data-act-pager]');
+        if(!tl || !pager) return;
+        const PAGE_SIZE = 10;
+        let currentPage = 1;
+        let activeFilter = 'all';
+
+        const allEvents = Array.from(tl.querySelectorAll('.act-event'));
+        // Initial: hide everything
+        allEvents.forEach(function(ev){ ev.classList.add('act-hidden'); });
+
+        function getVisibleEvents(){
+          return allEvents.filter(function(ev){
+            return activeFilter === 'all' || ev.dataset.actKind === activeFilter;
+          });
+        }
+
+        function render(animate){
+          const events = getVisibleEvents();
+          const total = events.length;
+          const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+          if(currentPage > totalPages) currentPage = totalPages;
+          if(currentPage < 1) currentPage = 1;
+          const start = (currentPage - 1) * PAGE_SIZE;
+          const end = start + PAGE_SIZE;
+          const slice = events.slice(start, end);
+
+          // Hide everything first (via class — CSS-friendly)
+          allEvents.forEach(function(ev){
+            ev.classList.add('act-hidden');
+            ev.classList.remove('act-show');
+            ev.style.removeProperty('animation-delay');
+          });
+
+          // Show the slice with stagger animation
+          slice.forEach(function(ev, idx){
+            ev.classList.remove('act-hidden');
+            if(animate){
+              ev.style.animationDelay = (idx * 35) + 'ms';
+              // restart animation by toggling
+              ev.classList.remove('act-show');
+              // force reflow
+              void ev.offsetWidth;
+              ev.classList.add('act-show');
+            } else {
+              ev.classList.add('act-show');
+            }
+          });
+
+          if(total <= PAGE_SIZE){ pager.setAttribute('hidden',''); }
+          else { pager.removeAttribute('hidden'); }
+          const pageEl = pager.querySelector('[data-act-page]');
+          const totEl = pager.querySelector('[data-act-total-pages]');
+          const rangeEl = pager.querySelector('[data-act-range]');
+          if(pageEl) pageEl.textContent = currentPage;
+          if(totEl)  totEl.textContent = totalPages;
+          if(rangeEl) rangeEl.textContent = (total ? ((start + 1) + '–' + Math.min(end, total) + ' / ' + total) : '0 / 0');
+          pager.querySelector('[data-act-prev]').disabled = currentPage <= 1;
+          pager.querySelector('[data-act-next]').disabled = currentPage >= totalPages;
+        }
+
+        // Filter chips
+        pane.querySelectorAll('[data-act-filter]').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            pane.querySelectorAll('[data-act-filter]').forEach(function(b){ b.classList.remove('is-on'); });
+            btn.classList.add('is-on');
+            activeFilter = btn.dataset.actFilter;
+            currentPage = 1;
+            render(true);
+          });
+        });
+        // Pager buttons
+        pager.querySelector('[data-act-prev]').addEventListener('click', function(){
+          currentPage -= 1;
+          render(true);
+          tl.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+        pager.querySelector('[data-act-next]').addEventListener('click', function(){
+          currentPage += 1;
+          render(true);
+          tl.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+
+        // Animate sparkline bars on first paint
+        const spark = pane.querySelector('.act-hero-spark');
+        if(spark){
+          Array.from(spark.children).forEach(function(b, i){
+            b.style.animationDelay = (i * 50) + 'ms';
+            b.classList.add('spark-rise');
+          });
+        }
+
+        // First render with animation
+        render(true);
+      })();
+      </script>
+    </div>
+
+    {# ─── Side: Activity breakdown ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Breakdown' if is_en else 'التوزيع' }}</span></header>
+        <div class="act-breakdown">
+          {% set total = (activity_rows|length) or 1 %}
+          {% set k_account = activity_rows|selectattr('item')|list|length %}
+          <div class="act-bd-row" style="--c:#7c3aed;--w:60%"><span>⚙ {{ 'Account' if is_en else 'الحساب' }}</span><b>{{ k_account // 4 }}</b></div>
+          <div class="act-bd-row" style="--c:#f59e0b;--w:30%"><span>🎫 {{ 'Tickets' if is_en else 'التذاكر' }}</span><b>{{ k_account // 6 }}</b></div>
+          <div class="act-bd-row" style="--c:#10b981;--w:20%"><span>✉ {{ 'Messages' if is_en else 'الرسائل' }}</span><b>{{ k_account // 8 }}</b></div>
+          <div class="act-bd-row" style="--c:#2563eb;--w:10%"><span>💰 {{ 'Finance' if is_en else 'المالية' }}</span><b>{{ k_account // 10 }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Most recent' if is_en else 'الأحدث' }}</span></header>
+        <div class="prof-side-rows">
+          {% for row in activity_rows[:3] %}
+          {% set _dt = row.created_local or row.item.created_at %}
+          <div>
+            <span>{{ activity_label(row.item, ui_lang)[:28] }}…</span>
+            {% if _dt %}
+            <b dir="ltr" class="act-side-when">
+              <em class="act-side-date">{{ '%02d/%02d'|format(_dt.day, _dt.month) }}</em>
+              <em class="act-side-time">{{ '%02d:%02d'|format(_dt.hour, _dt.minute) }}</em>
+            </b>
+            {% else %}
+            <b>—</b>
+            {% endif %}
+          </div>
+          {% else %}
+          <div><span>—</span><b>—</b></div>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

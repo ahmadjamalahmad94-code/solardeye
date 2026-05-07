@@ -1,50 +1,203 @@
 {% extends "base.html" %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
 {% block title %}{{ 'Services Health' if is_en else 'صحة الخدمات' }}{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/services_health.css', v='v40-notifications-center-redesign-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_services_health_v2.css', v='v212-services-health-sidebar-20260506') }}">
 {% endblock %}
 {% block body %}
-{% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% set _hb_count = heartbeats|length if heartbeats else 0 %}
+{% set _ok   = heartbeats|selectattr('status','in',['ok','success','running'])|list|length if heartbeats else 0 %}
+{% set _warn = heartbeats|selectattr('status','equalto','warning')|list|length if heartbeats else 0 %}
+{% set _fail = heartbeats|selectattr('status','in',['failed','error'])|list|length if heartbeats else 0 %}
+{% set _overall = 'ok' if _fail == 0 and _warn == 0 else ('warning' if _fail == 0 else 'failed') %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 services-health-v71 services-health-v90">
-    <header class="admin-page-head service-hero-v71">
-      <div>
-        <span class="eyebrow">{{ 'Operations' if is_en else 'التشغيل' }}</span>
-        <h1>{{ 'Services health center' if is_en else 'مركز صحة الخدمات' }}</h1>
-        <p>{{ 'Scheduler, sync, notifications, backup jobs, and provider heartbeats in one place.' if is_en else 'الجدولة، المزامنة، الإشعارات، النسخ الاحتياطي، ونبضات المزودين في مكان واحد.' }}</p>
-      </div>
-      <div class="service-status-big-v71 {{ 'ok' if scheduler_running else 'warn' }}">
-        <small>{{ 'Scheduler' if is_en else 'الجدولة' }}</small>
-        <strong>{{ 'Running' if scheduler_running and is_en else ('تعمل' if scheduler_running else ('Not visible' if is_en else 'غير ظاهرة')) }}</strong>
+  <main class="app-main content-area svch-page">
+
+    {# ── Hero ── #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Operations' if is_en else 'العمليات' }}</span>
+          <h1 class="hu-h1">{{ 'Services health & heartbeat' if is_en else 'صحة الخدمات ونبض النظام' }}</h1>
+          <p class="hu-tagline">{{ 'Scheduler, sync, notifications, backup jobs.' if is_en else 'المجدول، المزامنة، التنبيهات، النسخ الاحتياطية.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ _hb_count }}</b> {{ 'services' if is_en else 'خدمة' }}</span>
+            {% if _ok %}<span class="hu-meta-pill ok"><b>{{ _ok }}</b> {{ 'healthy' if is_en else 'سليم' }}</span>{% endif %}
+            {% if _warn %}<span class="hu-meta-pill warn"><b>{{ _warn }}</b> {{ 'warning' if is_en else 'تحذير' }}</span>{% endif %}
+            {% if _fail %}<span class="hu-meta-pill warn"><b>{{ _fail }}</b> {{ 'failed' if is_en else 'متعطل' }}</span>{% endif %}
+          </div>
+        </div>
       </div>
     </header>
 
-    <section class="admin-kpi-grid-v2 service-grid-v71">
-      <article class="admin-kpi-card"><small>{{ 'Sync' if is_en else 'المزامنة' }}</small><strong>{{ ui_label(latest_sync.level, 'status', ui_lang) if latest_sync else '—' }}</strong><span>{{ service_message(latest_sync.message, ui_lang) if latest_sync else ('No sync logs yet' if is_en else 'لا يوجد سجل مزامنة بعد') }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Notifications' if is_en else 'الإشعارات' }}</small><strong>{{ ui_label(latest_notif.status, 'status', ui_lang) if latest_notif else '—' }}</strong><span>{{ service_message(latest_notif.title, ui_lang) if latest_notif else ('No notification logs yet' if is_en else 'لا يوجد سجل إشعارات بعد') }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Registered jobs' if is_en else 'المهام المسجلة' }}</small><strong>{{ scheduler_jobs|length }}</strong><span>{{ 'APScheduler jobs visible in current worker or recent heartbeat.' if is_en else 'مهام APScheduler الظاهرة في العامل الحالي أو عبر آخر نبضة.' }}</span></article>
+    {# ── Pulse banner ── #}
+    <section class="svch-pulse-banner svch-pulse-{{ _overall }}">
+      <div class="svch-pulse-icon"><span class="svch-pulse-dot"></span></div>
+      <div class="svch-pulse-text">
+        <strong>
+          {% if _overall == 'ok' %}{{ 'All systems operational' if is_en else 'جميع الأنظمة تعمل بكفاءة' }}
+          {% elif _overall == 'warning' %}{{ 'Some services need attention' if is_en else 'بعض الخدمات تحتاج متابعة' }}
+          {% else %}{{ 'Services need immediate action' if is_en else 'خدمات تتطلب تدخلاً فورياً' }}{% endif %}
+        </strong>
+        <small>
+          {% if scheduler_running %}{{ 'Scheduler active' if is_en else 'المجدول يعمل' }}{% else %}{{ 'Scheduler offline' if is_en else 'المجدول متوقف' }}{% endif %}
+          · {{ scheduler_jobs|length }} {{ 'jobs registered' if is_en else 'مهمة مسجلة' }}
+        </small>
+      </div>
+      <div class="svch-pulse-meta">
+        <div>
+          <small>{{ 'Latest sync' if is_en else 'آخر مزامنة' }}</small>
+          <strong>{{ format_local(latest_sync.created_at) if latest_sync else '—' }}</strong>
+        </div>
+        <div>
+          <small>{{ 'Latest notif' if is_en else 'آخر تنبيه' }}</small>
+          <strong>{{ format_local(latest_notif.created_at) if latest_notif else '—' }}</strong>
+        </div>
+      </div>
     </section>
 
-    <section class="service-card-grid-v71 v9-scroll-lock-grid">
-      {% for svc in service_cards %}
-        {% set hb = svc.heartbeat if svc.heartbeat is defined else None %}
-        {% set status = svc.status if svc.status is defined else (hb.status if hb else 'warning') %}
-        <article class="service-card-v71 status-{{ status }} v9-fixed-card">
-          <div class="service-card-top-v71">
-            <div><small>{{ ui_label(status, 'status', ui_lang) }}</small><h3>{{ service_display_name(svc.key, ui_lang) }}</h3></div>
-            <span class="ui-badge-v70 {{ badge_class(status) }}">{{ ui_label(status, 'status', ui_lang) }}</span>
+    {# ── Shell: aside + main ── #}
+    <div class="svch-shell">
+
+      {# ── Aside ── #}
+      <aside class="svch-aside">
+
+        <div class="svch-as-card explainer">
+          <h4>📘 {{ 'What is this page?' if is_en else 'ما هذه الصفحة؟' }}</h4>
+          <p>{{ 'Each service runs on a schedule and sends a heartbeat when it finishes. Green = completed, Yellow = late or warning, Red = failed.' if is_en else 'كل خدمة تعمل بشكل دوري وترسل نبضة عند الانتهاء. أخضر = ناجحة، أصفر = متأخرة أو تحذير، أحمر = فشلت.' }}</p>
+        </div>
+
+        <div class="svch-as-card">
+          <h4>⚙️ {{ 'Services explained' if is_en else 'شرح الخدمات' }}</h4>
+          <ul class="svch-explain-list">
+            <li>
+              <span class="svch-explain-icon">⏱</span>
+              <div><strong>{{ 'Internal Scheduler' if is_en else 'الجدولة الداخلية' }}</strong>
+              <small>{{ 'Runs all scheduled tasks — if offline, nothing runs.' if is_en else 'يُشغّل كل المهام المجدولة — إذا توقف، لا شيء يعمل.' }}</small></div>
+            </li>
+            <li>
+              <span class="svch-explain-icon">🔄</span>
+              <div><strong>{{ 'Auto Sync' if is_en else 'المزامنة التلقائية' }}</strong>
+              <small>{{ 'Pulls live data from inverters every few minutes.' if is_en else 'تجلب البيانات من الأجهزة كل دقائق.' }}</small></div>
+            </li>
+            <li>
+              <span class="svch-explain-icon">🔔</span>
+              <div><strong>{{ 'Advanced Notifications' if is_en else 'الإشعارات المتقدمة' }}</strong>
+              <small>{{ 'Checks alert rules and sends Telegram/SMS.' if is_en else 'تفحص قواعد التنبيه وترسل تيليجرام والرسائل النصية.' }}</small></div>
+            </li>
+            <li>
+              <span class="svch-explain-icon">🌤</span>
+              <div><strong>{{ 'Weather Check' if is_en else 'فحص الطقس' }}</strong>
+              <small>{{ 'Monitors weather changes and sends forecasts.' if is_en else 'تراقب تغيرات الطقس وترسل التوقعات.' }}</small></div>
+            </li>
+            <li>
+              <span class="svch-explain-icon">💾</span>
+              <div><strong>{{ 'Database Backup' if is_en else 'النسخ الاحتياطي' }}</strong>
+              <small>{{ 'Creates a compressed backup of the database daily.' if is_en else 'تنشئ نسخة مضغوطة من قاعدة البيانات يومياً.' }}</small></div>
+            </li>
+            <li>
+              <span class="svch-explain-icon">☁</span>
+              <div><strong>{{ 'Drive Upload' if is_en else 'رفع إلى درايف' }}</strong>
+              <small>{{ 'Uploads backups to Google Drive for safe-keeping.' if is_en else 'ترفع النسخ إلى جوجل درايف للحفاظ عليها.' }}</small></div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="svch-as-card">
+          <h4>🚦 {{ 'Status legend' if is_en else 'دليل الحالات' }}</h4>
+          <ul class="svch-legend-list">
+            <li><span class="svch-leg-dot ok"></span> {{ 'OK / Completed — working normally' if is_en else 'سليم / مكتمل — يعمل بشكل طبيعي' }}</li>
+            <li><span class="svch-leg-dot warn"></span> {{ 'Warning — late or minor issue' if is_en else 'تحذير — متأخر أو مشكلة بسيطة' }}</li>
+            <li><span class="svch-leg-dot fail"></span> {{ 'Failed — needs immediate check' if is_en else 'فشل — يحتاج مراجعة فورية' }}</li>
+            <li><span class="svch-leg-dot none"></span> {{ 'No heartbeat yet — never ran' if is_en else 'لا توجد نبضة بعد — لم تعمل بعد' }}</li>
+          </ul>
+        </div>
+
+        <div class="svch-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <p>{{ 'If a service shows red, check the server logs or restart the scheduler from the admin panel.' if is_en else 'إذا ظهرت خدمة باللون الأحمر، راجع سجلات الخادم أو أعد تشغيل الجدول من لوحة الإدارة.' }}</p>
+          <p>{{ 'Heartbeats older than 2 hours usually mean the scheduler is down.' if is_en else 'النبضات الأقدم من ساعتين تعني عادةً أن الجدول متوقف.' }}</p>
+        </div>
+
+      </aside>
+
+      {# ── Main content ── #}
+      <div class="svch-main">
+
+        <section class="svch-core-grid">
+          {% for svc in service_cards %}
+            {% set hb = svc.heartbeat if svc.heartbeat is defined else None %}
+            {% set status = svc.status if svc.status is defined else (hb.status if hb else 'warning') %}
+            <article class="svch-core-card svch-status-{{ status }}">
+              <header class="svch-core-head">
+                <span class="svch-core-icon">
+                  {% if svc.key == 'scheduler' %}⏱
+                  {% elif svc.key == 'deye_auto_sync' %}🔄
+                  {% elif 'notification' in svc.key %}🔔
+                  {% elif 'weather' in svc.key %}🌤
+                  {% elif 'backup_drive' in svc.key %}☁
+                  {% elif 'backup' in svc.key %}💾
+                  {% else %}⚙{% endif %}
+                </span>
+                <div class="svch-core-title">
+                  <h3>{{ service_display_name(svc.key, ui_lang) }}</h3>
+                  <small>{{ ui_label(status, 'status', ui_lang) }}</small>
+                </div>
+                <span class="svch-status-dot"></span>
+              </header>
+              <p class="svch-core-msg">
+                {% if hb %}{{ service_message(hb.message, ui_lang) }}
+                {% else %}{{ 'Waiting for heartbeat...' if is_en else 'بانتظار النبضة...' }}{% endif %}
+              </p>
+              <footer class="svch-core-foot">
+                <span>{{ 'Last seen' if is_en else 'آخر ظهور' }}</span>
+                <strong>{% if hb and hb.last_seen_at %}{{ format_local(hb.last_seen_at) }}{% else %}—{% endif %}</strong>
+              </footer>
+            </article>
+          {% endfor %}
+        </section>
+
+        <section class="svch-table-block">
+          <header class="svch-block-head">
+            <div>
+              <small class="svch-block-eyebrow">{{ 'Telemetry' if is_en else 'القياسات' }}</small>
+              <h2>{{ 'Heartbeat log' if is_en else 'سجل النبضات' }}</h2>
+            </div>
+          </header>
+          <div class="svch-table-wrap">
+            <table class="svch-table" data-paginate data-page-size="20">
+              <thead>
+                <tr>
+                  <th>{{ 'Service' if is_en else 'الخدمة' }}</th>
+                  <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+                  <th>{{ 'Last seen' if is_en else 'آخر ظهور' }}</th>
+                  <th>{{ 'Message' if is_en else 'الرسالة' }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in heartbeat_rows|default([]) %}
+                  {% set row = item.row %}
+                  <tr>
+                    <td>
+                      <strong>{{ item.label }}</strong>
+                      <small>{{ item.source_label }}</small>
+                    </td>
+                    <td><span class="svch-pill svch-pill-{{ row.status }}">{{ ui_label(row.status, 'status', ui_lang) }}</span></td>
+                    <td><time>{{ format_local(row.last_seen_at) if row.last_seen_at else '—' }}</time></td>
+                    <td class="svch-msg-cell">{{ service_message(item.message, ui_lang) }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="4" class="svch-empty">{{ 'No heartbeats yet.' if is_en else 'لا توجد نبضات بعد.' }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
-          <p class="v9-scroll-text">{% if hb %}{{ service_message(hb.message, ui_lang) }}{% else %}{{ 'Waiting for first heartbeat.' if is_en else 'بانتظار أول نبضة.' }}{% endif %}</p>
-          <footer>{{ 'Last seen' if is_en else 'آخر نبضة' }}: {% if hb and hb.last_seen_at %}{{ format_local(hb.last_seen_at) }}{% else %}—{% endif %}</footer>
-        </article>
-      {% endfor %}
-    </section>
+        </section>
 
-    <section class="admin-card-v2 v9-fixed-card tall">
-      <div class="section-heading-inline"><div><small>{{ 'Raw heartbeats' if is_en else 'النبضات الخام' }}</small><h3>{{ 'Service heartbeat log' if is_en else 'سجل نبضات الخدمات' }}</h3></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('platform.admin_backups', lang=ui_lang) }}">💾 {{ 'Backups' if is_en else 'النسخ الاحتياطي' }}</a></div>
-      <div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Service' if is_en else 'الخدمة' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر نبضة' }}</th><th>{{ 'Message' if is_en else 'الرسالة' }}</th></tr></thead><tbody>{% for item in heartbeat_rows|default([]) %}{% set row = item.row %}<tr><td><strong>{{ item.label }}</strong><div class="table-sub">{{ row.source }}</div></td><td><span class="status-pill {% if row.status in ['ok','success'] %}success{% elif row.status == 'warning' %}warning{% else %}danger{% endif %}">{{ ui_label(row.status, 'status', ui_lang) }}</span></td><td>{{ format_local(row.last_seen_at) if row.last_seen_at else '-' }}</td><td>{{ item.message }}</td></tr>{% else %}<tr><td colspan="4">{{ 'No service heartbeats yet.' if is_en else 'لا توجد نبضات بعد.' }}</td></tr>{% endfor %}</tbody></table></div>
-    </section>
+      </div>{# /svch-main #}
+    </div>{# /svch-shell #}
+
   </main>
 </div>
 {% endblock %}

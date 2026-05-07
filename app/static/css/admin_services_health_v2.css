@@ -1,0 +1,596 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Admin Services Health — v211 (2026-05-05)
+   Pulse-banner + 6 core service cards + heartbeat log table.
+   ═══════════════════════════════════════════════════════════════════════ */
+.svch-page {
+  --svch-radius: 16px;
+  --svch-border: #e5e7eb;
+  --svch-text: #0f172a;
+  --svch-muted: #6b7280;
+  --svch-card: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ── Overall pulse banner ─────────────────────────────────────────── */
+.svch-pulse-banner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 24px;
+  border-radius: var(--svch-radius);
+  background: var(--svch-card);
+  border: 1px solid var(--svch-border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+  position: relative;
+  overflow: hidden;
+}
+.svch-pulse-banner::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+.svch-pulse-ok::before      { background: #10b981; }
+.svch-pulse-warning::before { background: #f59e0b; }
+.svch-pulse-failed::before  { background: #ef4444; }
+
+.svch-pulse-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.svch-pulse-ok .svch-pulse-icon      { background: #d1fae5; }
+.svch-pulse-warning .svch-pulse-icon { background: #fef3c7; }
+.svch-pulse-failed .svch-pulse-icon  { background: #fee2e2; }
+.svch-pulse-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  position: relative;
+}
+.svch-pulse-ok .svch-pulse-dot      { background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,.7); animation: svchPulseGreen 2s infinite; }
+.svch-pulse-warning .svch-pulse-dot { background: #f59e0b; box-shadow: 0 0 0 0 rgba(245,158,11,.7); animation: svchPulseAmber 2s infinite; }
+.svch-pulse-failed .svch-pulse-dot  { background: #ef4444; box-shadow: 0 0 0 0 rgba(239,68,68,.7); animation: svchPulseRed 1.4s infinite; }
+@keyframes svchPulseGreen { 0%{box-shadow:0 0 0 0 rgba(16,185,129,.7);} 70%{box-shadow:0 0 0 14px rgba(16,185,129,0);} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0);} }
+@keyframes svchPulseAmber { 0%{box-shadow:0 0 0 0 rgba(245,158,11,.7);} 70%{box-shadow:0 0 0 14px rgba(245,158,11,0);} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0);} }
+@keyframes svchPulseRed   { 0%{box-shadow:0 0 0 0 rgba(239,68,68,.7);} 70%{box-shadow:0 0 0 14px rgba(239,68,68,0);} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0);} }
+
+.svch-pulse-text strong {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--svch-text);
+}
+.svch-pulse-text small {
+  display: block;
+  font-size: .82rem;
+  color: var(--svch-muted);
+  margin-top: 4px;
+}
+.svch-pulse-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.svch-pulse-meta > div {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid var(--svch-border);
+}
+.svch-pulse-meta small {
+  font-size: .68rem;
+  color: var(--svch-muted);
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.svch-pulse-meta strong {
+  display: block;
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--svch-text);
+  margin-top: 2px;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+@media (max-width: 880px) {
+  .svch-pulse-banner { grid-template-columns: 1fr; gap: 12px; }
+  .svch-pulse-meta { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Core services grid ───────────────────────────────────────────── */
+.svch-core-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+.svch-core-card {
+  background: var(--svch-card);
+  border: 1px solid var(--svch-border);
+  border-radius: var(--svch-radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+  border-inline-start: 5px solid #cbd5e1;
+}
+.svch-core-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -10px rgba(15,23,42,.18);
+}
+.svch-core-card.svch-status-ok      { border-inline-start-color: #10b981; }
+.svch-core-card.svch-status-warning { border-inline-start-color: #f59e0b; }
+.svch-core-card.svch-status-failed,
+.svch-core-card.svch-status-error   { border-inline-start-color: #ef4444; }
+
+.svch-core-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.svch-core-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  flex-shrink: 0;
+}
+.svch-core-title { flex: 1; min-width: 0; }
+.svch-core-title h3 {
+  margin: 0;
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--svch-text);
+}
+.svch-core-title small { font-size: .72rem; color: var(--svch-muted); font-weight: 700; }
+
+.svch-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  flex-shrink: 0;
+}
+.svch-status-ok .svch-status-dot      { background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+.svch-status-warning .svch-status-dot { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.18); }
+.svch-status-failed .svch-status-dot,
+.svch-status-error .svch-status-dot   { background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
+
+.svch-core-msg {
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.55;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.svch-core-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: .76rem;
+  color: var(--svch-muted);
+  font-weight: 700;
+  padding-top: 8px;
+  border-top: 1px dashed var(--svch-border);
+}
+.svch-core-foot strong { color: var(--svch-text); font-family: 'SF Mono', Menlo, monospace; }
+
+.svch-core-jobs summary {
+  font-size: .76rem;
+  font-weight: 700;
+  color: #4338ca;
+  cursor: pointer;
+  list-style: none;
+}
+.svch-core-jobs summary::before { content: '▸ '; transition: transform .15s; display: inline-block; }
+.svch-core-jobs[open] summary::before { transform: rotate(90deg); }
+.svch-core-jobs ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.svch-core-jobs li {
+  font-size: .72rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+.svch-core-jobs li.more { color: var(--svch-muted); font-style: italic; }
+.svch-core-jobs li code { font-family: 'SF Mono', Menlo, monospace; color: var(--svch-text); }
+.svch-core-jobs li small { color: var(--svch-muted); }
+
+/* ── Heartbeat log table ──────────────────────────────────────────── */
+.svch-table-block {
+  background: var(--svch-card);
+  border: 1px solid var(--svch-border);
+  border-radius: var(--svch-radius);
+  padding: 18px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04);
+}
+.svch-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+.svch-block-eyebrow {
+  font-size: .72rem;
+  color: var(--svch-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.svch-block-head h2 {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--svch-text);
+}
+.svch-block-meta {
+  font-size: .78rem;
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: var(--svch-muted);
+  font-weight: 700;
+}
+
+.svch-table-wrap {
+  border: 1px solid var(--svch-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.svch-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.svch-table thead th {
+  background: #f9fafb;
+  padding: 11px 14px;
+  text-align: start;
+  font-size: .76rem;
+  font-weight: 800;
+  color: var(--svch-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--svch-border);
+}
+.svch-table tbody td {
+  padding: 12px 14px;
+  font-size: .85rem;
+  border-bottom: 1px solid var(--svch-border);
+  vertical-align: middle;
+  color: var(--svch-text);
+}
+.svch-table tbody tr:last-child td { border-bottom: 0; }
+.svch-table tbody tr:hover { background: #f9fafb; }
+.svch-table strong { display: block; color: var(--svch-text); font-weight: 700; }
+.svch-table small { display: block; color: var(--svch-muted); font-size: .72rem; margin-top: 2px; font-family: 'SF Mono', Menlo, monospace; }
+.svch-table time { font-size: .8rem; font-family: 'SF Mono', Menlo, monospace; color: var(--svch-muted); }
+.svch-table .svch-msg-cell { color: #475569; max-width: 380px; }
+.svch-table .svch-empty { text-align: center; padding: 24px; color: var(--svch-muted); }
+
+.svch-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.svch-pill-ok, .svch-pill-success, .svch-pill-running { background: #d1fae5; color: #065f46; }
+.svch-pill-warning  { background: #fef3c7; color: #92400e; }
+.svch-pill-failed,
+.svch-pill-error    { background: #fee2e2; color: #991b1b; }
+.svch-pill          { background: #f1f5f9; color: #475569; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v212 — readability & layout overhaul (20260506)
+   1. 3 cols max (was 4) — cards wider & readable
+   2. Stronger type hierarchy on cards
+   3. Pulse banner dates more legible
+   4. Failed/warning cards get background tint
+   5. Table: zebra + bolder service names
+═══════════════════════════════════════════════════════════════════ */
+
+/* 1 — 3 columns max */
+.svch-core-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 18px !important;
+}
+
+/* 2 — Stronger card hierarchy */
+.svch-core-card {
+  padding: 20px 22px !important;
+  gap: 14px !important;
+}
+/* Tint background for failed/warning */
+.svch-core-card.svch-status-failed,
+.svch-core-card.svch-status-error   { background: #fff5f5 !important; border-color: #fecaca !important; }
+.svch-core-card.svch-status-warning { background: #fffbeb !important; border-color: #fde68a !important; }
+.svch-core-card.svch-status-ok      { background: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+
+/* Bigger service name */
+.svch-core-title h3 { font-size: 1.05rem !important; font-weight: 900 !important; }
+
+/* Status label as pill instead of tiny text */
+.svch-core-title small {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 4px !important;
+  font-size: .75rem !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+.svch-status-ok .svch-core-title small      { background: #d1fae5 !important; color: #065f46 !important; }
+.svch-status-warning .svch-core-title small { background: #fef3c7 !important; color: #92400e !important; }
+.svch-status-failed .svch-core-title small,
+.svch-status-error  .svch-core-title small  { background: #fee2e2 !important; color: #991b1b !important; }
+
+/* Icon slightly bigger */
+.svch-core-icon {
+  width: 44px !important; height: 44px !important;
+  font-size: 1.35rem !important;
+  border-radius: 13px !important;
+}
+
+/* Message text — more readable */
+.svch-core-msg {
+  font-size: .88rem !important;
+  line-height: 1.65 !important;
+  color: #374151 !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+/* Footer — date bigger, no mono cramp */
+.svch-core-foot {
+  font-size: .82rem !important;
+  padding-top: 12px !important;
+}
+.svch-core-foot strong {
+  font-size: .85rem !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+}
+
+/* 3 — Pulse banner dates more legible */
+.svch-pulse-meta strong {
+  font-size: .92rem !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+.svch-pulse-meta small {
+  font-size: .72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+}
+.svch-pulse-meta > div {
+  padding: 10px 18px !important;
+  min-width: 160px !important;
+}
+.svch-pulse-text strong { font-size: 1.15rem !important; }
+.svch-pulse-text small  { font-size: .86rem !important; }
+
+/* 4 — Table: zebra, bolder names, bigger dates */
+.svch-table tbody tr:nth-child(odd) td  { background: #ffffff; }
+.svch-table tbody tr:nth-child(even) td { background: #f9fafb; }
+.svch-table tbody tr:hover td { background: #eef2ff !important; }
+
+.svch-table strong {
+  font-size: .92rem !important;
+  font-weight: 800 !important;
+}
+.svch-table time {
+  font-size: .84rem !important;
+  font-family: inherit !important;
+  color: #374151 !important;
+  font-weight: 700 !important;
+}
+.svch-table .svch-msg-cell {
+  font-size: .88rem !important;
+  color: #374151 !important;
+}
+.svch-table thead th {
+  font-size: .78rem !important;
+  padding: 13px 16px !important;
+  background: #f1f5f9 !important;
+}
+.svch-table tbody td { padding: 14px 16px !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v213 — Sidebar layout (svch-shell / svch-aside / svch-main)
+   Added: 2026-05-06
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Shell: two-column grid — aside (260px) + main (1fr) */
+.svch-shell {
+  display: grid;
+  grid-template-columns: 325px 1fr;
+  gap: 22px;
+  align-items: start;
+  margin-top: 22px;
+}
+
+/* RTL: visually aside on the left, main on the right */
+[dir="rtl"] .svch-shell { direction: ltr; }
+[dir="rtl"] .svch-shell > * { direction: rtl; }
+
+/* Aside stacks vertically */
+.svch-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 80px;
+}
+
+/* Aside cards */
+.svch-as-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+
+.svch-as-card h4 {
+  font-size: .82rem;
+  font-weight: 800;
+  color: #374151;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Explainer card — soft blue tint */
+.svch-as-card.explainer {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.svch-as-card.explainer p {
+  font-size: .81rem;
+  color: #1e40af;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Tips card — soft amber tint */
+.svch-as-card.tips {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.svch-as-card.tips ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.svch-as-card.tips li {
+  font-size: .80rem;
+  color: #92400e;
+  line-height: 1.5;
+  padding-inline-start: 4px;
+}
+
+/* Services explain list */
+.svch-explain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.svch-explain-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: .80rem;
+  color: #374151;
+  line-height: 1.55;
+}
+.svch-explain-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.svch-explain-list strong {
+  font-weight: 800;
+  color: #1e293b;
+  display: block;
+  font-size: .80rem;
+}
+
+/* Status legend */
+.svch-legend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.svch-legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .81rem;
+  color: #374151;
+}
+.svch-leg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.svch-leg-dot.ok   { background: #22c55e; }
+.svch-leg-dot.warn { background: #f59e0b; }
+.svch-leg-dot.fail { background: #ef4444; }
+.svch-leg-dot.none { background: #d1d5db; border: 1px solid #9ca3af; }
+
+/* Main area */
+.svch-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* Responsive: collapse aside below 900px */
+@media (max-width: 900px) {
+  .svch-shell {
+    grid-template-columns: 1fr;
+  }
+  .svch-aside {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .svch-as-card {
+    flex: 1 1 200px;
+  }
+}
+
+/* Tips card: p tags (template uses <p> not <li>) */
+.svch-as-card.tips p {
+  font-size: .80rem;
+  color: #92400e;
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
+.svch-as-card.tips p:last-child { margin-bottom: 0; }

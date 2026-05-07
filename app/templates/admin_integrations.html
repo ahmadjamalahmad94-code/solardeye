@@ -1,95 +1,296 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Energy Integrations' if is_en else 'تكاملات الطاقة' }}{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2 integrations-v90">
-<header class="admin-page-head integrations-hero-v90">
-  <div>
-    <span class="eyebrow">{{ 'Heavy v9.0' if is_en else 'Heavy v9.0' }}</span>
-    <h1>{{ 'Global Energy Integrations Hub' if is_en else 'مركز تكاملات الطاقة العالمي' }}</h1>
-    <p>{{ 'Official-provider blueprints for solar, battery, inverter, smart load, and fleet monitoring integrations.' if is_en else 'مخططات مزودين رسمية للطاقة الشمسية، البطاريات، الانفيرترات، الأحمال الذكية، ومراقبة الأساطيل.' }}</p>
-  </div>
-  <div class="admin-head-actions">
-    <a class="btn btn-outline-primary" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">🔌 {{ 'Devices' if is_en else 'الأجهزة' }}</a>
-    <a class="btn btn-outline-success" href="{{ url_for('admin_ops.admin_services_health_v9', lang=ui_lang) }}">❤️ {{ 'Health' if is_en else 'الصحة' }}</a>
-  </div>
-</header>
+{% block title %}{{ 'Integrations Hub' if is_en else 'مركز التكاملات' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_integrations_v2.css', v='v213-integrations-logo-20260506') }}">
+{% endblock %}
+{% block body %}
+{% set _registered_codes = rows|map(attribute='code')|list %}
+{% set _connected = devices|length %}
 
-<section class="integration-kpi-grid-v90">
-  <article><small>{{ 'Official blueprints' if is_en else 'مخططات رسمية' }}</small><strong>{{ providers|length }}</strong><span>{{ 'Ready to seed' if is_en else 'جاهزة للإضافة' }}</span></article>
-  <article class="success"><small>{{ 'Registered types' if is_en else 'أنواع مسجلة' }}</small><strong>{{ rows|length }}</strong><span>{{ 'In your catalog' if is_en else 'داخل الكتالوج' }}</span></article>
-  <article class="warning"><small>{{ 'Configured devices' if is_en else 'أجهزة مهيأة' }}</small><strong>{{ devices|length }}</strong><span>{{ 'Latest 200 devices' if is_en else 'آخر 200 جهاز' }}</span></article>
-</section>
+{% set _help_ar = {
+  'config':                   'مفتاح API ثابت — رقم سري تصدره الشركة. المدير: لوحة التحكم > API Keys > انسخ المفتاح. المشترك: من حسابه في تطبيق الشركة.',
+  'api_token':                'مفتاح API ثابت — رقم سري تصدره الشركة. المدير: لوحة التحكم > API Keys > انسخ المفتاح. المشترك: من حسابه في تطبيق الشركة.',
+  'oauth2':                   'تسجيل دخول رسمي عبر الشركة — تصريح يتجدد تلقائياً. المدير: يضبط Client ID + Secret من بوابة المطورين. المشترك: يضغط اتصال وتفتح صفحة الشركة.',
+  'oauth2_api_key':           'يجمع OAuth2 مع مفتاح API. المدير: يضبط البيانات من بوابة المطورين. المشترك: يحتاج حساباً مفعلاً مع الشركة.',
+  'long_lived_access_token':  'Token طويل الأمد من إعدادات الحساب. المدير والمشترك: الإعدادات > الأمان > أنشئ Token > انسخه.',
+  'hmac_api_key':             'توقيع مشفر يتحقق من هوية كل طلب. المدير: يحصل على API Key + Secret من بوابة الشركة.',
+  'local_http':               'اتصال مباشر بالجهاز في الشبكة المحلية — لا يحتاج إنترنت. المدير: تأكد أن الجهاز والسيرفر في نفس الشبكة واضبط IP الجهاز.',
+  'local_http_optional_auth': 'اتصال مباشر بالجهاز في الشبكة المحلية — لا يحتاج إنترنت. المدير: تأكد أن الجهاز والسيرفر في نفس الشبكة واضبط IP الجهاز.',
+  'local_rpc_digest_optional':'اتصال RPC مباشر بالجهاز محلياً. المدير: يحتاج IP المحلي للجهاز وبيانات دخول اختيارية.',
+  'local_modbus_tcp':         'بروتوكول صناعي محلي عبر TCP. المدير: يفعل Modbus في الجهاز ويضبط IP المحلي ورقم المنفذ.',
+  'cloud_api':                'واجهة سحابية رسمية. المدير: يسجل في بوابة المطورين. المشترك: يربط حسابه عبر بيانات الشركة.',
+  'cloud_or_local_ecu':       'يدعم السحابة أو الاتصال المباشر بوحدة ECU. المدير: يختار الطريقة حسب البنية التحتية.',
+  'mqtt_broker':              'رسائل لحظية عبر وسيط MQTT. المدير: يحتاج سيرفر MQTT وبيانات الدخول.',
+  'organization_api':         'مفتاح على مستوى المنظمة. المدير فقط: يصدر من إعدادات المنظمة في لوحة الشركة.',
+  'apsystems_ema':            'واجهة EMA لأنظمة APsystems. المدير: يحصل على بيانات من حساب EMA الخاص بالمنظمة.'
+} %}
+{% set _help_en = {
+  'config':                   'Static API key issued by the vendor. Admin: Dashboard > API Keys > copy and paste. User: Gets it from their account on the vendor app.',
+  'api_token':                'Static API key issued by the vendor. Admin: Dashboard > API Keys > copy and paste. User: Gets it from their account on the vendor app.',
+  'oauth2':                   'Official OAuth2 login — auto-refreshing token. Admin: Set Client ID + Secret from developer portal. User: Clicks Connect and logs in on the vendor page.',
+  'oauth2_api_key':           'Combines OAuth2 with an API key. Admin: Configure from developer portal. User: Needs an active vendor account.',
+  'long_lived_access_token':  'Long-lived token from account settings. Admin and User: Settings > Security > Create token > copy it.',
+  'hmac_api_key':             'Cryptographic signature per request. Admin: Get API Key + Secret from vendor portal.',
+  'local_http':               'Direct connection to device on local network — no internet needed. Admin: Ensure device and server share the same network, set device IP.',
+  'local_http_optional_auth': 'Direct connection to device on local network — no internet needed. Admin: Ensure device and server share the same network, set device IP.',
+  'local_rpc_digest_optional':'Direct local RPC connection. Admin: Needs local device IP and optional credentials.',
+  'local_modbus_tcp':         'Industrial local protocol over TCP. Admin: Enable Modbus on device, set local IP and port.',
+  'cloud_api':                'Official cloud API. Admin: Register on developer portal. User: Links account via vendor credentials.',
+  'cloud_or_local_ecu':       'Supports cloud or direct ECU connection. Admin: Choose method based on infrastructure.',
+  'mqtt_broker':              'Real-time messaging via MQTT broker. Admin: Needs MQTT server and credentials.',
+  'organization_api':         'Organization-level key. Admin only: Issued from Organization settings in vendor dashboard.',
+  'apsystems_ema':            'EMA API for APsystems. Admin: Get credentials from the EMA organization account.'
+} %}
+{% set _auth_labels_ar = {
+  'config':                   'إعداد يدوي',
+  'oauth2':                   'OAuth2',
+  'api_token':                'مفتاح API',
+  'local_http':               'HTTP محلي',
+  'local_http_optional_auth': 'HTTP محلي',
+  'long_lived_access_token':  'Token دائم',
+  'hmac_api_key':             'HMAC',
+  'organization_api':         'API منظمة',
+  'local_rpc_digest_optional':'RPC محلي',
+  'local_modbus_tcp':         'Modbus TCP',
+  'cloud_api':                'واجهة سحابية',
+  'cloud_or_local_ecu':       'سحابة / محلي',
+  'mqtt_broker':              'MQTT',
+  'apsystems_ema':            'EMA API',
+  'local_http_kostal':        'HTTP محلي'
+} %}
+{% set _auth_labels_en = {
+  'config':                   'Manual config',
+  'oauth2':                   'OAuth2',
+  'api_token':                'API key',
+  'local_http':               'Local HTTP',
+  'local_http_optional_auth': 'Local HTTP',
+  'long_lived_access_token':  'Long-lived token',
+  'hmac_api_key':             'HMAC key',
+  'organization_api':         'Org API',
+  'local_rpc_digest_optional':'Local RPC',
+  'local_modbus_tcp':         'Modbus TCP',
+  'cloud_api':                'Cloud API',
+  'cloud_or_local_ecu':       'Cloud / Local',
+  'mqtt_broker':              'MQTT',
+  'apsystems_ema':            'EMA API',
+  'local_http_kostal':        'Local HTTP'
+} %}
 
-<section class="admin-card-v2 integration-provider-panel-v90">
-  <div class="section-heading-inline">
-    <div><small>{{ 'Provider library' if is_en else 'مكتبة المزودين' }}</small><h3>{{ 'Add supported energy platforms without exposing secrets' if is_en else 'أضف منصات الطاقة المدعومة بدون كشف الأسرار' }}</h3></div>
-    <input class="form-control integration-search-v90" id="integrationProviderSearchV90" placeholder="{{ 'Search providers...' if is_en else 'ابحث عن مزود...' }}">
-  </div>
-  <div class="provider-grid-v90">
-  {% for p in providers %}
-    <article class="provider-card-v90" data-provider-card-v90 data-search="{{ (p.name ~ ' ' ~ p.provider ~ ' ' ~ p.code ~ ' ' ~ p.category)|lower }}">
-      <div class="provider-top-v90">
-        <span class="provider-logo-v90">{{ p.name[:1] }}</span>
-        <div><strong>{{ p.name }}</strong><small>{{ p.code }} • {{ p.auth_mode }}</small></div>
+{% set _logo_domains = {
+  'deye':                'deyecloud.com',
+  'solaredge':           'solaredge.com',
+  'enphase':             'enphaseenergy.com',
+  'victron_vrm':         'victronenergy.com',
+  'fronius_local':       'fronius.com',
+  'tesla_energy':        'tesla.com',
+  'sma':                 'sma.de',
+  'solarman':            'solarmanpv.com',
+  'huawei_fusionsolar':  'solar.huawei.com',
+  'sungrow_isolarcloud': 'sungrowpower.com',
+  'goodwe_sems':         'goodwe.com',
+  'growatt_v1':          'growatt.com',
+  'shelly_gen2':         'shelly.cloud',
+  'solcast':             'solcast.com',
+  'tuya_iot':            'tuya.com',
+  'octopus_energy':      'octopus.energy',
+  'sonnen_local':        'sonnen.com',
+  'pvoutput':            'pvoutput.org',
+  'home_assistant_energy':'home-assistant.io',
+  'opendtu_local':       'github.com',
+  'soliscloud_v2':       'soliscloud.com',
+  'kostal_plenticore_local':'kostal-solar-electric.com',
+  'modbus_tcp_energy':   'modbus.org',
+  'mqtt_energy_gateway': 'mqtt.org',
+  'apsystems_ema':       'apsystems.com',
+  'tigo_energy_intelligenc':'tigoenergy.com'
+} %}
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area integ-page" data-integ-page>
+
+    <header class="hu-hero integ-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Integrations Hub' if is_en else 'مركز التكاملات' }}</span>
+          <h1 class="hu-h1">{{ 'Connect any provider' if is_en else 'اربط أي مزوّد' }}</h1>
+          <p class="hu-tagline">{{ 'Official blueprints — enable in one click, test instantly.' if is_en else 'قوالب رسمية جاهزة — فعّل بنقرة واحدة واختبر فوراً.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ providers|length }}</b> {{ 'providers' if is_en else 'مزود متاح' }}</span>
+            <span class="hu-meta-pill ok"><b>{{ rows|length }}</b> {{ 'enabled' if is_en else 'مفعّل' }}</span>
+            <span class="hu-meta-pill"><b>{{ _connected }}</b> {{ 'devices' if is_en else 'جهاز مربوط' }}</span>
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('openapi_api.api_docs', lang=ui_lang) }}">{{ 'Mobile API' if is_en else 'وثائق API' }}</a>
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">{{ 'Devices' if is_en else 'الأجهزة' }}</a>
+        </div>
       </div>
-      <p>{{ p.notes_en if is_en else p.notes_ar }}</p>
-      <div class="provider-meta-v90"><span>{{ category_label(p.category, ui_lang) }}</span><span>{{ 'Ready' if is_en and p.status == 'ready' else ('جاهز' if p.status == 'ready' else p.status) }}</span></div>
-      <details class="provider-fields-v90"><summary>{{ 'Required fields' if is_en else 'الحقول المطلوبة' }}</summary><code>{{ p.required_fields|join(', ') }}</code></details>
-      <div class="provider-actions-v90">
-        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="seed_provider"><input type="hidden" name="provider_code" value="{{ p.code }}"><button class="btn btn-solar btn-sm">＋ {{ 'Add / Refresh' if is_en else 'إضافة / تحديث' }}</button></form>
-        {% if p.docs_url %}<a class="btn btn-outline-primary btn-sm" href="{{ p.docs_url }}" target="_blank" rel="noopener">{{ 'Official docs' if is_en else 'الوثائق الرسمية' }}</a>{% endif %}
+    </header>
+
+    <section class="integ-toolbar">
+      <div class="integ-cat-row" data-integ-cats>
+        <button type="button" class="integ-cat-chip is-active" data-cat="all">{{ 'All' if is_en else 'الكل' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="solar">☀️ {{ 'Solar' if is_en else 'شمسي' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="battery">🔋 {{ 'Battery' if is_en else 'بطارية' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="inverter">⚡ {{ 'Inverter' if is_en else 'إنفرتر' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="smart_load">🏠 {{ 'Smart loads' if is_en else 'أحمال ذكية' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="fleet">🗂️ {{ 'Fleet' if is_en else 'أسطول' }}</button>
+        <button type="button" class="integ-cat-chip" data-cat="iot">📡 {{ 'IoT' if is_en else 'إنترنت الأشياء' }}</button>
       </div>
-    </article>
-  {% endfor %}
-  </div>
-</section>
+      <div class="integ-toolbar-right">
+        <div class="integ-search">
+          <input id="integSearch" type="search" placeholder="{{ 'Search provider...' if is_en else 'ابحث عن مزود...' }}">
+        </div>
+        <label class="integ-toggle">
+          <input type="checkbox" id="integShowHidden">
+          <span class="integ-toggle-track"><span class="integ-toggle-thumb"></span></span>
+          <span class="integ-toggle-label">{{ 'Show hidden' if is_en else 'إظهار المخفية' }}</span>
+        </label>
+      </div>
+    </section>
 
-<section class="admin-layout-v2 integrations-two-col-v90">
-  <div class="admin-card-v2">
-    <div class="section-heading-inline"><div><small>{{ 'Registered catalog' if is_en else 'الكتالوج المسجل' }}</small><h3>{{ 'Device provider types' if is_en else 'أنواع مزودي الأجهزة' }}</h3></div></div>
-    <div class="table-shell-v2 fixed-scroll-v90"><table class="admin-table-v2 compact-table-v90"><thead><tr><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Auth' if is_en else 'المصادقة' }}</th><th>{{ 'Endpoint' if is_en else 'المسار' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th></tr></thead><tbody>
-      {% for row in rows %}
-      <tr><td><strong>{{ row.name }}</strong><div class="table-sub">{{ row.code }} • {{ row.provider }}</div></td><td>{{ row.auth_mode }}</td><td><code>{{ row.sync_endpoint or row.healthcheck_endpoint or '—' }}</code></td><td><span class="ui-badge-v70 {{ 'is-success' if row.is_active else 'is-danger' }}">{{ 'Active' if is_en and row.is_active else ('Inactive' if is_en else ('مفعل' if row.is_active else 'غير مفعل')) }}</span></td></tr>
-      {% else %}<tr><td colspan="4" class="empty-box-v2">{{ 'No integrations registered yet.' if is_en else 'لا توجد تكاملات مسجلة بعد.' }}</td></tr>{% endfor %}
-    </tbody></table></div>
-  </div>
-  <div class="admin-card-v2">
-    <small>{{ 'Manual custom adapter' if is_en else 'محوّل مخصص يدوي' }}</small><h3>{{ 'Create a custom provider' if is_en else 'إنشاء مزود مخصص' }}</h3>
-    <form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_custom">
-      <div><label>{{ 'Code' if is_en else 'الكود' }}</label><input name="code" class="form-control" required></div>
-      <div><label>{{ 'Name' if is_en else 'الاسم' }}</label><input name="name" class="form-control" required></div>
-      <div><label>{{ 'Provider' if is_en else 'المزوّد' }}</label><input name="provider" class="form-control"></div>
-      <div><label>{{ 'Auth mode' if is_en else 'نوع المصادقة' }}</label><input name="auth_mode" class="form-control" value="api_key"></div>
-      <div><label>{{ 'Base URL' if is_en else 'الرابط الأساسي' }}</label><input name="base_url" class="form-control"></div>
-      <div><label>{{ 'Healthcheck endpoint' if is_en else 'مسار فحص الصحة' }}</label><input name="healthcheck_endpoint" class="form-control"></div>
-      <div><label>{{ 'Sync endpoint' if is_en else 'مسار المزامنة' }}</label><input name="sync_endpoint" class="form-control"></div>
-      <div><label>{{ 'Required fields' if is_en else 'الحقول المطلوبة' }}</label><input name="required_fields" class="form-control" placeholder="api_key, site_id"></div>
-      <div class="full"><label>{{ 'Mapping schema JSON' if is_en else 'مخطط الربط JSON' }}</label><textarea name="mapping_schema_json" class="form-control code-textarea-v90" rows="5">{"solar_power":"solar_power","battery_soc":"battery_soc"}</textarea></div>
-      <div><label class="d-flex align-items-center gap-2"><input type="checkbox" name="is_active" checked> {{ 'Active' if is_en else 'مفعل' }}</label></div>
-      <div><button class="btn btn-solar mt-2">{{ 'Save custom integration' if is_en else 'حفظ التكامل المخصص' }}</button></div>
-    </form>
-  </div>
-</section>
+    {% set enabled_providers   = providers|selectattr('code', 'in', _registered_codes)|list %}
+    {% set available_providers = providers|rejectattr('code', 'in', _registered_codes)|list %}
 
-<section class="admin-card-v2">
-  <div class="section-heading-inline"><div><small>{{ 'Connection tests' if is_en else 'فحوصات الاتصال' }}</small><h3>{{ 'Test configured devices safely' if is_en else 'افحص الأجهزة المهيأة بأمان' }}</h3></div></div>
-  <div class="device-test-grid-v90">
-    {% for d in devices %}
-    <article class="device-test-row-v90">
-      <div><strong>{{ d.name }}</strong><small>{{ d.api_provider or d.device_type }} • {{ d.connection_status or 'new' }}</small></div>
-      <form method="post" action="{{ url_for('integrations.admin_test_device_integration', device_id=d.id, lang=ui_lang) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary btn-sm">{{ 'Test' if is_en else 'فحص' }}</button></form>
-    </article>
-    {% else %}<div class="empty-box-v2">{{ 'No devices to test yet.' if is_en else 'لا توجد أجهزة للفحص بعد.' }}</div>{% endfor %}
-  </div>
-</section>
-</main></div>
+    {% macro render_cards(plist) %}
+      {% for p in plist %}
+        {% set is_enabled  = p.code in _registered_codes %}
+        {% set req_count   = p.required_fields|length %}
+        {% set auth_label  = (_auth_labels_en if is_en else _auth_labels_ar).get(p.auth_mode, p.auth_mode) %}
+        {% set help_text   = (_help_en if is_en else _help_ar).get(p.auth_mode, '') %}
+        {% set logo_domain = _logo_domains.get(p.code, '') %}
+        <article class="integ-card integ-help-card {% if is_enabled %}is-enabled{% endif %}"
+                 data-cat="{{ p.category }}"
+                 data-code="{{ p.code }}"
+                 data-search="{{ (p.name ~ ' ' ~ p.provider ~ ' ' ~ p.code)|lower }}"
+                 data-help="{{ help_text }}">
+          <header class="integ-card-head">
+            <span class="integ-card-logo" data-logo-domain="{{ logo_domain }}">
+              {% if logo_domain %}
+                <img class="integ-logo-img"
+                     src="https://logo.clearbit.com/{{ logo_domain }}"
+                     alt="{{ p.name }}"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <span class="integ-logo-fallback" style="display:none">{{ p.name[:2]|upper }}</span>
+              {% else %}
+                <span class="integ-logo-fallback">{{ p.name[:2]|upper }}</span>
+              {% endif %}
+            </span>
+            <div class="integ-card-title">
+              <h3>{{ p.name }}</h3>
+              <small><code>{{ p.code }}</code></small>
+            </div>
+            {% if is_enabled %}
+              <span class="integ-pill is-enabled">✓ {{ 'On' if is_en else 'مفعّل' }}</span>
+            {% else %}
+              <span class="integ-pill is-ready">{{ 'Ready' if is_en else 'جاهز' }}</span>
+            {% endif %}
+          </header>
+
+          <p class="integ-card-desc">{{ (p.notes_en if is_en else p.notes_ar) or p.name }}</p>
+
+          <div class="integ-card-meta-row">
+            <span class="integ-tag" data-tag="auth" title="{{ p.auth_mode }}">🔑 {{ auth_label }}</span>
+            <span class="integ-tag" data-tag="cat">{{ category_label(p.category, ui_lang) }}</span>
+            {% if req_count > 0 %}
+              <span class="integ-tag" data-tag="fields" title="{{ p.required_fields|join(', ') }}">
+                ⚙️ {{ req_count }} {{ 'fields' if is_en else 'حقل' }}
+              </span>
+            {% else %}
+              <span class="integ-tag" data-tag="ok">✅ {{ 'No setup' if is_en else 'بدون إعداد' }}</span>
+            {% endif %}
+          </div>
+
+          <footer class="integ-card-actions">
+            <form method="post" class="integ-action-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="seed_provider">
+              <input type="hidden" name="provider_code" value="{{ p.code }}">
+              <button type="submit" class="integ-btn primary">
+                {% if is_enabled %}🔄 {{ 'Refresh' if is_en else 'تحديث' }}{% else %}{{ 'Enable' if is_en else 'تفعيل' }}{% endif %}
+              </button>
+            </form>
+            <button type="button" class="integ-btn ghost integ-toggle-visibility" data-code="{{ p.code }}">👁</button>
+            {% if p.docs_url %}<a class="integ-btn ghost" href="{{ p.docs_url }}" target="_blank">📖</a>{% endif %}
+          </footer>
+        </article>
+      {% endfor %}
+    {% endmacro %}
+
+    {% if enabled_providers %}
+    <div class="integ-section-label" data-section-label="enabled">
+      <span class="integ-section-dot enabled"></span>
+      {{ 'Enabled' if is_en else 'المفعّلة' }}
+      <span class="integ-section-count">{{ enabled_providers|length }}</span>
+    </div>
+    <section class="integ-providers" data-integ-grid>{{ render_cards(enabled_providers) }}</section>
+    {% endif %}
+
+    {% if available_providers %}
+    <div class="integ-section-label" data-section-label="available">
+      <span class="integ-section-dot available"></span>
+      {{ 'Available to enable' if is_en else 'متاحة للتفعيل' }}
+      <span class="integ-section-count">{{ available_providers|length }}</span>
+    </div>
+    <section class="integ-providers" data-integ-grid>{{ render_cards(available_providers) }}</section>
+    {% endif %}
+
+  </main>
+</div>
+
 <script>
 (function(){
- const input=document.getElementById('integrationProviderSearchV90');
- const cards=[...document.querySelectorAll('[data-provider-card-v90]')];
- function apply(){const q=(input&&input.value||'').toLowerCase().trim(); cards.forEach(c=>c.style.display=!q||(c.dataset.search||'').includes(q)?'':'none');}
- input&&input.addEventListener('input',apply);
+  var root = document.querySelector('[data-integ-page]');
+  if (!root) return;
+  var cards      = Array.prototype.slice.call(root.querySelectorAll('.integ-card'));
+  var search     = root.querySelector('#integSearch');
+  var showHidden = root.querySelector('#integShowHidden');
+  var catBtns    = Array.prototype.slice.call(root.querySelectorAll('.integ-cat-chip'));
+  var activeCat  = 'all', query = '', showHiddenFlag = false;
+
+  function readHidden() {
+    var m = (document.cookie.match(/(?:^|; )hidden_providers=([^;]*)/) || [])[1];
+    return m ? decodeURIComponent(m).split(',').filter(Boolean) : [];
+  }
+  function writeHidden(list) {
+    document.cookie = 'hidden_providers=' + encodeURIComponent(list.join(',')) + ';path=/;max-age=31536000;samesite=lax';
+  }
+  function apply() {
+    var hidden = new Set(readHidden());
+    cards.forEach(function(c) {
+      var isHidden   = hidden.has(c.dataset.code);
+      c.classList.toggle('is-hidden', isHidden);
+      var catMatch   = activeCat === 'all' || c.dataset.cat === activeCat;
+      var queryMatch = !query || (c.dataset.search || '').includes(query);
+      var visMatch   = showHiddenFlag || !isHidden;
+      c.style.display = (catMatch && queryMatch && visMatch) ? '' : 'none';
+    });
+    root.querySelectorAll('[data-integ-grid]').forEach(function(grid) {
+      var label = grid.previousElementSibling;
+      var anyVisible = Array.prototype.some.call(grid.querySelectorAll('.integ-card'), function(c){ return c.style.display !== 'none'; });
+      if (label && label.dataset.sectionLabel) label.style.display = anyVisible ? '' : 'none';
+    });
+  }
+
+  catBtns.forEach(function(b) {
+    b.addEventListener('click', function() {
+      catBtns.forEach(function(x){ x.classList.toggle('is-active', x === b); });
+      activeCat = b.dataset.cat; apply();
+    });
+  });
+  if (search)     search.addEventListener('input', function(){ query = (search.value || '').toLowerCase().trim(); apply(); });
+  if (showHidden) showHidden.addEventListener('change', function(){ showHiddenFlag = !!showHidden.checked; apply(); });
+  root.addEventListener('click', function(e) {
+    var btn = e.target.closest('.integ-toggle-visibility'); if (!btn) return;
+    e.preventDefault();
+    var code = btn.dataset.code; if (!code) return;
+    var list = readHidden(); var idx = list.indexOf(code);
+    if (idx >= 0) list.splice(idx, 1); else list.push(code);
+    writeHidden(list); apply();
+  });
+  apply();
 })();
 </script>
 {% endblock %}

@@ -1,0 +1,430 @@
+<div class="up-pane" data-up-pane="finance" {% if tab != 'finance' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set credits = finance_rows|selectattr('entry_type','equalto','credit')|list %}
+  {% set debits  = finance_rows|selectattr('entry_type','equalto','debit')|list %}
+  {% set total_credit = (credits|sum(attribute='amount')) or 0 %}
+  {% set total_debit  = (debits|sum(attribute='amount')) or 0 %}
+  {% set total = total_credit + total_debit %}
+  {% set credit_pct = ((total_credit / total * 100) if total > 0 else 0)|round(0)|int %}
+
+  {# ─── Wallet hero ─── #}
+  <section class="fin-hero">
+    <div class="fin-hero-text">
+      <span class="fin-hero-eyebrow">💰 {{ 'Wallet' if is_en else 'المحفظة' }}</span>
+      <h2 class="fin-balance {{ 'is-negative' if (wallet_balance or 0) < 0 }}">{{ '%.2f'|format(wallet_balance or 0) }} <small>USD</small></h2>
+      <p>{{ 'Track credits with payment method, debits with reason — all in one ledger.' if is_en else 'سجّل الإضافات بطريقة الدفع، والخصومات بسبب الخدمة — كل ذلك في سجل موحَّد.' }}</p>
+      <div class="fin-hero-stats">
+        <div class="fin-mini fin-mini-credit"><span>↑</span><div><small>{{ 'Total credits' if is_en else 'إجمالي الإضافات' }}</small><strong>{{ '%.2f'|format(total_credit) }}</strong></div></div>
+        <div class="fin-mini fin-mini-debit"><span>↓</span><div><small>{{ 'Total debits' if is_en else 'إجمالي الخصومات' }}</small><strong>{{ '%.2f'|format(total_debit) }}</strong></div></div>
+        <div class="fin-mini fin-mini-count"><span>📒</span><div><small>{{ 'Movements' if is_en else 'الحركات' }}</small><strong>{{ finance_rows|length }}</strong></div></div>
+      </div>
+    </div>
+    <div class="fin-hero-ring" style="--pct:{{ credit_pct }}">
+      <div class="fin-hero-ring-inner">
+        <span class="fin-hero-ring-num">{{ credit_pct }}%</span>
+        <span class="fin-hero-ring-lbl">{{ 'credits' if is_en else 'إضافات' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      {# ─── Step 1: Add movement (smart form) ─── #}
+      <form method="post" class="prof-form" data-fin-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="finance_entry">
+        <input type="hidden" name="payment_method" id="fin-method" value="cash">
+        <input type="hidden" name="debit_reason" id="fin-reason" value="renew_sub">
+        <input type="hidden" name="reason_meta" id="fin-reason-meta" value="">
+
+        <article class="prof-step">
+          <div class="prof-step-side">
+            <span class="prof-step-num">1</span>
+            <span class="prof-step-icon">💳</span>
+            <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+            <h3>{{ 'Add movement' if is_en else 'إضافة حركة مالية' }}</h3>
+            <p>{{ 'Pick credit or debit. Each shows the right options.' if is_en else 'اختر إضافة أو خصم — كل واحد بظهر له الخيارات المناسبة.' }}</p>
+          </div>
+          <div class="prof-step-body fin-form-body">
+
+            {# Quick preset chips — full-width strip #}
+            <div class="fin-quick prof-field-full">
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":10}'>+10</button>
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":50}'>+50</button>
+              <button type="button" class="fin-quick-btn fin-quick-credit" data-fin-set='{"type":"credit","amount":100}'>+100</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":10}'>−10</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":50}'>−50</button>
+              <button type="button" class="fin-quick-btn fin-quick-debit" data-fin-set='{"type":"debit","amount":100}'>−100</button>
+            </div>
+
+            {# Type, amount, currency — three fields in a row #}
+            <label class="prof-field">
+              <span>{{ 'Type' if is_en else 'نوع الحركة' }}</span>
+              <select class="prof-input" name="entry_type" id="fin-type" data-fin-type>
+                <option value="credit">↑ {{ 'Credit (add)' if is_en else 'إضافة رصيد' }}</option>
+                <option value="debit">↓ {{ 'Debit (deduct)' if is_en else 'خصم رصيد' }}</option>
+              </select>
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Amount' if is_en else 'المبلغ' }} <em>*</em></span>
+              <input class="prof-input" type="number" min="0" step="0.01" name="amount" id="fin-amount" required placeholder="0.00">
+            </label>
+            <label class="prof-field">
+              <span>{{ 'Currency' if is_en else 'العملة' }}</span>
+              <select class="prof-input" name="currency">
+                <option value="USD">USD — {{ 'US Dollar' if is_en else 'دولار أمريكي' }}</option>
+                <option value="EUR">EUR — {{ 'Euro' if is_en else 'يورو' }}</option>
+                <option value="ILS">ILS — {{ 'Shekel' if is_en else 'شيقل' }}</option>
+                <option value="JOD">JOD — {{ 'Jordanian Dinar' if is_en else 'دينار أردني' }}</option>
+                <option value="SAR">SAR — {{ 'Saudi Riyal' if is_en else 'ريال سعودي' }}</option>
+                <option value="AED">AED — {{ 'UAE Dirham' if is_en else 'درهم إماراتي' }}</option>
+                <option value="EGP">EGP — {{ 'Egyptian Pound' if is_en else 'جنيه مصري' }}</option>
+              </select>
+            </label>
+
+            {# ═══ CREDIT VIEW: Payment method cards ═══ #}
+            <div class="prof-field prof-field-full" data-fin-credit-section>
+              <span>{{ 'Payment method' if is_en else 'طريقة الدفع' }} <em>*</em></span>
+              <div class="fin-cards" role="radiogroup">
+                <button type="button" class="fin-card is-on" data-method="cash" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">💵</span>
+                  <strong>{{ 'Cash' if is_en else 'نقدي' }}</strong>
+                  <small>{{ 'On hand' if is_en else 'مباشر' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="card" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">💳</span>
+                  <strong>{{ 'Card' if is_en else 'بطاقة' }}</strong>
+                  <small>{{ 'Visa / MC' if is_en else 'فيزا / ماستر' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="bank" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">🏦</span>
+                  <strong>{{ 'Bank' if is_en else 'حوالة بنكية' }}</strong>
+                  <small>IBAN</small>
+                </button>
+                <button type="button" class="fin-card" data-method="paypal" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#003087,#0070ba)">🅿️</span>
+                  <strong>PayPal</strong>
+                  <small>{{ 'Online' if is_en else 'أونلاين' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="usdt" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#26a17b,#50af95)">₮</span>
+                  <strong>USDT</strong>
+                  <small>{{ 'Crypto' if is_en else 'كريبتو' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-method="other" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#64748b,#94a3b8)">⚙️</span>
+                  <strong>{{ 'Other' if is_en else 'أخرى' }}</strong>
+                  <small>{{ 'Custom' if is_en else 'مخصصة' }}</small>
+                </button>
+              </div>
+            </div>
+
+            {# ═══ DEBIT VIEW: Reason cards ═══ #}
+            <div class="prof-field prof-field-full" data-fin-debit-section hidden>
+              <span>{{ 'Debit reason' if is_en else 'سبب الخصم' }} <em>*</em></span>
+              <div class="fin-cards" role="radiogroup">
+                <button type="button" class="fin-card is-on" data-reason="renew_sub" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">🔄</span>
+                  <strong>{{ 'Renew subscription' if is_en else 'تجديد اشتراك' }}</strong>
+                  <small>{{ 'Plan period' if is_en else 'فترة الخطة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="renew_quota" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">📊</span>
+                  <strong>{{ 'Renew quota' if is_en else 'تجديد كوتة' }}</strong>
+                  <small>{{ 'Pick which' if is_en else 'حدد الكوتة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="add_device" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#10b981,#34d399)">⚡</span>
+                  <strong>{{ 'Add device' if is_en else 'إضافة جهاز' }}</strong>
+                  <small>{{ 'Extra device' if is_en else 'جهاز إضافي' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="refund" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">💸</span>
+                  <strong>{{ 'Refund' if is_en else 'استرداد مبلغ' }}</strong>
+                  <small>{{ 'Reverse credit' if is_en else 'إرجاع للعميل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="service_fee" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#0891b2,#22d3ee)">🛠️</span>
+                  <strong>{{ 'Service fee' if is_en else 'رسوم خدمة' }}</strong>
+                  <small>{{ 'Setup / labor' if is_en else 'تركيب / صيانة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="sms_topup" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#ec4899,#f472b6)">📱</span>
+                  <strong>{{ 'SMS top-up' if is_en else 'شحن SMS' }}</strong>
+                  <small>{{ 'Messages bundle' if is_en else 'باقة رسائل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="penalty" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#dc2626,#ef4444)">⚠️</span>
+                  <strong>{{ 'Penalty' if is_en else 'عقوبة / غرامة' }}</strong>
+                  <small>{{ 'Late / abuse' if is_en else 'تأخر / مخالفة' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="cash_out" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#16a34a,#22c55e)">💰</span>
+                  <strong>{{ 'Cash withdrawal' if is_en else 'سحب نقدي' }}</strong>
+                  <small>{{ 'Hand-out' if is_en else 'دفع للعميل' }}</small>
+                </button>
+                <button type="button" class="fin-card" data-reason="other_debit" role="radio">
+                  <span class="fin-card-icon" style="background:linear-gradient(135deg,#64748b,#94a3b8)">⚙️</span>
+                  <strong>{{ 'Other' if is_en else 'أخرى' }}</strong>
+                  <small>{{ 'Custom debit' if is_en else 'خصم مخصص' }}</small>
+                </button>
+              </div>
+            </div>
+
+            {# Sub-selector: which quota — only when reason=renew_quota #}
+            <label class="prof-field prof-field-full" data-fin-sub-quota hidden>
+              <span>{{ 'Which quota?' if is_en else 'أيّ كوتة؟' }}</span>
+              <select class="prof-input" name="quota_target" id="fin-quota-target">
+                <option value="sms_limit">📱 SMS</option>
+                <option value="devices_limit">⚡ {{ 'Devices' if is_en else 'الأجهزة' }}</option>
+                <option value="reports_limit">📊 {{ 'Reports' if is_en else 'التقارير' }}</option>
+                <option value="api_calls_limit">🔌 {{ 'API calls' if is_en else 'استدعاءات API' }}</option>
+                <option value="storage_limit">💾 {{ 'Storage' if is_en else 'التخزين' }}</option>
+                <option value="support_cases_limit">💬 {{ 'Support cases' if is_en else 'تذاكر الدعم' }}</option>
+                <option value="telegram_limit">✈️ Telegram</option>
+                <option value="custom">⚙️ {{ 'Custom' if is_en else 'مخصصة' }}</option>
+              </select>
+            </label>
+
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Reference / Transaction ID' if is_en else 'المرجع / رقم العملية' }}</span>
+              <input class="prof-input" name="reference" id="fin-reference" placeholder="{{ 'e.g. TX-12345 or invoice #' if is_en else 'مثال: TX-12345 أو رقم الفاتورة' }}">
+            </label>
+            <label class="prof-field prof-field-full">
+              <span>{{ 'Note' if is_en else 'ملاحظة' }}</span>
+              <textarea class="prof-input" name="note" rows="2" placeholder="{{ 'Optional internal note' if is_en else 'ملاحظة داخلية اختيارية' }}"></textarea>
+            </label>
+          </div>
+        </article>
+
+        <div class="prof-savebar">
+          <span class="prof-savebar-hint">💡 {{ 'Saving updates the wallet balance immediately.' if is_en else 'الحفظ يحدّث رصيد المحفظة مباشرة.' }}</span>
+          <div class="prof-savebar-actions">
+            <button class="prof-btn prof-btn-primary" type="submit">💾 {{ 'Save movement' if is_en else 'حفظ الحركة' }}</button>
+          </div>
+        </div>
+      </form>
+
+      {# ─── Recent ledger ─── #}
+      <article class="prof-step" style="margin-top:18px">
+        <div class="prof-step-side">
+          <span class="prof-step-num">2</span>
+          <span class="prof-step-icon">📒</span>
+          <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+          <h3>{{ 'Recent movements' if is_en else 'آخر الحركات' }}</h3>
+          <p>{{ 'Each entry shows method (credits) or reason (debits) as a colored chip.' if is_en else 'كل حركة تعرض الطريقة (للإضافة) أو السبب (للخصم) كشارة ملوّنة.' }}</p>
+        </div>
+        <div class="prof-step-body fin-ledger" style="grid-template-columns:1fr">
+          {% set _method_meta = {
+            'cash':     {'label_ar':'نقدي', 'label_en':'Cash', 'icon':'💵', 'cls':'method-cash'},
+            'card':     {'label_ar':'بطاقة', 'label_en':'Card', 'icon':'💳', 'cls':'method-card'},
+            'bank':     {'label_ar':'حوالة', 'label_en':'Bank', 'icon':'🏦', 'cls':'method-bank'},
+            'paypal':   {'label_ar':'PayPal', 'label_en':'PayPal', 'icon':'🅿️', 'cls':'method-paypal'},
+            'usdt':     {'label_ar':'USDT', 'label_en':'USDT', 'icon':'₮', 'cls':'method-usdt'},
+            'other':    {'label_ar':'أخرى', 'label_en':'Other', 'icon':'⚙️', 'cls':'method-other'},
+          } %}
+          {% set _reason_meta = {
+            'renew_sub':    {'label_ar':'تجديد اشتراك', 'label_en':'Renew subscription', 'icon':'🔄', 'cls':'reason-renew-sub'},
+            'renew_quota':  {'label_ar':'تجديد كوتة', 'label_en':'Renew quota', 'icon':'📊', 'cls':'reason-renew-quota'},
+            'add_device':   {'label_ar':'إضافة جهاز', 'label_en':'Add device', 'icon':'⚡', 'cls':'reason-add-device'},
+            'refund':       {'label_ar':'استرداد', 'label_en':'Refund', 'icon':'💸', 'cls':'reason-refund'},
+            'service_fee':  {'label_ar':'رسوم خدمة', 'label_en':'Service fee', 'icon':'🛠️', 'cls':'reason-service'},
+            'sms_topup':    {'label_ar':'شحن SMS', 'label_en':'SMS top-up', 'icon':'📱', 'cls':'reason-sms'},
+            'penalty':      {'label_ar':'غرامة', 'label_en':'Penalty', 'icon':'⚠️', 'cls':'reason-penalty'},
+            'cash_out':     {'label_ar':'سحب نقدي', 'label_en':'Cash out', 'icon':'💰', 'cls':'reason-cash-out'},
+            'other_debit':  {'label_ar':'أخرى', 'label_en':'Other', 'icon':'⚙️', 'cls':'reason-other'},
+          } %}
+          {% for entry in finance_rows[:20] %}
+            {# Parse [code] from reference #}
+            {% set _ref = entry.reference or '' %}
+            {% set _code = '' %}
+            {% set _real_ref = _ref %}
+            {% if _ref.startswith('[') and ']' in _ref %}
+              {% set _close = _ref.find(']') %}
+              {% set _code = _ref[1:_close] %}
+              {% set _real_ref = _ref[_close+1:] %}
+            {% endif %}
+            {% set _is_credit = entry.entry_type == 'credit' %}
+            {% if _is_credit %}
+              {% set _meta = _method_meta.get(_code, _method_meta['other']) %}
+            {% else %}
+              {% set _meta = _reason_meta.get(_code, _reason_meta['other_debit']) %}
+            {% endif %}
+            <article class="fin-row fin-row-{{ entry.entry_type }}">
+              <span class="fin-row-icon">{{ '↑' if _is_credit else '↓' }}</span>
+              <div class="fin-row-body">
+                <strong>
+                  {{ ('Credit' if is_en else 'إضافة رصيد') if _is_credit else ('Debit' if is_en else 'خصم رصيد') }}
+                  <span class="fin-method-pill {{ _meta.cls }}">{{ _meta.icon }} {{ _meta.label_en if is_en else _meta.label_ar }}</span>
+                </strong>
+                <small>{{ _real_ref or ('No reference' if is_en else 'بدون مرجع') }}{% if entry.note %} · {{ entry.note }}{% endif %}</small>
+              </div>
+              <div class="fin-row-amount">
+                <b>{{ '+' if _is_credit else '−' }}{{ entry.amount }} <small>{{ entry.currency }}</small></b>
+                <small>{{ format_local(entry.created_at) if entry.created_at else '' }}</small>
+              </div>
+            </article>
+          {% else %}
+            <div class="fin-empty">
+              <span>📭</span>
+              <strong>{{ 'No movements yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</strong>
+              <small>{{ 'Use the form to add the first credit or debit.' if is_en else 'استخدم النموذج لإضافة أول حركة.' }}</small>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+
+    {# ─── Side ─── #}
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Snapshot' if is_en else 'الملخص' }}</span></header>
+        <strong class="prof-side-title">{{ '%.2f'|format(wallet_balance or 0) }} USD</strong>
+        <div class="prof-side-rows">
+          <div><span>↑ {{ 'Credits' if is_en else 'الإضافات' }}</span><b>{{ credits|length }}</b></div>
+          <div><span>↓ {{ 'Debits' if is_en else 'الخصومات' }}</span><b>{{ debits|length }}</b></div>
+          <div><span>{{ 'Net' if is_en else 'الصافي' }}</span><b>{{ '%.2f'|format(total_credit - total_debit) }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Top reasons' if is_en else 'أبرز الأسباب' }}</span></header>
+        <div class="prof-side-rows">
+          {% set _top = {'renew_sub':0,'renew_quota':0,'add_device':0,'service_fee':0,'refund':0,'penalty':0,'sms_topup':0,'cash_out':0,'other_debit':0} %}
+          {% for entry in debits %}
+            {% set _r = entry.reference or '' %}
+            {% set _c = 'other_debit' %}
+            {% if _r.startswith('[') and ']' in _r %}
+              {% set _e = _r.find(']') %}
+              {% set _maybe = _r[1:_e] %}
+              {% if _maybe in _top %}{% set _c = _maybe %}{% endif %}
+            {% endif %}
+            {% if _top.update({_c: _top[_c]+1}) %}{% endif %}
+          {% endfor %}
+          <div><span>🔄 {{ 'Renew subscription' if is_en else 'تجديد اشتراك' }}</span><b>{{ _top.renew_sub }}</b></div>
+          <div><span>📊 {{ 'Renew quota' if is_en else 'تجديد كوتة' }}</span><b>{{ _top.renew_quota }}</b></div>
+          <div><span>⚡ {{ 'Add device' if is_en else 'إضافة جهاز' }}</span><b>{{ _top.add_device }}</b></div>
+          <div><span>🛠️ {{ 'Service fee' if is_en else 'رسوم خدمة' }}</span><b>{{ _top.service_fee }}</b></div>
+          <div><span>💸 {{ 'Refund' if is_en else 'استرداد' }}</span><b>{{ _top.refund }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Latest entry' if is_en else 'آخر حركة' }}</span></header>
+        {% set last = finance_rows[0] if finance_rows else None %}
+        {% if last %}
+        <strong class="prof-side-title {{ 'fin-credit-tone' if last.entry_type == 'credit' else 'fin-debit-tone' }}">{{ '+' if last.entry_type == 'credit' else '−' }}{{ last.amount }} {{ last.currency }}</strong>
+        <div class="prof-side-rows">
+          <div><span>{{ 'Type' if is_en else 'النوع' }}</span><b>{{ ('Credit' if is_en else 'إضافة') if last.entry_type == 'credit' else ('Debit' if is_en else 'خصم') }}</b></div>
+          <div><span>{{ 'When' if is_en else 'متى' }}</span><b>{{ format_local(last.created_at) if last.created_at else '—' }}</b></div>
+        </div>
+        {% else %}
+        <small class="sub-side-hint">{{ 'No entries yet.' if is_en else 'لا توجد حركات بعد.' }}</small>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+
+<script>
+(function(){
+  const finPane = document.querySelector('[data-up-pane="finance"]');
+  if(!finPane) return;
+  const form         = finPane.querySelector('[data-fin-form]');
+  const typeSel      = finPane.querySelector('[data-fin-type]');
+  const creditSec    = finPane.querySelector('[data-fin-credit-section]');
+  const debitSec     = finPane.querySelector('[data-fin-debit-section]');
+  const subQuota     = finPane.querySelector('[data-fin-sub-quota]');
+  const methodInput  = finPane.querySelector('#fin-method');
+  const reasonInput  = finPane.querySelector('#fin-reason');
+  const reasonMeta   = finPane.querySelector('#fin-reason-meta');
+  const refInput     = finPane.querySelector('#fin-reference');
+  const quotaTarget  = finPane.querySelector('#fin-quota-target');
+  const amtEl        = finPane.querySelector('#fin-amount');
+
+  function syncView(){
+    const t = typeSel.value;
+    if(t === 'debit'){
+      if(creditSec) creditSec.setAttribute('hidden','');
+      if(debitSec)  debitSec.removeAttribute('hidden');
+      if(subQuota){
+        if(reasonInput.value === 'renew_quota') subQuota.removeAttribute('hidden');
+        else subQuota.setAttribute('hidden','');
+      }
+    } else {
+      if(creditSec) creditSec.removeAttribute('hidden');
+      if(debitSec)  debitSec.setAttribute('hidden','');
+      if(subQuota)  subQuota.setAttribute('hidden','');
+    }
+  }
+  typeSel.addEventListener('change', syncView);
+
+  // Method cards (credit)
+  finPane.querySelectorAll('.fin-card[data-method]').forEach(function(card){
+    card.addEventListener('click', function(){
+      finPane.querySelectorAll('.fin-card[data-method]').forEach(function(c){
+        c.classList.remove('is-on'); c.setAttribute('aria-checked','false');
+      });
+      card.classList.add('is-on'); card.setAttribute('aria-checked','true');
+      if(methodInput) methodInput.value = card.dataset.method;
+    });
+  });
+
+  // Reason cards (debit)
+  finPane.querySelectorAll('.fin-card[data-reason]').forEach(function(card){
+    card.addEventListener('click', function(){
+      finPane.querySelectorAll('.fin-card[data-reason]').forEach(function(c){
+        c.classList.remove('is-on'); c.setAttribute('aria-checked','false');
+      });
+      card.classList.add('is-on'); card.setAttribute('aria-checked','true');
+      if(reasonInput) reasonInput.value = card.dataset.reason;
+      // Toggle the quota sub-selector
+      if(subQuota){
+        if(card.dataset.reason === 'renew_quota') subQuota.removeAttribute('hidden');
+        else subQuota.setAttribute('hidden','');
+      }
+    });
+  });
+
+  // Quick presets
+  finPane.querySelectorAll('[data-fin-set]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      try{
+        const cfg = JSON.parse(btn.dataset.finSet);
+        if(typeSel && cfg.type) typeSel.value = cfg.type;
+        if(amtEl  && cfg.amount) amtEl.value = cfg.amount;
+        syncView();
+        if(amtEl){
+          amtEl.style.transition = 'background-color .25s';
+          amtEl.style.backgroundColor = cfg.type === 'credit' ? '#ecfdf5' : '#fef2f2';
+          setTimeout(function(){ amtEl.style.backgroundColor = ''; }, 600);
+          amtEl.focus();
+        }
+      }catch(_){}
+    });
+  });
+
+  // On submit: prefix reference with [code] (method for credit, reason for debit)
+  if(form){
+    form.addEventListener('submit', function(){
+      const isCredit = typeSel.value === 'credit';
+      let code;
+      if(isCredit){
+        code = methodInput ? methodInput.value : 'other';
+      } else {
+        code = reasonInput ? reasonInput.value : 'other_debit';
+        // For renew_quota, append the chosen quota target
+        if(code === 'renew_quota' && quotaTarget){
+          code = 'renew_quota:' + quotaTarget.value;
+        }
+      }
+      if(refInput && !(refInput.value || '').startsWith('[')){
+        refInput.value = '[' + code + ']' + (refInput.value || '');
+      }
+    });
+  }
+
+  syncView();
+})();
+</script>
+</div>

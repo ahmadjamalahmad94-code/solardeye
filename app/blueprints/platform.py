@@ -9,7 +9,7 @@ from uuid import uuid4
 import json
 
 from ..extensions import db
-from ..models import NotificationLog, ServiceHeartbeat, SubscriptionPlan, SyncLog
+from ..models import AppDevice, AppUser, NotificationLog, ServiceHeartbeat, SubscriptionPlan, SyncLog
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
 from ..services.platform_audit import audit_project
 from ..services.scope import has_permission, is_system_admin
@@ -109,6 +109,212 @@ def _platform_status_summary() -> dict:
     }
 
 
+
+
+def _smart_analysis() -> dict:
+    """Collects live DB metrics and generates predictive alerts with root causes and fix steps."""
+    now = datetime.utcnow()
+    since_24h = now - timedelta(hours=24)
+
+    total_users     = AppUser.query.count()
+    total_devices   = AppDevice.query.filter_by(is_active=True).count()
+    offline_devices = AppDevice.query.filter(
+        AppDevice.connection_status.in_(['error', 'failed', 'offline']),
+        AppDevice.is_active == True
+    ).count()
+
+    sync_total  = SyncLog.query.filter(SyncLog.created_at >= since_24h).count()
+    sync_errors = SyncLog.query.filter(
+        SyncLog.created_at >= since_24h,
+        SyncLog.level.in_(['error', 'warn', 'warning'])
+    ).count()
+    sync_rate = round((1 - sync_errors / max(sync_total, 1)) * 100)
+
+    notif_total  = NotificationLog.query.filter(NotificationLog.created_at >= since_24h).count()
+    notif_failed = NotificationLog.query.filter(
+        NotificationLog.created_at >= since_24h,
+        NotificationLog.status.in_(['failed', 'error'])
+    ).count()
+    notif_rate = round((1 - notif_failed / max(notif_total, 1)) * 100)
+
+    heartbeats   = ServiceHeartbeat.query.all()
+    hb_map       = {hb.service_key: hb for hb in heartbeats}
+    services_ok  = sum(1 for hb in heartbeats if hb.status in ['ok', 'success', 'running'])
+    service_score = round(services_ok / max(len(heartbeats), 1) * 100) if heartbeats else 50
+
+    predictions = []
+
+    # ── Scheduler ───────────────────────────────────────────────
+    scheduler_hb = hb_map.get('scheduler')
+    if scheduler_hb and scheduler_hb.last_seen_at:
+        age_min = (now - scheduler_hb.last_seen_at).total_seconds() / 60
+        if age_min > 45:
+            predictions.append({
+                'level': 'critical', 'icon': '⚠️',
+                'ar':  f'المجدول الداخلي لم يُسجَّل منذ {int(age_min)} دقيقة — كل الخدمات المجدولة ستتوقف',
+                'en':  f'Scheduler missing for {int(age_min)} min — all scheduled jobs will stop',
+                'action_ar': 'أعد تشغيل السيرفر',
+                'action_en': 'Restart the server',
+                'cause_ar': 'المجدول الداخلي يرسل نبضة كل 30 دقيقة عند تشغيله. غياب النبضة يعني أن الجدولة لم تبدأ أو تعطلت بعد إقلاع الخادم.',
+                'cause_en': 'APScheduler sends a heartbeat every 30 min when running. Missing heartbeat means the scheduler did not start or crashed after server boot.',
+                'fix_steps_ar': [
+                    'أعد تشغيل التطبيق عبر مدير الخدمة أو شغّل ملف التشغيل المحلي',
+                    'تحقق من سجلات الإقلاع لأي خطأ استيراد أو تشغيل',
+                    'إذا استمر: تأكد أن خيار تعطيل المجدول الداخلي غير مفعّل في ملف البيئة',
+                    'راجع أن مكتبة المجدول الداخلي مثبتة في البيئة',
+                ],
+                'fix_steps_en': [
+                    'Restart Flask: supervisorctl restart app or python run.py',
+                    'Check startup logs for ImportError or RuntimeError',
+                    'Verify DISABLE_INTERNAL_SCHEDULER is not True in .env',
+                    'Confirm APScheduler is installed: pip show apscheduler',
+                ],
+                'scope_ar': f'يؤثر على 6 خدمات مجدولة — مزامنة، إشعارات، طقس، نسخ احتياطي، ورفع إلى درايف',
+                'scope_en': 'Affects all 6 scheduled services: sync, notifications, weather, backup, Drive upload',
+            })
+    elif not scheduler_hb:
+        predictions.append({
+            'level': 'warning', 'icon': '🔁',
+            'ar':  'لا توجد نبضة للمجدول — ربما لم يبدأ بعد',
+            'en':  'No scheduler heartbeat recorded yet',
+            'action_ar': 'تحقق من سجلات الإقلاع',
+            'action_en': 'Check startup logs',
+            'cause_ar': 'المجدول يُسجّل نبضته عند البدء. غياب أي سجل يعني أنه لم يبدأ أصلاً.',
+            'cause_en': 'Scheduler records its heartbeat on startup. No record means it never started.',
+            'fix_steps_ar': ['شغّل التطبيق وراقب شاشة الأوامر', 'ابحث في السجلات عن رسالة بدء المجدول'],
+            'fix_steps_en': ['Start the app and watch terminal output', 'Search for "Scheduler started" in logs'],
+            'scope_ar': 'لا تعمل أي من الخدمات التلقائية حتى يبدأ المجدول',
+            'scope_en': 'No automated services run until the scheduler starts',
+        })
+
+    # ── Sync errors ──────────────────────────────────────────────
+    if sync_errors > 3:
+        lvl = 'critical' if sync_errors > 10 else 'warning'
+        fail_pct = 100 - sync_rate
+        predictions.append({
+            'level': lvl, 'icon': '🔄',
+            'ar':  f'{sync_errors} خطأ في المزامنة خلال 24 ساعة (نسبة النجاح: {sync_rate}%)',
+            'en':  f'{sync_errors} sync errors in 24 h (success rate {sync_rate}%)',
+            'action_ar': 'راجع سجلات المزامنة',
+            'action_en': 'Check sync logs',
+            'cause_ar': f'نسبة الفشل {fail_pct}% — أسباب شائعة: انتهاء صلاحية بيانات اعتماد الواجهة البرمجية، تغيير في بنية الاستجابة، انقطاع الشبكة، أو تجاوز حد الطلبات.',
+            'cause_en': f'{fail_pct}% failure rate — common causes: expired API credentials, changed response structure, network interruption, or rate limiting.',
+            'fix_steps_ar': [
+                'افتح سجلات المزامنة وابحث عن رسالة الخطأ المتكررة',
+                'تحقق من صلاحية بيانات اعتماد الواجهة البرمجية في إعدادات الجهاز',
+                'اختبر الاتصال يدوياً من صفحة الأجهزة',
+                'إذا كان الخطأ تجاوز حد الطلبات: أبطئ دورة المزامنة في الإعدادات',
+            ],
+            'fix_steps_en': [
+                'Open sync logs and find the most frequent error message',
+                'Verify API credentials are valid in device settings',
+                'Test connection manually from the devices page',
+                'If error is rate limit: slow down sync interval in settings',
+            ],
+            'scope_ar': f'يؤثر على جميع الأجهزة المتصلة — {total_devices} جهاز نشط',
+            'scope_en': f'Affects all connected devices — {total_devices} active devices',
+        })
+
+    # ── Notification failures ────────────────────────────────────
+    if notif_failed > 2:
+        fail_pct = 100 - notif_rate
+        predictions.append({
+            'level': 'warning', 'icon': '🔔',
+            'ar':  f'{notif_failed} إشعار فاشل خلال 24 ساعة ({notif_rate}% نجاح)',
+            'en':  f'{notif_failed} notification failures in 24 h ({notif_rate}% success)',
+            'action_ar': 'راجع إعدادات تيليجرام',
+            'action_en': 'Check Telegram settings',
+            'cause_ar': f'نسبة فشل {fail_pct}% في الإشعارات — أسباب شائعة: رمز البوت منتهٍ، معرف المحادثة خاطئ، البوت محظور من تيليجرام، أو رقم الرسائل النصية غير صحيح.',
+            'cause_en': f'{fail_pct}% notification failure — common causes: expired Bot token, wrong Chat ID, bot blocked by Telegram, or invalid SMS number.',
+            'fix_steps_ar': [
+                'راجع سجل الإشعارات وانظر حقل رد المزود للخطأ',
+                'اختبر رمز البوت يدوياً عبر رابط فحص تيليجرام',
+                'تأكد أن المستخدم لم يحظر البوت في تيليجرام',
+                'إذا كانت القناة رسائل نصية: تحقق من رصيد الحساب لدى المزود',
+            ],
+            'fix_steps_en': [
+                'Check notification log and look at response_text field for the error',
+                'Test Bot Token manually: https://api.telegram.org/bot{TOKEN}/getMe',
+                'Ensure the user has not blocked the bot in Telegram',
+                'For SMS: verify account balance with the SMS provider',
+            ],
+            'scope_ar': f'يؤثر على {total_users} مستخدم يعتمدون على الإشعارات الآنية',
+            'scope_en': f'Affects {total_users} users relying on real-time alerts',
+        })
+
+    # ── Offline devices ──────────────────────────────────────────
+    if offline_devices > 0:
+        predictions.append({
+            'level': 'warning', 'icon': '📡',
+            'ar':  f'{offline_devices} {"جهاز منقطع" if offline_devices == 1 else "أجهزة منقطعة"} — بيانات هذه الأجهزة متوقفة',
+            'en':  f'{offline_devices} device{"s" if offline_devices > 1 else ""} offline',
+            'action_ar': 'راجع صفحة الأجهزة',
+            'action_en': 'Check devices page',
+            'cause_ar': 'الجهاز يُسجَّل منقطعاً عندما تفشل آخر محاولة مزامنة — أسباب: بيانات اعتماد منتهية، تغيير عنوان الشبكة، أو الجهاز الفعلي مغلق.',
+            'cause_en': 'Device is marked offline when the last sync attempt failed — causes: expired credentials, changed IP, or physical device offline.',
+            'fix_steps_ar': [
+                'افتح صفحة الأجهزة وانقر على الجهاز المنقطع',
+                'راجع سجل المزامنة للخطأ الأخير',
+                'اختبر بيانات الاعتماد يدوياً',
+                'تحقق من الاتصال الشبكي للجهاز الفعلي',
+            ],
+            'fix_steps_en': [
+                'Open devices page and click the offline device',
+                'Check sync log for the last error',
+                'Test credentials manually',
+                'Verify network connectivity of the physical device',
+            ],
+            'scope_ar': f'{offline_devices} من أصل {total_devices} جهاز — المستخدمون المرتبطون بها لا يرون بيانات حية',
+            'scope_en': f'{offline_devices} of {total_devices} devices — users linked to them see no live data',
+        })
+
+    # ── Backup overdue ───────────────────────────────────────────
+    backup_hb = hb_map.get('database_backup') or hb_map.get('app.services.backup_service.scheduled_backup_job')
+    if backup_hb and backup_hb.last_seen_at:
+        backup_age_h = (now - backup_hb.last_seen_at).total_seconds() / 3600
+        if backup_age_h > 26:
+            predictions.append({
+                'level': 'warning', 'icon': '💾',
+                'ar':  f'آخر نسخة احتياطية منذ {int(backup_age_h)} ساعة — النسخ اليومي قد تأخر',
+                'en':  f'Last backup was {int(backup_age_h)}h ago — daily backup may have been missed',
+                'action_ar': 'راجع صفحة النسخ الاحتياطية',
+                'action_en': 'Check backups page',
+                'cause_ar': 'النسخ الاحتياطي مبرمج يومياً. التأخر قد يعني: فشل المجدول، نفاد مساحة القرص، أو خطأ في مسار الحفظ.',
+                'cause_en': 'Backup runs daily. Delay may mean: scheduler failure, disk space exhausted, or backup path error.',
+                'fix_steps_ar': [
+                    'شغّل نسخة احتياطية يدوية من صفحة النسخ الاحتياطية',
+                    'تحقق من مساحة القرص المتاحة',
+                    'راجع سجلات المجدول لرسالة الخطأ',
+                    'تأكد من صلاحيات الكتابة على مجلد النسخ',
+                ],
+                'fix_steps_en': [
+                    'Trigger a manual backup from the backups page',
+                    'Check available disk space',
+                    'Review scheduler logs for error messages',
+                    'Verify write permissions on the backup folder',
+                ],
+                'scope_ar': 'مخاطرة بفقدان بيانات تمتد لـ ' + str(int(backup_age_h)) + ' ساعة في حال حدوث عطل',
+                'scope_en': f'Risk of losing up to {int(backup_age_h)}h of data if a failure occurs now',
+            })
+
+    data_score = round((sync_rate + notif_rate) / 2) if (sync_total + notif_total) > 0 else 90
+
+    return {
+        'total_users': total_users,
+        'total_devices': total_devices,
+        'offline_devices': offline_devices,
+        'sync_total': sync_total,
+        'sync_errors': sync_errors,
+        'sync_rate': sync_rate,
+        'notif_total': notif_total,
+        'notif_failed': notif_failed,
+        'notif_rate': notif_rate,
+        'predictions': predictions,
+        'service_score': service_score,
+        'data_score': data_score,
+    }
+
+
 @platform_bp.route('/admin/platform-review')
 def admin_platform_review():
     guard = _admin_guard('can_view_logs')
@@ -116,13 +322,28 @@ def admin_platform_review():
         return guard
     project_root = Path(current_app.root_path).resolve().parent
     audit = audit_project(project_root)
+    smart = _smart_analysis()
+    ps    = _platform_status_summary()
+
+    # ── Compute overall health score ──────────────────────────────
+    high_risk = audit['summary']['high_risk_templates']
+    sec_score  = max(0, 100 - high_risk * 25)
+    oversized  = len(audit['python']['oversized'])
+    code_score = max(0, 100 - oversized * 15 - max(0, audit['summary']['inline_styles'] - 30) // 5)
+    overall    = round(0.35 * smart['service_score'] + 0.30 * sec_score + 0.20 * smart['data_score'] + 0.15 * code_score)
+
     return render_template(
         'admin_platform_review.html',
         audit=audit,
-        platform_status=_platform_status_summary(),
+        smart=smart,
+        platform_status=ps,
+        overall=overall,
+        sec_score=sec_score,
+        code_score=code_score,
         ui_lang=_lang(),
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
+
 
 
 def _logo_upload_dir() -> Path:
@@ -337,7 +558,6 @@ def admin_backups():
                     flash('Could not restore the backup.' if _lang() == 'en' else 'تعذر استعادة النسخة الاحتياطية.', 'danger')
         return redirect(url_for('platform.admin_backups', lang=_lang()))
     return render_template('admin_backups.html', settings=backup_settings(), backups=list_backups(), ui_lang=_lang(), format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']))
-
 
 @platform_bp.route('/admin/backups/download/<path:filename>')
 def admin_backup_download(filename: str):

@@ -47,6 +47,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///solar_v9.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+    TEMPLATES_AUTO_RELOAD = True
 
     # ── App ───────────────────────────────────────────────────────────────────
     LOCAL_TIMEZONE = os.getenv('LOCAL_TIMEZONE') or os.getenv('TIMEZONE', 'Asia/Hebron')

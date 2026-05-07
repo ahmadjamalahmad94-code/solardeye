@@ -1,88 +1,737 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Roles & Permissions' if (ui_lang or 'ar') == 'en' else 'الأدوار والصلاحيات' }}{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2 roles-v100">
-<header class="admin-page-head roles-hero-v100">
-  <div>
-    <span class="eyebrow">Heavy v10.1</span>
-    <h1>{{ 'Roles, permissions, and subscriber visibility' if is_en else 'الأدوار والصلاحيات وظهور صفحات المشترك' }}</h1>
-    <p>{{ 'Create any role, choose exact permissions, and hide subscriber pages from the sidebar and direct access when needed.' if is_en else 'أنشئ أي دور، حدد صلاحياته بدقة، وأخفِ صفحات المشترك من السايدبار والوصول المباشر عند الحاجة.' }}</p>
-  </div>
-</header>
+{% set role_code_labels = {
+  'admin': 'مدير النظام',
+  'general_manager': 'مدير عام',
+  'assistant_manager': 'مساعد مدير',
+  'technical_support': 'دعم فني',
+  'finance_manager': 'مدير مالي',
+  'marketing_manager': 'مدير تسويق',
+  'developer': 'مطوّر النظام',
+  'support_admin': 'مسؤول الدعم',
+  'finance_admin': 'مسؤول المالية',
+  'integration_admin': 'مسؤول التكاملات',
+  'super_admin': 'مشرف المنصة',
+  'user': 'مشترك',
+  'subscriber': 'مشترك',
+  'customer': 'عميل'
+} %}
+{% set role_icons = {
+  'admin':              '👑',
+  'super_admin':        '🛡',
+  'general_manager':    '🎩',
+  'assistant_manager':  '🤝',
+  'finance_manager':    '💼',
+  'finance_admin':      '💰',
+  'marketing_manager':  '📣',
+  'developer':          '💻',
+  'technical_support':  '🛠',
+  'support_admin':      '🎧',
+  'integration_admin':  '🔌',
+  'user':               '👤',
+  'subscriber':         '👤',
+  'customer':           '🙋'
+} %}
+{% set permission_key_labels = {
+  'can_manage_users': 'إدارة المشتركين والمستخدمين',
+  'can_manage_roles': 'إدارة الأدوار والصلاحيات',
+  'can_manage_portal_visibility': 'التحكم بظهور صفحات المشترك',
+  'can_manage_devices': 'إدارة الأجهزة',
+  'can_manage_integrations': 'إدارة التكاملات',
+  'can_configure_integrations': 'إعداد التكاملات',
+  'can_manage_support': 'إدارة الدعم والتذاكر',
+  'can_manage_finance': 'إدارة الحسابات والمحافظ',
+  'can_manage_subscriptions': 'إدارة الاشتراكات والباقات',
+  'can_manage_backups': 'إدارة النسخ الاحتياطية والاستعادة',
+  'can_view_logs': 'عرض السجلات وحالة الخدمات',
+  'can_manage_system': 'إعدادات النظام الحساسة',
+  'can_access_mobile_api': 'استخدام واجهات تطبيق الجوال'
+} %}
+{% set portal_page_descriptions = {
+  'dashboard':       ('Performance, production, and consumption summary',    'ملخص الأداء والإنتاج والاستهلاك في صفحة واحدة'),
+  'devices_manage':  ('Manage Inverter devices and connections',              'إدارة أجهزة الإنفرتر وروابط الاتصال'),
+  'profile':         ('Personal info, password, and account preferences',     'البيانات الشخصية وكلمة المرور وتفضيلات الحساب'),
+  'onboarding':      ('Initial setup wizard for first-time users',            'معالج الإعداد الأولي للمستخدمين الجدد'),
+  'subscription':    ('Plan details, renewals, and usage limits',             'تفاصيل الباقة والتجديدات وحدود الاستخدام'),
+  'statistics':      ('Performance analytics with charts and trends',          'تحليلات الأداء بالمخططات والاتجاهات'),
+  'reports':         ('Production, consumption, and savings reports',         'تقارير الإنتاج والاستهلاك والوفرات'),
+  'live_data':       ('Real-time energy flow from the cloud',                 'متابعة لحظية لتدفق الطاقة من السحابة'),
+  'loads':           ('Connected loads and consumption patterns',             'الأحمال المتصلة وأنماط الاستهلاك'),
+  'notifications':   ('Alert preferences and threshold settings',             'تفضيلات التنبيهات وعتبات التشغيل'),
+  'channels':        ('Telegram and SMS channels for notifications',          'قنوات Telegram و SMS لاستلام التنبيهات'),
+  'support':         ('Support tickets and team messaging',                   'تذاكر الدعم والمراسلات مع الفريق')
+} %}
+{# Categorize permissions: ops / fin / tech / other #}
+{% set perm_categories = {
+  'can_manage_users': 'ops',
+  'can_manage_roles': 'ops',
+  'can_manage_portal_visibility': 'ops',
+  'can_manage_finance': 'fin',
+  'can_manage_subscriptions': 'fin',
+  'can_manage_support': 'fin',
+  'can_manage_devices': 'tech',
+  'can_manage_integrations': 'tech',
+  'can_configure_integrations': 'tech',
+  'can_manage_backups': 'tech',
+  'can_view_logs': 'tech',
+  'can_manage_system': 'tech',
+  'can_access_mobile_api': 'tech'
+} %}
+{% set cat_labels = {
+  'ops':   ('Operations',  'العمليات'),
+  'fin':   ('Financial',   'المالية'),
+  'tech':  ('Technical',   'التقنية'),
+  'other': ('Other',       'أخرى')
+} %}
+{% set cat_icons = {'ops':'O','fin':'$','tech':'T','other':'·'} %}
+{% block title %}{{ 'Roles & Access' if is_en else 'الأدوار والصلاحيات' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_roles_v3.css', v='v300-roles-rebuild-20260507') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area rls3-page">
 
-<section class="admin-layout-v2 roles-layout-v100">
-  <div class="admin-card-v2 role-create-card-v100">
-    <small>{{ 'Create role' if is_en else 'إنشاء دور جديد' }}</small>
-    <h3>{{ 'Add a custom operational role' if is_en else 'أضف دور تشغيلي مخصص' }}</h3>
-    <form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create_role">
-      <label><span>{{ 'Code' if is_en else 'الكود' }}</span><input class="form-control" name="code" placeholder="support_lead" required></label>
-      <label><span>{{ 'Sort order' if is_en else 'ترتيب العرض' }}</span><input class="form-control" type="number" name="sort_order" value="50"></label>
-      <label><span>{{ 'Arabic name' if is_en else 'الاسم بالعربي' }}</span><input class="form-control" name="name_ar" required></label>
-      <label><span>{{ 'English name' if is_en else 'الاسم بالإنجليزي' }}</span><input class="form-control" name="name_en" required></label>
-      <label class="full"><span>{{ 'Arabic summary' if is_en else 'وصف عربي' }}</span><input class="form-control" name="summary_ar"></label>
-      <label class="full"><span>{{ 'English summary' if is_en else 'وصف إنجليزي' }}</span><input class="form-control" name="summary_en"></label>
-      <div class="full permission-grid-v100">
-        {% for perm in permission_rows %}
-        <label class="permission-check-v100"><input type="checkbox" name="{{ perm.key }}"> <span>{{ perm.label }}</span><small>{{ perm.key }}</small></label>
+    {# ═══════════════════════════ HERO ═══════════════════════════ #}
+    {% set total_roles = roles|length if roles else 0 %}
+    {% set active_roles = (roles|selectattr('is_active')|list|length) if roles else 0 %}
+    {% set system_roles = (roles|selectattr('is_system')|list|length) if roles else 0 %}
+    {% set total_perms = permission_rows|length if permission_rows else 0 %}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            {{ 'Roles & Access' if is_en else 'الأدوار والصلاحيات' }}
+          </span>
+          <h1 class="hu-h1">{{ 'Granular Role and Permission Control' if is_en else 'إدارة دقيقة للأدوار والصلاحيات' }}</h1>
+          <p class="hu-tagline">{{ 'Create roles, assign permissions, and tailor what each user can see and do across the platform.' if is_en else 'أنشئ الأدوار، وحدد الصلاحيات، واضبط ما يستطيع كل مستخدم رؤيته أو تنفيذه داخل المنصة.' }}</p>
+          <div class="rls3-hero-stats">
+            <span class="rls3-hero-stat">
+              <span class="rls3-hero-stat-icon blue">U</span>
+              <span><span class="rls3-hero-stat-num">{{ total_roles }}</span> <span class="rls3-hero-stat-lbl">{{ 'total roles' if is_en else 'إجمالي الأدوار' }}</span></span>
+            </span>
+            <span class="rls3-hero-stat">
+              <span class="rls3-hero-stat-icon green">A</span>
+              <span><span class="rls3-hero-stat-num">{{ active_roles }}</span> <span class="rls3-hero-stat-lbl">{{ 'active' if is_en else 'أدوار نشطة' }}</span></span>
+            </span>
+            <span class="rls3-hero-stat">
+              <span class="rls3-hero-stat-icon amber">S</span>
+              <span><span class="rls3-hero-stat-num">{{ system_roles }}</span> <span class="rls3-hero-stat-lbl">{{ 'system' if is_en else 'أدوار نظامية' }}</span></span>
+            </span>
+            <span class="rls3-hero-stat">
+              <span class="rls3-hero-stat-icon purple">P</span>
+              <span><span class="rls3-hero-stat-num">{{ total_perms }}</span> <span class="rls3-hero-stat-lbl">{{ 'permissions' if is_en else 'صلاحية' }}</span></span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {# ═══════════════════════════ STICKY TOOLBAR ═══════════════════════════ #}
+    <section class="rls3-toolbar">
+      <label class="rls3-search">
+        <span class="rls3-search-icon">⌕</span>
+        <input type="text" id="rlsSearch" placeholder="{{ 'Search roles or permissions…' if is_en else 'ابحث في الأدوار أو الصلاحيات…' }}" oninput="rlsApplyFilter()">
+      </label>
+      <div class="rls3-filter-tabs" role="tablist">
+        <button type="button" class="rls3-filter-tab active" data-filter="all" onclick="rlsSetFilter('all', this)">{{ 'All' if is_en else 'الكل' }} <span class="count">{{ total_roles }}</span></button>
+        <button type="button" class="rls3-filter-tab" data-filter="active" onclick="rlsSetFilter('active', this)">{{ 'Active' if is_en else 'النشطة' }} <span class="count">{{ active_roles }}</span></button>
+        <button type="button" class="rls3-filter-tab" data-filter="inactive" onclick="rlsSetFilter('inactive', this)">{{ 'Inactive' if is_en else 'الموقوفة' }} <span class="count">{{ total_roles - active_roles }}</span></button>
+        <button type="button" class="rls3-filter-tab" data-filter="system" onclick="rlsSetFilter('system', this)">{{ 'System' if is_en else 'النظامية' }} <span class="count">{{ system_roles }}</span></button>
+      </div>
+      <div class="rls3-view-toggle">
+        <button type="button" class="rls3-view-btn active" data-view="cards" onclick="rlsSetView('cards', this)">⊞ {{ 'Cards' if is_en else 'بطاقات' }}</button>
+        <button type="button" class="rls3-view-btn" data-view="matrix" onclick="rlsSetView('matrix', this)">⊟ {{ 'Matrix' if is_en else 'مصفوفة' }}</button>
+      </div>
+    </section>
+
+    {# ═══════════════════════════ TWO-COL: CREATE ROLE + PORTAL PAGES ═══════════════════════════ #}
+    <section class="rls3-two-col">
+
+      {# ── New Role Form ── #}
+      <div class="rls3-card">
+        <header class="rls3-card-head">
+          <div class="rls3-card-title-wrap">
+            <span class="rls3-card-icon blue">+</span>
+            <div>
+              <div class="rls3-card-eyebrow">{{ 'New role' if is_en else 'إضافة دور' }}</div>
+              <h2 class="rls3-card-title">{{ 'Create a Custom Role' if is_en else 'إنشاء دور مخصص' }}</h2>
+            </div>
+          </div>
+        </header>
+        <form method="post" id="rlsCreateForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="create_role">
+          <div class="rls3-form-grid">
+            <label class="rls3-field">
+              <span class="rls3-field-label">{{ 'Internal code' if is_en else 'المعرّف الداخلي' }} <em>*</em></span>
+              <input class="rls3-input" name="code" placeholder="support_lead" required>
+            </label>
+            <label class="rls3-field">
+              <span class="rls3-field-label">{{ 'Sort order' if is_en else 'الترتيب' }}</span>
+              <input class="rls3-input" type="number" name="sort_order" value="50">
+            </label>
+            <label class="rls3-field">
+              <span class="rls3-field-label">{{ 'Arabic name' if is_en else 'الاسم بالعربية' }} <em>*</em></span>
+              <input class="rls3-input" name="name_ar" placeholder="مثال: مدير الدعم" required>
+            </label>
+            <label class="rls3-field">
+              <span class="rls3-field-label">{{ 'English name' if is_en else 'الاسم بالإنجليزية' }} <em>*</em></span>
+              <input class="rls3-input" name="name_en" placeholder="Support Lead" required>
+            </label>
+          </div>
+
+          {# Categorized permissions #}
+          {% for cat_key, cat_pair in cat_labels.items() %}
+          {% set cat_perms = permission_rows | selectattr('key') | rejectattr('key', 'undefined') | list %}
+          {% set cat_filtered = [] %}
+          {% for perm in permission_rows %}
+            {% if perm_categories.get(perm.key, 'other') == cat_key %}
+              {% set _ = cat_filtered.append(perm) %}
+            {% endif %}
+          {% endfor %}
+          {% if cat_filtered %}
+          <div class="rls3-perm-section">
+            <div class="rls3-perm-section-head cat-{{ cat_key }}">
+              <span>{{ cat_pair[0] if is_en else cat_pair[1] }}</span>
+              <span class="count">{{ cat_filtered|length }}</span>
+            </div>
+            <div class="rls3-perm-section-grid">
+              {% for perm in cat_filtered %}
+              <label class="rls3-perm-chk">
+                <input type="checkbox" name="{{ perm.key }}">
+                <span>{{ perm.label if is_en else permission_key_labels.get(perm.key, perm.label) }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+
+          <button type="submit" class="rls3-btn primary" style="width:100%;margin-top:8px">{{ '+ Create Role' if is_en else '+ إنشاء الدور' }}</button>
+        </form>
+      </div>
+
+      {# ── Portal Pages Visibility ── #}
+      <div class="rls3-card">
+        <header class="rls3-card-head">
+          <div class="rls3-card-title-wrap">
+            <span class="rls3-card-icon green">P</span>
+            <div>
+              <div class="rls3-card-eyebrow">{{ 'Visibility' if is_en else 'ظهور الصفحات' }}</div>
+              <h2 class="rls3-card-title">{{ 'Subscriber Page Access' if is_en else 'صلاحية الوصول لصفحات المشترك' }}</h2>
+            </div>
+          </div>
+          <span class="rls3-card-counter" id="rlsPageCount">{{ portal_page_rows|length if portal_page_rows else 0 }} {{ 'pages' if is_en else 'صفحة' }}</span>
+        </header>
+        <form method="post" id="rlsPagesForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="portal_visibility">
+          <div class="rls3-pages-grid">
+            {% for page in portal_page_rows %}
+            {% set _desc = portal_page_descriptions.get(page.page_key, ('Subscriber page', 'صفحة مشترك داخلية')) %}
+            <label class="rls3-page-toggle {% if page.is_locked %}is-locked{% endif %}">
+              <span class="rls3-page-icon">{{ page.icon }}</span>
+              <div class="rls3-page-info">
+                <strong>{{ page.label_en if is_en else page.label_ar }}</strong>
+                <small>{{ _desc[0] if is_en else _desc[1] }}</small>
+                {% if page.is_locked %}<span class="rls3-page-lock">🔒 {{ 'Always visible' if is_en else 'مرئية دائماً' }}</span>{% endif %}
+              </div>
+              <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %} class="rls3-page-toggle-cb">
+            </label>
+            {% endfor %}
+          </div>
+          <button type="submit" class="rls3-btn success" style="width:100%;margin-top:14px">{{ 'Save Visibility' if is_en else 'حفظ إعدادات الظهور' }}</button>
+        </form>
+      </div>
+    </section>
+
+    {# ═══════════════════════════ ALL ROLES — CARDS + MATRIX ═══════════════════════════ #}
+    <section class="rls3-roles-block">
+      <header class="rls3-card-head">
+        <div class="rls3-card-title-wrap">
+          <span class="rls3-card-icon purple">R</span>
+          <div>
+            <div class="rls3-card-eyebrow">{{ 'Role matrix' if is_en else 'مصفوفة الصلاحيات' }}</div>
+            <h2 class="rls3-card-title">{{ 'All Roles' if is_en else 'جميع الأدوار' }}</h2>
+          </div>
+        </div>
+        <span class="rls3-card-counter" id="rlsVisibleCount">{{ total_roles }} {{ 'roles' if is_en else 'دور' }}</span>
+      </header>
+
+      {# ── Cards View (Compact) ── #}
+      <div class="rls3-roles-grid compact" id="rlsRolesGrid">
+        {% for role in roles %}
+          {% set perms = role_permissions(role.code) %}
+          {% set granted_count = (perms.values()|select|list|length) %}
+          {% set granted_pct = ((granted_count / total_perms * 100) if total_perms else 0)|int %}
+          {% set role_search = ((role.name_ar or '') ~ ' ' ~ (role.name_en or '') ~ ' ' ~ (role.code or '') ~ ' ' ~ role_code_labels.get(role.code, ''))|lower %}
+
+          {# Pre-compute category granted counts for the summary bar #}
+          {% set cat_ops_total = [] %}{% set cat_ops_granted = [] %}
+          {% set cat_fin_total = [] %}{% set cat_fin_granted = [] %}
+          {% set cat_tech_total = [] %}{% set cat_tech_granted = [] %}
+          {% set cat_other_total = [] %}{% set cat_other_granted = [] %}
+          {% for perm in permission_rows %}
+            {% set cat = perm_categories.get(perm.key, 'other') %}
+            {% if cat == 'ops' %}{% set _ = cat_ops_total.append(1) %}{% if perms.get(perm.key) %}{% set _ = cat_ops_granted.append(1) %}{% endif %}
+            {% elif cat == 'fin' %}{% set _ = cat_fin_total.append(1) %}{% if perms.get(perm.key) %}{% set _ = cat_fin_granted.append(1) %}{% endif %}
+            {% elif cat == 'tech' %}{% set _ = cat_tech_total.append(1) %}{% if perms.get(perm.key) %}{% set _ = cat_tech_granted.append(1) %}{% endif %}
+            {% else %}{% set _ = cat_other_total.append(1) %}{% if perms.get(perm.key) %}{% set _ = cat_other_granted.append(1) %}{% endif %}{% endif %}
+          {% endfor %}
+
+          <article class="rls3-role-card compact {% if role.is_system %}is-system{% endif %} {% if not role.is_active %}is-inactive{% endif %}"
+                   id="role-card-{{ role.id if role.id is defined else loop.index }}"
+                   data-role="{{ role.code }}"
+                   data-role-id="{{ role.id if role.id is defined else 0 }}"
+                   data-role-icon="{{ role_icons.get(role.code, '👤') }}"
+                   data-role-name="{{ role.name_ar or role_code_labels.get(role.code, role.code) }}"
+                   data-active="{{ '1' if role.is_active else '0' }}"
+                   data-system="{{ '1' if role.is_system else '0' }}"
+                   data-search="{{ role_search }}">
+
+            {# Hidden form that gets submitted from the modal #}
+            <form method="post" id="role-form-{{ role.id if role.id is defined else loop.index }}" style="display:contents">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="update_role">
+              <input type="hidden" name="role_id" value="{{ role.id if role.id is defined else 0 }}">
+
+              <header class="rls3-role-head">
+                <span class="rls3-role-icon">{{ role_icons.get(role.code, '👤') }}</span>
+                <div class="rls3-role-title">
+                  <strong>{{ role.name_en if is_en else (role.name_ar or role_code_labels.get(role.code, role.code|replace('_', ' '))) }}</strong>
+                  <small>{{ role.code if is_en else ('دور نظامي' if role.is_system else 'دور مخصص') }}</small>
+                </div>
+                <label class="rls3-mini-switch" title="{{ 'Toggle active' if is_en else 'تفعيل/تعطيل' }}">
+                  <input type="checkbox" name="is_active" {% if role.is_active %}checked{% endif %} {% if role.code in ['admin', 'super_admin', 'user', 'subscriber', 'customer'] %}disabled{% endif %} onchange="rlsToggleActive(this)">
+                  <span></span>
+                </label>
+              </header>
+
+              <div class="rls3-role-stats">
+                <div class="rls3-role-stat">
+                  <div class="rls3-role-stat-num" data-stat="granted">{{ granted_count }}</div>
+                  <div class="rls3-role-stat-lbl">{{ 'enabled' if is_en else 'مُفعّلة' }}</div>
+                </div>
+                <div class="rls3-role-stat-divider"></div>
+                <div class="rls3-role-stat">
+                  <div class="rls3-role-stat-num" data-stat="denied">{{ total_perms - granted_count }}</div>
+                  <div class="rls3-role-stat-lbl">{{ 'available' if is_en else 'غير مفعّلة' }}</div>
+                </div>
+                <div class="rls3-role-stat-divider"></div>
+                <div class="rls3-role-stat">
+                  <div class="rls3-role-stat-num" data-stat="pct">{{ granted_pct }}%</div>
+                  <div class="rls3-role-stat-lbl">{{ 'coverage' if is_en else 'التغطية' }}</div>
+                </div>
+              </div>
+              <div class="rls3-role-progress"><div class="rls3-role-progress-fill" data-fill="1" style="width:{{ granted_pct }}%"></div></div>
+
+              {# Compact category summary — three colored bars showing coverage per category #}
+              <div class="rls3-cat-summary">
+                <div class="rls3-cat-bar" title="{{ 'Operations' if is_en else 'العمليات' }}">
+                  <span class="rls3-cat-bar-icon cat-ops">{{ cat_icons.get('ops','O') }}</span>
+                  <span class="rls3-cat-bar-num"><span data-cat-granted="ops">{{ cat_ops_granted|length }}</span><small>/{{ cat_ops_total|length }}</small></span>
+                </div>
+                <div class="rls3-cat-bar" title="{{ 'Financial' if is_en else 'المالية' }}">
+                  <span class="rls3-cat-bar-icon cat-fin">{{ cat_icons.get('fin','$') }}</span>
+                  <span class="rls3-cat-bar-num"><span data-cat-granted="fin">{{ cat_fin_granted|length }}</span><small>/{{ cat_fin_total|length }}</small></span>
+                </div>
+                <div class="rls3-cat-bar" title="{{ 'Technical' if is_en else 'التقنية' }}">
+                  <span class="rls3-cat-bar-icon cat-tech">{{ cat_icons.get('tech','T') }}</span>
+                  <span class="rls3-cat-bar-num"><span data-cat-granted="tech">{{ cat_tech_granted|length }}</span><small>/{{ cat_tech_total|length }}</small></span>
+                </div>
+              </div>
+
+              {# Hidden permission inputs (synced from modal) #}
+              <div style="display:none" class="rls3-hidden-perms">
+                {% for perm in permission_rows %}
+                <input type="checkbox" name="{{ perm.key }}" {% if perms.get(perm.key) %}checked{% endif %} data-perm-cat="{{ perm_categories.get(perm.key, 'other') }}">
+                {% endfor %}
+              </div>
+
+              <div class="rls3-action-row">
+                <button type="button" class="rls3-edit-btn" onclick="rlsOpenModal({{ role.id if role.id is defined else loop.index }})">
+                ✎ {{ 'Edit Permissions' if is_en else 'إدارة الصلاحيات' }}
+                </button>
+                {% if role.code not in ['admin', 'super_admin', 'user', 'subscriber', 'customer'] %}
+                <button type="button" class="rls3-delete-btn" onclick="rlsDeleteRole({{ role.id if role.id is defined else 0 }}, '{{ (role.name_ar or role.code)|e }}')" title="{{ 'Delete role' if is_en else 'حذف الدور' }}">
+                  🗑
+                </button>
+                {% endif %}
+              </div>
+            </form>
+            {% if role.code not in ['admin', 'super_admin', 'user', 'subscriber', 'customer'] %}
+            <form method="post" id="role-delete-{{ role.id if role.id is defined else loop.index }}" style="display:none">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="delete_role">
+              <input type="hidden" name="role_id" value="{{ role.id if role.id is defined else 0 }}">
+            </form>
+            {% endif %}
+          </article>
         {% endfor %}
       </div>
-      <label class="switch-row full"><span>{{ 'Role active' if is_en else 'الدور مفعل' }}</span><input type="checkbox" name="is_active" checked></label>
-      <div class="full action-row-v2"><button class="btn btn-solar">{{ 'Create role' if is_en else 'إنشاء الدور' }}</button></div>
-    </form>
-  </div>
 
-  <div class="admin-card-v2 portal-visibility-card-v100">
-    <small>{{ 'Subscriber pages' if is_en else 'صفحات المشترك' }}</small>
-    <h3>{{ 'Show or hide pages from subscribers' if is_en else 'إظهار أو إخفاء الصفحات عن المشتركين' }}</h3>
-    <p class="table-sub">{{ 'Hidden pages disappear from the subscriber sidebar and are blocked from direct access.' if is_en else 'الصفحات المخفية تختفي من سايدبار المشترك ويتم منع الوصول المباشر لها.' }}</p>
-    <form method="post" class="portal-page-grid-v100"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="portal_visibility">
-      {% for page in portal_page_rows %}
-      <label class="portal-page-toggle-v100 {{ 'is-locked' if page.is_locked else '' }}">
-        <input type="checkbox" name="visible_pages" value="{{ page.page_key }}" {% if page.is_visible or page.is_locked %}checked{% endif %} {% if page.is_locked %}disabled{% endif %}>
-        <span>{{ page.icon }} {{ page.label_en if is_en else page.label_ar }}</span>
-        <small>{{ page.endpoint }}{% if page.is_locked %} • {{ 'Core' if is_en else 'أساسية' }}{% endif %}</small>
-      </label>
-      {% endfor %}
-      <button class="btn btn-solar">{{ 'Save subscriber visibility' if is_en else 'حفظ ظهور صفحات المشترك' }}</button>
-    </form>
-  </div>
-</section>
+      {# ── Edit Modal ── #}
+      <div class="rls3-modal-backdrop" id="rlsModalBackdrop" onclick="rlsModalBackdropClick(event)">
+        <div class="rls3-modal" id="rlsModal" role="dialog" aria-modal="true">
+          <header class="rls3-modal-header">
+            <div class="rls3-modal-header-left">
+              <span class="rls3-modal-icon" id="rlsModalIcon">👤</span>
+              <div class="rls3-modal-titles">
+                <strong id="rlsModalTitle">{{ 'Role permissions' if is_en else 'صلاحيات الدور' }}</strong>
+                <small id="rlsModalCode">{{ 'role_code' if is_en else 'رمز داخلي' }}</small>
+              </div>
+            </div>
+            <button type="button" class="rls3-modal-close" onclick="rlsCloseModal()" aria-label="Close">✕</button>
+          </header>
 
-<section class="admin-card-v2">
-  <div class="section-heading-inline"><div><small>{{ 'Role matrix' if is_en else 'مصفوفة الأدوار' }}</small><h3>{{ 'Active roles and permission switches' if is_en else 'الأدوار الحالية ومفاتيح الصلاحيات' }}</h3></div></div>
-  <div class="role-list-v100">
-    {% for role in roles %}
-    {% set perms = role_permissions(role.code) %}
-    <article class="role-card-v100">
-      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="update_role"><input type="hidden" name="role_id" value="{{ role.id if role.id is defined else 0 }}">
-        <div class="role-card-head-v100">
-          <div><strong>{{ role.name_en if is_en else role.name_ar }}</strong><small>{{ role.code }}{% if role.is_system %} • {{ 'System role' if is_en else 'دور نظامي' }}{% endif %}</small></div>
-          <label class="switch-row"><span>{{ 'Active' if is_en else 'مفعل' }}</span><input type="checkbox" name="is_active" {% if role.is_active %}checked{% endif %} {% if role.is_system %}disabled{% endif %}></label>
-        </div>
-        <div class="form-grid-v2 two compact-fields-v100">
-          <label><span>{{ 'Arabic name' if is_en else 'اسم عربي' }}</span><input class="form-control" name="name_ar" value="{{ role.name_ar }}"></label>
-          <label><span>{{ 'English name' if is_en else 'اسم إنجليزي' }}</span><input class="form-control" name="name_en" value="{{ role.name_en }}"></label>
-          <label><span>{{ 'Sort order' if is_en else 'ترتيب' }}</span><input class="form-control" type="number" name="sort_order" value="{{ role.sort_order or 100 }}"></label>
-          <label><span>{{ 'Arabic summary' if is_en else 'وصف عربي' }}</span><input class="form-control" name="summary_ar" value="{{ role.summary_ar or '' }}"></label>
-          <label class="full"><span>{{ 'English summary' if is_en else 'وصف إنجليزي' }}</span><input class="form-control" name="summary_en" value="{{ role.summary_en or '' }}"></label>
-        </div>
-        <div class="permission-grid-v100 compact">
-          {% for perm in permission_rows %}
-          <label class="permission-check-v100"><input type="checkbox" name="{{ perm.key }}" {% if perms.get(perm.key) %}checked{% endif %}> <span>{{ perm.label }}</span><small>{{ perm.key }}</small></label>
-          {% endfor %}
-        </div>
-        <div class="action-row-v2 role-actions-v100"><button class="btn btn-solar btn-sm">{{ 'Save role' if is_en else 'حفظ الدور' }}</button></div>
-      </form>
-      {% if not role.is_system %}<form method="post" class="role-delete-form-v100" onsubmit="return confirm('{{ 'Delete this role?' if is_en else 'حذف هذا الدور؟' }}')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete_role"><input type="hidden" name="role_id" value="{{ role.id }}"><button class="btn btn-outline-danger btn-sm">{{ 'Delete' if is_en else 'حذف' }}</button></form>{% endif %}
-    </article>
-    {% endfor %}
-  </div>
-</section>
+          {# Stats strip — live updated as user toggles #}
+          <div class="rls3-modal-stats">
+            <div class="rls3-modal-stat">
+              <div class="rls3-modal-stat-num success" id="rlsModalStatEnabled">0</div>
+              <div class="rls3-modal-stat-lbl">{{ 'enabled' if is_en else 'مُفعّلة' }}</div>
+            </div>
+            <div class="rls3-modal-stat">
+              <div class="rls3-modal-stat-num muted" id="rlsModalStatRemaining">0</div>
+              <div class="rls3-modal-stat-lbl">{{ 'remaining' if is_en else 'غير مفعّلة' }}</div>
+            </div>
+            <div class="rls3-modal-stat">
+              <div class="rls3-modal-stat-num percent" id="rlsModalStatPct">0%</div>
+              <div class="rls3-modal-stat-lbl">{{ 'coverage' if is_en else 'التغطية' }}</div>
+            </div>
+            <div class="rls3-modal-stat">
+              <div class="rls3-modal-stat-num">{{ total_perms }}</div>
+              <div class="rls3-modal-stat-lbl">{{ 'total' if is_en else 'الإجمالي' }}</div>
+            </div>
+          </div>
 
-<section class="admin-card-v2">
-  <small>{{ 'Current admin users' if is_en else 'المسؤولون الحاليون' }}</small>
-  <div class="activity-list-v2">{% for user in admin_users %}<div class="activity-item-v2"><div><strong>{{ user.full_name or user.username }}</strong><small>{{ mask_email(user.email) if user.email else '@' ~ user.username }}</small></div><span class="status-pill success">{{ role_label(user.role or 'admin', ui_lang) }}</span></div>{% else %}<div class="empty-box-v2">{{ 'No admin users found.' if is_en else 'لا يوجد مسؤولو منصة.' }}</div>{% endfor %}</div>
-</section>
-</main></div>
+          <div class="rls3-modal-body" id="rlsModalBody">
+            {# Permissions grouped by category — populated dynamically from the active role #}
+            {% for cat_key, cat_pair in cat_labels.items() %}
+            {% set cat_filtered = [] %}
+            {% for perm in permission_rows %}
+              {% if perm_categories.get(perm.key, 'other') == cat_key %}
+                {% set _ = cat_filtered.append(perm) %}
+              {% endif %}
+            {% endfor %}
+            {% if cat_filtered %}
+            <div class="rls3-perm-section">
+              <div class="rls3-perm-section-head cat-{{ cat_key }}">
+                <span>{{ cat_pair[0] if is_en else cat_pair[1] }}</span>
+                <span class="count">{{ cat_filtered|length }}</span>
+              </div>
+              <div class="rls3-perm-section-grid">
+                {% for perm in cat_filtered %}
+                <label class="rls3-perm-chk">
+                  <input type="checkbox" data-modal-perm="{{ perm.key }}" data-perm-cat="{{ cat_key }}" onchange="rlsModalPermChange()">
+                  <span>{{ perm.label if is_en else permission_key_labels.get(perm.key, perm.label) }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+          <footer class="rls3-modal-footer">
+            <span class="stat-text">{{ 'Total active:' if is_en else 'إجمالي الصلاحيات المفعّلة:' }} <b id="rlsModalGranted">0</b> / {{ total_perms }}</span>
+            <button type="button" class="rls3-btn ghost sm" onclick="rlsModalAll(true)">✓ {{ 'Enable All' if is_en else 'تفعيل الكل' }}</button>
+            <button type="button" class="rls3-btn ghost sm" onclick="rlsModalAll(false)">✕ {{ 'Disable All' if is_en else 'تعطيل الكل' }}</button>
+            <button type="button" class="rls3-btn primary sm" onclick="rlsModalSave()">💾 {{ 'Save' if is_en else 'حفظ' }}</button>
+          </footer>
+        </div>
+      </div>
+
+      {# ── Matrix View (alternative) ── #}
+      <div class="rls3-matrix-wrap" id="rlsMatrixWrap">
+        <table class="rls3-matrix">
+          <thead>
+            <tr>
+              <th>{{ 'Permission' if is_en else 'الصلاحية' }}</th>
+              {% for role in roles %}
+              <th title="{{ role.code }}">{{ role.name_en if is_en else (role.name_ar or role_code_labels.get(role.code, role.code)) }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for perm in permission_rows %}
+            <tr>
+              <td>{{ perm.label if is_en else permission_key_labels.get(perm.key, perm.label) }}</td>
+              {% for role in roles %}
+                {% set perms = role_permissions(role.code) %}
+                <td>
+                  {% if perms.get(perm.key) %}<span class="cell-on">✓</span>{% else %}<span class="cell-off">·</span>{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rls3-empty" id="rlsEmpty" style="display:none">
+        <div class="rls3-empty-icon">⌕</div>
+        <div class="rls3-empty-title">{{ 'No roles match your filter' if is_en else 'لا توجد أدوار تطابق الفلتر' }}</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ═══ Filter & search ═══
+var _rlsFilter = 'all';
+var _rlsSearch = '';
+var _rlsView   = 'cards';
+
+function rlsApplyFilter(){
+  _rlsSearch = (document.getElementById('rlsSearch').value || '').toLowerCase().trim();
+  var cards = document.querySelectorAll('.rls3-role-card');
+  var visible = 0;
+  cards.forEach(function(c){
+    var matches = true;
+    if(_rlsFilter === 'active'   && c.dataset.active !== '1') matches = false;
+    if(_rlsFilter === 'inactive' && c.dataset.active === '1') matches = false;
+    if(_rlsFilter === 'system'   && c.dataset.system !== '1') matches = false;
+    if(matches && _rlsSearch){
+      // Match against role search text + permission labels
+      var hay = (c.dataset.search || '') + ' ' + (c.textContent || '').toLowerCase();
+      matches = hay.indexOf(_rlsSearch) !== -1;
+    }
+    c.style.display = matches ? '' : 'none';
+    if(matches) visible++;
+  });
+  var counter = document.getElementById('rlsVisibleCount');
+  if(counter){
+    var lblRoles = '{{ "roles" if is_en else "دور" }}';
+    counter.textContent = visible + ' ' + lblRoles;
+  }
+  var emptyEl = document.getElementById('rlsEmpty');
+  if(emptyEl) emptyEl.style.display = (visible === 0 && _rlsView === 'cards') ? '' : 'none';
+}
+
+function rlsSetFilter(f, btn){
+  _rlsFilter = f;
+  document.querySelectorAll('.rls3-filter-tab').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  rlsApplyFilter();
+}
+
+function rlsSetView(v, btn){
+  _rlsView = v;
+  document.querySelectorAll('.rls3-view-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  var grid = document.getElementById('rlsRolesGrid');
+  var matrix = document.getElementById('rlsMatrixWrap');
+  if(v === 'matrix'){
+    if(grid) grid.classList.add('matrix-hidden');
+    if(matrix) matrix.classList.add('active');
+  } else {
+    if(grid) grid.classList.remove('matrix-hidden');
+    if(matrix) matrix.classList.remove('active');
+  }
+  rlsApplyFilter();
+}
+
+// ═══ Toggle perm pill (since .rls3-perm-pill has hidden checkbox) ═══
+function rlsTogglePill(label){
+  var inp = label.querySelector('input[type="checkbox"]');
+  if(!inp) return;
+  // Wait a tick — the click on label already toggles the checkbox; sync class
+  setTimeout(function(){
+    if(inp.checked) label.classList.add('active');
+    else label.classList.remove('active');
+    rlsRefreshCardStats(label.closest('.rls3-role-card'));
+  }, 0);
+}
+
+function rlsAllPills(btn, on){
+  var card = btn.closest('.rls3-role-card');
+  if(!card) return;
+  card.querySelectorAll('.rls3-perm-pill').forEach(function(label){
+    var inp = label.querySelector('input[type="checkbox"]');
+    if(!inp) return;
+    inp.checked = on;
+    if(on) label.classList.add('active');
+    else label.classList.remove('active');
+  });
+  rlsRefreshCardStats(card);
+}
+
+function rlsRefreshCardStats(card){
+  if(!card) return;
+  var pills = card.querySelectorAll('.rls3-perm-pill input[type="checkbox"]');
+  var total = pills.length;
+  var granted = 0;
+  pills.forEach(function(p){ if(p.checked) granted++; });
+  var pct = total ? Math.round(granted / total * 100) : 0;
+  var stats = card.querySelectorAll('.rls3-role-stat-num');
+  if(stats.length >= 3){
+    stats[0].textContent = granted;
+    stats[1].textContent = total - granted;
+    stats[2].textContent = pct + '%';
+  }
+  var fill = card.querySelector('.rls3-role-progress-fill');
+  if(fill) fill.style.width = pct + '%';
+}
+
+// Sync pill .active class with checkbox state on initial load (in case CSS :has unsupported)
+document.querySelectorAll('.rls3-perm-pill').forEach(function(label){
+  var inp = label.querySelector('input[type="checkbox"]');
+  if(inp && inp.checked) label.classList.add('active');
+});
+
+// ═══ Toggle active/inactive — auto submit ═══
+function rlsToggleActive(input){
+  // Sync hidden permissions are already in the same form, so we can just submit
+  var form = input.closest('form');
+  if(!form) return;
+  // Show a quick visual confirm via the switch color
+  var card = input.closest('.rls3-role-card');
+  if(card){
+    if(input.checked) card.classList.remove('is-inactive');
+    else card.classList.add('is-inactive');
+  }
+  // Submit
+  form.submit();
+}
+
+// ═══ Delete role with confirm ═══
+function rlsDeleteRole(roleId, roleName){
+  if(!roleId) return;
+  var msg = (window.FIN4 && window.FIN4.isEn) ? ('Delete role "' + roleName + '"? Users with this role will move to "Subscriber".') : ('هل أنت متأكد من حذف الدور "' + roleName + '"؟ سيتم نقل مستخدمي هذا الدور إلى دور مشترك.');
+  if(!confirm(msg)) return;
+  var form = document.getElementById('role-delete-' + roleId);
+  if(form) form.submit();
+}
+
+// ═══ Modal Logic ═══
+var _rlsCurrentRoleId = null;
+
+function rlsOpenModal(roleId){
+  var card = document.getElementById('role-card-' + roleId);
+  if(!card) return;
+  _rlsCurrentRoleId = roleId;
+
+  // Apply role color/gradient to the modal via the modal element (computed from card)
+  var roleColor = window.getComputedStyle(card).getPropertyValue('--role-color') || '#2563eb';
+  var roleGrad  = window.getComputedStyle(card).getPropertyValue('--role-grad') || 'linear-gradient(135deg, #3b82f6, #2563eb)';
+  var modal = document.getElementById('rlsModal');
+  if(modal){
+    modal.style.setProperty('--role-grad', roleGrad);
+    modal.style.setProperty('--role-color', roleColor);
+  }
+
+  // Populate header
+  var iconEl = document.getElementById('rlsModalIcon');
+  var titleEl = document.getElementById('rlsModalTitle');
+  var codeEl = document.getElementById('rlsModalCode');
+  if(iconEl) iconEl.textContent = card.dataset.roleIcon || '👤';
+  if(titleEl) titleEl.textContent = card.dataset.roleName || card.dataset.role || '';
+  if(codeEl) codeEl.textContent = {{ 'card.dataset.role || ""' if is_en else '(card.dataset.system === "1" ? "دور نظامي" : "دور مخصص")' }};
+
+  // Sync modal checkboxes from hidden card permissions
+  var hiddenInputs = card.querySelectorAll('.rls3-hidden-perms input[type="checkbox"]');
+  hiddenInputs.forEach(function(hidden){
+    var name = hidden.getAttribute('name');
+    var modalInput = document.querySelector('#rlsModalBody input[data-modal-perm="'+name+'"]');
+    if(modalInput) modalInput.checked = hidden.checked;
+  });
+  rlsModalUpdateStats();
+
+  // Show backdrop
+  var backdrop = document.getElementById('rlsModalBackdrop');
+  if(backdrop) backdrop.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function rlsCloseModal(){
+  var backdrop = document.getElementById('rlsModalBackdrop');
+  if(backdrop) backdrop.classList.remove('active');
+  document.body.style.overflow = '';
+  _rlsCurrentRoleId = null;
+}
+
+function rlsModalBackdropClick(e){
+  if(e.target.id === 'rlsModalBackdrop') rlsCloseModal();
+}
+
+function rlsModalAll(on){
+  document.querySelectorAll('#rlsModalBody input[type="checkbox"]').forEach(function(cb){ cb.checked = on; });
+  rlsModalUpdateStats();
+}
+
+function rlsModalPermChange(){ rlsModalUpdateStats(); }
+
+function rlsModalUpdateStats(){
+  var inputs = document.querySelectorAll('#rlsModalBody input[type="checkbox"]');
+  var total = inputs.length;
+  var on = 0;
+  inputs.forEach(function(c){ if(c.checked) on++; });
+  var pct = total ? Math.round(on / total * 100) : 0;
+  var setText = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+  setText('rlsModalGranted', on);
+  setText('rlsModalStatEnabled', on);
+  setText('rlsModalStatRemaining', total - on);
+  setText('rlsModalStatPct', pct + '%');
+}
+
+function rlsModalSave(){
+  if(_rlsCurrentRoleId == null) return rlsCloseModal();
+  var card = document.getElementById('role-card-' + _rlsCurrentRoleId);
+  if(!card) return;
+  // Sync modal -> hidden card inputs
+  document.querySelectorAll('#rlsModalBody input[type="checkbox"]').forEach(function(modalInput){
+    var name = modalInput.dataset.modalPerm;
+    var hidden = card.querySelector('.rls3-hidden-perms input[name="'+name+'"]');
+    if(hidden) hidden.checked = modalInput.checked;
+  });
+  // Refresh card stats (granted/remaining/pct + category bars)
+  rlsRefreshCardStats(card);
+  // Submit the role's form
+  var form = document.getElementById('role-form-' + _rlsCurrentRoleId);
+  if(form){
+    rlsCloseModal();
+    form.submit();
+  } else {
+    rlsCloseModal();
+  }
+}
+
+// Override rlsRefreshCardStats to also update the category summary bars (compact card)
+function rlsRefreshCardStats(card){
+  if(!card) return;
+  var hidden = card.querySelectorAll('.rls3-hidden-perms input[type="checkbox"]');
+  var total = hidden.length;
+  var granted = 0;
+  var catCounts = {ops:0, fin:0, tech:0, other:0};
+  hidden.forEach(function(c){
+    if(c.checked){
+      granted++;
+      var cat = c.getAttribute('data-perm-cat') || 'other';
+      catCounts[cat] = (catCounts[cat] || 0) + 1;
+    }
+  });
+  var pct = total ? Math.round(granted / total * 100) : 0;
+  // Update stat numbers
+  var statG = card.querySelector('[data-stat="granted"]'); if(statG) statG.textContent = granted;
+  var statD = card.querySelector('[data-stat="denied"]');  if(statD) statD.textContent = total - granted;
+  var statP = card.querySelector('[data-stat="pct"]');     if(statP) statP.textContent = pct + '%';
+  var fill = card.querySelector('[data-fill]');            if(fill) fill.style.width = pct + '%';
+  // Category bar counts
+  ['ops','fin','tech','other'].forEach(function(cat){
+    var el = card.querySelector('[data-cat-granted="'+cat+'"]');
+    if(el) el.textContent = catCounts[cat] || 0;
+  });
+}
+
+// Esc key closes modal
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var backdrop = document.getElementById('rlsModalBackdrop');
+    if(backdrop && backdrop.classList.contains('active')) rlsCloseModal();
+  }
+});
+</script>
 {% endblock %}

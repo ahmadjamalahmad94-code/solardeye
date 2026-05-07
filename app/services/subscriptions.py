@@ -41,7 +41,7 @@ def ensure_user_tenant_and_subscription(user, activated_by_user_id=None):
     if getattr(user,'tenant_id',None):
         tenant=TenantAccount.query.get(user.tenant_id)
     if not tenant:
-        tenant=TenantAccount(owner_user_id=user.id, display_name=user.full_name or user.username or f"Tenant {user.id}", status='trial')
+        tenant=TenantAccount(owner_user_id=user.id, display_name=user.full_name or user.username or "Tenant {}".format(user.id), status='trial')
         db.session.add(tenant)
         db.session.flush()
         user.tenant_id=tenant.id
@@ -103,16 +103,53 @@ def feature_enabled_for_user(user, feature_key):
     return bool(plan_features(plan).get(feature_key, False))
 
 
+def _create_subscription_ledger_entry(tenant, plan, days, sub, activated_by_user_id=None, is_renewal=False):
+    """Auto-generate a WalletLedger entry for a subscription activation/renewal."""
+    try:
+        from app.models import WalletLedger
+    except Exception:
+        return None
+    price = float(getattr(plan, 'price', 0) or 0)
+    if price <= 0:
+        return None
+    try:
+        prefix = 'REN' if is_renewal else 'SUB'
+        plan_lbl = plan.name_en or plan.name_ar or plan.code or 'plan-{}'.format(plan.id)
+        category = 'renewal' if is_renewal else 'subscription'
+        note_action = 'Renewed' if is_renewal else 'Activated'
+        ref = '{}-{}-{}'.format(prefix, tenant.id, (sub.id if sub else 0))
+        note = '{} {} ({}d) - auto-generated from subscription'.format(note_action, plan_lbl, days)
+        ledger = WalletLedger(
+            tenant_id=tenant.id,
+            actor_user_id=activated_by_user_id,
+            entry_type='debit',
+            amount=price,
+            currency=(getattr(plan, 'currency', None) or 'USD'),
+            note=note,
+            reference=ref,
+            category=category,
+            is_recurring=False,
+        )
+        db.session.add(ledger)
+        return ledger
+    except Exception:
+        return None
+
+
 def activate_tenant_subscription(tenant, plan, days, activated_by_user_id=None, notes=''):
-    now=datetime.utcnow()
-    sub=TenantSubscription(tenant_id=tenant.id, plan_id=plan.id, status='active', activation_mode='manual', starts_at=now, ends_at=now+timedelta(days=days), activated_by_user_id=activated_by_user_id, notes=notes)
-    tenant.plan_id=plan.id
-    tenant.status='active'
+    now = datetime.utcnow()
+    prior = TenantSubscription.query.filter_by(tenant_id=tenant.id).order_by(TenantSubscription.created_at.desc()).first()
+    is_renewal = bool(prior and prior.plan_id == plan.id and prior.status in ('active', 'expired'))
+    sub = TenantSubscription(tenant_id=tenant.id, plan_id=plan.id, status='active', activation_mode='manual', starts_at=now, ends_at=now+timedelta(days=days), activated_by_user_id=activated_by_user_id, notes=notes)
+    tenant.plan_id = plan.id
+    tenant.status = 'active'
     db.session.add(sub)
     try:
         from .quota_engine import apply_plan_quotas_to_tenant
         apply_plan_quotas_to_tenant(tenant, plan, commit=False)
     except Exception:
         pass
+    db.session.flush()
+    _create_subscription_ledger_entry(tenant, plan, days, sub, activated_by_user_id, is_renewal=is_renewal)
     db.session.commit()
     return sub

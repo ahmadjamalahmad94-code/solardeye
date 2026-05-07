@@ -1,108 +1,402 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}{% endblock %}
-{% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/platform_review.css', v='v40-notifications-center-redesign-20260430') }}">
-{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Platform Review' if is_en else 'مراجعة المنصة' }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_platform_review_v2.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set _overall_cls = 'good' if overall >= 80 else ('warn' if overall >= 55 else 'bad') %}
+{% set _svc_cls  = 'good' if smart.service_score >= 80 else ('warn' if smart.service_score >= 50 else 'bad') %}
+{% set _sec_cls  = 'good' if sec_score >= 80 else ('warn' if sec_score >= 50 else 'bad') %}
+{% set _data_cls = 'good' if smart.data_score >= 85 else ('warn' if smart.data_score >= 60 else 'bad') %}
+{% set _code_cls = 'good' if code_score >= 80 else ('warn' if code_score >= 55 else 'bad') %}
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 platform-review-v80 platform-review-v90">
-    <header class="admin-page-head platform-review-hero-v80">
-      <div>
-        <span class="eyebrow">Heavy v9</span>
-        <h1>{{ 'Platform review center' if is_en else 'مركز مراجعة المنصة' }}</h1>
-        <p>{{ 'A page-by-page static health view for templates, forms, CSRF coverage, private-data exposure, and UI cleanup debt.' if is_en else 'ملخص تقني يفحص الصفحات والنماذج وحماية CSRF والبيانات الخاصة ونقاط تحسين الواجهة.' }}</p>
-      </div>
-      <div class="platform-score-v80 {{ 'danger' if audit.summary.high_risk_templates else ('warning' if audit.summary.medium_risk_templates else 'ok') }}">
-        <small>{{ 'Risk' if is_en else 'المخاطر' }}</small>
-        <strong>{{ audit.summary.high_risk_templates }}</strong>
-        <span>{{ 'high-risk pages' if is_en else 'صفحات عالية الخطورة' }}</span>
+  <main class="app-main content-area prv-page">
+
+    {# ── Hero ── #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Operations' if is_en else 'العمليات' }}</span>
+          <h1 class="hu-h1">{{ 'Smart Platform Review' if is_en else 'مراجعة المنصة الذكية' }}</h1>
+          <p class="hu-tagline">{{ 'Live health scores, predictive alerts, security scan, terminology audit and code quality.' if is_en else 'درجات الصحة الحية، تنبيهات استباقية، مسح أمني، تدقيق مصطلحات وجودة الكود.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ audit.summary.templates }}</b> {{ 'templates' if is_en else 'قالب' }}</span>
+            <span class="hu-meta-pill"><b>{{ audit.summary.python_files }}</b> {{ 'py files' if is_en else 'ملف Python' }}</span>
+            <span class="hu-meta-pill"><b>{{ audit.summary.routes }}</b> {{ 'routes' if is_en else 'راوت' }}</span>
+            {% if smart.predictions %}<span class="hu-meta-pill warn"><b>{{ smart.predictions|length }}</b> {{ 'alerts' if is_en else 'تنبيه' }}</span>{% endif %}
+            {% if audit.summary.terminology_warnings %}<span class="hu-meta-pill warn"><b>{{ audit.summary.terminology_warnings }}</b> {{ 'term issues' if is_en else 'مشكلة مصطلح' }}</span>{% endif %}
+          </div>
+          <div class="prv-score-bar">
+            <div class="prv-score-pill {{ _svc_cls }}"><span class="prv-sp-val">{{ smart.service_score }}</span><span class="prv-sp-lbl">{{ 'Services' if is_en else 'الخدمات' }}</span></div>
+            <div class="prv-score-pill {{ _sec_cls }}"><span class="prv-sp-val">{{ sec_score }}</span><span class="prv-sp-lbl">{{ 'Security' if is_en else 'الأمان' }}</span></div>
+            <div class="prv-score-pill {{ _data_cls }}"><span class="prv-sp-val">{{ smart.data_score }}</span><span class="prv-sp-lbl">{{ 'Data' if is_en else 'البيانات' }}</span></div>
+            <div class="prv-score-pill {{ _code_cls }}"><span class="prv-sp-val">{{ code_score }}</span><span class="prv-sp-lbl">{{ 'Code' if is_en else 'الكود' }}</span></div>
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <div class="prv-overall-badge {{ _overall_cls }}">
+            <span class="prv-ob-num">{{ overall }}</span>
+            <span class="prv-ob-lbl">{{ 'Health' if is_en else 'الصحة' }}</span>
+          </div>
+        </div>
       </div>
     </header>
 
-    <section class="platform-status-strip-v35" aria-label="{{ 'Site status' if is_en else 'حالة الموقع' }}">
-      <article class="platform-status-main-v35 {{ 'ok' if platform_status.scheduler_running else 'warning' }}">
-        <div>
-          <small>{{ 'Site status' if is_en else 'حالة الموقع' }}</small>
-          <h2>{{ 'Online' if platform_status.scheduler_running and is_en else ('يعمل' if platform_status.scheduler_running else ('Needs attention' if is_en else 'بحاجة لمراجعة')) }}</h2>
-          <p>{{ 'Scheduler is visible or has a recent heartbeat.' if platform_status.scheduler_running and is_en else ('الجدولة ظاهرة أو لديها نبضة حديثة.' if platform_status.scheduler_running else ('Scheduler is not visible from this worker.' if is_en else 'الجدولة غير ظاهرة من هذا العامل حاليًا.')) }}</p>
+    {# ── Predictive Alerts ── #}
+    {% if smart.predictions %}
+    <div class="prv-predictions">
+      {% for p in smart.predictions %}
+      <div class="prv-pred-card {{ p.level }}">
+        <div class="prv-pred-top">
+          <span class="prv-pred-icon">{{ p.icon }}</span>
+          <strong style="flex:1;font-size:.88rem;font-weight:800;color:#1e293b">{{ p.en if is_en else p.ar }}</strong>
+          <span class="prv-pred-action">{{ p.action_en if is_en else p.action_ar }}</span>
         </div>
-        <a class="platform-status-link-v35" href="{{ url_for('admin_ops.admin_services_health_v9', lang=ui_lang) }}">{{ 'Open services health' if is_en else 'فتح مركز صحة الخدمات' }}</a>
-      </article>
-      <div class="platform-status-mini-grid-v35">
-        <article><small>{{ 'Healthy services' if is_en else 'خدمات سليمة' }}</small><strong>{{ platform_status.ok_count }}</strong></article>
-        <article><small>{{ 'Warnings' if is_en else 'تحتاج متابعة' }}</small><strong>{{ platform_status.warning_count }}</strong></article>
-        <article><small>{{ 'Failed' if is_en else 'خدمات متعطلة' }}</small><strong>{{ platform_status.failed_count }}</strong></article>
-        <article><small>{{ 'Jobs' if is_en else 'مهام مجدولة' }}</small><strong>{{ platform_status.scheduler_jobs_count }}</strong></article>
-      </div>
-    </section>
-
-    <section class="admin-kpi-grid-v2 platform-kpi-v80">
-      <article class="admin-kpi-card"><small>{{ 'Templates' if is_en else 'القوالب' }}</small><strong>{{ audit.summary.templates }}</strong><span>{{ 'HTML pages scanned' if is_en else 'قالب مفحوص' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Routes' if is_en else 'المسارات' }}</small><strong>{{ audit.summary.routes }}</strong><span>{{ 'Routes across blueprints' if is_en else 'مسارات عبر وحدات النظام' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'POST forms' if is_en else 'نماذج الإرسال' }}</small><strong>{{ audit.summary.post_forms }}</strong><span>{{ audit.summary.csrf_inputs }} {{ 'visible CSRF inputs' if is_en else 'حقل حماية CSRF ظاهر' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Main.py' if is_en else 'الملف الرئيسي' }}</small><strong>{{ audit.summary.main_py_lines }}</strong><span>{{ audit.summary.architecture_split_score }} {{ 'architecture score' if is_en else 'درجة تنظيم الكود' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'CSS / JS' if is_en else 'ملفات الواجهة' }}</small><strong>{{ audit.summary.css_kb }}{{ 'KB' if is_en else ' ك.ب' }}</strong><span>{{ 'JS' if is_en else 'برمجة' }} {{ audit.summary.js_kb }}{{ 'KB' if is_en else ' ك.ب' }}</span></article>
-    </section>
-
-    <section class="admin-layout-v2 two platform-layout-v80">
-      <article class="admin-card-v2">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Recommended next work' if is_en else 'ملاحظات التحسين المقترحة' }}</small>
-            <h3>{{ 'v9 quality checklist' if is_en else 'قائمة فحص الجودة' }}</h3>
+        <div class="prv-pred-body">
+          <div class="prv-pred-cause">
+            <span class="prv-cause-label">{{ '🔍 Root cause' if is_en else '🔍 سبب المشكلة' }}</span>
+            {{ p.cause_en if is_en else p.cause_ar }}
+          </div>
+          <div class="prv-pred-fix">
+            <span class="prv-cause-label">{{ '🔧 Fix steps' if is_en else '🔧 خطوات الحل' }}</span>
+            <ol class="prv-fix-steps">
+              {% set steps = p.fix_steps_en if is_en else p.fix_steps_ar %}
+              {% for step in steps %}<li>{{ step }}</li>{% endfor %}
+            </ol>
+          </div>
+          <div class="prv-pred-scope">
+            <span class="prv-scope-chip {{ p.level }}">📍 {{ p.scope_en if is_en else p.scope_ar }}</span>
           </div>
         </div>
-        <div class="activity-list-v2">
-          {% for item in audit.recommendations %}
-          {% set area_ar = {'Security':'الحماية','Architecture':'تنظيم الكود','UI':'الواجهة','Integrations':'التكاملات','Performance':'الأداء'} %}
-          <div class="activity-item-v2"><div><strong>{{ item.area if is_en else area_ar.get(item.area, item.area) }}</strong><small>{{ item.en if is_en else item.ar }}</small></div><span class="ui-badge-v70 is-info">{{ 'Review' if is_en else 'مراجعة' }}</span></div>
-          {% endfor %}
-        </div>
-      </article>
-
-      <article class="admin-card-v2">
-        <small>{{ 'Static summary' if is_en else 'ملخص المراجعة' }}</small>
-        <h3>{{ 'Cleanup debt' if is_en else 'ملاحظات التحسين' }}</h3>
-        <div class="cleanup-meter-v80">
-          <div><span>{{ 'Inline styles' if is_en else 'تنسيقات داخلية' }}</span><strong>{{ audit.summary.inline_styles }}</strong></div>
-          <div><span>{{ 'Medium-risk pages' if is_en else 'صفحات تحتاج متابعة' }}</span><strong>{{ audit.summary.medium_risk_templates }}</strong></div>
-          <div><span>{{ 'OK / low-risk pages' if is_en else 'صفحات سليمة أو منخفضة الخطورة' }}</span><strong>{{ audit.summary.ok_templates }}</strong></div>
-        </div>
-      </article>
-    </section>
-
-
-    <section class="admin-card-v2">
-      <div class="section-heading-inline"><div><small>{{ 'Architecture' if is_en else 'تنظيم الكود' }}</small><h3>{{ 'Python files and route distribution' if is_en else 'توزيع ملفات النظام والمسارات' }}</h3></div></div>
-      <div class="table-shell-v2 platform-scroll-table-v36 platform-scroll-table-architecture-v36">
-        <table class="admin-table-v2 platform-table-v80">
-          <thead><tr><th>{{ 'File' if is_en else 'الملف' }}</th><th>{{ 'Lines' if is_en else 'الأسطر' }}</th><th>{{ 'Routes' if is_en else 'المسارات' }}</th><th>{{ 'Note' if is_en else 'ملاحظة' }}</th></tr></thead>
-          <tbody>{% for row in audit.python.files|sort(attribute='lines', reverse=true) %}<tr class="risk-{{ 'medium' if row.lines > 1200 else 'ok' }}"><td><strong>{{ row.name }}</strong></td><td>{{ row.lines }}</td><td>{{ row.routes }}</td><td>{% if row.lines > 1200 %}{{ 'Needs more splitting' if is_en else 'يحتاج فصل إضافي' }}{% else %}<span class="table-sub">{{ 'OK' if is_en else 'سليم' }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
-        </table>
       </div>
-    </section>
-    <section class="admin-card-v2">
-      <div class="section-heading-inline"><div><small>{{ 'Page-by-page' if is_en else 'تفصيل الصفحات' }}</small><h3>{{ 'Template audit table' if is_en else 'فحص القوالب' }}</h3></div></div>
-      <div class="table-shell-v2 platform-scroll-table-v36 platform-scroll-table-templates-v36">
-        <table class="admin-table-v2 platform-table-v80">
-          <thead><tr><th>{{ 'Template' if is_en else 'القالب' }}</th><th>{{ 'Risk' if is_en else 'المستوى' }}</th><th>{{ 'Forms' if is_en else 'النماذج' }}</th><th>{{ 'CSRF' if is_en else 'حماية CSRF' }}</th><th>{{ 'Inline style' if is_en else 'تنسيق داخلي' }}</th><th>{{ 'Sensitive notes' if is_en else 'تنبيهات الخصوصية' }}</th></tr></thead>
-          <tbody>
-          {% for row in audit.templates %}
-            <tr class="risk-{{ row.severity }}">
-              <td><strong>{{ row.name }}</strong><div class="table-sub">{{ row.relative_path }} · {{ row.size_kb }}{{ 'KB' if is_en else ' ك.ب' }}</div></td>
-              <td><span class="ui-badge-v70 {{ 'is-danger' if row.severity == 'high' else ('is-warning' if row.severity == 'medium' else 'is-success') }}">{{ row.severity if is_en else {'high':'عالٍ','medium':'متوسط','low':'منخفض','ok':'سليم'}.get(row.severity, row.severity) }}</span></td>
-              <td>{{ row.post_forms }}</td>
-              <td>{{ row.csrf_inputs }}</td>
-              <td>{{ row.inline_styles }}</td>
-              <td>{% if row.sensitive_hits %}{% set sensitive_ar = {'Deye setting may be visible':'إعداد Deye قد يكون ظاهرًا','Device identifier may be visible':'معرّف جهاز قد يكون ظاهرًا','Notification/SMS secret may be visible':'سر إشعارات أو رسائل قد يكون ظاهرًا'} %}{% for hit in row.sensitive_hits %}{{ hit if is_en else sensitive_ar.get(hit, hit) }}{% if not loop.last %} / {% endif %}{% endfor %}{% else %}<span class="table-sub">{{ 'No direct hit' if is_en else 'لا يوجد رصد مباشر' }}</span>{% endif %}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="prv-all-good">
+      <span class="prv-all-good-icon">✅</span>
+      <div class="prv-all-good-text">
+        <strong>{{ 'All systems look healthy!' if is_en else 'كل الأنظمة تعمل بشكل سليم!' }}</strong>
+        <small>{{ 'No predictive alerts at this time.' if is_en else 'لا توجد تنبيهات استباقية حالياً.' }}</small>
       </div>
-    </section>
+    </div>
+    {% endif %}
+
+    <div class="prv-shell">
+      {# ── Aside ── #}
+      <aside class="prv-aside">
+        <div class="prv-as-card explainer">
+          <h4>📊 {{ 'How scores work' if is_en else 'كيف تعمل الدرجات؟' }}</h4>
+          <p>{{ 'Overall score is weighted: Services 35%, Security 30%, Data 20%, Code 15%.' if is_en else 'الدرجة الكلية موزونة: الخدمات 35%، الأمان 30%، البيانات 20%، الكود 15%.' }}</p>
+        </div>
+        <div class="prv-as-card">
+          <h4>🎯 {{ 'Score breakdown' if is_en else 'تفصيل الدرجات' }}</h4>
+          <ul class="prv-score-list">
+            {% for lbl, val, cls in [
+              (('Services' if is_en else 'الخدمات'), smart.service_score, _svc_cls),
+              (('Security' if is_en else 'الأمان'), sec_score, _sec_cls),
+              (('Data health' if is_en else 'صحة البيانات'), smart.data_score, _data_cls),
+              (('Code quality' if is_en else 'جودة الكود'), code_score, _code_cls),
+            ] %}
+            <li>
+              <div class="prv-sl-top"><span>{{ lbl }}</span><b>{{ val }}/100</b></div>
+              <div class="prv-sl-bar-bg"><div class="prv-sl-bar-fill {{ '' if cls == 'good' else cls }}" style="width:{{ val }}%"></div></div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="prv-as-card">
+          <h4>🔑 {{ 'Platform stats' if is_en else 'إحصاءات المنصة' }}</h4>
+          <ul class="prv-score-list">
+            {% for lbl, val, clr in [
+              (('Users' if is_en else 'المستخدمون'), smart.total_users, '#0f172a'),
+              (('Active devices' if is_en else 'الأجهزة النشطة'), smart.total_devices, '#0f172a'),
+              (('Offline' if is_en else 'منقطعة'), smart.offline_devices, '#ef4444' if smart.offline_devices > 0 else '#22c55e'),
+              (('Syncs (24h)' if is_en else 'مزامنات (24س)'), smart.sync_total, '#0f172a'),
+              (('Notifs (24h)' if is_en else 'إشعارات (24س)'), smart.notif_total, '#0f172a'),
+            ] %}
+            <li><div class="prv-sl-top"><span>{{ lbl }}</span><b style="color:{{ clr }}">{{ val }}</b></div></li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="prv-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <p>{{ 'Score above 80 = healthy. Focus on red alerts first, then security.' if is_en else 'درجة فوق 80 = منصة بخير. ركز على التنبيهات الحمراء أولاً ثم الأمان.' }}</p>
+          <p>{{ 'CSRF issues are highest priority — they expose all users to attacks.' if is_en else 'مشاكل CSRF أولوية قصوى — تعرّض كل المستخدمين للاختراق.' }}</p>
+        </div>
+      </aside>
+
+      {# ── Main ── #}
+      <div class="prv-main">
+
+        {# ── Live Services ── #}
+        <section class="prv-section">
+          <div class="prv-section-head">
+            <h3>⚙️ {{ 'Live Services' if is_en else 'الخدمات الحية' }}</h3>
+            <span class="prv-badge {{ 'ok' if platform_status.failed_count == 0 else 'high' }}">
+              {{ platform_status.ok_count }}/{{ platform_status.ok_count + platform_status.warning_count + platform_status.failed_count }} {{ 'OK' if is_en else 'سليم' }}
+            </span>
+          </div>
+          <div class="prv-section-body">
+            <div class="prv-svc-grid">
+              {% for svc in platform_status.cards %}
+              {% set st = svc.status if svc.status in ['ok','warning','failed'] else 'none' %}
+              <div class="prv-svc-card {{ st }}">
+                <span class="prv-svc-dot"></span>
+                <div class="prv-svc-name">{{ svc.label }}</div>
+                <div class="prv-svc-msg">{{ svc.message|truncate(60) }}</div>
+                <div class="prv-svc-age">{% if svc.last_seen_at %}{{ format_local(svc.last_seen_at) }}{% else %}—{% endif %}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+
+        {# ── Data Health ── #}
+        <section class="prv-section">
+          <div class="prv-section-head"><h3>📈 {{ 'Data Health (24h)' if is_en else 'صحة البيانات (24 ساعة)' }}</h3></div>
+          <div class="prv-section-body">
+            <div class="prv-data-grid">
+              <div class="prv-data-stat">
+                <span class="prv-ds-label">{{ 'Sync total' if is_en else 'إجمالي المزامنات' }}</span>
+                <span class="prv-ds-val">{{ smart.sync_total }}</span>
+                <span class="prv-ds-sub">{{ smart.sync_errors }} {{ 'errors' if is_en else 'خطأ' }}</span>
+              </div>
+              <div class="prv-data-stat">
+                <span class="prv-ds-label">{{ 'Notifications' if is_en else 'الإشعارات' }}</span>
+                <span class="prv-ds-val">{{ smart.notif_total }}</span>
+                <span class="prv-ds-sub">{{ smart.notif_failed }} {{ 'failed' if is_en else 'فشل' }}</span>
+              </div>
+              <div class="prv-data-stat">
+                <span class="prv-ds-label">{{ 'Offline devices' if is_en else 'أجهزة منقطعة' }}</span>
+                <span class="prv-ds-val" style="color:{{ '#ef4444' if smart.offline_devices > 0 else '#22c55e' }}">{{ smart.offline_devices }}</span>
+                <span class="prv-ds-sub">{{ 'of ' + smart.total_devices|string if is_en else 'من ' + smart.total_devices|string }}</span>
+              </div>
+            </div>
+            <div class="prv-rate-row">
+              {% set sync_cls  = '' if smart.sync_rate  >= 85 else ('warn' if smart.sync_rate  >= 60 else 'bad') %}
+              {% set notif_cls = '' if smart.notif_rate >= 85 else ('warn' if smart.notif_rate >= 60 else 'bad') %}
+              <div class="prv-rate-item">
+                <span class="prv-rate-lbl">{{ 'Sync success' if is_en else 'نجاح المزامنة' }}</span>
+                <div class="prv-rate-bar-bg"><div class="prv-rate-bar-fill {{ sync_cls }}" style="width:{{ smart.sync_rate }}%"></div></div>
+                <span class="prv-rate-pct">{{ smart.sync_rate }}%</span>
+              </div>
+              <div class="prv-rate-item">
+                <span class="prv-rate-lbl">{{ 'Notification delivery' if is_en else 'نجاح الإشعارات' }}</span>
+                <div class="prv-rate-bar-bg"><div class="prv-rate-bar-fill {{ notif_cls }}" style="width:{{ smart.notif_rate }}%"></div></div>
+                <span class="prv-rate-pct">{{ smart.notif_rate }}%</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# ── Security detail data (hidden <template> tags avoid quote-escaping in onclick) ── #}
+        {% set risky = (audit.templates | selectattr('severity','in',['high','medium']) | list) | sort(attribute='score', reverse=True) %}
+        {% for t in risky %}
+        <template id="sec-detail-{{ loop.index }}">
+          {% for adv in t.fix_advice %}
+          <div class="prv-modal-section"><h5>{{ '🔍 Root cause' if is_en else '🔍 سبب الخطر' }}</h5><p>{{ adv.cause_ar if not is_en else adv.cause_en }}</p></div>
+          <div class="prv-modal-section"><h5>{{ '🔧 How to fix' if is_en else '🔧 طريقة الإصلاح' }}</h5><code>{{ adv.fix_ar if not is_en else adv.fix_en }}</code></div>
+          <div class="prv-modal-section"><h5>{{ '📍 Scope' if is_en else '📍 النطاق' }}</h5><p>{{ adv.scope_ar if not is_en else adv.scope_en }}</p></div>
+          {% endfor %}
+          {% if t.inline_styles > 12 %}
+          <div class="prv-modal-section"><h5>{{ 'Inline styles' if is_en else 'أنماط inline' }}</h5><p>{{ t.inline_styles }} {{ 'inline style attributes — move to CSS file' if is_en else 'نمط inline — انقلها إلى ملف CSS' }}</p></div>
+          {% endif %}
+        </template>
+        {% endfor %}
+
+        {# ── Security Scan ── #}
+        <section class="prv-section">
+          <div class="prv-section-head">
+            <h3>🔐 {{ 'Security Scan' if is_en else 'المسح الأمني' }}</h3>
+            <div style="display:flex;gap:6px">
+              {% if audit.summary.high_risk_templates %}<span class="prv-badge high">{{ audit.summary.high_risk_templates }} {{ 'high' if is_en else 'عالي' }}</span>{% endif %}
+              {% if audit.summary.medium_risk_templates %}<span class="prv-badge medium">{{ audit.summary.medium_risk_templates }} {{ 'medium' if is_en else 'متوسط' }}</span>{% endif %}
+              <span class="prv-badge ok">{{ audit.summary.ok_templates }} {{ 'ok' if is_en else 'سليم' }}</span>
+            </div>
+          </div>
+          <div class="prv-section-body">
+            {% if risky %}
+            <div class="prv-table-wrap">
+              <table class="prv-table prv-table-center" data-paginate data-page-size="20">
+                <thead><tr>
+                  <th>{{ 'Template' if is_en else 'القالب' }}</th>
+                  <th>{{ 'Page' if is_en else 'الصفحة' }}</th>
+                  <th>{{ 'Risk' if is_en else 'الخطر' }}</th>
+                  <th>POST/CSRF</th>
+                  <th>{{ 'Details' if is_en else 'التفاصيل' }}</th>
+                </tr></thead>
+                <tbody>
+                  {% for t in risky %}
+                  <tr>
+                    <td><code style="font-size:.73rem">{{ t.name }}</code></td>
+                    <td><span class="prv-page-name">{{ t.page_name.ar if not is_en else t.page_name.en }}</span></td>
+                    <td><span class="prv-badge {{ t.severity }}">{{ t.severity }}</span></td>
+                    <td>{{ t.post_forms }}/{{ t.csrf_inputs }}</td>
+                    <td>
+                      {% if t.fix_advice or t.inline_styles > 12 %}
+                      <button class="prv-detail-btn" onclick="prvShowTpl('{{ t.name }}','sec-detail-{{ loop.index }}')">
+                        {{ '🔍 View' if is_en else '🔍 عرض' }}
+                      </button>
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p style="font-size:.85rem;color:#16a34a;margin:0">✅ {{ 'No high or medium risk templates.' if is_en else 'لا توجد قوالب عالية أو متوسطة الخطورة.' }}</p>
+            {% endif %}
+          </div>
+        </section>
+
+        {# ── Terminology Audit ── #}
+        {% set term_issues = audit.terminology | selectattr('status','equalto','warning') | list %}
+        <section class="prv-section">
+          <div class="prv-section-head">
+            <h3>🔤 {{ 'Terminology Audit' if is_en else 'التدقيق اللغوي للمصطلحات' }}</h3>
+            <span class="prv-badge {{ 'medium' if term_issues else 'ok' }}">
+              {{ term_issues|length }} {{ 'issues' if is_en else 'مشكلة' }}
+            </span>
+          </div>
+          <div class="prv-section-body">
+            <div class="prv-table-wrap">
+              <table class="prv-table prv-table-center" data-paginate data-page-size="20">
+                <thead><tr>
+                  <th>{{ 'Concept' if is_en else 'المفهوم' }}</th>
+                  <th>{{ 'Standard term' if is_en else 'المصطلح الصحيح' }}</th>
+                  <th>{{ 'Non-standard found' if is_en else 'متغيرات غير موحدة' }}</th>
+                  <th>{{ 'Recommendation' if is_en else 'التوصية' }}</th>
+                  <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+                </tr></thead>
+                <tbody>
+                  {% for term in audit.terminology %}
+                  <tr>
+                    <td style="font-weight:700">{{ term.concept_en }}</td>
+                    <td>
+                      <span style="font-weight:800;color:#059669">{{ term.standard_ar }}</span>
+                      <small style="display:block;color:#94a3b8;font-size:.68rem">{{ term.standard_en }}</small>
+                    </td>
+                    <td>
+                      {% if term.found_variants %}
+                        {% for v in term.found_variants %}
+                        <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:.72rem;margin:1px;display:inline-block">
+                          {{ v.variant }} (×{{ v.count }})
+                        </span>
+                        {% endfor %}
+                      {% else %}
+                        <span style="color:#94a3b8;font-size:.75rem">—</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-size:.76rem;color:#374151">{{ term.note_ar if not is_en else term.note_en }}</td>
+                    <td>
+                      <span class="prv-badge {{ 'medium' if term.status == 'warning' else 'ok' }}">
+                        {{ ('⚠ Non-standard' if is_en else '⚠ غير موحد') if term.status == 'warning' else ('✓ OK' if is_en else '✓ موحد') }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {# ── Code detail data ── #}
+        {% for f in audit.python.oversized %}
+        <template id="code-detail-{{ loop.index }}">
+          <div class="prv-modal-section"><h5>{{ '🔍 Root cause' if is_en else '🔍 سبب الضخامة' }}</h5><p>{{ 'Too many responsibilities in one file — business logic, routes, and helpers mixed together.' if is_en else 'مسؤوليات كثيرة في ملف واحد — منطق أعمال، راوتات، وأدوات مساعدة مختلطة.' }}</p></div>
+          {% if f.hint %}<div class="prv-modal-section"><h5>{{ '🔧 Refactoring suggestion' if is_en else '🔧 اقتراح إعادة الهيكلة' }}</h5><code>{{ f.hint }}</code></div>{% endif %}
+          {% if f.route_urls %}<div class="prv-modal-section"><h5>{{ '🔗 Registered routes' if is_en else '🔗 الراوتات المسجلة' }}</h5><ol>{% for url in f.route_urls %}<li><code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">{{ url }}</code></li>{% endfor %}</ol></div>{% endif %}
+          <div class="prv-modal-section"><h5>{{ '📍 Risk scope' if is_en else '📍 نطاق الخطر' }}</h5><p>{{ 'Every future change risks breaking unrelated features.' if is_en else 'كل تعديل مستقبلي يحمل خطر كسر ميزات غير مرتبطة.' }}</p></div>
+        </template>
+        {% endfor %}
+
+        {# ── Code Quality ── #}
+        <section class="prv-section">
+          <div class="prv-section-head">
+            <h3>🧱 {{ 'Code Quality' if is_en else 'جودة الكود' }}</h3>
+            <span class="prv-badge {{ 'high' if audit.python.oversized else 'ok' }}">{{ audit.python.oversized|length }} {{ 'oversized' if is_en else 'ضخم' }}</span>
+          </div>
+          <div class="prv-section-body">
+            {% if audit.python.oversized %}
+            <div class="prv-table-wrap">
+              <table class="prv-table prv-table-center" data-paginate data-page-size="20">
+                <thead><tr>
+                  <th>{{ 'File' if is_en else 'الملف' }}</th>
+                  <th>{{ 'Lines' if is_en else 'أسطر' }}</th>
+                  <th>{{ 'Routes' if is_en else 'راوتات' }}</th>
+                  <th>{{ 'Main URLs' if is_en else 'الراوتات الرئيسية' }}</th>
+                  <th>{{ 'Risk' if is_en else 'الخطر' }}</th>
+                  <th>{{ 'Details' if is_en else 'التفاصيل' }}</th>
+                </tr></thead>
+                <tbody>
+                  {% for f in audit.python.oversized %}
+                  <tr>
+                    <td><code style="font-size:.73rem">{{ f.name }}</code></td>
+                    <td><b>{{ f.lines }}</b></td>
+                    <td>{{ f.routes }}</td>
+                    <td style="font-size:.72rem;color:#475569;max-width:160px;overflow:hidden">
+                      {% for url in f.route_urls[:3] %}<span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ url }}</span>{% endfor %}
+                      {% if f.route_urls|length > 3 %}<span style="color:#94a3b8">+{{ f.route_urls|length - 3 }} {{ 'more' if is_en else 'أخرى' }}</span>{% endif %}
+                    </td>
+                    <td><span class="prv-badge {{ 'high' if f.lines > 2000 else 'medium' }}">{{ ('Very large' if f.lines > 2000 else 'Large') if is_en else ('ضخم جداً' if f.lines > 2000 else 'كبير') }}</span></td>
+                    <td><button class="prv-detail-btn" onclick="prvShowTpl('{{ f.name }}','code-detail-{{ loop.index }}')">{{ '🔍 View' if is_en else '🔍 عرض' }}</button></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p style="font-size:.85rem;color:#16a34a;margin:0">✅ {{ 'All Python files within recommended size.' if is_en else 'كل ملفات Python ضمن الحجم الموصى به.' }}</p>
+            {% endif %}
+          </div>
+        </section>
+
+        {# ── Recommendations ── #}
+        <section class="prv-section">
+          <div class="prv-section-head"><h3>💡 {{ 'Recommendations' if is_en else 'التوصيات' }}</h3></div>
+          <div class="prv-section-body">
+            <div class="prv-rec-list">
+              {% for rec in audit.recommendations %}
+              <div class="prv-rec-item">
+                <span class="prv-rec-area">{{ rec.area }}</span>
+                <span class="prv-rec-text">{{ rec.en if is_en else rec.ar }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+
+      </div>{# /prv-main #}
+    </div>{# /prv-shell #}
   </main>
 </div>
+
+{# ── Single Modal ── #}
+<div id="prv-modal" class="prv-modal-overlay" onclick="if(event.target===this)prvCloseModal()">
+  <div class="prv-modal-box">
+    <button class="prv-modal-close" onclick="prvCloseModal()">✕</button>
+    <div class="prv-modal-title" id="prv-modal-title"></div>
+    <div id="prv-modal-body"></div>
+  </div>
+</div>
+<script>
+function prvShowTpl(title, tplId) {
+  var tpl = document.getElementById(tplId);
+  document.getElementById('prv-modal-title').textContent = title;
+  document.getElementById('prv-modal-body').innerHTML = tpl ? tpl.innerHTML : '';
+  document.getElementById('prv-modal').classList.add('active');
+}
+function prvCloseModal() {
+  document.getElementById('prv-modal').classList.remove('active');
+}
+document.addEventListener('keydown', function(e) { if(e.key === 'Escape') prvCloseModal(); });
+
+</script>
 {% endblock %}

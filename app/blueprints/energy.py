@@ -14,6 +14,10 @@ for _legacy_name in dir(_legacy_main):
 
 energy_bp = Blueprint('energy', __name__)
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# LANDING & DASHBOARD ROUTES
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/')
 def index():
     # Heavy v10.5.27: the root URL is a public landing page.
@@ -281,6 +285,10 @@ def dashboard():
     )
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# LIVE/REALTIME API
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/api/live')
 def api_live():
     device = _active_device()
@@ -373,6 +381,10 @@ def api_live():
     }
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# STATISTICS & REPORTS PAGES
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/statistics')
 def statistics():
     energy_guard = _energy_portal_guard()
@@ -445,6 +457,10 @@ def reports():
     )
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# CSV/PDF EXPORTS
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/statistics/export/csv')
 def export_statistics_csv():
     tz_name = current_app.config['LOCAL_TIMEZONE']
@@ -1239,6 +1255,10 @@ def export_statistics_pdf():
                     headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# DEYE INTEGRATION
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/deye', methods=['GET', 'POST'])
 def deye_settings():
     energy_guard = _energy_portal_guard()
@@ -1274,6 +1294,10 @@ def test_connection():
     return redirect(url_for('main.devices_manage', lang=_lang()))
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# SYNC/DIAGNOSTICS HANDLERS
+# ═══════════════════════════════════════════════════════════════════════
 @energy_bp.route('/sync-now', methods=['POST'])
 def sync_now():
     energy_guard = _energy_portal_guard()

@@ -20,8 +20,22 @@ from .helpers import (
 from ..services.weather_service import fetch_weather
 from .smart_engine import build_smart_energy_advice
 
+# Re-export pure utilities from services/notifications package.
+# The local definitions below remain for backward compat — they will be
+# removed in a future cleanup pass. Both paths return identical values.
+from ..services.notifications.utils import (  # noqa: E402,F401
+    _flag as _flag_v2,
+    _normalize_telegram_text as _normalize_telegram_text_v2,
+    crossed_up as crossed_up_v2,
+    crossed_down as crossed_down_v2,
+)
+
 
 # ── Notification rules ────────────────────────────────────────────────────────
+
+# ═══════════════════════════════════════════════════════════════════════
+# NOTIFICATION RULES & SETTINGS  (~lines 1-330)
+# ═══════════════════════════════════════════════════════════════════════
 
 def default_notification_rules() -> dict:
     charge = {str(level): 'telegram' for level in range(10, 101, 10)}
@@ -336,6 +350,10 @@ def _flag(settings: dict | None, key: str, default: bool = True) -> bool:
     return str(value).lower() == 'true'
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# CHANNEL DISPATCH HELPERS  (Telegram + SMS)  (~lines 339-560)
+# ═══════════════════════════════════════════════════════════════════════
+
 def _normalize_telegram_text(value: str | None) -> str:
     text = str(value or '')
     text = text.replace('\r\n', '\n').replace('\\n', '\n').replace('\\t', '\t')
@@ -562,6 +580,10 @@ def _sms_should_send(settings: dict, event_key: str, signature: str) -> bool:
 
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# NOTIFICATION LOG & DISPATCH  (~lines 565-605)
+# ═══════════════════════════════════════════════════════════════════════
+
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
     since = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
     return scoped_query(NotificationLog).filter(
@@ -601,6 +623,10 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
 
 
 # ── Threshold helpers ─────────────────────────────────────────────────────────
+
+# ═══════════════════════════════════════════════════════════════════════
+# UTILITY HELPERS  (~lines 605-690)
+# ═══════════════════════════════════════════════════════════════════════
 
 def crossed_up(prev_soc: float, current_soc: float, step: int) -> list:
     return [level for level in range(step, 101, step) if prev_soc < level <= current_soc]
@@ -645,6 +671,10 @@ def _short_weather_line(now_local, weather):
     cloud = weather.cloud_cover if weather.cloud_cover is not None else '--'
     return f"{weather.icon} {weather.condition_ar} • {temp}° • غيوم {cloud}%"
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# TELEGRAM API & MENU  (~lines 649-740)
+# ═══════════════════════════════════════════════════════════════════════
 
 def _telegram_api_call(settings: dict, method: str, payload: dict):
     token = (settings.get('telegram_bot_token') or '').strip()
@@ -737,6 +767,10 @@ def send_telegram_menu(settings: dict, chat_id: str | None = None, intro: str | 
     })
     return ok, resp
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# FORMATTING — Telegram preview/weather/battery/etc.  (~lines 741-1100)
+# ═══════════════════════════════════════════════════════════════════════
 
 def _format_periodic_preview(latest, weather=None):
     title, message = build_periodic_status_message(latest, weather)

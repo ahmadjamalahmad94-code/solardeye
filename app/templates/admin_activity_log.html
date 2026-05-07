@@ -1,8 +1,147 @@
 {% extends "base.html" %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2">
-<header class="admin-page-head"><div><span class="eyebrow">{{ 'Activity log' if is_en else 'سجل العمليات' }}</span><h1>{{ 'Administrative audit trail' if is_en else 'سجل تدقيق العمليات الإدارية' }}</h1><p>{{ 'Track who changed what across plans, finance, devices, and support.' if is_en else 'تتبع من غيّر ماذا في الخطط والمالية والأجهزة والدعم.' }}</p></div></header>
-<section class="admin-card-v2"><div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Time' if is_en else 'الوقت' }}</th><th>{{ 'Actor' if is_en else 'المنفذ' }}</th><th>{{ 'Action' if is_en else 'الإجراء' }}</th><th>{{ 'Summary' if is_en else 'الملخص' }}</th><th>{{ 'Target' if is_en else 'الهدف' }}</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.item.created_at }}</td><td>{{ row.actor.username if row.actor else 'system' }}</td><td><code>{{ row.item.action }}</code></td><td>{{ row.item.summary }}</td><td>{{ row.item.target_type or '-' }}{% if row.item.target_id %} #{{ row.item.target_id }}{% endif %}</td></tr>{% else %}<tr><td colspan="5">{{ 'No admin activity yet.' if is_en else 'لا يوجد سجل إداري بعد.' }}</td></tr>{% endfor %}</tbody></table></div></section>
-</main></div>
+{% set action_labels = {
+  'finance.entry': 'حركة مالية',
+  'finance.profile': 'حركة مالية من ملف المشترك',
+  'staff.profile': 'تعديل ملف عضو الإدارة',
+  'staff.role.update': 'تعديل دور إداري',
+  'staff.permissions': 'تعديل صلاحيات عضو الإدارة',
+  'staff.quick_permissions': 'تعديل سريع للصلاحيات',
+  'staff.message': 'رسالة داخلية لفريق الإدارة',
+  'user.profile': 'تعديل ملف مستخدم',
+  'user.avatar_upload': 'رفع صورة مستخدم',
+  'user.avatar_remove': 'حذف صورة مستخدم',
+  'user.hard_delete': 'حذف حساب نهائي',
+  'users.bulk': 'إجراء جماعي على المستخدمين',
+  'subscription.profile': 'تعديل اشتراك',
+  'subscriber.portal_visibility': 'تعديل ظهور صفحات المشترك',
+  'plan.update': 'تعديل باقة اشتراك',
+  'quota.update': 'تعديل حدود الاستخدام',
+  'quota.profile.create': 'إنشاء حدود استخدام',
+  'quota.profile.update': 'تعديل حدود الاستخدام',
+  'quota.profile.delete': 'حذف حدود الاستخدام',
+  'mail.create': 'إنشاء محادثة داخلية',
+  'mail.reply': 'رد على محادثة داخلية',
+  'mail.profile.reply': 'رد على مراسلة من ملف المشترك',
+  'device.update': 'تحديث جهاز',
+  'notification.rule.update': 'تعديل قاعدة إشعار',
+  'ticket.create': 'إنشاء تذكرة دعم',
+  'ticket.reply': 'رد على تذكرة دعم',
+  'ticket.profile.reply': 'رد على تذكرة من ملف المشترك',
+  'support.ticket.create': 'إنشاء تذكرة دعم',
+  'support.ticket.reply': 'رد على تذكرة دعم',
+  'support.ticket.draft': 'حفظ مسودة تذكرة',
+  'support.ticket.internal_note': 'ملاحظة داخلية على تذكرة',
+  'support.ticket.update': 'تحديث تذكرة دعم',
+  'support.ticket.start_processing': 'بدء معالجة تذكرة',
+  'support.ticket.assign_me': 'استلام تذكرة',
+  'support.ticket.assign_admin': 'تعيين مسؤول تذكرة',
+  'support.ticket.mark_urgent': 'تعليم التذكرة كعاجلة',
+  'support.ticket.waiting_user': 'تذكرة بانتظار المستخدم',
+  'support.ticket.close': 'إغلاق تذكرة',
+  'support.ticket.reopen': 'إعادة فتح تذكرة',
+  'support.ticket.tag_followup': 'وضع متابعة على تذكرة',
+  'support.ticket.merge_note': 'تسجيل ملاحظة دمج',
+  'support.message.create': 'إنشاء رسالة دعم',
+  'support.message.reply': 'رد على رسالة دعم',
+  'support.message.draft': 'حفظ مسودة رسالة',
+  'support.message.internal_note': 'ملاحظة داخلية على رسالة',
+  'support.message.update': 'تحديث رسالة دعم',
+  'support.message.start_processing': 'بدء معالجة رسالة',
+  'support.message.assign_me': 'استلام رسالة',
+  'support.message.assign_admin': 'تعيين مسؤول رسالة',
+  'support.message.mark_urgent': 'تعليم الرسالة كعاجلة',
+  'support.message.waiting_user': 'رسالة بانتظار المستخدم',
+  'support.message.close': 'إغلاق رسالة',
+  'support.message.reopen': 'إعادة فتح رسالة',
+  'support.message.tag_followup': 'وضع متابعة على رسالة',
+  'support.message.merge_note': 'تسجيل ملاحظة دمج'
+} %}
+{% set target_labels = {
+  'app_user': 'حساب مستخدم',
+  'tenant_account': 'حساب مشترك',
+  'tenant_subscription': 'اشتراك مشترك',
+  'wallet_ledger': 'حركة مالية',
+  'tenant_quota': 'حدود استخدام المشترك',
+  'support_ticket': 'تذكرة دعم',
+  'internal_mail_thread': 'محادثة داخلية',
+  'device_type': 'نوع جهاز',
+  'app_device': 'جهاز',
+  'subscription_plan': 'باقة اشتراك',
+  'notification_rule': 'قاعدة إشعار'
+} %}
+{% set _action_cat_map = {
+  'finance':  'finance',
+  'staff':    'staff',
+  'user':     'user',
+  'users':    'user',
+  'support':  'support',
+  'ticket':   'support',
+  'mail':     'support',
+  'subscriber': 'user',
+  'subscription': 'user',
+  'plan':     'finance',
+  'quota':    'finance',
+  'device':   'device',
+  'notification': 'device',
+} %}
+{% set _target_cat_map = {
+  'app_user':              'user',
+  'tenant_account':        'tenant',
+  'tenant_subscription':   'tenant',
+  'tenant_quota':          'quota',
+  'wallet_ledger':         'finance',
+  'subscription_plan':     'plan',
+  'support_ticket':        'support',
+  'support_case':          'support',
+  'internal_mail_thread':  'mail',
+  'device_type':           'device',
+  'app_device':            'device',
+  'notification_rule':     'device',
+} %}
+{% block title %}{{ 'Activity Log' if is_en else 'سجل العمليات' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_logs_v2.css', v='v300-logs-rebuild-20260507') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area lgs-page">
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Activity Log' if is_en else 'سجل العمليات' }}</span>
+          <h1 class="hu-h1">{{ 'Who changed what, when, and where' if is_en else 'من أجرى التعديل، ومتى، وأين' }}</h1>
+          <p class="hu-tagline">{{ 'Full audit trail across plans, finance, devices, and support.' if is_en else 'سجل تدقيق شامل للباقات والمالية والأجهزة والدعم.' }}</p>
+          <div class="hu-hero-meta"><span class="hu-meta-pill"><b>{{ rows|length }}</b> {{ 'events' if is_en else 'حدث' }}</span></div>
+        </div>
+      </div>
+    </header>
+    <section class="lgs-table-block">
+      <header class="lgs-block-head">
+        <div><small class="lgs-block-eyebrow">{{ 'Audit trail' if is_en else 'مسار التدقيق' }}</small><h2>{{ 'Recent admin actions' if is_en else 'آخر العمليات الإدارية' }}</h2></div>
+        <span class="lgs-block-meta">{{ rows|length }} {{ 'rows' if is_en else 'سجل' }}</span>
+      </header>
+      <div class="lgs-table-wrap">
+        <table class="lgs-table" data-paginate data-page-size="20">
+          <thead><tr><th>{{ 'Time' if is_en else 'الوقت' }}</th><th>{{ 'Actor' if is_en else 'المنفذ' }}</th><th>{{ 'Action' if is_en else 'الإجراء' }}</th><th>{{ 'Summary' if is_en else 'الملخص' }}</th><th>{{ 'Target' if is_en else 'الهدف' }}</th><th>{{ 'ID' if is_en else 'المعرّف' }}</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr class="row-info">
+                <td><time>{{ format_local(row.item.created_at) if row.item.created_at else '-' }}</time></td>
+                <td>{% if row.actor %}<strong>{% if is_en %}{{ row.actor.username }}{% else %}{{ row.actor.full_name or ('مدير النظام' if row.actor.username == 'admin' else row.actor.username) }}{% endif %}</strong>{% else %}<span class="lgs-system">{{ 'system' if is_en else 'النظام' }}</span>{% endif %}</td>
+                <td>{% set _act_prefix = (row.item.action or '').split('.')[0] %}<span class="lgs-action {% if _action_cat_map.get(_act_prefix) %}cat-{{ _action_cat_map.get(_act_prefix) }}{% endif %}">{{ row.item.action if is_en else action_labels.get(row.item.action, (row.item.action or '-')|replace('_', ' ')|replace('.', ' / ')) }}</span></td>
+                <td class="lgs-summary">{{ activity_label(row.item, ui_lang) if activity_label is defined else (row.item.summary or '-') }}</td>
+                <td>{% if row.item.target_type %}{% set _tgt_cat = _target_cat_map.get(row.item.target_type, "") %}<span class="lgs-target {% if _tgt_cat %}tgt-{{ _tgt_cat }}{% endif %}">{{ row.item.target_type if is_en else target_labels.get(row.item.target_type, row.item.target_type|replace('_', ' ')) }}</span>{% endif %}</td>
+                <td>{% if row.item.target_id %}<span class="lgs-target-id">#{{ row.item.target_id }}</span>{% else %}<span class="lgs-muted-dash">—</span>{% endif %}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="lgs-empty"><div class="lgs-empty-state"><span>{{ 'No activity yet' if is_en else 'لا يوجد نشاط بعد' }}</span></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
 {% endblock %}

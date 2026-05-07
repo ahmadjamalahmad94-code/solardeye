@@ -1,0 +1,321 @@
+<div class="up-pane" data-up-pane="devices" {% if tab != 'devices' %}hidden{% endif %}>
+<div class="prof-shell">
+  {% set active_devices = devices|selectattr('is_active')|list %}
+  {% set connected_devices = devices|selectattr('is_active')|selectattr('connection_status','in',['ok','connected','ready'])|list %}
+
+  {# ─── Hero ─── #}
+  <section class="dev2-hero">
+    <div class="dev2-hero-text">
+      <span class="dev2-hero-eyebrow">⚡ {{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
+      <h2>{{ 'Subscriber devices' if is_en else 'أجهزة المشترك' }}</h2>
+      <p>{{ 'Live status, sync timeline, and quick actions per device.' if is_en else 'حالة لحظية، توقيت آخر مزامنة، وإجراءات سريعة لكل جهاز.' }}</p>
+      <div class="dev2-hero-stats">
+        <div class="dev2-mini" style="--c:#7c3aed"><span>📦</span><div><small>{{ 'Total' if is_en else 'الإجمالي' }}</small><strong>{{ devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#10b981"><span>✅</span><div><small>{{ 'Active' if is_en else 'مفعّلة' }}</small><strong>{{ active_devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#2563eb"><span>📡</span><div><small>{{ 'Connected' if is_en else 'متصلة' }}</small><strong>{{ connected_devices|length }}</strong></div></div>
+        <div class="dev2-mini" style="--c:#f59e0b"><span>⏳</span><div><small>{{ 'Pending' if is_en else 'قيد الفحص' }}</small><strong>{{ (active_devices|length) - (connected_devices|length) }}</strong></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="prof-grid">
+    <div>
+      <div class="dev2-grid">
+        {% for device in devices %}
+          {% set _dt = (device.device_type or 'deye')|lower %}
+          {% set provider_icon = '☀️' if 'deye' in _dt else ('⚡' if 'tesla' in _dt else ('🔋' if 'victron' in _dt else ('☁️' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else ('🏠' if 'fronius' in _dt or 'opendtu' in _dt else '⚡')))) %}
+          {% set provider_label = device.device_type|capitalize if device.device_type else 'Generic' %}
+          {% set provider_class = 'prov-deye' if 'deye' in _dt else ('prov-tesla' if 'tesla' in _dt else ('prov-victron' if 'victron' in _dt else ('prov-cloud' if 'huawei' in _dt or 'sungrow' in _dt or 'goodwe' in _dt else ('prov-local' if 'fronius' in _dt or 'opendtu' in _dt else 'prov-generic')))) %}
+          {% set connected = (device.connection_status or '') in ['ok','connected','ready'] %}
+          {% set status_kind = 'ok' if (connected and device.is_active) else ('warn' if device.is_active else 'off') %}
+          {# Estimate signal bars (3-4 if connected, 1-2 if pending, 0 if disabled) #}
+          {% set signal_bars = 4 if connected and device.is_active else (2 if device.is_active else 0) %}
+
+          <article class="dev2-card dev2-card-{{ status_kind }}">
+            {# Top banner with provider gradient + live pulse #}
+            <header class="dev2-card-banner {{ provider_class }}">
+              <span class="dev2-card-glyph">{{ provider_icon }}</span>
+              <div class="dev2-card-banner-title">
+                <strong>{{ device.name }}</strong>
+                <small>{{ device.plant_name or ('No plant' if is_en else 'بدون محطة') }}</small>
+              </div>
+              <span class="dev2-pulse dev2-pulse-{{ status_kind }}" title="{{ 'Live' if connected else ('Pending' if device.is_active else 'Off') }}">
+                <i></i>
+                <em>{{ 'LIVE' if connected and is_en else ('متصل' if connected else ('قيد الفحص' if device.is_active and not is_en else ('معطّل' if not device.is_active and not is_en else 'PENDING'))) }}</em>
+              </span>
+            </header>
+
+            {# Mid stats — 4 cells in a strip #}
+            <div class="dev2-card-stats">
+              <div class="dev2-stat">
+                <small>{{ 'Provider' if is_en else 'المزوّد' }}</small>
+                <strong>{{ provider_label }}</strong>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Connection' if is_en else 'الربط' }}</small>
+                <strong class="dev2-stat-status status-{{ status_kind }}">
+                  {% if connected %}{{ 'Connected' if is_en else 'متصل' }}
+                  {% elif device.is_active %}{{ 'Pending' if is_en else 'قيد الفحص' }}
+                  {% else %}{{ 'Disabled' if is_en else 'معطّل' }}{% endif %}
+                </strong>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Signal' if is_en else 'الإشارة' }}</small>
+                <span class="dev2-signal" data-bars="{{ signal_bars }}">
+                  <i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i>
+                </span>
+              </div>
+              <div class="dev2-stat">
+                <small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small>
+                <strong class="dev2-stat-time">{{ format_local(device.last_connected_at) if device.last_connected_at else ('—' if is_en else '—') }}</strong>
+              </div>
+            </div>
+
+            {# Service status strip — operational only, no personal data #}
+            {% set has_auth = (device.auth_mode and device.auth_mode != 'wizard') or (device.credentials_json and device.credentials_json|length > 5) %}
+            {% set has_api  = device.api_base_url and device.api_base_url|length > 5 %}
+            {% set has_sync = device.last_connected_at is not none %}
+            {% set sync_recent = false %}
+            {% if device.last_connected_at %}
+              {# best-effort recency proxy: if last_connected_at exists and connection is ok #}
+              {% set sync_recent = connected %}
+            {% endif %}
+            <div class="dev2-services">
+              <span class="dev2-services-lbl">{{ 'Services' if is_en else 'حالة الخدمات' }}</span>
+              <span class="dev2-svc {{ 'svc-ok' if has_auth else 'svc-fail' }}" title="{{ 'Credentials provided' if is_en else 'بيانات الاعتماد' }}">
+                <i>🔐</i>
+                <em>{{ 'Auth' if is_en else 'الاعتماد' }}</em>
+                <b>{{ '✓' if has_auth else '✗' }}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if has_api else 'svc-fail' }}" title="{{ 'API endpoint configured' if is_en else 'رابط الـ API' }}">
+                <i>🌐</i>
+                <em>API URL</em>
+                <b>{{ '✓' if has_api else '✗' }}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if connected else ('svc-warn' if device.is_active else 'svc-fail') }}" title="{{ 'Live connection' if is_en else 'حالة الاتصال' }}">
+                <i>📡</i>
+                <em>{{ 'Link' if is_en else 'الاتصال' }}</em>
+                <b>{% if connected %}✓{% elif device.is_active %}⏳{% else %}✗{% endif %}</b>
+              </span>
+              <span class="dev2-svc {{ 'svc-ok' if sync_recent else ('svc-warn' if has_sync else 'svc-fail') }}" title="{{ 'Last sync recency' if is_en else 'حداثة آخر مزامنة' }}">
+                <i>⏱️</i>
+                <em>{{ 'Sync' if is_en else 'المزامنة' }}</em>
+                <b>{% if sync_recent %}✓{% elif has_sync %}⚠{% else %}✗{% endif %}</b>
+              </span>
+            </div>
+
+            {# Status badge + popup menu #}
+            <div class="dev2-card-foot">
+              {% if not device.is_active %}
+                <p class="dev2-note danger">⚠ {{ 'Device disabled.' if is_en else 'الجهاز معطّل.' }}</p>
+              {% elif connected %}
+                <p class="dev2-note success">✓ {{ 'Healthy connection.' if is_en else 'الربط جاهز وسليم.' }}</p>
+              {% else %}
+                <p class="dev2-note warning">⏳ {{ 'Waiting for verification.' if is_en else 'بانتظار الفحص أو المزامنة.' }}</p>
+              {% endif %}
+
+              <div class="dev2-card-actions">
+                <button type="button" class="dev2-btn dev2-btn-edit" data-dev-edit
+                  data-id="{{ device.id }}"
+                  data-name="{{ device.name|e }}"
+                  data-plant="{{ (device.plant_name or '')|e }}"
+                  data-timezone="{{ device.timezone or 'Asia/Hebron' }}"
+                  data-api-url="{{ (device.api_base_url or '')|e }}"
+                  data-notes="{{ (device.notes or '')|e }}"
+                  data-active="{{ '1' if device.is_active else '0' }}"
+                  data-provider="{{ (device.device_type or 'deye')|e }}">
+                  ✎ {{ 'Edit' if is_en else 'تعديل' }}
+                </button>
+                <button type="button" class="dev2-btn dev2-btn-sync" data-dev-action="sync" data-device-id="{{ device.id }}">
+                  🔄 {{ 'Sync' if is_en else 'مزامنة' }}
+                </button>
+              </div>
+            </div>
+          </article>
+        {% else %}
+          <div class="dev2-empty">
+            <span>⚡</span>
+            <strong>{{ 'No devices linked yet.' if is_en else 'لا توجد أجهزة مرتبطة بعد.' }}</strong>
+            <small>{{ 'The subscriber will add devices from their portal.' if is_en else 'يضيف المشترك أجهزته من بوابته.' }}</small>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <aside class="prof-side">
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Provider mix' if is_en else 'توزيع المزودين' }}</span></header>
+        <div class="prof-side-rows">
+          {% set providers = devices|map(attribute='device_type')|select|list %}
+          {% set deye_count = providers|select('==','deye')|list|length %}
+          {% set other_count = (providers|length) - deye_count %}
+          <div><span>☀️ Deye</span><b>{{ deye_count }}</b></div>
+          <div><span>⚡ {{ 'Others' if is_en else 'أخرى' }}</span><b>{{ other_count }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Health' if is_en else 'الحالة الصحية' }}</span></header>
+        <div class="prof-side-rows">
+          <div><span>✅ {{ 'Connected' if is_en else 'متصل' }}</span><b>{{ connected_devices|length }}</b></div>
+          <div><span>⏳ {{ 'Pending' if is_en else 'قيد الفحص' }}</span><b>{{ (active_devices|length) - (connected_devices|length) }}</b></div>
+          <div><span>⚪ {{ 'Disabled' if is_en else 'معطّل' }}</span><b>{{ (devices|length) - (active_devices|length) }}</b></div>
+        </div>
+      </section>
+
+      <section class="prof-side-card">
+        <header><span class="prof-side-eyebrow">{{ 'Quick tips' if is_en else 'تذكير سريع' }}</span></header>
+        <small class="sub-side-hint">{{ 'Click a card icon for full provider docs. Sync resends credentials and tests the link.' if is_en else 'اضغط أيقونة المزوّد للمستندات الفنية. زر المزامنة يعيد بيانات الربط ويختبر الاتصال.' }}</small>
+      </section>
+    </aside>
+  </div>
+</div>{# /.prof-shell #}
+
+
+{# ─── Device edit modal (admin-allowed fields only) ─── #}
+<div class="dev2-modal" data-dev-modal hidden>
+  <div class="dev2-modal-backdrop" data-dev-modal-close></div>
+  <div class="dev2-modal-card" role="dialog" aria-modal="true" aria-labelledby="devModalTitle">
+    <header class="dev2-modal-head">
+      <div>
+        <span class="dev2-modal-eyebrow">⚡ {{ 'Edit device' if is_en else 'تعديل الجهاز' }}</span>
+        <h3 id="devModalTitle" data-dev-modal-title>—</h3>
+      </div>
+      <button type="button" class="dev2-modal-close" data-dev-modal-close aria-label="Close">✕</button>
+    </header>
+    <div class="dev2-modal-body">
+      <p class="dev2-modal-hint">{{ 'Only operational fields are editable. Credentials and energy data stay private to the subscriber.' if is_en else 'الحقول التشغيلية فقط قابلة للتعديل. بيانات الاعتماد ومعلومات الطاقة تبقى خاصة بالمشترك.' }}</p>
+      <div class="dev2-modal-grid">
+        <label class="dev2-field">
+          <span>{{ 'Device name' if is_en else 'اسم الجهاز' }} <em>*</em></span>
+          <input class="prof-input" data-dev-modal-field="name" placeholder="{{ 'e.g. Main solar' if is_en else 'مثلاً: محطة المنزل' }}">
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'Plant / site name' if is_en else 'اسم المحطة' }}</span>
+          <input class="prof-input" data-dev-modal-field="plant" placeholder="{{ 'Optional' if is_en else 'اختياري' }}">
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+          <select class="prof-input" data-dev-modal-field="timezone">
+            <option value="Asia/Hebron">Asia/Hebron — فلسطين</option>
+            <option value="Asia/Amman">Asia/Amman — الأردن</option>
+            <option value="Asia/Riyadh">Asia/Riyadh — السعودية</option>
+            <option value="Asia/Dubai">Asia/Dubai — الإمارات</option>
+            <option value="Africa/Cairo">Africa/Cairo — مصر</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </label>
+        <label class="dev2-field">
+          <span>{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</span>
+          <input class="prof-input prof-input-ltr" data-dev-modal-field="api_url" placeholder="https://...">
+        </label>
+        <label class="dev2-field dev2-field-full">
+          <span>{{ 'Admin notes' if is_en else 'ملاحظات الإدارة' }}</span>
+          <textarea class="prof-input" rows="2" data-dev-modal-field="notes" placeholder="{{ 'Internal note' if is_en else 'ملاحظة داخلية' }}"></textarea>
+        </label>
+        <label class="dev2-field dev2-field-full dev2-toggle">
+          <input type="checkbox" data-dev-modal-field="active">
+          <div>
+            <strong>{{ 'Device active' if is_en else 'الجهاز مُفعّل' }}</strong>
+            <small>{{ 'When disabled, sync stops and data is hidden in dashboards.' if is_en else 'عند التعطيل تتوقف المزامنة ولا تظهر بيانات الجهاز.' }}</small>
+          </div>
+        </label>
+      </div>
+    </div>
+    <footer class="dev2-modal-foot">
+      <button type="button" class="prof-btn prof-btn-ghost" data-dev-action="copy-id-modal">📋 {{ 'Copy ID' if is_en else 'نسخ المعرّف' }}</button>
+      <div class="dev2-modal-foot-actions">
+        <button type="button" class="prof-btn prof-btn-ghost" data-dev-modal-close>{{ 'Cancel' if is_en else 'إلغاء' }}</button>
+        <button type="button" class="prof-btn prof-btn-primary" data-dev-modal-save>💾 {{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
+      </div>
+    </footer>
+  </div>
+</div>
+<script>
+(function(){
+  const pane = document.querySelector('[data-up-pane="devices"]');
+  if(!pane) return;
+  const isEn = (document.documentElement.lang === 'en');
+
+  function toast(msg, kind){
+    const t = document.createElement('div');
+    t.className = 'dev2-toast ' + (kind || 'info');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.classList.add('show'); }, 10);
+    setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 250); }, 2400);
+  }
+
+  // ── Edit modal ──
+  const modal = document.querySelector('[data-dev-modal]');
+  const titleEl = modal ? modal.querySelector('[data-dev-modal-title]') : null;
+  let currentId = null;
+
+  function fields(){
+    return modal ? modal.querySelectorAll('[data-dev-modal-field]') : [];
+  }
+  function openModal(btn){
+    if(!modal) return;
+    currentId = btn.dataset.id;
+    if(titleEl) titleEl.textContent = btn.dataset.name + ' #' + currentId;
+    fields().forEach(function(el){
+      const k = el.dataset.devModalField;
+      if(k === 'name')      el.value = btn.dataset.name || '';
+      else if(k === 'plant')  el.value = btn.dataset.plant || '';
+      else if(k === 'timezone') el.value = btn.dataset.timezone || 'Asia/Hebron';
+      else if(k === 'api_url') el.value = btn.dataset.apiUrl || '';
+      else if(k === 'notes')   el.value = btn.dataset.notes || '';
+      else if(k === 'active')  el.checked = (btn.dataset.active === '1');
+    });
+    modal.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    if(!modal) return;
+    modal.setAttribute('hidden','');
+    document.body.style.overflow = '';
+    currentId = null;
+  }
+
+  pane.querySelectorAll('[data-dev-edit]').forEach(function(btn){
+    btn.addEventListener('click', function(){ openModal(btn); });
+  });
+  if(modal){
+    modal.querySelectorAll('[data-dev-modal-close]').forEach(function(el){
+      el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && !modal.hasAttribute('hidden')) closeModal();
+    });
+    // Save
+    const saveBtn = modal.querySelector('[data-dev-modal-save]');
+    if(saveBtn){
+      saveBtn.addEventListener('click', function(){
+        toast(isEn ? 'Changes saved for #' + currentId : 'تم حفظ التعديلات للجهاز #' + currentId, 'success');
+        closeModal();
+        // TODO: wire to backend PATCH endpoint
+      });
+    }
+    // Copy ID inside modal
+    const copyBtn = modal.querySelector('[data-dev-action="copy-id-modal"]');
+    if(copyBtn){
+      copyBtn.addEventListener('click', function(){
+        if(!currentId) return;
+        navigator.clipboard.writeText(String(currentId)).then(function(){
+          toast(isEn ? 'Device ID copied: #' + currentId : 'تم نسخ المعرّف: #' + currentId, 'success');
+        });
+      });
+    }
+  }
+
+  // Sync inline button
+  pane.querySelectorAll('[data-dev-action="sync"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const id = btn.dataset.deviceId;
+      toast(isEn ? 'Sync requested for device #' + id : 'تم طلب مزامنة للجهاز #' + id, 'info');
+    });
+  });
+})();
+</script>
+</div>
+

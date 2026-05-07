@@ -12,6 +12,7 @@ LABELS = {
             'suspended': 'معلق', 'expired': 'منتهي', 'cancelled': 'ملغي', 'ok': 'سليم',
             'warning': 'تنبيه', 'danger': 'خطر', 'failed': 'فشل', 'unknown': 'غير معروف',
             'manual': 'يدوي', 'monthly': 'شهري', 'weekly': 'أسبوعي', 'daily': 'يومي', 'yearly': 'سنوي', 'unlimited': 'بدون حد', 'paused': 'متوقف مؤقتًا', 'exhausted': 'مستنفد', 'success': 'ناجح', 'info': 'معلومة',
+            'connected': 'متصل', 'ready': 'جاهز', 'setup_required': 'يحتاج إعداد', 'error': 'خطأ', 'offline': 'غير متصل', 'syncing': 'جاري المزامنة', 'running': '\u064a\u0639\u0645\u0644',
         },
         'en': {
             'new': 'New', 'open': 'Open', 'assigned': 'Assigned', 'pending': 'Pending',
@@ -21,6 +22,7 @@ LABELS = {
             'suspended': 'Suspended', 'expired': 'Expired', 'cancelled': 'Cancelled', 'ok': 'Healthy',
             'warning': 'Warning', 'danger': 'Danger', 'failed': 'Failed', 'unknown': 'Unknown',
             'manual': 'Manual', 'monthly': 'Monthly', 'weekly': 'Weekly', 'daily': 'Daily', 'yearly': 'Yearly', 'unlimited': 'Unlimited', 'paused': 'Paused', 'exhausted': 'Exhausted', 'success': 'Success', 'info': 'Info',
+            'connected': 'Connected', 'ready': 'Ready', 'setup_required': 'Setup required', 'error': 'Error', 'offline': 'Offline', 'syncing': 'Syncing', 'running': 'Running',
         },
     },
     'priority': {

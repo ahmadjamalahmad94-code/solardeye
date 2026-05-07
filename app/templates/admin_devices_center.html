@@ -1,63 +1,296 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Devices' if is_en else 'الأجهزة' }}{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set total = device_stats.total %}
-{% set connected = device_stats.connected %}
-{% set inactive = device_stats.inactive %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Devices Fleet' if is_en else 'أسطول الأجهزة' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_devices_center_v2.css', v='v211-devices-uniform-20260506i') }}">
+{% endblock %}
+{% block body %}
+{% set _status_choices = [
+  ('ok',                'سليم',        'Healthy'),
+  ('connected',         'متصل',        'Connected'),
+  ('ready',             'جاهز',        'Ready'),
+  ('new',               'جديد',        'New'),
+  ('setup_required',    'يحتاج إعداد', 'Setup required'),
+  ('warning',           'تنبيه',       'Warning'),
+  ('failed',            'فشل',         'Failed'),
+  ('error',             'خطأ',         'Error'),
+  ('offline',           'غير متصل',    'Offline'),
+] %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2 admin-devices-v80">
-    <header class="admin-page-head">
-      <div>
-        <span class="eyebrow">{{ 'Device Fleet' if is_en else 'أسطول الأجهزة' }}</span>
-        <h1>{{ 'Devices control center' if is_en else 'مركز التحكم بالأجهزة' }}</h1>
-        <p>{{ 'Monitor ownership, readiness, connection state, and sensitive identifiers safely.' if is_en else 'راقب الملكية والجاهزية وحالة الاتصال مع إخفاء المعرّفات الحساسة.' }}</p>
-      </div>
-      <div class="admin-head-actions">
-        <a class="btn btn-outline-primary" href="{{ url_for('integrations.admin_integrations', lang=ui_lang) }}">🧩 {{ 'Integrations' if is_en else 'التكاملات' }}</a>
-        <a class="btn btn-solar" href="{{ url_for('main.admin_subscribers', lang=ui_lang) }}">👥 {{ 'Subscribers' if is_en else 'المشتركين' }}</a>
+  <main class="app-main content-area dvf-page">
+
+    {# ── Hero ────────────────────────────────────────────────── #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Device Fleet' if is_en else 'أسطول الأجهزة' }}</span>
+          <h1 class="hu-h1">{{ 'Inverters, batteries, and gateways at a glance' if is_en else 'الإنفرترات والبطاريات والبوابات بنظرة واحدة' }}</h1>
+          <p class="hu-tagline">{{ 'Monitor ownership, readiness, connection state and last heartbeat across the entire fleet.' if is_en else 'تتبع الملكية والجاهزية وحالة الاتصال وآخر نبضة لكل جهاز عبر الأسطول كاملاً.' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill"><b>{{ device_stats.total }}</b> {{ 'devices' if is_en else 'جهاز' }}</span>
+            <span class="hu-meta-pill ok"><b>{{ device_stats.connected }}</b> {{ 'connected' if is_en else 'متصل' }}</span>
+            <span class="hu-meta-pill"><b>{{ device_stats.types }}</b> {{ 'types' if is_en else 'نوع' }}</span>
+          </div>
+        </div>
       </div>
     </header>
 
-    <section class="admin-kpi-grid-v2">
-      <article class="admin-kpi-card"><small>{{ 'Total devices' if is_en else 'إجمالي الأجهزة' }}</small><strong>{{ total }}</strong><span>{{ 'Registered in platform' if is_en else 'مسجلة في المنصة' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Connected / ready' if is_en else 'متصل / جاهز' }}</small><strong>{{ connected }}</strong><span>{{ 'Healthy connection states' if is_en else 'حالات اتصال سليمة' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Inactive' if is_en else 'غير مفعلة' }}</small><strong>{{ inactive }}</strong><span>{{ 'Disabled devices' if is_en else 'أجهزة معطلة' }}</span></article>
-      <article class="admin-kpi-card"><small>{{ 'Types' if is_en else 'الأنواع' }}</small><strong>{{ device_stats.types }}</strong><span>{{ 'Configured providers' if is_en else 'مزودين مهيئين' }}</span></article>
-    </section>
-
-    <section class="admin-card-v2">
-      <form class="form-grid-v2 three" method="get">
-        <input type="hidden" name="lang" value="{{ ui_lang }}">
-        <label><span>{{ 'Device type' if is_en else 'نوع الجهاز' }}</span><select name="device_type" class="form-control"><option value="">{{ 'All' if is_en else 'الكل' }}</option>{% for dt in device_types %}<option value="{{ dt.code }}" {% if request.args.get('device_type')==dt.code %}selected{% endif %}>{{ dt.name }}</option>{% endfor %}</select></label>
-        <label><span>{{ 'Connection status' if is_en else 'حالة الاتصال' }}</span><input class="form-control" name="status" value="{{ request.args.get('status','') }}" placeholder="ok / connected / warning"></label>
-        <div class="action-row-v2 align-self-end"><button class="btn btn-solar">{{ 'Filter' if is_en else 'تصفية' }}</button><a class="btn btn-outline-secondary" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">{{ 'Reset' if is_en else 'إلغاء التصفية' }}</a></div>
-      </form>
-    </section>
-
-    <section class="admin-card-v2">
-      <div class="table-shell-v2">
-        <table class="admin-table-v2">
-          <thead><tr><th>{{ 'Device' if is_en else 'الجهاز' }}</th><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Owner' if is_en else 'المالك' }}</th><th>{{ 'Tenant' if is_en else 'المشترك' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Last seen' if is_en else 'آخر اتصال' }}</th><th>{{ 'Privacy' if is_en else 'الخصوصية' }}</th></tr></thead>
-          <tbody>
-          {% for row in rows %}
-          <tr>
-            <td><strong>{{ row.device.name }}</strong><div class="table-sub device-mask">{{ mask_identifier(row.device.device_uid or row.device.external_device_id) if (row.device.device_uid or row.device.external_device_id) else ('ID #' ~ row.device.id) }}</div></td>
-            <td><span class="ui-badge-v70 is-info">{{ row.device.device_type }}</span></td>
-            <td>{% if row.owner %}<strong>{{ row.owner.full_name or row.owner.username }}</strong><div class="table-sub">@{{ row.owner.username }}</div>{% else %}<span class="table-sub">—</span>{% endif %}</td>
-            <td>{{ row.tenant.display_name if row.tenant else '—' }}</td>
-            <td><span class="ui-badge-v70 {{ badge_class(row.device.connection_status or 'new') }}">{{ ui_label(row.device.connection_status or 'new', 'status', ui_lang) }}</span>{% if not row.device.is_active %}<div><span class="ui-badge-v70 is-muted">{{ 'Disabled' if is_en else 'معطل' }}</span></div>{% endif %}</td>
-            <td>{{ format_local(row.device.last_connected_at) if row.device.last_connected_at else '—' }}</td>
-            <td><span class="privacy-pill-v80">🔒 {{ 'IDs masked' if is_en else 'المعرّفات مخفية' }}</span></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="7" class="empty-box-v2">{{ 'No devices found.' if is_en else 'لا توجد أجهزة.' }}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+    {# ════════ SECTION 1 — KPI strip ════════ #}
+    <section>
+      <div class="dvf-section-head">
+        <div>
+          <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+          <h2><span class="dvf-sec-icon">📊</span> {{ 'Fleet snapshot' if is_en else 'لمحة عامة عن الأسطول' }}</h2>
+        </div>
+        <span class="dvf-section-meta">{{ 'Live counters' if is_en else 'عدّادات حيّة' }}</span>
+      </div>
+      <div class="dvf-kpi-row">
+        <article class="dvf-kpi accent-blue">
+          <span class="dvf-kpi-icon">🔌</span>
+          <div class="dvf-kpi-body">
+            <small>{{ 'Total devices' if is_en else 'إجمالي الأجهزة' }}</small>
+            <strong>{{ device_stats.total }}</strong>
+            <span>{{ 'registered in fleet' if is_en else 'مسجلة في الأسطول' }}</span>
+          </div>
+        </article>
+        <article class="dvf-kpi accent-emerald">
+          <span class="dvf-kpi-icon">✅</span>
+          <div class="dvf-kpi-body">
+            <small>{{ 'Connected' if is_en else 'متصلة' }}</small>
+            <strong>{{ device_stats.connected }}</strong>
+            <span>{{ 'reporting healthy' if is_en else 'تعمل بكفاءة' }}</span>
+          </div>
+        </article>
+        <article class="dvf-kpi accent-amber">
+          <span class="dvf-kpi-icon">⛔</span>
+          <div class="dvf-kpi-body">
+            <small>{{ 'Inactive' if is_en else 'غير نشطة' }}</small>
+            <strong>{{ device_stats.inactive }}</strong>
+            <span>{{ 'disabled by admin' if is_en else 'معطلة من الإدارة' }}</span>
+          </div>
+        </article>
+        <article class="dvf-kpi accent-violet">
+          <span class="dvf-kpi-icon">🧩</span>
+          <div class="dvf-kpi-body">
+            <small>{{ 'Device types' if is_en else 'أنواع الأجهزة' }}</small>
+            <strong>{{ device_stats.types }}</strong>
+            <span>{{ 'configured providers' if is_en else 'مزودون مُعدّون' }}</span>
+          </div>
+        </article>
       </div>
     </section>
+
+    {# ════════ SECTION 2 — Filters ════════ #}
+    <section>
+      <div class="dvf-section-head">
+        <div>
+          <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+          <h2><span class="dvf-sec-icon">🔍</span> {{ 'Filter the fleet' if is_en else 'تصفية الأسطول' }}</h2>
+        </div>
+        <span class="dvf-section-meta">{{ 'Narrow down by type or connection status' if is_en else 'حدّد حسب النوع أو حالة الاتصال' }}</span>
+      </div>
+      <div class="dvf-toolbar">
+        <form method="get" class="dvf-filter-form">
+          <input type="hidden" name="lang" value="{{ ui_lang }}">
+          <label class="dvf-field">
+            <span>{{ 'Device type' if is_en else 'نوع الجهاز' }}</span>
+            <select name="device_type">
+              <option value="">{{ 'All types' if is_en else 'كل الأنواع' }}</option>
+              {% for dt in device_types %}
+                <option value="{{ dt.code }}" {% if request.args.get('device_type')==dt.code %}selected{% endif %}>{{ dt.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="dvf-field">
+            <span>{{ 'Connection status' if is_en else 'حالة الاتصال' }}</span>
+            <select name="status">
+              <option value="">{{ 'All statuses' if is_en else 'كل الحالات' }}</option>
+              {% for code, ar, en in _status_choices %}
+                <option value="{{ code }}" {% if request.args.get('status')==code %}selected{% endif %}>{{ en if is_en else ar }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="dvf-filter-actions">
+            <a class="dvf-btn ghost" href="{{ url_for('admin_ops.admin_devices_center_v9', lang=ui_lang) }}">{{ '↺ Reset' if is_en else '↺ إعادة' }}</a>
+            <button type="submit" class="dvf-btn primary">{{ '🔎 Filter' if is_en else '🔎 تصفية' }}</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {# ════════ SECTION 3 — 2-column shell: aside + table ════════ #}
+    <div class="dvf-shell">
+
+      {# ─── ASIDE (LEFT) — Insights ─── #}
+      <aside class="dvf-aside">
+
+        {# 1. EXPLAINER #}
+        <div class="dvf-as-card explainer">
+          <h4>📘 {{ 'How to read this page' if is_en else 'كيف تقرأ هذه الصفحة' }}</h4>
+          <p>{{ 'Each device row shows the gateway / inverter, its plant or station, the owner subscriber, current connection status, and last heartbeat time.' if is_en else 'كل صف يعرض الجهاز (إنفرتر/بوابة)، المحطة المرتبطة، المشترك المالك، حالة الاتصال الحالية، ووقت آخر نبضة وصلت.' }}</p>
+          <p>{{ '"Last seen" turns amber if the device has been silent for more than 24 hours, and green if it pinged within the last hour.' if is_en else '"آخر ظهور" يصبح كهرماني إذا صمت الجهاز أكثر من 24 ساعة، وأخضر إذا أرسل نبضة خلال آخر ساعة.' }}</p>
+          <p>{{ 'The aside on the left shows fleet-wide insights — type mix, status mix, and last-heartbeat health.' if is_en else 'العمود الجانبي على اليسار يعرض رؤى لكامل الأسطول: مزيج الأنواع، مزيج الحالات، وصحة آخر النبضات.' }}</p>
+        </div>
+
+        {# 2. Heartbeat health #}
+        <div class="dvf-as-card">
+          <h4>💓 {{ 'Heartbeat health' if is_en else 'صحة آخر النبضات' }}</h4>
+          {% set _hmax = [health.fresh, health.recent, health.stale, health.very_stale, health.never]|max or 1 %}
+          <div class="dvf-as-mix">
+            <div class="dvf-as-mix-row">
+              <div class="dvf-as-mix-meta"><strong>✅ {{ 'Fresh (< 1h)' if is_en else 'حديث (أقل من ساعة)' }}</strong><span>{{ health.fresh }}</span></div>
+              <div class="dvf-as-mix-bar"><span style="width: {{ (health.fresh / _hmax * 100)|int }}%; background: linear-gradient(90deg,#22c55e,#15803d);"></span></div>
+            </div>
+            <div class="dvf-as-mix-row">
+              <div class="dvf-as-mix-meta"><strong>🌤 {{ 'Recent (< 24h)' if is_en else 'قريب (أقل من يوم)' }}</strong><span>{{ health.recent }}</span></div>
+              <div class="dvf-as-mix-bar"><span style="width: {{ (health.recent / _hmax * 100)|int }}%; background: linear-gradient(90deg,#3b82f6,#1d4ed8);"></span></div>
+            </div>
+            <div class="dvf-as-mix-row">
+              <div class="dvf-as-mix-meta"><strong>⚠ {{ 'Stale (1–7d)' if is_en else 'متأخر (1–7 أيام)' }}</strong><span>{{ health.stale }}</span></div>
+              <div class="dvf-as-mix-bar"><span style="width: {{ (health.stale / _hmax * 100)|int }}%; background: linear-gradient(90deg,#f59e0b,#b45309);"></span></div>
+            </div>
+            <div class="dvf-as-mix-row">
+              <div class="dvf-as-mix-meta"><strong>🚨 {{ 'Very stale (> 7d)' if is_en else 'متأخر جداً (>7 أيام)' }}</strong><span>{{ health.very_stale }}</span></div>
+              <div class="dvf-as-mix-bar"><span style="width: {{ (health.very_stale / _hmax * 100)|int }}%; background: linear-gradient(90deg,#ef4444,#991b1b);"></span></div>
+            </div>
+            <div class="dvf-as-mix-row">
+              <div class="dvf-as-mix-meta"><strong>○ {{ 'Never connected' if is_en else 'لم يتصل أبداً' }}</strong><span>{{ health.never }}</span></div>
+              <div class="dvf-as-mix-bar"><span style="width: {{ (health.never / _hmax * 100)|int }}%; background: linear-gradient(90deg,#94a3b8,#475569);"></span></div>
+            </div>
+          </div>
+        </div>
+
+        {# 3. Type mix #}
+        <div class="dvf-as-card">
+          <h4>🧩 {{ 'Device type mix' if is_en else 'مزيج أنواع الأجهزة' }}</h4>
+          {% if type_mix %}
+            {% set _tmax = type_mix[0][1] if type_mix else 1 %}
+            <div class="dvf-as-mix">
+              {% for t, count in type_mix %}
+                <div class="dvf-as-mix-row">
+                  <div class="dvf-as-mix-meta"><strong>{{ t }}</strong><span>{{ count }}</span></div>
+                  <div class="dvf-as-mix-bar"><span style="width: {{ (count / _tmax * 100)|int }}%; background: linear-gradient(90deg, #6366f1, #4f46e5);"></span></div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="dvf-as-tip">{{ 'No devices yet.' if is_en else 'لا توجد أجهزة بعد.' }}</div>
+          {% endif %}
+        </div>
+
+        {# 4. Status mix #}
+        <div class="dvf-as-card">
+          <h4>📡 {{ 'Status mix' if is_en else 'مزيج الحالات' }}</h4>
+          {% if status_mix %}
+            {% set _smax = status_mix[0][1] if status_mix else 1 %}
+            <div class="dvf-as-mix">
+              {% for st, count in status_mix %}
+                <div class="dvf-as-mix-row">
+                  <div class="dvf-as-mix-meta"><strong>{{ ui_label(st, 'status', ui_lang) }}</strong><span>{{ count }}</span></div>
+                  <div class="dvf-as-mix-bar"><span style="width: {{ (count / _smax * 100)|int }}%; background: linear-gradient(90deg, #a855f7, #6d28d9);"></span></div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="dvf-as-tip">{{ 'No status data yet.' if is_en else 'لا توجد بيانات حالة بعد.' }}</div>
+          {% endif %}
+        </div>
+
+      </aside>
+
+      {# ─── MAIN — Devices table ─── #}
+      <section class="dvf-table-block">
+        <div class="dvf-section-head" style="margin: 0 0 14px;">
+          <div>
+            <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+            <h2><span class="dvf-sec-icon">📋</span> {{ 'All registered devices' if is_en else 'جميع الأجهزة المسجلة' }}</h2>
+          </div>
+          <span class="dvf-section-meta">{{ rows|length }} {{ 'shown' if is_en else 'معروض' }}</span>
+        </div>
+        <div class="dvf-table-wrap">
+          <table class="dvf-table" data-paginate data-page-size="20">
+            <thead>
+              <tr>
+                <th style="width: 64px">{{ 'Image' if is_en else 'صورة' }}</th>
+                <th>{{ 'Device' if is_en else 'الجهاز' }}</th>
+                <th>{{ 'Plant / station' if is_en else 'المحطة' }}</th>
+                <th>{{ 'Type' if is_en else 'النوع' }}</th>
+                <th>{{ 'Owner' if is_en else 'المالك' }}</th>
+                <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+                <th>{{ 'Last seen' if is_en else 'آخر ظهور' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                {% set dev = row.device %}
+                <tr>
+                  <td>
+                    <span class="pg-avatar">{{ (dev.name or '?')[:1]|upper }}</span>
+                  </td>
+                  <td>
+                    <div class="dvf-device-cell">
+                      <div>
+                        <strong>{{ dev.name or '—' }}</strong>
+                        <small>
+                          {% if dev.device_uid or dev.external_device_id %}
+                            <code>{{ mask_identifier(dev.device_uid or dev.external_device_id) }}</code>
+                          {% else %}
+                            <code>ID #{{ dev.id }}</code>
+                          {% endif %}
+                        </small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="dvf-plant-cell">
+                      <strong>{{ dev.plant_name or '—' }}</strong>
+                      {% if dev.station_id %}<small>{{ 'Station' if is_en else 'محطة' }} #{{ dev.station_id }}</small>{% endif %}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="dvf-tag dvf-tag-type">{{ dev.device_type or '-' }}</span>
+                    {% if dev.api_provider and dev.api_provider != dev.device_type %}
+                      <br><span class="dvf-tag" style="margin-top:4px">{{ dev.api_provider }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if row.owner %}
+                      <div class="dvf-owner-cell">
+                        <strong>{{ row.owner.full_name or row.owner.username }}</strong>
+                        <small>@{{ row.owner.username }}{% if row.tenant and row.tenant.display_name != (row.owner.full_name or row.owner.username) %} · {{ row.tenant.display_name }}{% endif %}</small>
+                      </div>
+                    {% else %}
+                      <span style="color:#94a3b8">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="dvf-pill dvf-status-{{ dev.connection_status or 'new' }}">{{ ui_label(dev.connection_status or 'new', 'status', ui_lang) }}</span>
+                    {% if not dev.is_active %}
+                      <br><span class="dvf-tag" style="margin-top:4px;background:#fef2f2;color:#991b1b;border-color:#fca5a5">{{ 'disabled' if is_en else 'معطل' }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if dev.last_connected_at %}
+                      <div class="dvf-lastseen">
+                        <time>{{ format_local(dev.last_connected_at) }}</time>
+                        <span class="dvf-ago">{{ 'updated ' if is_en else 'حُدّث ' }}{{ format_local(dev.updated_at) if dev.updated_at else '' }}</span>
+                      </div>
+                    {% else %}
+                      <span style="color:#94a3b8;font-size:.85rem">{{ 'never connected' if is_en else 'لم يتصل بعد' }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="7" class="dvf-empty"><div class="dvf-empty-state"><span>📭</span><span>{{ 'No devices found' if is_en else 'لا توجد أجهزة' }}</span></div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>{# /dvf-shell #}
+
   </main>
 </div>
 {% endblock %}

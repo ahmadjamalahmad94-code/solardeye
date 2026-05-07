@@ -1,559 +1,183 @@
 {% extends 'base.html' %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<style>
-.lv-page{
-  --lv-ink:#0b1220;
-  --lv-ink-soft:#1f2a44;
-  --lv-muted:#5e6f8c;
-  --lv-line:#e3eaf6;
-  --lv-line-strong:#cfd9ec;
-  --lv-card:#ffffff;
-  --lv-card-2:#f9fbff;
-  --lv-bg:#eef3fb;
-  --lv-violet:#6d3aff;
-  --lv-amber:#f59e0b;
-  --lv-amber-soft:#fbbf24;
-  --lv-emerald:#10b981;
-  --lv-emerald-soft:#34d399;
-  --lv-sky:#2563eb;
-  --lv-sky-soft:#60a5fa;
-  --lv-rose:#f43f5e;
-  --lv-rose-soft:#fb7185;
-  --lv-orange:#f97316;
-  --lv-shadow-sm:0 6px 18px rgba(15,23,42,.06);
-  --lv-shadow:0 22px 60px rgba(15,23,42,.09);
-  --lv-radius:22px;
-  --lv-radius-lg:30px;
-  --lv-radius-xl:38px;
-  background:
-    radial-gradient(1100px 480px at 12% -10%,rgba(109,58,255,.10),transparent 55%),
-    radial-gradient(900px 420px at 92% -4%,rgba(245,158,11,.10),transparent 55%),
-    linear-gradient(180deg,#f5f8ff 0%,#eef3fb 60%,#e8eef9 100%);
-  min-height:100vh;
-  padding:18px clamp(14px,2.4vw,32px) 80px;
-  font-family:'Cairo','Inter',system-ui,sans-serif;
-  color:var(--lv-ink);
-  display:flex;
-  flex-direction:column;
-  gap:30px;
-}
-.lv-page>*+*{margin-top:0}
-.lv-page *,.lv-page *::before,.lv-page *::after{box-sizing:border-box}
-
-/* HERO HEADER */
-.lv-hero{
-  position:relative;border-radius:var(--lv-radius-xl);
-  padding:clamp(22px,3vw,34px) clamp(20px,3vw,38px);
-  overflow:hidden;color:#fff;
-  box-shadow:0 38px 90px rgba(15,23,42,.14);
-  isolation:isolate;
-  background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%);
-  margin-bottom:0;
-}
-.lv-hero::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(420px 240px at 12% 18%,rgba(255,255,255,.18),transparent 60%),
-    radial-gradient(380px 220px at 88% 80%,rgba(11,23,67,.25),transparent 60%);
-}
-.lv-hero-grid{position:relative;z-index:1;display:grid;gap:18px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:center}
-@media (max-width:980px){.lv-hero-grid{grid-template-columns:1fr}}
-.lv-hero-text{display:flex;flex-direction:column;gap:8px;min-width:0}
-.lv-eyebrow{
-  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
-  font-size:.72rem;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
-  color:#0b1531;background:rgba(255,255,255,.92);
-  padding:.35rem .75rem;border-radius:999px;
-  box-shadow:0 6px 16px rgba(11,21,49,.18);
-}
-.lv-eyebrow .lv-pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--lv-amber);
-  box-shadow:0 0 0 0 rgba(245,158,11,.7);animation:lvPulseO 1.8s infinite;
-}
-@keyframes lvPulseO{
-  0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}
-  70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}
-  100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
-}
-.lv-hero h1{
-  font-size:clamp(1.55rem,2.6vw,2.05rem);font-weight:950;
-  margin:0;line-height:1.18;color:#fff;
-  text-shadow:0 4px 18px rgba(11,21,49,.22);
-}
-.lv-hero p{margin:0;font-size:.95rem;color:rgba(255,255,255,.92);max-width:64ch;line-height:1.55;font-weight:600}
-.lv-hero-meta{display:flex;flex-wrap:wrap;gap:.45rem .55rem;margin-top:.45rem}
-.lv-hero-meta-item{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);padding:.36rem .75rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
-}
-.lv-hero-meta-item b{color:#0b1531;font-weight:900}
-
-/* live badge — green pill */
-.lv-hero-actions{display:flex;flex-wrap:wrap;gap:.55rem;justify-content:flex-end;align-items:center;position:relative;z-index:1}
-@media (max-width:980px){.lv-hero-actions{justify-content:flex-start}}
-.lv-live-badge{
-  display:inline-flex;align-items:center;gap:.5rem;
-  padding:.5rem .9rem;border-radius:999px;
-  background:linear-gradient(135deg,#10b981,#34d399);
-  color:#04221b;font-size:.85rem;font-weight:900;
-  box-shadow:0 8px 22px rgba(16,185,129,.32);
-}
-.lv-live-dot{
-  width:9px;height:9px;border-radius:50%;background:#04221b;
-  animation:lvPulseG 1.6s infinite;
-}
-@keyframes lvPulseG{
-  0%,100%{opacity:1;transform:scale(1)}
-  50%{opacity:.55;transform:scale(.7)}
-}
-.lv-last-update{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.78rem;font-weight:800;color:#0b1531;
-  background:rgba(255,255,255,.92);padding:.5rem .85rem;border-radius:12px;
-  box-shadow:0 4px 12px rgba(11,21,49,.10);
-}
-
-/* ─── HERO METRICS ROW ─── */
-.lv-heroes{
-  display:grid;gap:18px;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-}
-@media (max-width:1100px){.lv-heroes{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:680px){.lv-heroes{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:400px){.lv-heroes{grid-template-columns:1fr}}
-.lv-hero-card{
-  position:relative;
-  background:var(--lv-card);border:1px solid var(--lv-line);
-  border-radius:var(--lv-radius-lg);
-  padding:18px 20px 20px;
-  box-shadow:var(--lv-shadow-sm);overflow:hidden;
-  transition:all .2s ease;
-  display:flex;flex-direction:column;gap:.4rem;
-}
-.lv-hero-card:hover{transform:translateY(-3px);box-shadow:var(--lv-shadow);border-color:var(--lv-line-strong)}
-.lv-hero-card::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:5px;
-  border-radius:var(--lv-radius-lg) var(--lv-radius-lg) 0 0;opacity:.95;
-}
-.lv-hero-card.status::before  {background:linear-gradient(90deg,#6366f1,#a78bfa)}
-.lv-hero-card.solar::before   {background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.lv-hero-card.home-h::before  {background:linear-gradient(90deg,#f43f5e,#fb7185)}
-.lv-hero-card.battery::before {background:linear-gradient(90deg,#10b981,#34d399)}
-.lv-hero-card.today::before   {background:linear-gradient(90deg,#f97316,#fb923c)}
-
-.lv-hero-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;margin-top:.2rem}
-.lv-hero-icon{
-  width:46px;height:46px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.4rem;
-}
-.lv-hero-card.status   .lv-hero-icon{background:rgba(99,102,241,.12);color:#4338ca}
-.lv-hero-card.solar    .lv-hero-icon{background:rgba(245,158,11,.12);color:#b45309}
-.lv-hero-card.home-h   .lv-hero-icon{background:rgba(244,63,94,.12);color:#be123c}
-.lv-hero-card.battery  .lv-hero-icon{background:rgba(16,185,129,.12);color:#047857}
-.lv-hero-card.today    .lv-hero-icon{background:rgba(249,115,22,.12);color:#c2410c}
-.lv-hero-trend{
-  font-size:.7rem;font-weight:900;
-  padding:.3rem .65rem;border-radius:999px;
-  background:#f1f5fc;color:var(--lv-ink-soft);
-  border:1px solid var(--lv-line);
-}
-.lv-hero-label{font-size:.78rem;color:var(--lv-muted);font-weight:800;letter-spacing:.2px}
-.lv-hero-val{
-  font-size:1.55rem;font-weight:950;color:var(--lv-ink);
-  line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
-  display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;
-}
-.lv-hero-val .lv-unit{font-size:.85rem;font-weight:800;color:var(--lv-muted);letter-spacing:0}
-.lv-hero-card.status   .lv-hero-val{color:#4338ca;font-size:1.05rem}
-.lv-hero-card.solar    .lv-hero-val{color:#b45309}
-.lv-hero-card.home-h   .lv-hero-val{color:#be123c}
-.lv-hero-card.battery  .lv-hero-val{color:#047857}
-.lv-hero-card.today    .lv-hero-val{color:#c2410c}
-.lv-hero-sub{font-size:.76rem;color:var(--lv-muted);line-height:1.5;font-weight:600}
-
-/* ─── EMPTY STATE ─── */
-.lv-empty{
-  padding:4rem 2rem;text-align:center;
-  background:var(--lv-card);border:1px dashed var(--lv-line-strong);
-  border-radius:var(--lv-radius-lg);
-  box-shadow:var(--lv-shadow-sm);
-}
-.lv-empty-icon{font-size:3rem;margin-bottom:1rem;opacity:.55}
-.lv-empty h3{font-size:1.15rem;font-weight:900;color:var(--lv-ink-soft);margin-bottom:.4rem}
-.lv-empty p{font-size:.9rem;color:var(--lv-muted);font-weight:700}
-
-/* ─── SECTION CARDS ─── */
-.lv-section{margin-top:0}
-.lv-card{
-  background:var(--lv-card);border:1px solid var(--lv-line);
-  border-radius:var(--lv-radius-lg);overflow:hidden;
-  box-shadow:var(--lv-shadow-sm);
-  transition:all .2s ease;
-}
-.lv-card:hover{box-shadow:var(--lv-shadow);border-color:var(--lv-line-strong)}
-.lv-sec-head{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  padding:18px 22px 4px;flex-wrap:wrap;gap:.75rem;
-}
-.lv-sec-head h3{font-size:1.05rem;font-weight:950;color:var(--lv-ink);margin:0 0 .2rem;line-height:1.3}
-.lv-sec-head small{font-size:.78rem;color:var(--lv-muted);font-weight:700;display:block}
-.lv-sec-badge{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.35rem .8rem;border-radius:999px;font-size:.76rem;font-weight:900;
-  flex-shrink:0;border:1px solid transparent;
-}
-.lv-sec-badge.solar  {background:#fef3c7;color:#b45309;border-color:#fde68a}
-.lv-sec-badge.battery{background:#d1fae5;color:#047857;border-color:#a7f3d0}
-.lv-sec-badge.home   {background:#ffe4e6;color:#be123c;border-color:#fecdd3}
-.lv-sec-badge.pv     {background:#ffedd5;color:#c2410c;border-color:#fed7aa}
-
-/* ─── KPI GRID ─── */
-.lv-grid{display:grid;gap:.85rem;padding:14px 22px 22px}
-.lv-grid.cols-5{grid-template-columns:repeat(5,1fr)}
-.lv-grid.cols-4{grid-template-columns:repeat(4,1fr)}
-.lv-grid.cols-3{grid-template-columns:repeat(3,1fr)}
-@media (max-width:900px){.lv-grid.cols-5,.lv-grid.cols-4{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:640px){.lv-grid.cols-5,.lv-grid.cols-4,.lv-grid.cols-3{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:380px){.lv-grid{grid-template-columns:1fr !important}}
-.lv-kpi{
-  background:linear-gradient(180deg,#fff,#f7faff);
-  border:1px solid var(--lv-line);
-  border-radius:16px;padding:1rem 1rem;
-  position:relative;overflow:hidden;
-  transition:transform .15s ease,box-shadow .15s ease,border-color .2s ease;
-}
-.lv-kpi:hover{transform:translateY(-1px);box-shadow:var(--lv-shadow-sm);border-color:var(--lv-line-strong)}
-.lv-kpi::before{
-  content:"";position:absolute;inset:0 0 auto 0;height:3px;border-radius:16px 16px 0 0;
-  background:linear-gradient(90deg,var(--lv-sky),var(--lv-sky-soft));opacity:.55;
-}
-.lv-kpi.accent-solar::before  {background:linear-gradient(90deg,#f59e0b,#fbbf24);opacity:.9}
-.lv-kpi.accent-batt::before   {background:linear-gradient(90deg,#10b981,#34d399);opacity:.9}
-.lv-kpi.accent-home::before   {background:linear-gradient(90deg,#f43f5e,#fb7185);opacity:.9}
-.lv-kpi-label{font-size:.7rem;color:var(--lv-muted);font-weight:900;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.45rem}
-.lv-kpi-val{
-  font-size:1.18rem;font-weight:950;color:var(--lv-ink);
-  line-height:1.2;margin-bottom:.25rem;font-variant-numeric:tabular-nums;
-}
-.lv-kpi.accent-solar .lv-kpi-val{color:#b45309}
-.lv-kpi.accent-batt  .lv-kpi-val{color:#047857}
-.lv-kpi.accent-home  .lv-kpi-val{color:#be123c}
-.lv-kpi-sub{font-size:.74rem;color:var(--lv-muted);line-height:1.45;font-weight:600}
-
-/* ─── HISTORY TABLE ─── */
-.lv-hist-section{margin-bottom:0}
-.lv-hist-scroll{
-  overflow:auto;
-  max-height:min(62vh,520px);
-}
-.lv-hist-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
-.lv-hist-table thead th{
-  padding:.85rem 1.1rem;text-align:start;
-  font-size:.7rem;font-weight:900;
-  color:var(--lv-muted);text-transform:uppercase;letter-spacing:.5px;
-  background:#f5f9ff;
-  border-bottom:1px solid var(--lv-line);
-  white-space:nowrap;
-}
-.lv-hist-table tbody tr{border-bottom:1px solid var(--lv-line);transition:background .15s}
-.lv-hist-table tbody tr:last-child{border-bottom:none}
-.lv-hist-table tbody tr:hover{background:#f8fbff}
-.lv-hist-table tbody td{padding:.85rem 1.1rem;color:var(--lv-ink-soft);white-space:nowrap;font-weight:700}
-.lv-hist-table tbody td:first-child{
-  color:#1d4ed8;font-size:.85rem;font-weight:900;
-}
-.lv-hist-val-prod{color:#b45309 !important;font-weight:900}
-.lv-hist-val-cons{color:#be123c !important;font-weight:900}
-.lv-hist-val-chg {color:#047857 !important;font-weight:900}
-.lv-hist-val-dis {color:#c2410c !important;font-weight:900}
-.lv-hist-empty{padding:2.2rem;text-align:center;color:var(--lv-muted);font-size:.9rem;font-weight:700}
-.lv-pv-empty{padding:1.6rem 1.8rem;font-size:.88rem;color:var(--lv-muted);text-align:center;font-weight:700}
-@media (max-width:720px){
-  .lv-page{gap:20px}
-  .lv-hist-scroll{max-height:420px}
-}
-</style>
-
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% block title %}{{ 'Live Data' if is_en else 'البيانات الحيّة' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{% endblock %}
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area">
-    <div class="lv-page" dir="{{ dir }}">
+  <main class="app-main content-area lv-page">
 
-      <section class="lv-hero">
-        <div class="lv-hero-grid">
-          <div class="lv-hero-text">
-            <span class="lv-eyebrow"><span class="lv-pulse"></span>{{ 'Real-Time Monitoring' if is_en else 'المراقبة اللحظية' }}</span>
-            <h1>{{ 'Live System Data' if is_en else 'البيانات الحية الكاملة' }}</h1>
-            <p>{{ 'A clear, organised view of your most important system readings, updated in real time.' if is_en else 'عرض منظم وواضح لأهم قراءات منظومتك الشمسية، تتجدد لحظة بلحظة.' }}</p>
-            <div class="lv-hero-meta">
-              {% if latest %}
-              <span class="lv-hero-meta-item">📡 <b>{{ 'Latest reading received' if is_en else 'آخر قراءة مستقبلة' }}</b></span>
-              {% endif %}
-              <span class="lv-hero-meta-item">🛰️ <b>{{ 'Direct device link' if is_en else 'اتصال مباشر مع الجهاز' }}</b></span>
-            </div>
+    {# ════════ HERO ════════ #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Energy · Live data' if is_en else 'الطاقة · بيانات حيّة' }}</span>
+          <h1 class="hu-h1">{{ 'Real-time energy snapshot' if is_en else 'نظرة حيّة لطاقتك الآن' }}</h1>
+          <p class="hu-tagline">{{ 'See your solar production, battery state, grid flow, and home consumption updated every 30 seconds.' if is_en else 'شاهد إنتاج الطاقة الشمسية وحالة البطارية والشبكة واستهلاك المنزل، تتحدث كل 30 ثانية.' }}</p>
+          {% if latest %}
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill">🔄 {{ 'updated' if is_en else 'حُدّث' }} <b>{{ format_local(latest.created_at) if latest.created_at else '—' }}</b></span>
           </div>
-          <div class="lv-hero-actions">
-            <span class="lv-live-badge">
-              <span class="lv-live-dot"></span>
-              <span>LIVE</span>
-            </span>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    {# 2-column shell #}
+    <div class="lv-shell">
+      {# ─── ASIDE (left) ─── #}
+      <aside class="lv-aside">
+        <div class="lv-as-card explainer">
+          <h4>📘 {{ 'How to read this page' if is_en else 'كيف تقرأ هذه الصفحة' }}</h4>
+          <p>{{ 'Each tile shows one live energy figure. Power values are in watts (W). Battery shows state-of-charge as a percentage (SOC).' if is_en else 'كل بطاقة تعرض قيمة واحدة من قياسات الطاقة الحيّة. القدرة بالواط (W). البطارية تعرض حالة الشحن كنسبة مئوية (SOC).' }}</p>
+          <p>{{ 'Positive grid = importing from utility. Negative grid = exporting/selling back.' if is_en else 'شبكة موجبة = نستورد من المزوّد. شبكة سالبة = نصدّر/نبيع.' }}</p>
+        </div>
+        <div class="lv-as-card">
+          <h4>🔑 {{ 'What the icons mean' if is_en else 'معاني الرموز' }}</h4>
+          <ul class="lv-legend-list">
+            <li><span class="lv-legend-dot" style="background:#f59e0b"></span><strong>☀ {{ 'Solar' if is_en else 'شمسي' }}</strong><small>{{ 'PV production' if is_en else 'إنتاج الألواح' }}</small></li>
+            <li><span class="lv-legend-dot" style="background:#22c55e"></span><strong>🔋 {{ 'Battery' if is_en else 'بطارية' }}</strong><small>{{ 'Charge / discharge' if is_en else 'شحن / تفريغ' }}</small></li>
+            <li><span class="lv-legend-dot" style="background:#3b82f6"></span><strong>🏠 {{ 'Home load' if is_en else 'استهلاك المنزل' }}</strong><small>{{ 'Current consumption' if is_en else 'الاستهلاك الحالي' }}</small></li>
+            <li><span class="lv-legend-dot" style="background:#a855f7"></span><strong>⚡ {{ 'Grid' if is_en else 'الشبكة' }}</strong><small>{{ 'Import / export flow' if is_en else 'استيراد / تصدير' }}</small></li>
+          </ul>
+        </div>
+        <div class="lv-as-card tips">
+          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
+          <ul>
+            <li>{{ 'Page auto-refreshes every 30 seconds.' if is_en else 'الصفحة تتحدّث تلقائياً كل 30 ثانية.' }}</li>
+            <li>{{ 'For history and trends, see /statistics or /reports.' if is_en else 'للتاريخ والاتجاهات، راجع /statistics أو /reports.' }}</li>
+          </ul>
+        </div>
+      </aside>
+
+      {# ─── MAIN ─── #}
+      <div class="lv-main">
+
+        {# Section 1: Live KPIs #}
+        <section class="lv-section" data-help="{{ 'Live energy figures from your inverter — refreshed automatically every 30 seconds.' if is_en else 'قيم الطاقة الحيّة من الإنفرتر — تتحدّث تلقائياً كل 30 ثانية.' }}">
+          <div class="lv-sec-head">
+            <div>
+              <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
+              <h2><span class="lv-sec-icon">⚡</span> {{ 'Live energy snapshot' if is_en else 'لمحة الطاقة الحيّة' }}</h2>
+            </div>
+            <span class="lv-sec-meta">{{ 'Auto-refresh 30s' if is_en else 'تحديث تلقائي 30ث' }}</span>
+          </div>
+          <div class="lv-sec-body">
             {% if latest %}
-            <span class="lv-last-update">⏱ <b>{{ format_local(latest.created_at) }}</b></span>
+            <div class="lv-kpi-row">
+              <article class="lv-kpi accent-amber">
+                <span class="lv-kpi-icon">☀</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'Solar power' if is_en else 'القدرة الشمسية' }}</small>
+                  <strong>{{ format_power(latest.solar_power) }}<em>W</em></strong>
+                  <span>{{ 'PV production now' if is_en else 'الإنتاج الآن' }}</span>
+                </div>
+              </article>
+              <article class="lv-kpi accent-emerald">
+                <span class="lv-kpi-icon">🔋</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'Battery SOC' if is_en else 'شحن البطارية' }}</small>
+                  <strong>{{ latest.battery_soc|round(0)|int }}<em>%</em></strong>
+                  <span>{{ 'state of charge' if is_en else 'مستوى الشحن' }}</span>
+                </div>
+              </article>
+              <article class="lv-kpi accent-blue">
+                <span class="lv-kpi-icon">🏠</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'Home load' if is_en else 'حمل المنزل' }}</small>
+                  <strong>{{ format_power(latest.home_load) }}<em>W</em></strong>
+                  <span>{{ 'current draw' if is_en else 'الاستهلاك الحالي' }}</span>
+                </div>
+              </article>
+              <article class="lv-kpi accent-violet">
+                <span class="lv-kpi-icon">⚡</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'Grid' if is_en else 'الشبكة' }}</small>
+                  <strong>{{ format_power(latest.grid_power) }}<em>W</em></strong>
+                  <span>{% if latest.grid_power > 0 %}{{ 'importing' if is_en else 'استيراد' }}{% elif latest.grid_power < 0 %}{{ 'exporting' if is_en else 'تصدير' }}{% else %}{{ 'idle' if is_en else 'متوقف' }}{% endif %}</span>
+                </div>
+              </article>
+            </div>
+            {% else %}
+            <div class="lv-empty">
+              <span>📡</span>
+              <strong>{{ 'No live data yet' if is_en else 'لا توجد بيانات حيّة بعد' }}</strong>
+              <p>{{ 'Connect a device first or wait for the next sync.' if is_en else 'اربط جهازاً أولاً أو انتظر المزامنة القادمة.' }}</p>
+            </div>
             {% endif %}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {% if not latest or not d %}
-      <div class="lv-empty">
-        <div class="lv-empty-icon">📡</div>
-        <h3>{{ 'No data yet' if is_en else 'لا توجد بيانات بعد' }}</h3>
-        <p>{{ 'Run your first sync from the dashboard to start seeing live readings here.' if is_en else 'نفّذ مزامنة أولى من الصفحة الرئيسية لتبدأ رؤية القراءات الحية هنا.' }}</p>
-      </div>
-      {% else %}
-
-      <div class="lv-heroes">
-        <div class="lv-hero-card status">
-          <div class="lv-hero-top"><div class="lv-hero-icon">🖥️</div><span class="lv-hero-trend">{{ 'Mode' if is_en else 'وضع' }}</span></div>
-          <div class="lv-hero-label">{{ 'System Mode' if is_en else 'وضع النظام الآن' }}</div>
-          <div class="lv-hero-val">{{ latest.status_text or ('No reading' if is_en else 'لا توجد قراءة') }}</div>
-          <div class="lv-hero-sub">{{ 'Current inverter operating mode' if is_en else 'وضع تشغيل الإنفرتر الحالي' }}</div>
-        </div>
-
-        <div class="lv-hero-card solar">
-          <div class="lv-hero-top"><div class="lv-hero-icon">☀️</div><span class="lv-hero-trend">{{ 'Solar' if is_en else 'شمس' }}</span></div>
-          <div class="lv-hero-label">{{ 'Instant Solar' if is_en else 'الإنتاج الشمسي اللحظي' }}</div>
-          <div class="lv-hero-val"><span>{{ format_power(d.totalDcInputPower or latest.solar_power or 0) }}</span><span class="lv-unit">W</span></div>
-          <div class="lv-hero-sub">{{ 'Current power input from panels' if is_en else 'القدرة الحالية القادمة من الألواح الشمسية' }}</div>
-        </div>
-
-        <div class="lv-hero-card home-h">
-          <div class="lv-hero-top"><div class="lv-hero-icon">🏠</div><span class="lv-hero-trend">{{ 'Home' if is_en else 'منزل' }}</span></div>
-          <div class="lv-hero-label">{{ 'Home Load Now' if is_en else 'استهلاك المنزل الآن' }}</div>
-          <div class="lv-hero-val"><span>{{ format_power(d.inverterOutputPowerL1l2 or latest.home_load or 0) }}</span><span class="lv-unit">W</span></div>
-          <div class="lv-hero-sub">{{ 'Instantaneous household consumption' if is_en else 'الاستهلاك المنزلي الفوري' }}</div>
-        </div>
-
-        <div class="lv-hero-card battery">
-          {% set bp_h = d.batteryPower|float(0) %}
-          <div class="lv-hero-top"><div class="lv-hero-icon">🔋</div><span class="lv-hero-trend">SOC</span></div>
-          <div class="lv-hero-label">{{ 'Battery SOC' if is_en else 'شحن البطارية' }}</div>
-          <div class="lv-hero-val"><span>{{ d.soc|int }}</span><span class="lv-unit">%</span></div>
-          <div class="lv-hero-sub">{{ ('Charging' if bp_h < 0 else ('Discharging' if bp_h > 0 else 'Stable')) if is_en else ('يتم الشحن' if bp_h < 0 else ('يتم الاستخدام' if bp_h > 0 else 'مستقرة')) }}</div>
-        </div>
-
-        <div class="lv-hero-card today">
-          <div class="lv-hero-top"><div class="lv-hero-icon">📅</div><span class="lv-hero-trend">{{ 'Today' if is_en else 'اليوم' }}</span></div>
-          <div class="lv-hero-label">{{ "Today's Production" if is_en else 'إنتاج اليوم' }}</div>
-          <div class="lv-hero-val">{{ format_energy(d.dailyProductionActive or 0) }}</div>
-          <div class="lv-hero-sub">{{ 'Cumulative energy produced today' if is_en else 'الطاقة المتراكمة المنتجة اليوم' }}</div>
-        </div>
-      </div>
-
-      <div class="lv-section lv-card">
-        <div class="lv-sec-head">
-          <div>
-            <h3>☀️ {{ 'Solar Production' if is_en else 'الإنتاج الشمسي' }}</h3>
-            <small>{{ 'Instant readings, cumulative counters, and inverter capacity' if is_en else 'القراءات اللحظية والعدادات التراكمية وسعة الإنفرتر' }}</small>
+        {# Section 2: Production summary #}
+        {% if latest %}
+        <section class="lv-section" data-help="{{ 'Today vs cumulative production. Use this to track if your system is performing as expected.' if is_en else 'إنتاج اليوم مقابل الإنتاج التراكمي. استخدمها للتأكد من أن نظامك يعمل كما متوقع.' }}">
+          <div class="lv-sec-head">
+            <div>
+              <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
+              <h2><span class="lv-sec-icon">📈</span> {{ 'Production totals' if is_en else 'إجماليات الإنتاج' }}</h2>
+            </div>
+            <span class="lv-sec-meta">{{ 'kWh-based' if is_en else 'بالكيلوواط ساعة' }}</span>
           </div>
-          <span class="lv-sec-badge solar">⚡ {{ 'Solar' if is_en else 'طاقة شمسية' }}</span>
-        </div>
-        <div class="lv-grid cols-5">
-          <div class="lv-kpi accent-solar">
-            <div class="lv-kpi-label">{{ 'Instant Power' if is_en else 'القدرة اللحظية' }}</div>
-            <div class="lv-kpi-val">{{ format_power(d.totalDcInputPower or 0) }} W</div>
-            <div class="lv-kpi-sub">{{ 'Live input from all panels' if is_en else 'الدخل الحالي من جميع الألواح' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ "Today's Energy" if is_en else 'طاقة اليوم' }}</div>
-            <div class="lv-kpi-val">{{ format_energy(d.dailyProductionActive or 0) }}</div>
-            <div class="lv-kpi-sub">{{ 'Generated since midnight' if is_en else 'المنتجة منذ منتصف الليل' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'This Month' if is_en else 'هذا الشهر' }}</div>
-            <div class="lv-kpi-val">{{ format_energy(d.monthlyProductionActive or 0) }}</div>
-            <div class="lv-kpi-sub">{{ "Device's monthly counter" if is_en else 'عداد الجهاز الشهري' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'All-Time Total' if is_en else 'الإجمالي الكلي' }}</div>
-            <div class="lv-kpi-val">{{ format_energy(d.cumulativeProductionActive or 0) }}</div>
-            <div class="lv-kpi-sub">{{ 'Since first commissioning' if is_en else 'منذ بداية التشغيل' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Inverter Capacity' if is_en else 'سعة الإنفرتر' }}</div>
-            <div class="lv-kpi-val">{{ ((d.ratedPower or 6000)|float / 1000)|round(1) }} kW</div>
-            <div class="lv-kpi-sub">{{ 'Maximum rated inverter output' if is_en else 'الحد الأعلى لخرج الإنفرتر' }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="lv-section lv-card">
-        <div class="lv-sec-head">
-          <div>
-            <h3>🔋 {{ 'Battery Status' if is_en else 'حالة البطارية' }}</h3>
-            <small>{{ 'Charge level, power flow, voltage, current, and equivalent cycles' if is_en else 'مستوى الشحن وتدفق القدرة والجهد والتيار والدورات المكافئة' }}</small>
-          </div>
-          <span class="lv-sec-badge battery">🔌 {{ 'Battery' if is_en else 'بطارية' }}</span>
-        </div>
-        <div class="lv-grid cols-5">
-          {% set bp = d.batteryPower|float(0) %}
-          <div class="lv-kpi accent-batt">
-            <div class="lv-kpi-label">{{ 'State of Charge' if is_en else 'نسبة الشحن' }}</div>
-            <div class="lv-kpi-val">{{ d.soc|int }}%</div>
-            <div class="lv-kpi-sub">{{ ('Charging' if bp < 0 else ('Discharging' if bp > 0 else 'Idle')) if is_en else ('يتم الشحن' if bp < 0 else ('يتم التفريغ' if bp > 0 else 'بدون تدفق')) }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Battery Power' if is_en else 'قدرة البطارية' }}</div>
-            <div class="lv-kpi-val">{{ format_power(bp|abs) }} W</div>
-            <div class="lv-kpi-sub">{{ ('Charging' if bp < 0 else ('Discharging' if bp > 0 else 'No flow')) if is_en else ('شحن' if bp < 0 else ('تفريغ' if bp > 0 else 'بدون تدفق')) }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Voltage' if is_en else 'جهد البطارية' }}</div>
-            <div class="lv-kpi-val">{{ '%.1f'|format(d.batteryVoltage|float(0)) }} V</div>
-            <div class="lv-kpi-sub">{{ 'Direct DC measurement' if is_en else 'قياس مباشر للجهد' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Current' if is_en else 'التيار الكهربائي' }}</div>
-            <div class="lv-kpi-val">{{ '%.2f'|format(d.batteryCurrent|float(0)) }} A</div>
-            <div class="lv-kpi-sub">{{ 'Instantaneous current flow' if is_en else 'تدفق التيار الحالي' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Equivalent Cycles' if is_en else 'الدورات المكافئة' }}</div>
-            {% set cap = settings.battery_capacity_kwh|float(5) %}
-            {% set cap_safe = cap if cap > 0 else 1 %}
-            <div class="lv-kpi-val">{{ ((d.totalChargingEnergy|float(0)) / cap_safe)|round(1) }}</div>
-            <div class="lv-kpi-sub">{{ cap }} kWh {{ 'configured capacity' if is_en else 'سعة مضبوطة' }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="lv-section lv-card">
-        <div class="lv-sec-head">
-          <div>
-            <h3>🏠 {{ 'Home Consumption & Grid' if is_en else 'استهلاك المنزل والشبكة' }}</h3>
-            <small>{{ 'Load readings, grid power, AC inverter output, and load ratio' if is_en else 'قراءات الحمل وقدرة الشبكة وخرج الإنفرتر ونسبة التحميل' }}</small>
-          </div>
-          <span class="lv-sec-badge home">🏡 {{ 'Home' if is_en else 'المنزل' }}</span>
-        </div>
-        <div class="lv-grid cols-4">
-          {% set home_load = d.inverterOutputPowerL1l2|float(0) or latest.home_load|float(0) %}
-          {% set rated = d.ratedPower|float(6000) %}
-          {% set rated_safe = rated if rated > 0 else 6000 %}
-          <div class="lv-kpi accent-home">
-            <div class="lv-kpi-label">{{ 'Current Consumption' if is_en else 'الاستهلاك الحالي' }}</div>
-            <div class="lv-kpi-val">{{ format_power(home_load) }} W</div>
-            <div class="lv-kpi-sub">{{ 'Live household load' if is_en else 'الحمل المنزلي الحالي' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Grid Power' if is_en else 'قدرة الشبكة' }}</div>
-            <div class="lv-kpi-val">{{ format_power(latest.grid_power or 0) }} W</div>
-            <div class="lv-kpi-sub">
-              {% set gp = latest.grid_power or 0 %}
-              {{ ('Disconnected' if gp == 0 else 'Grid measurement') if is_en else ('مفصولة حاليًا' if gp == 0 else 'قياس مباشر') }}
+          <div class="lv-sec-body">
+            <div class="lv-kpi-row">
+              <article class="lv-kpi accent-amber">
+                <span class="lv-kpi-icon">📅</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'Today' if is_en else 'اليوم' }}</small>
+                  <strong>{{ format_energy(latest.daily_production) }}<em>kWh</em></strong>
+                  <span>{{ 'so far today' if is_en else 'حتى الآن اليوم' }}</span>
+                </div>
+              </article>
+              <article class="lv-kpi accent-blue">
+                <span class="lv-kpi-icon">🗓</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'This month' if is_en else 'هذا الشهر' }}</small>
+                  <strong>{{ format_energy(latest.monthly_production) }}<em>kWh</em></strong>
+                  <span>{{ 'cumulative' if is_en else 'تراكمي' }}</span>
+                </div>
+              </article>
+              <article class="lv-kpi accent-emerald">
+                <span class="lv-kpi-icon">∑</span>
+                <div class="lv-kpi-body">
+                  <small>{{ 'All-time' if is_en else 'إجمالي' }}</small>
+                  <strong>{{ format_energy(latest.total_production) }}<em>kWh</em></strong>
+                  <span>{{ 'since installation' if is_en else 'منذ التركيب' }}</span>
+                </div>
+              </article>
             </div>
           </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'AC Output' if is_en else 'خرج AC للإنفرتر' }}</div>
-            <div class="lv-kpi-val">{{ format_power(d.inverterOutputPowerL1l2 or 0) }} W</div>
-            <div class="lv-kpi-sub">{{ 'Inverter AC side output' if is_en else 'الخرج الكهربائي من جانب AC' }}</div>
-          </div>
-          <div class="lv-kpi">
-            <div class="lv-kpi-label">{{ 'Load Ratio' if is_en else 'نسبة التحميل' }}</div>
-            <div class="lv-kpi-val">{{ ((home_load / rated_safe) * 100)|round(1) }}%</div>
-            <div class="lv-kpi-sub">{{ 'of max inverter capacity' if is_en else 'من الحد الأقصى للإنفرتر' }}</div>
-          </div>
-        </div>
-      </div>
+        </section>
 
-      <div class="lv-section lv-card">
-        <div class="lv-sec-head">
-          <div>
-            <h3>⚡ {{ 'PV String Readings' if is_en else 'سلاسل الألواح الشمسية' }}</h3>
-            <small>{{ 'Power, voltage, and current for each DC solar input string' if is_en else 'القدرة والجهد والتيار لكل مدخل شمسي DC' }}</small>
+        {# Section 3: Daily consumption history (if available) #}
+        {% if daily_consumption_history %}
+        <section class="lv-section" data-help="{{ 'Last 7 days consumption history. Use this to spot unusual usage patterns.' if is_en else 'استهلاك آخر 7 أيام. استخدمها لرصد أنماط استهلاك غير اعتيادية.' }}">
+          <div class="lv-sec-head">
+            <div>
+              <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
+              <h2><span class="lv-sec-icon">📊</span> {{ 'Recent consumption' if is_en else 'الاستهلاك الأخير' }}</h2>
+            </div>
+            <span class="lv-sec-meta">{{ 'last 7 days' if is_en else 'آخر 7 أيام' }}</span>
           </div>
-          <span class="lv-sec-badge pv">🔆 PV</span>
-        </div>
-        {% set pv1_p = d.dcPowerPv1|float(0) %}
-        {% set pv2_p = d.dcPowerPv2|float(0) %}
-        {% set pv3_p = d.dcPowerPv3|float(0) %}
-        {% set pv1_v = d.dcVoltagePv1|float(0) %}
-        {% set pv2_v = d.dcVoltagePv2|float(0) %}
-        {% set pv3_v = d.dcVoltagePv3|float(0) %}
-        {% set any_pv = pv1_p > 0 or pv2_p > 0 or pv3_p > 0 or pv1_v > 0 or pv2_v > 0 or pv3_v > 0 %}
-        {% if any_pv %}
-        <div class="lv-grid cols-3">
-          {% if pv1_p > 0 or pv1_v > 0 %}
-          <div class="lv-kpi accent-solar">
-            <div class="lv-kpi-label">PV 1 — {{ 'String 1' if is_en else 'السلسلة الأولى' }}</div>
-            <div class="lv-kpi-val">{{ format_power(pv1_p) }} W</div>
-            <div class="lv-kpi-sub">{{ '%.1f'|format(pv1_v) }} V · {{ '%.2f'|format(d.dcCurrentPv1|float(0)) }} A</div>
-          </div>
-          {% endif %}
-          {% if pv2_p > 0 or pv2_v > 0 %}
-          <div class="lv-kpi accent-solar">
-            <div class="lv-kpi-label">PV 2 — {{ 'String 2' if is_en else 'السلسلة الثانية' }}</div>
-            <div class="lv-kpi-val">{{ format_power(pv2_p) }} W</div>
-            <div class="lv-kpi-sub">{{ '%.1f'|format(pv2_v) }} V · {{ '%.2f'|format(d.dcCurrentPv2|float(0)) }} A</div>
-          </div>
-          {% endif %}
-          {% if pv3_p > 0 or pv3_v > 0 %}
-          <div class="lv-kpi accent-solar">
-            <div class="lv-kpi-label">PV 3 — {{ 'String 3' if is_en else 'السلسلة الثالثة' }}</div>
-            <div class="lv-kpi-val">{{ format_power(pv3_p) }} W</div>
-            <div class="lv-kpi-sub">{{ '%.1f'|format(pv3_v) }} V · {{ '%.2f'|format(d.dcCurrentPv3|float(0)) }} A</div>
-          </div>
-          {% endif %}
-        </div>
-        {% else %}
-        <div class="lv-pv-empty">{{ 'No active PV string readings at this time.' if is_en else 'لا توجد قراءات فعّالة لسلاسل الألواح الآن.' }}</div>
-        {% endif %}
-      </div>
-
-      {% if daily_consumption_history %}
-      <div class="lv-section lv-card lv-hist-section">
-        <div class="lv-sec-head">
-          <div>
-            <h3>📋 {{ 'Daily History' if is_en else 'السجل اليومي' }}</h3>
-            <small>{{ 'Production, consumption, charging, and discharging per day' if is_en else 'الإنتاج والاستهلاك والشحن والتفريغ لكل يوم' }}</small>
-          </div>
-        </div>
-        <div class="lv-hist-scroll">
-          <table class="lv-hist-table">
-            <thead>
-              <tr>
-                <th>{{ 'Date' if is_en else 'التاريخ' }}</th>
-                <th>{{ 'Production' if is_en else 'الإنتاج' }}</th>
-                <th>{{ 'Consumption' if is_en else 'الاستهلاك' }}</th>
-                <th>{{ 'Charging' if is_en else 'الشحن' }}</th>
-                <th>{{ 'Discharging' if is_en else 'التفريغ' }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in daily_consumption_history %}
-              <tr>
-                <td>{{ row.date }}</td>
-                <td class="lv-hist-val-prod">{{ row.production }}</td>
-                <td class="lv-hist-val-cons">{{ row.consumption }}</td>
-                <td class="lv-hist-val-chg">{{ row.charging }}</td>
-                <td class="lv-hist-val-dis">{{ row.discharging }}</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="5"><div class="lv-hist-empty">{{ 'No historical data available.' if is_en else 'لا توجد بيانات تاريخية.' }}</div></td></tr>
-              {% endfor %}
+          <div class="lv-sec-body">
+            <div class="lv-table-wrap">
+              <table class="lv-table" data-paginate data-page-size="20">
+                <thead><tr><th>{{ 'Date' if is_en else 'التاريخ' }}</th><th>{{ 'Consumption (kWh)' if is_en else 'الاستهلاك (kWh)' }}</th></tr></thead>
+                <tbody>
+                  {% for day in daily_consumption_history %}
+                  <tr><td>{{ day.date }}</td><td><strong>{{ format_energy(day.kwh) }}</strong></td></tr>
+                  {% endfor %}
                 </tbody>
               </table>
             </div>
           </div>
-          {% endif %}
+        </section>
+        {% endif %}
+        {% endif %}
 
-          {% endif %}{# end if latest #}
-
-        </div>
-      </main>
-    </div>
-    {% endblock %}
-    
+      </div>{# /lv-main #}
+    </div>{# /lv-shell #}
+  </main>
+</div>
+{% endblock %}

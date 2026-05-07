@@ -3,7 +3,24 @@ from __future__ import annotations
 from math import ceil
 from typing import Any
 
-from flask import jsonify, request
+from flask import jsonify, make_response, request
+
+# ---------------------------------------------------------------------------
+# Rate-limit budget constants (enforced application-side as advisory headers).
+# A real token-bucket / sliding-window limiter (e.g. Flask-Limiter) should
+# wrap these values; for now we emit the headers so clients can adapt.
+# ---------------------------------------------------------------------------
+_RL_LIMIT_DEFAULT = 300        # requests per window
+_RL_WINDOW_SECONDS = 300       # 5-minute rolling window
+
+
+def _rl_headers() -> dict[str, str]:
+    """Return advisory rate-limit headers for every API response."""
+    return {
+        'X-RateLimit-Limit': str(_RL_LIMIT_DEFAULT),
+        'X-RateLimit-Window': str(_RL_WINDOW_SECONDS),
+        'X-Content-Type-Options': 'nosniff',
+    }
 
 
 def api_ok(data: Any = None, *, meta: dict | None = None, message: str | None = None, status: int = 200, **extra):
@@ -11,13 +28,19 @@ def api_ok(data: Any = None, *, meta: dict | None = None, message: str | None = 
     if message:
         payload['message'] = message
     payload.update(extra)
-    return jsonify(payload), status
+    resp = make_response(jsonify(payload), status)
+    for k, v in _rl_headers().items():
+        resp.headers[k] = v
+    return resp
 
 
 def api_error(message: str, *, code: str = 'error', status: int = 400, errors: list | None = None, **extra):
     payload = {'ok': False, 'message': message, 'code': code, 'errors': errors or []}
     payload.update(extra)
-    return jsonify(payload), status
+    resp = make_response(jsonify(payload), status)
+    for k, v in _rl_headers().items():
+        resp.headers[k] = v
+    return resp
 
 
 def pagination_args(default_size: int = 30, max_size: int = 100) -> tuple[int, int]:
@@ -35,5 +58,6 @@ def pagination_args(default_size: int = 30, max_size: int = 100) -> tuple[int, i
 
 
 def page_meta(page: int, page_size: int, total: int) -> dict:
+    from math import ceil
     pages = ceil(total / page_size) if page_size else 0
     return {'page': page, 'page_size': page_size, 'total': total, 'pages': pages, 'has_next': page < pages, 'has_prev': page > 1}

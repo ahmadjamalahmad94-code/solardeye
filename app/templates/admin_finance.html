@@ -1,10 +1,1299 @@
 {% extends "base.html" %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">{% include '_sidebar.html' %}<main class="app-main content-area admin-shell-v2">
-<header class="admin-page-head"><div><span class="eyebrow">{{ 'Finance' if is_en else 'المالية' }}</span><h1>{{ 'Credits, debits, and tenant balances' if is_en else 'الأرصدة والخصومات وموازين المشتركين' }}</h1><p>{{ 'Manual billing foundation for credits, quotas, and future payment expansion.' if is_en else 'أساس مالي يدوي للأرصدة والكوتا والتوسع المستقبلي للدفع.' }}</p></div></header>
-<section class="admin-layout-v2"><div class="admin-card-v2"><small>{{ 'New ledger entry' if is_en else 'حركة مالية جديدة' }}</small><h3>{{ 'Credit or debit a tenant' if is_en else 'أضف أو اخصم من رصيد المشترك' }}</h3><form method="post" class="form-grid-v2 two"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div><label>{{ 'Tenant' if is_en else 'المشترك' }}</label><select name="tenant_id" class="form-control" required>{% for tenant in tenants %}<option value="{{ tenant.id }}">{{ tenant.display_name }}</option>{% endfor %}</select></div><div><label>{{ 'Type' if is_en else 'النوع' }}</label><select name="entry_type" class="form-control"><option value="credit">Credit</option><option value="debit">Debit</option></select></div><div><label>{{ 'Amount' if is_en else 'القيمة' }}</label><input name="amount" type="number" step="0.01" class="form-control" required></div><div><label>{{ 'Currency' if is_en else 'العملة' }}</label><input name="currency" class="form-control" value="USD"></div><div><label>{{ 'Reference' if is_en else 'المرجع' }}</label><input name="reference" class="form-control"></div><div class="full"><label>{{ 'Note' if is_en else 'ملاحظة' }}</label><textarea name="note" class="form-control" rows="4"></textarea></div><div><button class="btn btn-solar">{{ 'Save entry' if is_en else 'حفظ الحركة' }}</button></div></form></div>
-<div class="admin-card-v2"><small>{{ 'Current balances' if is_en else 'الأرصدة الحالية' }}</small><h3>{{ 'Tenant wallet overview' if is_en else 'نظرة عامة على محافظ المشتركين' }}</h3><div class="activity-list-v2">{% for tenant in tenants %}<div class="activity-item-v2"><div><strong>{{ tenant.display_name }}</strong><small>{{ 'Current computed balance' if is_en else 'الرصيد الحالي المحتسب' }}</small></div><span class="status-pill success">{{ '%.2f'|format(totals.get(tenant.id,0)) }} USD</span></div>{% endfor %}</div></div></section>
-<section class="admin-card-v2"><div class="table-shell-v2"><table class="admin-table-v2"><thead><tr><th>{{ 'Tenant' if is_en else 'المشترك' }}</th><th>{{ 'Type' if is_en else 'النوع' }}</th><th>{{ 'Amount' if is_en else 'القيمة' }}</th><th>{{ 'Actor' if is_en else 'المنفذ' }}</th><th>{{ 'Date' if is_en else 'التاريخ' }}</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.tenant.display_name if row.tenant else '-' }}</td><td><span class="status-pill {{ 'success' if row.entry.entry_type == 'credit' else 'danger' }}">{{ ui_label(row.entry.entry_type, 'finance', ui_lang) }}</span></td><td>{{ row.entry.amount }} {{ row.entry.currency }}</td><td>{{ row.actor.username if row.actor else '-' }}</td><td>{{ row.entry.created_at }}</td></tr>{% else %}<tr><td colspan="5">{{ 'No finance entries yet.' if is_en else 'لا توجد حركات مالية بعد.' }}</td></tr>{% endfor %}</tbody></table></div></section>
-</main></div>
+{# v5.2-pro: defensive defaults so the template still renders if backend hasn't restarted yet #}
+{% set PAYMENT_METHODS = PAYMENT_METHODS or [
+    {'key': 'cash',          'label_ar': 'نقد',              'label_en': 'Cash',           'icon': '💵', 'color': '#10b981'},
+    {'key': 'bank_transfer', 'label_ar': 'تحويل بنكي',       'label_en': 'Bank Transfer',  'icon': '🏦', 'color': '#2563eb'},
+    {'key': 'bank_card',     'label_ar': 'بطاقة بنكية',      'label_en': 'Bank Card',      'icon': '💳', 'color': '#0ea5e9'},
+    {'key': 'paypal',        'label_ar': 'PayPal',           'label_en': 'PayPal',         'icon': '🅿', 'color': '#003087'},
+    {'key': 'check',         'label_ar': 'شيك',              'label_en': 'Check',          'icon': '📃', 'color': '#7c3aed'},
+    {'key': 'crypto',        'label_ar': 'عملة رقمية',       'label_en': 'Cryptocurrency', 'icon': '₿',  'color': '#f7931a'},
+    {'key': 'wallet',        'label_ar': 'محفظة إلكترونية',  'label_en': 'E-Wallet',       'icon': '📱', 'color': '#14b8a6'},
+    {'key': 'other',         'label_ar': 'أخرى',             'label_en': 'Other',          'icon': '⚙', 'color': '#64748b'}
+] %}
+{# Build PAYMENT_METHODS_MAP from list if backend didn't pass it #}
+{% if not PAYMENT_METHODS_MAP %}
+  {% set _pmm = {} %}
+  {% for pm in PAYMENT_METHODS %}{% set _ = _pmm.update({pm.key: pm}) %}{% endfor %}
+  {% set PAYMENT_METHODS_MAP = _pmm %}
+{% endif %}
+{% set staff_users = staff_users or [] %}
+{% block title %}{{ 'Accounting Office' if is_en else 'مكتب المحاسبة' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unified_hero_v1.css', v='v1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_finance_v4.css', v='v540-20260506d') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area fin4-page">
+
+    {# ═══════════════════════════ UNIFIED HERO (.hu-hero) ═══════════════════════════ #}
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16V9"/><path d="M13 16V7"/><path d="M18 16v-4"/></svg>
+            {{ 'Company Accounting Center' if is_en else 'مركز محاسبة الشركة' }}
+          </span>
+          <h1 class="hu-h1">{{ 'SolarDeye Accounting Office' if is_en else 'مكتب محاسبة سولار دي آي' }}</h1>
+          <p class="hu-tagline">{{ 'Earned revenue · Operating P&L · Customer liabilities · Cash flow · Trends' if is_en else 'إيرادات مكتسبة · أرباح وخسائر تشغيلية · التزامات المشتركين · تدفق نقدي · مؤشرات' }}</p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill">🏦 <b>{{ '%.2f'|format(deposits_total) }}</b> {{ 'USD deposits' if is_en else 'دولار إيداعات' }}</span>
+            <span class="hu-meta-pill ok">📈 <b>{{ '%.2f'|format(earned_revenue) }}</b> {{ 'earned' if is_en else 'إيرادات مكتسبة' }}</span>
+            <span class="hu-meta-pill {% if net_profit >= 0 %}ok{% else %}warn{% endif %}">Σ <b>{{ '%.2f'|format(net_profit) }}</b> {{ 'net P&L' if is_en else 'صافي الربح والخسارة' }}</span>
+            <span class="hu-meta-pill">📋 <b>{{ rows|length }}</b> {{ 'entries' if is_en else 'حركة' }}</span>
+          </div>
+        </div>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="#fin4-reports">📄 {{ 'Export PDF' if is_en else 'تصدير ملف PDF' }}</a>
+          <a class="hu-btn hu-btn-primary" href="#fin4-entry">＋ {{ 'New Entry' if is_en else 'حركة جديدة' }}</a>
+        </div>
+      </div>
+    </header>
+
+    {# ═══════════════════════ STICKY FILTER BAR ═══════════════════════ #}
+    <section class="fin4-sticky-bar">
+      <div class="fin4-period-tabs">
+        {% for p, label_ar, label_en in [('all','الكل','All'),('today','اليوم','Today'),('week','الأسبوع','Week'),('month','الشهر','Month'),('year','السنة','Year'),('custom','مخصص','Custom')] %}
+        <a class="fin4-period-tab {% if period == p %}active{% endif %}"
+           href="{{ url_for('billing.admin_finance', lang=ui_lang, period=p) }}">{{ label_en if is_en else label_ar }}</a>
+        {% endfor %}
+      </div>
+      <form class="fin4-custom-range" method="get">
+        <input type="hidden" name="lang" value="{{ ui_lang }}">
+        <input type="hidden" name="period" value="custom">
+        <input type="date" name="from_date" value="{{ from_date }}" class="fin4-date-input">
+        <span class="fin4-muted">→</span>
+        <input type="date" name="to_date" value="{{ to_date }}" class="fin4-date-input">
+        <button type="submit" class="fin4-apply-btn">{{ 'Apply' if is_en else 'تطبيق' }}</button>
+      </form>
+    </section>
+
+    {# ═══════════════════════ KPI GRID (6 cards) ═══════════════════════ #}
+    <section class="fin4-kpi-grid">
+      <article class="fin4-kpi blue">
+        <div class="fin4-kpi-icon-wrap">🏦</div>
+        <div class="fin4-kpi-label">{{ 'Customer Deposits' if is_en else 'إيداعات المشتركين' }}</div>
+        <div class="fin4-kpi-value">{{ '%.2f'|format(deposits_total) }} <small>USD</small></div>
+        <div class="fin4-kpi-sub">{{ 'Liability — not yet earned' if is_en else 'التزام — لم يُكتسب بعد' }}</div>
+      </article>
+      <article class="fin4-kpi green">
+        <div class="fin4-kpi-icon-wrap">📈</div>
+        <div class="fin4-kpi-label">{{ 'Earned Revenue' if is_en else 'الإيراد المكتسب' }}</div>
+        <div class="fin4-kpi-value">{{ '%.2f'|format(earned_revenue) }} <small>USD</small></div>
+        <div class="fin4-kpi-sub">{{ 'Subscriptions, services, setup' if is_en else 'اشتراكات وخدمات وإعداد' }}</div>
+      </article>
+      <article class="fin4-kpi red">
+        <div class="fin4-kpi-icon-wrap">📤</div>
+        <div class="fin4-kpi-label">{{ 'Operating Costs' if is_en else 'مصاريف التشغيل' }}</div>
+        <div class="fin4-kpi-value">{{ '%.2f'|format(operating_expenses) }} <small>USD</small></div>
+        <div class="fin4-kpi-sub">{{ 'Hosting, salaries, vendors' if is_en else 'استضافة ورواتب وموردين' }}</div>
+      </article>
+      <article class="fin4-kpi {% if net_profit >= 0 %}green{% else %}red{% endif %}">
+        <div class="fin4-kpi-icon-wrap">Σ</div>
+        <div class="fin4-kpi-label">{{ 'Net Profit / Loss' if is_en else 'صافي الربح والخسارة' }}</div>
+        <div class="fin4-kpi-value">{{ '%.2f'|format(net_profit) }} <small>USD</small></div>
+        <div class="fin4-kpi-sub">{{ 'Revenue minus expenses' if is_en else 'الإيراد ناقص المصاريف' }}</div>
+      </article>
+      <article class="fin4-kpi teal">
+        <div class="fin4-kpi-icon-wrap">↕</div>
+        <div class="fin4-kpi-label">{{ 'Cash Net Flow' if is_en else 'صافي التدفق النقدي' }}</div>
+        <div class="fin4-kpi-value">{{ '%.2f'|format(cash_net) }} <small>USD</small></div>
+        <div class="fin4-kpi-sub">{{ 'In: %.2f · Out: %.2f'|format(cash_in, cash_out) if is_en else 'داخل: %.2f · خارج: %.2f'|format(cash_in, cash_out) }}</div>
+      </article>
+      <article class="fin4-kpi purple">
+        <div class="fin4-kpi-icon-wrap">👥</div>
+        <div class="fin4-kpi-label">{{ 'Active Subscribers' if is_en else 'المشتركون النشطون' }}</div>
+        <div class="fin4-kpi-value">{{ tenant_count }}</div>
+        <div class="fin4-kpi-sub">{{ '%d active · %d trial'|format(active_sub_count, trial_sub_count) if is_en else '%d نشط · %d تجريبي'|format(active_sub_count, trial_sub_count) }}</div>
+      </article>
+    </section>
+
+    {# ═══════════════════════ P&L + PDF EXPORT (two-col) ═══════════════════════ #}
+    <section class="fin4-row-2">
+
+      {# P&L SUMMARY #}
+      <section class="fin4-panel">
+        <div class="fin4-panel-head">
+          <h3 class="fin4-panel-title">📊 {{ 'Profit & Loss Summary' if is_en else 'ملخص الأرباح والخسائر' }}</h3>
+        </div>
+        <table class="fin4-pl-table">
+          <thead>
+            <tr>
+              <th>{{ 'Item' if is_en else 'البند' }}</th>
+              <th>{{ 'Amount (USD)' if is_en else 'المبلغ (دولار)' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="fin4-pl-section-hdr"><td colspan="2">{{ 'Revenue' if is_en else 'الإيرادات' }}</td></tr>
+            <tr><td>{{ 'Earned Service Revenue' if is_en else 'إيرادات الخدمات المكتسبة' }}</td><td class="fin4-pl-num green">{{ '%.2f'|format(earned_revenue) }}</td></tr>
+            <tr class="fin4-pl-subtotal"><td>{{ 'Total Revenue' if is_en else 'إجمالي الإيرادات' }}</td><td class="fin4-pl-num green">{{ '%.2f'|format(earned_revenue) }}</td></tr>
+
+            <tr class="fin4-pl-section-hdr"><td colspan="2">{{ 'Expenses' if is_en else 'المصروفات' }}</td></tr>
+            <tr><td>{{ 'Operating Expenses' if is_en else 'مصاريف التشغيل' }}</td><td class="fin4-pl-num red">{{ '%.2f'|format(operating_expenses) }}</td></tr>
+            <tr><td>{{ 'Refunds Issued' if is_en else 'الاستردادات' }}</td><td class="fin4-pl-num red">{{ '%.2f'|format(refunds_total) }}</td></tr>
+            <tr class="fin4-pl-subtotal"><td>{{ 'Total Expenses' if is_en else 'إجمالي المصروفات' }}</td><td class="fin4-pl-num red">{{ '%.2f'|format(operating_expenses + refunds_total) }}</td></tr>
+
+            <tr class="fin4-pl-net {% if net_profit >= 0 %}fin4-pl-profit{% else %}fin4-pl-loss{% endif %}">
+              <td>{{ 'Net Profit / Loss' if is_en else 'صافي الربح / الخسارة' }}</td>
+              <td>{{ '%.2f'|format(net_profit) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="fin4-pl-footer">
+          <span>{{ 'Customer Liability (deposits not yet earned)' if is_en else 'التزام تجاه المشتركين (إيداعات لم تُكتسب)' }}:</span>
+          <b>{{ '%.2f'|format(deposits_total) }} USD</b>
+        </div>
+      </section>      {# PDF EXPORT — pro center with filter, language, and section toggles #}
+      <section class="fin4-panel" id="fin4-reports">
+        <div class="fin4-panel-head">
+          <h3 class="fin4-panel-title">📄 {{ 'Pro PDF Export Center' if is_en else 'مركز تصدير تقارير PDF' }}</h3>
+        </div>
+        <p class="fin4-panel-sub">{{ 'Filter, customize, and export — fully Arabic-ready' if is_en else 'فلترة وتخصيص وتصدير بدعم كامل للعربية' }}</p>
+
+        {# ── Period tabs ── #}
+        <div class="fin4-section-head" style="margin-top:6px"><span class="fin4-section-head-icon">①</span> {{ 'Time Period' if is_en else 'الفترة الزمنية' }}</div>
+        <div class="fin4-export-tabs">
+          <button type="button" class="fin4-export-tab active" onclick="switchExport('month',this)">{{ 'Month' if is_en else 'شهر' }}</button>
+          <button type="button" class="fin4-export-tab" onclick="switchExport('quarter',this)">{{ 'Quarter' if is_en else 'ربع سنة' }}</button>
+          <button type="button" class="fin4-export-tab" onclick="switchExport('range',this)">{{ 'Range' if is_en else 'نطاق' }}</button>
+          <button type="button" class="fin4-export-tab" onclick="switchExport('year',this)">{{ 'Year' if is_en else 'سنة' }}</button>
+        </div>
+
+        {# ── Filter type chips ── #}
+        <div class="fin4-section-head" style="margin-top:14px"><span class="fin4-section-head-icon">②</span> {{ 'What to Export' if is_en else 'ما الذي تريد تصديره؟' }}</div>
+        <div class="fin4-filter-chips" id="finExportFilters">
+          {% set _flt_options = [
+              ('all',           'كل الحركات',         'All Transactions'),
+              ('expenses',      'المصاريف',           'Expenses'),
+              ('revenue',       'الإيرادات',          'Revenue'),
+              ('salaries',      'الرواتب',            'Salaries'),
+              ('subscriptions', 'الاشتراكات',         'Subscriptions'),
+              ('refunds',       'الاستردادات',        'Refunds'),
+              ('deposits',      'الإيداعات',          'Deposits')
+          ] %}
+          {% for k, ar, en in _flt_options %}
+          <label class="fin4-filter-chip {% if loop.first %}active{% endif %}" data-filter="{{ k }}" onclick="finSelectFilter(this)">
+            <input type="radio" name="filter_type_radio" value="{{ k }}" {% if loop.first %}checked{% endif %}>
+            <span>{{ en if is_en else ar }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        {# ── Language toggle + inc_* options ── #}
+        <div class="fin4-section-head" style="margin-top:14px"><span class="fin4-section-head-icon">③</span> {{ 'Sections to Include' if is_en else 'الأقسام المضمنة' }}</div>
+        <div class="fin4-export-grid-options">
+          <div class="fin4-lang-toggle">
+            <span class="fin4-opt-label">{{ 'Language' if is_en else 'اللغة' }}</span>
+            <label class="fin4-lang-btn active" data-lang="ar" onclick="finSelectLang(this)">
+              <input type="radio" name="pdf_lang" value="ar" checked>
+              <span>العربية</span>
+            </label>
+          </div>
+          <div class="fin4-inc-grid">
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_summary" value="1" checked> 📊 {{ 'P&L Summary' if is_en else 'ملخص الأرباح والخسائر' }}</label>
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_category" value="1" checked> 🗂 {{ 'Categories' if is_en else 'تحليل الفئات' }}</label>
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_ledger" value="1" checked> 📋 {{ 'Ledger' if is_en else 'دفتر الأستاذ' }}</label>
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_monthly" value="1"> 📅 {{ 'Monthly (year only)' if is_en else 'تفصيل شهري (للسنة)' }}</label>
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_wallets" value="1"> 💼 {{ 'Wallets' if is_en else 'محافظ المشتركين' }}</label>
+            <label class="fin4-inc-chk"><input type="checkbox" name="g_inc_subscribers" value="1"> 👥 {{ 'Subscribers' if is_en else 'دليل المشتركين' }}</label>
+          </div>
+        </div>
+
+        {# ── By Month ── #}
+        <form class="fin4-export-form active" id="xf-month" action="{{ url_for('billing.admin_finance_export_pdf') }}" method="get" target="_blank" onsubmit="finBuildExport(this)">
+          <input type="hidden" name="mode" value="month">
+          <div class="fin4-export-quick">
+            <button type="button" class="fin4-qbtn" onclick="setMonth({{ now_month }},{{ now_year }})">{{ 'This month' if is_en else 'هذا الشهر' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setMonth({{ now_month-1 if now_month > 1 else 12 }},{{ now_year if now_month > 1 else now_year-1 }})">{{ 'Last month' if is_en else 'الشهر الماضي' }}</button>
+          </div>
+          <div class="fin4-export-fields">
+            <div class="fin4-export-field">
+              <label>{{ 'Month' if is_en else 'الشهر' }}</label>
+              <select id="xm-month" name="month">
+                {% for mn, ml_ar, ml_en in [(1,'يناير','Jan'),(2,'فبراير','Feb'),(3,'مارس','Mar'),(4,'أبريل','Apr'),(5,'مايو','May'),(6,'يونيو','Jun'),(7,'يوليو','Jul'),(8,'أغسطس','Aug'),(9,'سبتمبر','Sep'),(10,'أكتوبر','Oct'),(11,'نوفمبر','Nov'),(12,'ديسمبر','Dec')] %}
+                <option value="{{ mn }}" {% if mn == now_month %}selected{% endif %}>{{ ml_en if is_en else ml_ar }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="fin4-export-field">
+              <label>{{ 'Year' if is_en else 'السنة' }}</label>
+              <input type="number" id="xm-year" name="year" value="{{ now_year }}" min="2020" max="2099">
+            </div>
+          </div>
+          <button type="submit" class="fin4-export-btn">📥 {{ 'Export PDF' if is_en else 'تصدير ملف PDF' }}</button>
+        </form>
+
+        {# ── Quarter ── #}
+        <form class="fin4-export-form" id="xf-quarter" action="{{ url_for('billing.admin_finance_export_pdf') }}" method="get" target="_blank" onsubmit="finBuildExport(this)">
+          <input type="hidden" name="mode" value="quarter">
+          <div class="fin4-export-quick">
+            <button type="button" class="fin4-qbtn" onclick="setQuarter(1)">{{ 'Q1' if is_en else 'الربع الأول' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setQuarter(2)">{{ 'Q2' if is_en else 'الربع الثاني' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setQuarter(3)">{{ 'Q3' if is_en else 'الربع الثالث' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setQuarter(4)">{{ 'Q4' if is_en else 'الربع الرابع' }}</button>
+          </div>
+          <div class="fin4-export-fields">
+            <div class="fin4-export-field">
+              <label>{{ 'Quarter' if is_en else 'الربع' }}</label>
+              <select id="xq-q" name="quarter">
+                <option value="1">{{ 'Q1 Jan-Mar' if is_en else 'الربع الأول: يناير - مارس' }}</option>
+                <option value="2">{{ 'Q2 Apr-Jun' if is_en else 'الربع الثاني: أبريل - يونيو' }}</option>
+                <option value="3">{{ 'Q3 Jul-Sep' if is_en else 'الربع الثالث: يوليو - سبتمبر' }}</option>
+                <option value="4">{{ 'Q4 Oct-Dec' if is_en else 'الربع الرابع: أكتوبر - ديسمبر' }}</option>
+              </select>
+            </div>
+            <div class="fin4-export-field">
+              <label>{{ 'Year' if is_en else 'السنة' }}</label>
+              <input type="number" id="xq-year" name="year" value="{{ now_year }}" min="2020" max="2099">
+            </div>
+          </div>
+          <button type="submit" class="fin4-export-btn">📥 {{ 'Export PDF' if is_en else 'تصدير ملف PDF' }}</button>
+        </form>
+
+        {# ── Range ── #}
+        <form class="fin4-export-form" id="xf-range" action="{{ url_for('billing.admin_finance_export_pdf') }}" method="get" target="_blank" onsubmit="finBuildExport(this)">
+          <input type="hidden" name="mode" value="range">
+          <div class="fin4-export-quick">
+            <button type="button" class="fin4-qbtn" onclick="setRangeQuick('7d')">{{ '7d' if is_en else '٧ أيام' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setRangeQuick('30d')">{{ '30d' if is_en else '٣٠ يوماً' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="setRangeQuick('90d')">{{ '90d' if is_en else '٩٠ يوماً' }}</button>
+          </div>
+          <div class="fin4-export-fields">
+            <div class="fin4-export-field">
+              <label>{{ 'From' if is_en else 'من' }}</label>
+              <input type="date" id="xr-from" name="from_date">
+            </div>
+            <div class="fin4-export-field">
+              <label>{{ 'To' if is_en else 'إلى' }}</label>
+              <input type="date" id="xr-to" name="to_date">
+            </div>
+          </div>
+          <button type="submit" class="fin4-export-btn">📥 {{ 'Export PDF' if is_en else 'تصدير ملف PDF' }}</button>
+        </form>
+
+        {# ── Year ── #}
+        <form class="fin4-export-form" id="xf-year" action="{{ url_for('billing.admin_finance_export_pdf') }}" method="get" target="_blank" onsubmit="finBuildExport(this)">
+          <input type="hidden" name="mode" value="year">
+          <div class="fin4-export-quick">
+            <button type="button" class="fin4-qbtn" onclick="document.getElementById('xy-year').value={{ now_year }}">{{ 'This year' if is_en else 'هذا العام' }}</button>
+            <button type="button" class="fin4-qbtn" onclick="document.getElementById('xy-year').value={{ now_year - 1 }}">{{ 'Last year' if is_en else 'العام الماضي' }}</button>
+          </div>
+          <div class="fin4-export-fields">
+            <div class="fin4-export-field">
+              <label>{{ 'Year' if is_en else 'السنة' }}</label>
+              <input type="number" id="xy-year" name="year" value="{{ now_year }}" min="2020" max="2099">
+            </div>
+          </div>
+          <button type="submit" class="fin4-export-btn">📥 {{ 'Export PDF' if is_en else 'تصدير ملف PDF' }}</button>
+        </form>
+      </section>
+    </section>
+
+    {# ═══════════════════════ MONTHLY CHART (Chart.js + tooltips) ═══════════════════════ #}
+    <section class="fin4-panel" id="fin4-chart-section">
+      <div class="fin4-panel-head">
+        <h3 class="fin4-panel-title">📈 {{ 'Revenue vs Expenses (last 6 months)' if is_en else 'الإيرادات مقابل المصاريف (آخر ٦ أشهر)' }}</h3>
+        <div class="fin4-chart-toolbar">
+          <button class="fin4-chart-toggle active" data-view="monthly" onclick="switchChart('monthly', this)">{{ 'Monthly' if is_en else 'شهري' }}</button>
+          <button class="fin4-chart-toggle" data-view="yoy" onclick="switchChart('yoy', this)">{{ 'Year-over-Year' if is_en else 'مقارنة سنوية' }}</button>
+        </div>
+      </div>
+      <p class="fin4-panel-sub" id="fin4-chart-sub">{{ 'Hover bars for details' if is_en else 'مرّر فوق الأعمدة للتفاصيل' }}</p>
+      <div class="fin4-chart-canvas-wrap">
+        <canvas id="fin4MainChart"></canvas>
+      </div>
+    </section>
+
+    {# ═══════════════════════ ENTRY FORM ═══════════════════════ #}
+    <section class="fin4-panel" id="fin4-entry">
+      <div class="fin4-panel-head">
+        <h3 class="fin4-panel-title">＋ {{ 'Professional Accounting Entry' if is_en else 'تسجيل حركة محاسبية احترافية' }}</h3>
+      </div>
+      <p class="fin4-panel-sub">{{ 'Full-spectrum entry: operation, payment method, attachments, recurring schedules' if is_en else 'إدخال شامل: العملية، طريقة الدفع، المرفقات، الحركات الدورية' }}</p>
+
+      <div class="fin4-entry-pro">
+
+        {# ── MAIN FORM (left) ── #}
+        <form method="post" id="finEntryForm" enctype="multipart/form-data" class="fin4-entry-main">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          {# Section 1: Operation #}
+          <div class="fin4-section-head"><span class="fin4-section-head-icon">①</span> {{ 'Operation' if is_en else 'العملية' }}</div>
+          <div class="fin4-entry-grid">
+            <label class="fin4-entry-field fin4-entry-field--full">
+              <span class="fin4-entry-label">{{ 'Operation Type' if is_en else 'نوع العملية' }} <em>*</em></span>
+              <select name="operation_type" id="finOpType" class="fin4-entry-input" required onchange="finUpdateForm()">
+                <optgroup label="{{ 'Customer Transactions' if is_en else 'معاملات المشتركين' }}">
+                  <option value="customer_deposit">🏦 {{ 'Customer Deposit (into wallet)' if is_en else 'إيداع مشترك في المحفظة' }}</option>
+                  <option value="service_charge">📦 {{ 'Service Charge (from wallet)' if is_en else 'خصم خدمة من المحفظة' }}</option>
+                  <option value="refund">↩ {{ 'Refund to Customer' if is_en else 'استرداد للمشترك' }}</option>
+                </optgroup>
+                <optgroup label="{{ 'Company Expenses' if is_en else 'مصاريف الشركة' }}">
+                  <option value="operating_expense">🖥 {{ 'Operating Expense' if is_en else 'مصروف تشغيلي' }}</option>
+                  <option value="salary">👥 {{ 'Staff Salary' if is_en else 'رواتب الموظفين' }}</option>
+                  <option value="vendor_payment">🏢 {{ 'Vendor / Supplier Payment' if is_en else 'دفعة لمورد' }}</option>
+                </optgroup>
+                <optgroup label="{{ 'Other' if is_en else 'أخرى' }}">
+                  <option value="other_income">$ {{ 'Other Income' if is_en else 'إيراد آخر' }}</option>
+                </optgroup>
+              </select>
+            </label>
+
+            <label class="fin4-entry-field fin4-entry-field--full" id="finTenantRow">
+              <span class="fin4-entry-label">{{ 'Subscriber Account' if is_en else 'حساب المشترك' }} <span id="finTenantReqMark">*</span></span>
+              <select name="tenant_id" id="finTenantSel" class="fin4-entry-input">
+                <option value="">— {{ 'Company / No subscriber' if is_en else 'حركة شركة / بدون مشترك' }} —</option>
+                {% for t in tenants %}
+                {% if t.display_name != 'Company Operations' %}
+                <option value="{{ t.id }}">{{ t.display_name }}</option>
+                {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+
+            {# Employee dropdown — visible only when operation_type=salary #}
+            <label class="fin4-entry-field fin4-entry-field--full" id="finEmployeeRow" style="display:none">
+              <span class="fin4-entry-label">{{ 'Employee' if is_en else 'الموظف' }} <em>*</em></span>
+              <select name="employee_id" id="finEmployeeSel" class="fin4-entry-input" onchange="finEmployeeChange()">
+                <option value="">— {{ 'Select employee' if is_en else 'اختر الموظف' }} —</option>
+                {% for u in staff_users %}
+                <option value="{{ u.id }}">
+                  {% if u.is_admin %}👔{% else %}👤{% endif %}
+                  {{ u.full_name or u.username or ('User #' ~ u.id) }}
+                  {% if u.role and u.role != 'admin' %} · {{ u.role }}{% endif %}
+                </option>
+                {% endfor %}
+                <option value="other">➕ {{ 'Unregistered employee...' if is_en else 'موظف غير مسجل...' }}</option>
+              </select>
+            </label>
+            <label class="fin4-entry-field fin4-entry-field--full" id="finEmployeeOtherRow" style="display:none">
+              <span class="fin4-entry-label">{{ 'Employee Name' if is_en else 'اسم الموظف' }} <em>*</em></span>
+              <input type="text" name="employee_name_other" id="finEmployeeOther" class="fin4-entry-input" placeholder="{{ 'Type the employee name...' if is_en else 'اكتب اسم الموظف...' }}">
+            </label>
+
+            <label class="fin4-entry-field fin4-entry-field--full">
+              <span class="fin4-entry-label">{{ 'Account / Category' if is_en else 'الحساب / التصنيف' }}</span>
+              <select name="category" id="finCategory" class="fin4-entry-input" onchange="finSyncCategory()">
+                <optgroup label="{{ 'Customer Revenue' if is_en else 'إيرادات من المشتركين' }}">
+                  <option value="subscription">📦 {{ 'Subscription Service' if is_en else 'رسوم اشتراك' }}</option>
+                  <option value="renewal">🔄 {{ 'Renewal' if is_en else 'تجديد اشتراك' }}</option>
+                  <option value="sms">✉ {{ 'SMS Messages' if is_en else 'رسائل قصيرة' }}</option>
+                  <option value="extra_service">⭐ {{ 'Extra Services' if is_en else 'خدمات إضافية' }}</option>
+                  <option value="setup_fee">🧾 {{ 'Setup Fee' if is_en else 'رسوم إعداد' }}</option>
+                </optgroup>
+                <optgroup label="{{ 'Customer Liabilities' if is_en else 'التزامات تجاه المشتركين' }}">
+                  <option value="customer_deposit">🏦 {{ 'Customer Deposit' if is_en else 'إيداع مشترك' }}</option>
+                  <option value="wallet_adjustment">⚖ {{ 'Wallet Adjustment' if is_en else 'تسوية محفظة' }}</option>
+                  <option value="refund">↩ {{ 'Refund' if is_en else 'استرداد نقدي' }}</option>
+                </optgroup>
+                <optgroup label="{{ 'Company Expenses' if is_en else 'مصاريف الشركة' }}">
+                  <option value="hosting">🖥 {{ 'Hosting & Servers' if is_en else 'استضافة وخوادم' }}</option>
+                  <option value="development">💻 {{ 'Development' if is_en else 'تطوير برمجي' }}</option>
+                  <option value="maintenance">🔧 {{ 'Maintenance' if is_en else 'صيانة' }}</option>
+                  <option value="salary">👥 {{ 'Staff Salaries' if is_en else 'رواتب الموظفين' }}</option>
+                  <option value="admin_salary">👔 {{ 'Management Salaries' if is_en else 'رواتب الإدارة' }}</option>
+                  <option value="vendor_payment">🏢 {{ 'Vendor Payment' if is_en else 'دفعة لمورد' }}</option>
+                  <option value="marketing">📣 {{ 'Marketing' if is_en else 'تسويق' }}</option>
+                  <option value="tools">🛠 {{ 'Tools & Licenses' if is_en else 'أدوات وتراخيص' }}</option>
+                  <option value="taxes">％ {{ 'Taxes & Fees' if is_en else 'ضرائب ورسوم' }}</option>
+                  <option value="other_expense">📤 {{ 'Other Expenses' if is_en else 'مصاريف أخرى' }}</option>
+                </optgroup>
+                <optgroup label="{{ 'Other Income' if is_en else 'إيرادات أخرى' }}">
+                  <option value="other_income">$ {{ 'Other Income' if is_en else 'إيرادات أخرى' }}</option>
+                </optgroup>
+                <option value="general">📋 {{ 'General' if is_en else 'عام' }}</option>
+              </select>
+            </label>
+          </div>
+
+          {# Section 2: Amount #}
+          <div class="fin4-section-head"><span class="fin4-section-head-icon">②</span> {{ 'Amount' if is_en else 'المبلغ' }}</div>
+          <div class="fin4-entry-grid">
+            <label class="fin4-entry-field">
+              <span class="fin4-entry-label">{{ 'Amount' if is_en else 'المبلغ' }} <em>*</em></span>
+              <input type="number" name="amount" id="finAmount" min="0.01" step="0.01" class="fin4-entry-input" placeholder="0.00" required>
+            </label>
+            <label class="fin4-entry-field">
+              <span class="fin4-entry-label">{{ 'Currency' if is_en else 'العملة' }}</span>
+              <select name="currency" class="fin4-entry-input">
+                <option value="USD">USD</option>
+                <option value="ILS">ILS</option>
+                <option value="JOD">JOD</option>
+                <option value="EUR">EUR</option>
+                <option value="SAR">SAR</option>
+                <option value="AED">AED</option>
+              </select>
+            </label>
+          </div>
+
+          {# Section 3: Reference / Notes / Recurring (compact 2-row grid) — payment method moved to side column #}
+          <div class="fin4-section-head"><span class="fin4-section-head-icon">③</span> {{ 'Reference, Notes & Recurring' if is_en else 'المرجع والبيان والتكرار' }}</div>
+          <div class="fin4-entry-grid fin4-compact-grid">
+            <label class="fin4-entry-field">
+              <span class="fin4-entry-label">{{ 'Reference / Invoice No.' if is_en else 'المرجع / رقم الفاتورة' }}</span>
+              <input type="text" name="reference" class="fin4-entry-input" placeholder="INV-001">
+            </label>
+            <label class="fin4-entry-field fin4-entry-field--check fin4-recur-check">
+              <input type="checkbox" name="is_recurring" value="on" id="finRecurring" onchange="finToggleRecur(this)">
+              <span>🔁 {{ 'Recurring' if is_en else 'دورية' }}</span>
+            </label>
+            <label class="fin4-entry-field" id="finRecurPeriod" style="display:none">
+              <span class="fin4-entry-label">{{ 'Period' if is_en else 'الفترة' }}</span>
+              <select name="recurring_period" class="fin4-entry-input">
+                <option value="monthly">{{ 'Monthly' if is_en else 'شهري' }}</option>
+                <option value="quarterly">{{ 'Quarterly' if is_en else 'ربع سنوي' }}</option>
+                <option value="yearly">{{ 'Yearly' if is_en else 'سنوي' }}</option>
+              </select>
+            </label>
+            <label class="fin4-entry-field fin4-entry-field--full">
+              <span class="fin4-entry-label">{{ 'Notes / Description' if is_en else 'البيان / ملاحظات' }}</span>
+              <textarea name="note" rows="2" class="fin4-entry-input" placeholder="{{ 'Describe the accounting entry...' if is_en else 'وصف الحركة المحاسبية...' }}"></textarea>
+            </label>
+          </div>
+
+          <div class="fin4-entry-actions-pro">
+            <span class="fin4-shortcut-hint">
+              <span class="fin4-kbd">Ctrl</span>+<span class="fin4-kbd">Enter</span>
+              {{ 'to post' if is_en else 'للترحيل' }}
+            </span>
+            <button type="submit" class="fin4-submit-btn">🏦 {{ 'Post Entry' if is_en else 'ترحيل الحركة' }}</button>
+          </div>
+        </form>
+
+        {# ── RIGHT COLUMN: HELP PANEL + FILE UPLOAD ── #}
+        <div class="fin4-side-col">
+        <aside class="fin4-help-panel" id="finHelpPanel">
+          <div class="fin4-help-head">
+            <span class="fin4-help-icon">💡</span>
+            {{ 'Smart Help' if is_en else 'الدليل الذكي' }}
+          </div>
+          <p class="fin4-help-sub">{{ 'Step-by-step guidance updates based on the operation you select.' if is_en else 'الإرشادات تتغير تلقائياً حسب العملية التي تختارها.' }}</p>
+
+          {# customer_deposit #}
+          <div class="fin4-help-block" data-help-key="customer_deposit">
+            <div class="fin4-help-title">🏦 {{ 'Customer Deposit' if is_en else 'إيداع مشترك' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Select the' if is_en else 'اختر' }} <b>{{ 'subscriber' if is_en else 'المشترك' }}</b> {{ 'whose wallet will be credited.' if is_en else 'الذي سيُضاف المبلغ إلى محفظته.' }}</li>
+              <li>{{ 'Enter the deposit' if is_en else 'أدخل قيمة' }} <b>{{ 'amount' if is_en else 'الإيداع' }}</b> {{ 'and currency.' if is_en else 'واختر العملة.' }}</li>
+              <li>{{ 'Choose the' if is_en else 'حدد' }} <b>{{ 'payment method' if is_en else 'طريقة الدفع' }}</b> ({{ 'cash, transfer, card, etc.' if is_en else 'نقد، تحويل، بطاقة، إلخ.' }})</li>
+              <li>{{ 'Upload a' if is_en else 'ارفق' }} <b>{{ 'receipt / invoice' if is_en else 'صورة الإيصال' }}</b> {{ 'if available.' if is_en else 'إن وُجدت.' }}</li>
+              <li>{{ 'Add a reference number for traceability.' if is_en else 'أضف رقم مرجع للتتبع.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>💼 {{ 'Accounting:' if is_en else 'محاسبياً:' }}</b> {{ 'recorded as a customer liability — money owed to subscriber until services consumed.' if is_en else 'يُسجَّل كالتزام تجاه المشترك — مبلغ مستحق له حتى يتم استهلاك الخدمات.' }}</div>
+          </div>
+
+          {# service_charge #}
+          <div class="fin4-help-block" data-help-key="service_charge">
+            <div class="fin4-help-title">📦 {{ 'Service Charge' if is_en else 'خصم خدمة' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Select the' if is_en else 'اختر' }} <b>{{ 'subscriber' if is_en else 'المشترك' }}</b> {{ 'whose wallet will be debited.' if is_en else 'الذي سيُخصم من محفظته.' }}</li>
+              <li>{{ 'Pick the matching' if is_en else 'اختر' }} <b>{{ 'category' if is_en else 'التصنيف' }}</b> ({{ 'subscription, renewal, SMS, setup fee, ...' if is_en else 'اشتراك، تجديد، رسائل قصيرة، إعداد، ...' }})</li>
+              <li>{{ 'Enter the charged amount.' if is_en else 'أدخل المبلغ المخصوم.' }}</li>
+              <li>{{ 'Optionally attach the invoice you issued.' if is_en else 'يمكنك إرفاق الفاتورة المُصدرة.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>💼 {{ 'Accounting:' if is_en else 'محاسبياً:' }}</b> {{ 'moves money from customer liability to earned revenue (recognised income).' if is_en else 'ينقل المبلغ من التزام تجاه المشترك إلى إيراد مكتسب (دخل معترف به).' }}</div>
+          </div>
+
+          {# refund #}
+          <div class="fin4-help-block" data-help-key="refund">
+            <div class="fin4-help-title">↩ {{ 'Refund to Customer' if is_en else 'استرداد للمشترك' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Pick the subscriber receiving the refund.' if is_en else 'اختر المشترك الذي سيستلم المبلغ.' }}</li>
+              <li>{{ 'Enter the refund amount.' if is_en else 'أدخل قيمة الاسترداد.' }}</li>
+              <li>{{ 'Choose the refund' if is_en else 'حدد' }} <b>{{ 'payment method' if is_en else 'طريقة التحويل' }}</b> ({{ 'how money is returned).' if is_en else 'كيف سيُرجَع المبلغ).' }}</li>
+              <li>{{ 'Attach proof of refund (bank slip, screenshot).' if is_en else 'ارفق إثبات الاسترداد (إيصال بنكي، لقطة شاشة).' }}</li>
+              <li>{{ 'Document the reason in the notes field.' if is_en else 'وثّق السبب في حقل الملاحظات.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>⚠ {{ 'Tip:' if is_en else 'تنبيه:' }}</b> {{ 'refunds reduce net revenue and require a clear paper trail.' if is_en else 'الاستردادات تقلل الإيراد الصافي وتتطلب توثيقاً واضحاً.' }}</div>
+          </div>
+
+          {# operating_expense #}
+          <div class="fin4-help-block" data-help-key="operating_expense">
+            <div class="fin4-help-title">🖥 {{ 'Operating Expense' if is_en else 'مصروف تشغيلي' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Choose a sub-category:' if is_en else 'اختر التصنيف الفرعي:' }} {{ 'hosting, development, maintenance, marketing, tools, taxes...' if is_en else 'استضافة، تطوير، صيانة، تسويق، أدوات، ضرائب...' }}</li>
+              <li>{{ 'Enter the paid amount.' if is_en else 'أدخل المبلغ المدفوع.' }}</li>
+              <li>{{ 'Pick how you paid' if is_en else 'حدد طريقة الدفع' }} ({{ 'card, transfer, etc.).' if is_en else '(بطاقة، تحويل، إلخ).' }}</li>
+              <li>{{ 'Upload the supplier invoice or receipt.' if is_en else 'ارفع فاتورة المورد أو الإيصال.' }}</li>
+              <li>{{ 'Mark as recurring if it repeats monthly/yearly.' if is_en else 'فعّل التكرار إن كانت دورية شهرية/سنوية.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>💼 {{ 'Accounting:' if is_en else 'محاسبياً:' }}</b> {{ 'recorded as a company expense — directly reduces net profit.' if is_en else 'يُسجَّل كمصروف للشركة — يقلل الربح الصافي مباشرة.' }}</div>
+          </div>
+
+          {# salary #}
+          <div class="fin4-help-block" data-help-key="salary">
+            <div class="fin4-help-title">👥 {{ 'Staff Salary' if is_en else 'راتب موظف' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Enter the gross salary amount.' if is_en else 'أدخل إجمالي الراتب.' }}</li>
+              <li>{{ 'Select bank transfer or cash payment method.' if is_en else 'اختر طريقة الدفع: تحويل بنكي أو نقد.' }}</li>
+              <li>{{ 'Upload the payroll slip or bank confirmation.' if is_en else 'ارفع كشف الراتب أو إثبات التحويل.' }}</li>
+              <li>{{ 'In the notes, write the employee name and month covered.' if is_en else 'في الملاحظات، اذكر اسم الموظف والشهر المشمول.' }}</li>
+              <li>{{ 'Mark as monthly recurring for fixed-salary staff.' if is_en else 'فعّل التكرار الشهري للموظفين الدائمين.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>📌 {{ 'Best practice:' if is_en else 'أفضل ممارسة:' }}</b> {{ 'use distinct categories for staff vs management salaries.' if is_en else 'استخدم تصنيفاً منفصلاً لرواتب الموظفين عن رواتب الإدارة.' }}</div>
+          </div>
+
+          {# vendor_payment #}
+          <div class="fin4-help-block" data-help-key="vendor_payment">
+            <div class="fin4-help-title">🏢 {{ 'Vendor Payment' if is_en else 'دفعة لمورد' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Enter the vendor invoice amount.' if is_en else 'أدخل قيمة فاتورة المورد.' }}</li>
+              <li>{{ 'Pick the chosen payment method.' if is_en else 'حدد طريقة الدفع المستخدمة.' }}</li>
+              <li>{{ 'Attach the vendor invoice (must be filed).' if is_en else 'ارفق فاتورة المورد (يجب حفظها).' }}</li>
+              <li>{{ 'Reference the vendor invoice number.' if is_en else 'اربط الحركة برقم الفاتورة.' }}</li>
+              <li>{{ 'Note the vendor name and service in the description.' if is_en else 'اذكر اسم المورد والخدمة في البيان.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>📋 {{ 'Compliance:' if is_en else 'الامتثال:' }}</b> {{ 'vendor invoices are required for tax records — never skip the attachment.' if is_en else 'فواتير المورّدين مطلوبة لسجلات الضرائب — لا تتخطى المرفق.' }}</div>
+          </div>
+
+          {# other_income #}
+          <div class="fin4-help-block" data-help-key="other_income">
+            <div class="fin4-help-title">$ {{ 'Other Income' if is_en else 'إيراد آخر' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Use this for non-subscription revenue (consulting, partnerships, grants).' if is_en else 'استخدم هذا للإيرادات غير المتعلقة بالاشتراكات (استشارات، شراكات، منح).' }}</li>
+              <li>{{ 'Optionally link to a subscriber if relevant.' if is_en else 'اربط بمشترك إن كان ذلك ذا صلة.' }}</li>
+              <li>{{ 'Always attach the receipt or contract copy.' if is_en else 'ارفق الإيصال أو نسخة العقد دائماً.' }}</li>
+              <li>{{ 'Be explicit in the notes about the source of income.' if is_en else 'وضّح مصدر الإيراد بالتفصيل في الملاحظات.' }}</li>
+            </ol>
+          </div>
+
+          {# Default (no operation selected) — shows tips & shortcuts #}
+          <div class="fin4-help-block active" data-help-key="default">
+            <div class="fin4-help-title">📚 {{ 'Quick Start' if is_en else 'بداية سريعة' }}</div>
+            <ol class="fin4-help-steps">
+              <li>{{ 'Pick the' if is_en else 'اختر' }} <b>{{ 'operation type' if is_en else 'نوع العملية' }}</b> — {{ 'this guide updates automatically.' if is_en else 'الدليل سيتحدث تلقائياً.' }}</li>
+              <li>{{ 'Fill in' if is_en else 'املأ' }} <b>{{ 'amount' if is_en else 'المبلغ' }}</b> {{ 'and select the' if is_en else 'وحدد' }} <b>{{ 'payment method' if is_en else 'طريقة الدفع' }}</b>.</li>
+              <li>{{ 'Attach a receipt or invoice for proof.' if is_en else 'ارفق الإيصال أو الفاتورة للإثبات.' }}</li>
+              <li>{{ 'Press the Post button or use the shortcut below.' if is_en else 'اضغط زر الترحيل أو استخدم الاختصار أدناه.' }}</li>
+            </ol>
+            <div class="fin4-help-tip"><b>✨ {{ 'Pro tip:' if is_en else 'نصيحة:' }}</b> {{ 'always attach a receipt — it makes audit and PDF reports far easier later.' if is_en else 'أرفق الإيصال دائماً؛ فهذا يسهّل المراجعة وإعداد تقارير PDF لاحقاً.' }}</div>
+          </div>
+
+          <div class="fin4-help-divider"></div>
+
+          <div class="fin4-help-head" style="font-size:.78rem; margin-bottom:8px;">⌨ {{ 'Shortcuts' if is_en else 'الاختصارات' }}</div>
+          <div class="fin4-shortcuts">
+            <div class="fin4-shortcut">
+              <span>{{ 'Submit' if is_en else 'ترحيل' }}</span>
+              <span><span class="fin4-kbd">Ctrl</span>+<span class="fin4-kbd">↵</span></span>
+            </div>
+            <div class="fin4-shortcut">
+              <span>{{ 'Focus amount' if is_en else 'المبلغ' }}</span>
+              <span><span class="fin4-kbd">Ctrl</span>+<span class="fin4-kbd">M</span></span>
+            </div>
+            <div class="fin4-shortcut">
+              <span>{{ 'Open file' if is_en else 'فتح الملف' }}</span>
+              <span><span class="fin4-kbd">Ctrl</span>+<span class="fin4-kbd">U</span></span>
+            </div>
+            <div class="fin4-shortcut">
+              <span>{{ 'Reset' if is_en else 'مسح' }}</span>
+              <span><span class="fin4-kbd">Esc</span></span>
+            </div>
+          </div>
+        </aside>
+
+        {# ── FILE UPLOAD (under help panel — uses HTML5 form attribute to stay linked) ── #}
+        <label class="fin4-file-zone" id="finFileZone">
+          <input type="file" name="attachment" id="finFile" form="finEntryForm" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.heic,.bmp" onchange="finFileChange(this)">
+          <span class="fin4-file-icon">📎</span>
+          <span class="fin4-file-text fin4-file-text-default">{{ 'Receipt or invoice attachment' if is_en else 'إرفاق فاتورة أو إيصال' }}</span>
+          <span class="fin4-file-sub fin4-file-text-default">{{ 'Click or drop · PNG/JPG/PDF · ≤10MB' if is_en else 'اضغط أو اسحب · PNG/JPG/PDF · حتى ١٠ ميجابايت' }}</span>
+          <span class="fin4-file-preview" id="finFilePreview"></span>
+        </label>
+
+        {# ── PAYMENT METHOD CARDS (under attachment, 2 rows × 4 cols) ── #}
+        <div class="fin4-pay-section">
+          <div class="fin4-section-head"><span class="fin4-section-head-icon">💳</span> {{ 'Payment / Receipt Method' if is_en else 'طريقة الدفع أو الاستلام' }}</div>
+          <div class="fin4-pay-grid fin4-pay-grid-2rows" id="finPayGrid">
+            {% for pm in PAYMENT_METHODS %}
+            <label class="fin4-pay-card" data-method="{{ pm.key }}" onclick="finSelectPay(this)">
+              <input type="radio" name="payment_method" value="{{ pm.key }}" form="finEntryForm">
+              <span class="fin4-pay-card-icon" style="color:{{ pm.color }}">{{ pm.icon }}</span>
+              <span class="fin4-pay-card-label">{{ pm.label_en if is_en else pm.label_ar }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        </div>{# /.fin4-side-col #}
+
+      </div>
+    </section>
+
+    {# ═══════════════════════ CATEGORY BREAKDOWN ═══════════════════════ #}
+    {% if category_breakdown %}
+    <section class="fin4-panel fin4-collapsible" id="fin4-categories">
+      <div class="fin4-panel-head" onclick="toggleCollapse(this.parentElement)">
+        <h3 class="fin4-panel-title">🗂 {{ 'Category Breakdown' if is_en else 'تحليل الفئات' }}
+          <span class="fin4-badge">{{ category_breakdown|length }}</span>
+        </h3>
+      </div>
+      <div class="fin4-collapsible-body">
+        <div class="fin4-cat-grid">
+          {% for item in category_breakdown %}
+          {% set max_amt = category_breakdown[0].total if category_breakdown else 1 %}
+          {% set bar_pct = ((item.total / max_amt * 100) if max_amt else 0)|int %}
+          <div class="fin4-cat-row">
+            <span class="fin4-cat-icon" style="background:{{ item.color }}22;color:{{ item.color }}">{{ item.icon }}</span>
+            <div class="fin4-cat-info">
+              <div class="fin4-cat-name">{{ item.label_en if is_en else item.label_ar }}</div>
+              <div class="fin4-cat-bar"><div class="fin4-cat-bar-fill" style="width:{{ bar_pct }}%;background:{{ item.color }}"></div></div>
+            </div>
+            <div class="fin4-cat-amt {% if item.debit > 0 and item.credit == 0 %}fin4-amt-red{% else %}fin4-amt-green{% endif %}">
+              {{ '%.2f'|format(item.total) }}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {# ═══════════════════════ LEDGER TABLE ═══════════════════════ #}
+    <section class="fin4-panel" id="fin4-ledger">
+      <div class="fin4-panel-head">
+        <h3 class="fin4-panel-title">📋 {{ 'Accounting Ledger' if is_en else 'دفتر الأستاذ' }}
+          <span class="fin4-badge">{{ rows|length }}</span>
+        </h3>
+        <div class="fin4-table-controls">
+          <input type="text" id="finSearch" class="fin4-search-input" placeholder="{{ 'Search...' if is_en else 'بحث...' }}" oninput="finDoSearch(this.value)">
+          <div class="fin4-filter-btns">
+            <button class="fin4-filter-btn active" data-acc="all" onclick="finFilter('all',this)">{{ 'All' if is_en else 'الكل' }}</button>
+            <button class="fin4-filter-btn" data-acc="revenue" onclick="finFilter('revenue',this)">{{ 'Revenue' if is_en else 'إيرادات' }}</button>
+            <button class="fin4-filter-btn" data-acc="liability" onclick="finFilter('liability',this)">{{ 'Liability' if is_en else 'التزامات' }}</button>
+            <button class="fin4-filter-btn" data-acc="expense" onclick="finFilter('expense',this)">{{ 'Expenses' if is_en else 'مصاريف' }}</button>
+            <button class="fin4-filter-btn" data-acc="refund" onclick="finFilter('refund',this)">{{ 'Refunds' if is_en else 'استردادات' }}</button>
+          </div>
+        </div>
+      </div>
+      <div class="fin4-table-wrap">
+        <table class="fin4-table">
+          <thead>
+            <tr>
+              <th>{{ 'Date' if is_en else 'التاريخ' }}</th>
+              <th>{{ 'Subscriber' if is_en else 'المشترك' }}</th>
+              <th>{{ 'Type' if is_en else 'النوع' }}</th>
+              <th>{{ 'Category' if is_en else 'الفئة' }}</th>
+              <th>{{ 'Reference' if is_en else 'المرجع' }}</th>
+              <th>{{ 'Notes' if is_en else 'البيان' }}</th>
+              <th class="fin4-col-num">{{ 'Debit' if is_en else 'مدين' }}</th>
+              <th class="fin4-col-num">{{ 'Credit' if is_en else 'دائن' }}</th>
+            </tr>
+          </thead>
+          <tbody id="finTbody">
+            {% for row in rows %}
+            {% set entry = row.entry %}
+            {% set meta = row.meta %}
+            {% set is_auto = entry.reference and (entry.reference.startswith('SUB-') or entry.reference.startswith('REN-')) %}
+            <tr class="fin4-row"
+                data-account="{{ row.account }}"
+                data-search="{{ ((entry.note or '') ~ ' ' ~ (entry.reference or '') ~ ' ' ~ (row.tenant.display_name if row.tenant else ''))|lower }}">
+              <td class="fin4-col-date">{{ format_local(entry.created_at) if entry.created_at else '—' }}</td>
+              <td>{{ row.tenant.display_name if row.tenant else '—' }}</td>
+              <td>
+                {% if entry.entry_type == 'credit' %}
+                <span class="fin4-badge-type fin4-type-credit">↑ {{ 'Credit' if is_en else 'دائن' }}</span>
+                {% else %}
+                <span class="fin4-badge-type fin4-type-debit">↓ {{ 'Debit' if is_en else 'مدين' }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="fin4-cat-pill" style="background:{{ meta.get('color','#64748b') }}22;color:{{ meta.get('color','#64748b') }}">
+                  {{ meta.get('icon','📋') }} {{ meta.get('label_en', entry.category) if is_en else meta.get('label_ar', entry.category) }}
+                </span>
+                {% if is_auto %}
+                <span class="fin4-auto-link" title="{{ 'Auto-generated from subscription' if is_en else 'تم توليدها تلقائياً من الاشتراك' }}">⚡ AUTO</span>
+                {% endif %}
+                {% set pmethod = entry.payment_method if entry.payment_method is defined else None %}
+                {% if pmethod and PAYMENT_METHODS_MAP and PAYMENT_METHODS_MAP.get(pmethod) %}
+                {% set pm = PAYMENT_METHODS_MAP.get(pmethod) %}
+                <br><span class="fin4-pay-pill" style="border-color:{{ pm.color }}33;color:{{ pm.color }}">
+                  {{ pm.icon }} {{ pm.label_en if is_en else pm.label_ar }}
+                </span>
+                {% endif %}
+              </td>
+              <td class="fin4-col-ref">
+                {{ entry.reference or '—' }}
+                {% set apath = entry.attachment_path if entry.attachment_path is defined else None %}
+                {% if apath %}
+                <br><a class="fin4-attachment-link" href="{{ url_for('static', filename=apath) }}" target="_blank" rel="noopener" title="{{ (entry.attachment_name if entry.attachment_name is defined else None) or 'Attachment' }}">
+                  📎 {{ 'View' if is_en else 'عرض' }}
+                </a>
+                {% endif %}
+              </td>
+              <td class="fin4-col-note">{{ entry.note or '—' }}</td>
+              <td class="fin4-col-num fin4-amt-red">
+                {% if entry.entry_type == 'debit' %}{{ '%.2f'|format(entry.amount) }} <small>{{ entry.currency }}</small>{% endif %}
+              </td>
+              <td class="fin4-col-num fin4-amt-green">
+                {% if entry.entry_type == 'credit' %}{{ '%.2f'|format(entry.amount) }} <small>{{ entry.currency }}</small>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="fin4-empty-row">{{ 'No entries for this period.' if is_en else 'لا توجد حركات في هذه الفترة.' }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="fin4-pagination">
+        <div class="fin4-page-info" id="finPageInfo"></div>
+        <div class="fin4-page-btns" id="finPageBtns"></div>
+      </div>
+    </section>
+
+    {# ═══════════════════════ WALLETS ═══════════════════════ #}
+    {% if top_tenants %}
+    <section class="fin4-panel fin4-collapsible" id="fin4-wallets">
+      <div class="fin4-panel-head" onclick="toggleCollapse(this.parentElement)">
+        <h3 class="fin4-panel-title">💼 {{ 'Subscriber Wallets' if is_en else 'محافظ المشتركين' }}</h3>
+      </div>
+      <div class="fin4-collapsible-body">
+        <div style="margin-bottom:12px">
+          <input type="text" id="walletSearch" class="fin4-search-input" placeholder="{{ 'Search subscribers...' if is_en else 'بحث في المشتركين...' }}" oninput="walletDoSearch(this.value)">
+        </div>
+        <div class="fin4-wallet-list" id="walletList">
+          {% for tenant, bal in top_tenants %}
+          {% if tenant.display_name != 'Company Operations' %}
+          <div class="fin4-wrow" data-name="{{ (tenant.display_name or '')|lower }}" data-bal="{{ bal }}">
+            <div class="fin4-wallet-row">
+              <span class="fin4-wallet-avatar">{{ tenant.display_name[:2]|upper if tenant.display_name else '?' }}</span>
+              <div class="fin4-wallet-info">
+                <strong>{{ tenant.display_name }}</strong>
+                <small>{{ tenant.status or '' }}</small>
+              </div>
+              <div class="fin4-wallet-bal {% if (bal or 0) >= 0 %}fin4-amt-green{% else %}fin4-amt-red{% endif %}">
+                {{ '%.2f'|format(bal or 0) }} <small>USD</small>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div class="fin4-pagination">
+          <div class="fin4-page-info" id="walletPageInfo"></div>
+          <div class="fin4-page-btns" id="walletPageBtns"></div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+  </main>
+</div>
+
+{# ═══════════════════════ JAVASCRIPT ═══════════════════════ #}
+<script>
+console.log('[fin4] admin_finance v540 script starting...');
+
+// ═══ Chart data from Jinja (defensive against missing backend vars) ═══
+window.FIN4 = {
+  isEn: {{ 'true' if is_en else 'false' }},
+  monthly: [
+    {% for m in (monthly_data or []) %}
+    {label: {{ (m.label if m.label else '')|tojson }}, revenue: {{ (m.revenue|default(m.credit|default(0)))|round(2) }}, expenses: {{ (m.expenses|default(m.debit|default(0)))|round(2) }}, deposits: {{ (m.deposits|default(0))|round(2) }}, refunds: {{ (m.refunds|default(0))|round(2) }}, net: {{ (m.net|default(0))|round(2) }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  yoy: {
+    labels: {{ (yoy_labels|default([]))|tojson }},
+    current: {{ (yoy_current|default([]))|tojson }},
+    previous: {{ (yoy_previous|default([]))|tojson }},
+    currentYear: {{ (now_year|default(2026)) }},
+    previousYear: {{ (now_year|default(2026)) - 1 }}
+  }
+};
+
+// ═══ Paginator class ═══
+function Paginator(opts){
+  this.items    = opts.items || [];
+  this.pageSize = opts.pageSize || 20;
+  this.infoEl   = document.getElementById(opts.infoElId);
+  this.btnsEl   = document.getElementById(opts.btnsElId);
+  this.page     = 1;
+  this.visible  = this.items.slice();
+}
+Paginator.prototype.setVisible = function(arr){
+  this.visible = arr; this.page = 1; this.render();
+};
+Paginator.prototype.render = function(){
+  var total = this.visible.length;
+  var pages = Math.max(1, Math.ceil(total / this.pageSize));
+  if(this.page > pages) this.page = pages;
+  var start = (this.page - 1) * this.pageSize;
+  var end   = Math.min(start + this.pageSize, total);
+  this.items.forEach(function(el){ el.style.display = 'none'; });
+  for(var i = start; i < end; i++){ this.visible[i].style.display = ''; }
+  if(this.infoEl) this.infoEl.textContent = total === 0 ? '—' : (start+1) + '–' + end + ' / ' + total;
+  if(this.btnsEl){
+    var html = '';
+    for(var p = 1; p <= pages; p++){
+      html += '<button class="fin4-page-btn'+(p===this.page?' active':'')+'" data-pg="'+p+'">'+p+'</button>';
+    }
+    this.btnsEl.innerHTML = html;
+    var self = this;
+    this.btnsEl.querySelectorAll('.fin4-page-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ self.goTo(parseInt(btn.dataset.pg)); });
+    });
+  }
+};
+Paginator.prototype.goTo = function(p){ this.page = p; this.render(); };
+
+// ═══ Ledger paginator ═══
+var finRows = [];
+var finPager = null;
+try {
+  finRows  = Array.from(document.querySelectorAll('#finTbody tr.fin4-row'));
+  finPager = new Paginator({ items: finRows, pageSize: 20, infoElId: 'finPageInfo', btnsElId: 'finPageBtns' });
+  finPager.render();
+  console.log('[fin4] Ledger paginator: ' + finRows.length + ' rows');
+} catch(e){ console.error('[fin4] Ledger paginator failed:', e); }
+
+// ═══ Wallet paginator ═══
+var wRows = [];
+var wPager = null;
+try {
+  wRows  = Array.from(document.querySelectorAll('.fin4-wrow'));
+  wPager = new Paginator({ items: wRows, pageSize: 15, infoElId: 'walletPageInfo', btnsElId: 'walletPageBtns' });
+  wPager.render();
+  console.log('[fin4] Wallet paginator: ' + wRows.length + ' wallets');
+} catch(e){ console.error('[fin4] Wallet paginator failed:', e); }
+
+// ═══ Ledger search & filter ═══
+var _finAccFilter = 'all';
+var _finSearch    = '';
+function finApply(){
+  var visible = finRows.filter(function(r){
+    var accOk = _finAccFilter === 'all' || r.dataset.account === _finAccFilter;
+    var srOk  = !_finSearch   || (r.dataset.search || '').includes(_finSearch);
+    return accOk && srOk;
+  });
+  finPager.setVisible(visible);
+}
+function finFilter(acc, btn){
+  _finAccFilter = acc;
+  document.querySelectorAll('.fin4-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  finApply();
+}
+function finDoSearch(val){ _finSearch = val.toLowerCase().trim(); finApply(); }
+function walletDoSearch(val){
+  val = val.toLowerCase().trim();
+  var visible = wRows.filter(function(r){ return !val || (r.dataset.name || '').includes(val); });
+  wPager.setVisible(visible);
+}
+
+// ═══ Entry form smart fields ═══
+var FIN_NO_TENANT  = ['operating_expense','salary','vendor_payment'];
+var FIN_OPT_TENANT = ['other_income'];
+function finUpdateForm(){
+  var op       = document.getElementById('finOpType').value;
+  var tenRow   = document.getElementById('finTenantRow');
+  var tenSel   = document.getElementById('finTenantSel');
+  var reqMark  = document.getElementById('finTenantReqMark');
+  var catSel   = document.getElementById('finCategory');
+  if(FIN_NO_TENANT.indexOf(op) !== -1){
+    tenRow.style.display='none'; tenSel.required=false; tenSel.value='';
+  } else if(FIN_OPT_TENANT.indexOf(op) !== -1){
+    tenRow.style.display=''; tenSel.required=false; if(reqMark) reqMark.textContent='';
+  } else {
+    tenRow.style.display=''; tenSel.required=true; if(reqMark) reqMark.textContent='*';
+  }
+
+  // Employee row appears only for salary
+  var empRow = document.getElementById('finEmployeeRow');
+  var empSel = document.getElementById('finEmployeeSel');
+  var empOtherRow = document.getElementById('finEmployeeOtherRow');
+  var empOther = document.getElementById('finEmployeeOther');
+  if(empRow){
+    if(op === 'salary'){
+      empRow.style.display = '';
+      if(empSel) empSel.required = true;
+    } else {
+      empRow.style.display = 'none';
+      if(empSel){ empSel.required = false; empSel.value = ''; }
+      if(empOtherRow) empOtherRow.style.display = 'none';
+      if(empOther){ empOther.required = false; empOther.value = ''; }
+    }
+  }
+  var catMap = {
+    'customer_deposit': 'customer_deposit',
+    'refund':           'refund',
+    'service_charge':   'subscription',
+    'operating_expense':'hosting',
+    'salary':           'salary',
+    'vendor_payment':   'vendor_payment',
+    'other_income':     'other_income'
+  };
+  if(catMap[op] && catSel) catSel.value = catMap[op];
+
+  // Switch help panel block to match operation
+  var helpKey = op || 'default';
+  document.querySelectorAll('.fin4-help-block').forEach(function(b){
+    b.classList.toggle('active', b.dataset.helpKey === helpKey);
+  });
+  // If no matching block, show default
+  if(!document.querySelector('.fin4-help-block.active')){
+    var def = document.querySelector('.fin4-help-block[data-help-key="default"]');
+    if(def) def.classList.add('active');
+  }
+}
+
+// ═══ Employee dropdown handler ═══
+function finEmployeeChange(){
+  var sel = document.getElementById('finEmployeeSel');
+  var otherRow = document.getElementById('finEmployeeOtherRow');
+  var otherInput = document.getElementById('finEmployeeOther');
+  if(!sel || !otherRow) return;
+  if(sel.value === 'other'){
+    otherRow.style.display = '';
+    if(otherInput){ otherInput.required = true; otherInput.focus(); }
+  } else {
+    otherRow.style.display = 'none';
+    if(otherInput){ otherInput.required = false; otherInput.value = ''; }
+  }
+}
+
+// ═══ Recurring toggle ═══
+function finToggleRecur(cb){
+  var row = document.getElementById('finRecurPeriod');
+  if(row) row.style.display = cb.checked ? '' : 'none';
+}
+
+// ═══ Payment method radio cards ═══
+function finSelectPay(card){
+  document.querySelectorAll('.fin4-pay-card').forEach(function(c){ c.classList.remove('selected'); });
+  card.classList.add('selected');
+  var input = card.querySelector('input[type="radio"]');
+  if(input) input.checked = true;
+}
+
+// ═══ File upload handler ═══
+function finFileChange(input){
+  var zone = document.getElementById('finFileZone');
+  var preview = document.getElementById('finFilePreview');
+  if(input.files && input.files.length > 0){
+    var f = input.files[0];
+    var sizeKB = Math.round(f.size / 1024);
+    var sizeText = sizeKB > 1024 ? (sizeKB/1024).toFixed(1) + ' MB' : sizeKB + ' KB';
+    if(preview) preview.textContent = '✓ ' + f.name + '  (' + sizeText + ')';
+    if(zone) zone.classList.add('has-file');
+    // Enforce 10MB limit
+    if(f.size > 10 * 1024 * 1024){
+      alert(window.FIN4 && window.FIN4.isEn ? 'File too large (max 10MB)' : 'الملف كبير جداً (الحد الأقصى ١٠ ميجا)');
+      input.value = '';
+      if(zone) zone.classList.remove('has-file');
+      if(preview) preview.textContent = '';
+    }
+  } else {
+    if(zone) zone.classList.remove('has-file');
+    if(preview) preview.textContent = '';
+  }
+}
+
+function finSyncCategory(){
+  var expenseCats = ['hosting','development','maintenance','salary','admin_salary',
+                     'vendor_payment','marketing','tools','taxes','other_expense'];
+  var cat = document.getElementById('finCategory').value;
+  var op  = document.getElementById('finOpType').value;
+  if(expenseCats.indexOf(cat) !== -1 &&
+     ['operating_expense','salary','vendor_payment'].indexOf(op) === -1){
+    document.getElementById('finOpType').value = 'operating_expense';
+    finUpdateForm();
+  }
+}
+finUpdateForm();
+
+// ═══ Keyboard shortcuts (entry form) ═══
+document.addEventListener('keydown', function(e){
+  var form = document.getElementById('finEntryForm');
+  if(!form) return;
+  // Ctrl+Enter — submit
+  if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+    var inForm = form.contains(document.activeElement);
+    if(inForm){ e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.submit(); }
+  }
+  // Ctrl+M — focus amount
+  if((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')){
+    var amt = document.getElementById('finAmount');
+    if(amt){ e.preventDefault(); amt.focus(); amt.select(); }
+  }
+  // Ctrl+U — open file picker
+  if((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')){
+    var f = document.getElementById('finFile');
+    if(f){ e.preventDefault(); f.click(); }
+  }
+  // Esc — reset form (only if focus is in form)
+  if(e.key === 'Escape'){
+    if(form.contains(document.activeElement)){
+      var doReset = confirm(window.FIN4 && window.FIN4.isEn ? 'Reset the entry form?' : 'مسح النموذج؟');
+      if(doReset){
+        form.reset();
+        document.querySelectorAll('.fin4-pay-card').forEach(function(c){ c.classList.remove('selected'); });
+        var zone = document.getElementById('finFileZone');
+        var preview = document.getElementById('finFilePreview');
+        if(zone) zone.classList.remove('has-file');
+        if(preview) preview.textContent = '';
+        finUpdateForm();
+      }
+    }
+  }
+});
+
+// ═══ PDF Export tabs ═══
+function switchExport(mode, btn){
+  document.querySelectorAll('.fin4-export-form').forEach(function(f){ f.classList.remove('active'); });
+  document.querySelectorAll('.fin4-export-tab').forEach(function(b){ b.classList.remove('active'); });
+  var f = document.getElementById('xf-'+mode);
+  if(f) f.classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+function setMonth(m, y){
+  var ms = document.getElementById('xm-month');
+  var ys = document.getElementById('xm-year');
+  if(ms) ms.value = m;
+  if(ys) ys.value = y;
+}
+function setQuarter(q){ var qs = document.getElementById('xq-q'); if(qs) qs.value = q; }
+// ═══ Pro PDF Export — filter chips, language toggle, build query ═══
+function finSelectFilter(el){
+  document.querySelectorAll('.fin4-filter-chip').forEach(function(c){ c.classList.remove('active'); });
+  el.classList.add('active');
+  var rb = el.querySelector('input[type="radio"]');
+  if(rb) rb.checked = true;
+}
+function finSelectLang(el){
+  document.querySelectorAll('.fin4-lang-btn').forEach(function(c){ c.classList.remove('active'); });
+  el.classList.add('active');
+  var rb = el.querySelector('input[type="radio"]');
+  if(rb) rb.checked = true;
+}
+function finBuildExport(form){
+  ['filter_type','lang','inc_summary','inc_category','inc_ledger','inc_monthly','inc_wallets','inc_subscribers'].forEach(function(name){
+    var existing = form.querySelector('input[name="'+name+'"][type="hidden"]');
+    if(existing) existing.remove();
+  });
+  var fr = document.querySelector('input[name="filter_type_radio"]:checked');
+  var ft = fr ? fr.value : 'all';
+  var inp = document.createElement('input'); inp.type='hidden'; inp.name='filter_type'; inp.value=ft; form.appendChild(inp);
+  var lg = 'ar';
+  var inp2 = document.createElement('input'); inp2.type='hidden'; inp2.name='lang'; inp2.value=lg; form.appendChild(inp2);
+  var incs = ['summary','category','ledger','monthly','wallets','subscribers'];
+  incs.forEach(function(k){
+    var cb = document.querySelector('input[name="g_inc_'+k+'"]');
+    var v = (cb && cb.checked) ? '1' : '0';
+    var i = document.createElement('input'); i.type='hidden'; i.name='inc_'+k; i.value=v; form.appendChild(i);
+  });
+  return true;
+}
+
+function setRangeQuick(period){
+  var today = new Date();
+  var from  = new Date();
+  if(period === '7d')  from.setDate(today.getDate()-7);
+  if(period === '30d') from.setDate(today.getDate()-30);
+  if(period === '90d') from.setDate(today.getDate()-90);
+  var fmt = function(d){ return d.toISOString().slice(0,10); };
+  var f = document.getElementById('xr-from');
+  var t = document.getElementById('xr-to');
+  if(f) f.value = fmt(from);
+  if(t) t.value = fmt(today);
+}
+
+// ═══ Collapsible panels ═══
+function toggleCollapse(panel){ panel.classList.toggle('collapsed'); }
+
+// ═══ Chart.js: monthly + YoY with rich tooltips ═══
+try { (function(){
+  var ctx = document.getElementById('fin4MainChart');
+  if(!ctx){ console.warn('[fin4] chart canvas not found'); return; }
+  if(typeof Chart === 'undefined'){ console.warn('[fin4] Chart.js library not loaded (CDN blocked?)'); return; }
+
+  var fmt = function(n){ return Number(n||0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+
+  // Monthly dataset
+  var monthlyLabels   = window.FIN4.monthly.map(function(m){ return m.label; });
+  var monthlyRevenue  = window.FIN4.monthly.map(function(m){ return m.revenue; });
+  var monthlyExpenses = window.FIN4.monthly.map(function(m){ return m.expenses; });
+
+  var TR = window.FIN4.isEn ? {
+    revenue: 'Revenue', expenses: 'Expenses', net: 'Net',
+    deposits: 'Deposits', refunds: 'Refunds',
+    currentYear: 'This Year', previousYear: 'Last Year', diff: 'Change'
+  } : {
+    revenue: 'إيرادات', expenses: 'مصاريف', net: 'صافي',
+    deposits: 'إيداعات', refunds: 'استردادات',
+    currentYear: 'السنة الحالية', previousYear: 'السنة السابقة', diff: 'الفرق'
+  };
+
+  // External tooltip (rich custom tooltip)
+  function externalMonthlyTooltip(context){
+    var tooltipEl = document.getElementById('fin4-tooltip');
+    if(!tooltipEl){
+      tooltipEl = document.createElement('div');
+      tooltipEl.id = 'fin4-tooltip';
+      tooltipEl.className = 'fin4-tooltip';
+      document.body.appendChild(tooltipEl);
+    }
+    var tooltipModel = context.tooltip;
+    if(!tooltipModel || tooltipModel.opacity === 0){
+      tooltipEl.classList.remove('show');
+      return;
+    }
+    var idx = tooltipModel.dataPoints && tooltipModel.dataPoints[0] ? tooltipModel.dataPoints[0].dataIndex : 0;
+    var item = window.FIN4.monthly[idx] || {};
+    var net = (item.revenue || 0) - (item.expenses || 0);
+    var html = ''
+      + '<div class="fin4-tooltip-title">' + (item.label || '') + '</div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">📈 ' + TR.revenue + '</span><b style="color:#34d399">' + fmt(item.revenue) + '</b></div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">📤 ' + TR.expenses + '</span><b style="color:#fca5a5">' + fmt(item.expenses) + '</b></div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">🏦 ' + TR.deposits + '</span><b>' + fmt(item.deposits) + '</b></div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">↩ ' + TR.refunds + '</span><b>' + fmt(item.refunds) + '</b></div>'
+      + '<div class="fin4-tooltip-row fin4-tooltip-net"><span>Σ ' + TR.net + '</span><b>' + (net >= 0 ? '+' : '') + fmt(net) + '</b></div>';
+    tooltipEl.innerHTML = html;
+    var rect = ctx.getBoundingClientRect();
+    var x = rect.left + window.pageXOffset + tooltipModel.caretX;
+    var y = rect.top  + window.pageYOffset + tooltipModel.caretY;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top  = y + 'px';
+    tooltipEl.classList.add('show');
+  }
+
+  function externalYoyTooltip(context){
+    var tooltipEl = document.getElementById('fin4-tooltip');
+    if(!tooltipEl){
+      tooltipEl = document.createElement('div');
+      tooltipEl.id = 'fin4-tooltip';
+      tooltipEl.className = 'fin4-tooltip';
+      document.body.appendChild(tooltipEl);
+    }
+    var tooltipModel = context.tooltip;
+    if(!tooltipModel || tooltipModel.opacity === 0){
+      tooltipEl.classList.remove('show');
+      return;
+    }
+    var idx = tooltipModel.dataPoints && tooltipModel.dataPoints[0] ? tooltipModel.dataPoints[0].dataIndex : 0;
+    var label = window.FIN4.yoy.labels[idx] || '';
+    var cur = window.FIN4.yoy.current[idx] || 0;
+    var prv = window.FIN4.yoy.previous[idx] || 0;
+    var diff = cur - prv;
+    var pct  = prv ? ((diff / prv) * 100) : (cur > 0 ? 100 : 0);
+    var diffColor = diff >= 0 ? '#34d399' : '#fca5a5';
+    var arrow = diff >= 0 ? '▲' : '▼';
+    var html = ''
+      + '<div class="fin4-tooltip-title">' + label + '</div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">' + window.FIN4.yoy.currentYear + '</span><b style="color:#60a5fa">' + fmt(cur) + '</b></div>'
+      + '<div class="fin4-tooltip-row"><span class="fin4-tooltip-key">' + window.FIN4.yoy.previousYear + '</span><b style="color:#94a3b8">' + fmt(prv) + '</b></div>'
+      + '<div class="fin4-tooltip-row fin4-tooltip-net"><span>' + arrow + ' ' + TR.diff + '</span><b style="color:' + diffColor + '">' + (diff >= 0 ? '+' : '') + fmt(diff) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%)</b></div>';
+    tooltipEl.innerHTML = html;
+    var rect = ctx.getBoundingClientRect();
+    tooltipEl.style.left = (rect.left + window.pageXOffset + tooltipModel.caretX) + 'px';
+    tooltipEl.style.top  = (rect.top  + window.pageYOffset + tooltipModel.caretY) + 'px';
+    tooltipEl.classList.add('show');
+  }
+
+  function buildMonthlyConfig(){
+    var c2d = ctx.getContext('2d');
+    var grad1 = c2d.createLinearGradient(0, 0, 0, 320);
+    grad1.addColorStop(0, 'rgba(52, 211, 153, .9)');
+    grad1.addColorStop(1, 'rgba(16, 185, 129, .6)');
+    var grad2 = c2d.createLinearGradient(0, 0, 0, 320);
+    grad2.addColorStop(0, 'rgba(248, 113, 113, .9)');
+    grad2.addColorStop(1, 'rgba(239, 68, 68, .6)');
+    return {
+      type: 'bar',
+      data: {
+        labels: monthlyLabels,
+        datasets: [
+          { label: TR.revenue,  data: monthlyRevenue,  backgroundColor: grad1, borderRadius: 6, borderSkipped: false },
+          { label: TR.expenses, data: monthlyExpenses, backgroundColor: grad2, borderRadius: 6, borderSkipped: false }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: { weight: 'bold', size: 12 }, padding: 14, usePointStyle: true, pointStyle: 'rectRounded' } },
+          tooltip: { enabled: false, external: externalMonthlyTooltip }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; }, font: { size: 11 } }, grid: { color: '#eef2f7' } },
+          x: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
+        }
+      }
+    };
+  }
+
+  function buildYoyConfig(){
+    var c2d = ctx.getContext('2d');
+    var gradCur = c2d.createLinearGradient(0, 0, 0, 320);
+    gradCur.addColorStop(0, 'rgba(96, 165, 250, .35)');
+    gradCur.addColorStop(1, 'rgba(96, 165, 250, 0)');
+    return {
+      type: 'line',
+      data: {
+        labels: window.FIN4.yoy.labels,
+        datasets: [
+          {
+            label: TR.currentYear + ' (' + window.FIN4.yoy.currentYear + ')',
+            data: window.FIN4.yoy.current,
+            borderColor: '#2563eb',
+            backgroundColor: gradCur,
+            borderWidth: 3,
+            tension: 0.35,
+            fill: true,
+            pointBackgroundColor: '#2563eb',
+            pointRadius: 4,
+            pointHoverRadius: 7
+      },
+          {
+            label: TR.previousYear + ' (' + window.FIN4.yoy.previousYear + ')',
+            data: window.FIN4.yoy.previous,
+            borderColor: '#94a3b8',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            tension: 0.35,
+            fill: false,
+            pointBackgroundColor: '#94a3b8',
+            pointRadius: 3,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: { weight: 'bold', size: 12 }, padding: 14, usePointStyle: true } },
+          tooltip: { enabled: false, external: externalYoyTooltip }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; }, font: { size: 11 } }, grid: { color: '#eef2f7' } },
+          x: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
+        }
+      }
+    };
+  }
+
+  var chart = new Chart(ctx, buildMonthlyConfig());
+
+  window.switchChart = function(view, btn){
+    document.querySelectorAll('.fin4-chart-toggle').forEach(function(b){ b.classList.remove('active'); });
+    if(btn) btn.classList.add('active');
+    var sub = document.getElementById('fin4-chart-sub');
+    chart.destroy();
+    if(view === 'yoy'){
+      chart = new Chart(ctx, buildYoyConfig());
+      if(sub) sub.textContent = window.FIN4.isEn ? ('Comparing ' + window.FIN4.yoy.currentYear + ' vs ' + window.FIN4.yoy.previousYear) : ('مقارنة ' + window.FIN4.yoy.currentYear + ' مع ' + window.FIN4.yoy.previousYear);
+    } else {
+      chart = new Chart(ctx, buildMonthlyConfig());
+      if(sub) sub.textContent = window.FIN4.isEn ? 'Hover bars for details' : 'مرّر فوق الأعمدة للتفاصيل';
+    }
+  };
+})(); } catch(e){ console.error('[fin4] Chart init failed:', e); }
+console.log('[fin4] script complete');
+</script>
 {% endblock %}
