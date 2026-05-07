@@ -57,3 +57,82 @@ Scheduler job started: app.blueprints.notifications.run_advanced_notification_sc
 advanced scheduler skipped: no latest reading
 Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
 Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_weather_checks
+Scheduler job finished: app.blueprints.notifications.run_weather_checks
+Scheduler listener: job weather_change_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
+Scheduler job started: app.blueprints.notifications.run_advanced_notification_scheduler
+advanced scheduler skipped: no latest reading
+Scheduler job finished: app.blueprints.notifications.run_advanced_notification_scheduler
+Scheduler listener: job advanced_notifications_check executed
