@@ -1,0 +1,1197 @@
+from __future__ import annotations
+
+# Heavy v10.1 split blueprint. The route logic is intentionally moved out of
+# main.py while importing legacy helpers/services from main during the migration
+# window. This keeps behavior stable while main.py shrinks safely.
+from flask import Blueprint
+from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
+from . import main as _legacy_main
+
+for _legacy_name in dir(_legacy_main):
+    if _legacy_name.startswith('_') and not _legacy_name.startswith('__'):
+        globals()[_legacy_name] = getattr(_legacy_main, _legacy_name)
+
+from ..services.quota_engine import (
+    apply_plan_quotas_to_plan_subscribers,
+    apply_plan_quotas_to_tenant,
+    ensure_plan_quotas_for_tenant,
+    merge_features_with_quota_rules,
+    parse_plan_quota_rules_from_form,
+    plan_quota_rows_for_template,
+    quota_summary_rows,
+)
+
+billing_bp = Blueprint('billing', __name__)
+
+@billing_bp.route('/admin/plans')
+def admin_plans():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+
+    # ── Insights aside data ──────────────────────────────────────────
+    insights = {
+        'plans_total': len(plans),
+        'plans_active': sum(1 for p in plans if p.is_active),
+        'plans_inactive': sum(1 for p in plans if not p.is_active),
+        'subs_total': 0,
+        'subs_active': 0,
+        'subs_trial': 0,
+        'subs_expired': 0,
+        'revenue_total': 0.0,
+        'avg_price': 0.0,
+        'cheapest': None,
+        'priciest': None,
+        'most_popular': None,
+        'longest_duration': None,
+    }
+    distribution = []  # [{plan, count, active, pct}]
+    try:
+        # Aggregate subscriptions per plan
+        plan_sub_counts = {}
+        plan_active_counts = {}
+        all_subs = TenantSubscription.query.all()
+        for sub in all_subs:
+            insights['subs_total'] += 1
+            st = (sub.status or 'trial').lower()
+            if st == 'active':
+                insights['subs_active'] += 1
+            elif st == 'trial':
+                insights['subs_trial'] += 1
+            elif st in ('expired', 'suspended'):
+                insights['subs_expired'] += 1
+            plan_sub_counts[sub.plan_id] = plan_sub_counts.get(sub.plan_id, 0) + 1
+            if st == 'active':
+                plan_active_counts[sub.plan_id] = plan_active_counts.get(sub.plan_id, 0) + 1
+        # Total revenue across all wallets
+        try:
+            total_credits = sum((e.amount or 0) for e in WalletLedger.query.filter_by(entry_type='credit').all())
+            insights['revenue_total'] = round(total_credits, 2)
+        except Exception:
+            pass
+        # Distribution rows for chart
+        max_count = max(plan_sub_counts.values()) if plan_sub_counts else 0
+        for p in plans:
+            cnt = plan_sub_counts.get(p.id, 0)
+            act = plan_active_counts.get(p.id, 0)
+            pct = round(cnt / max_count * 100) if max_count else 0
+            distribution.append({'plan': p, 'count': cnt, 'active': act, 'pct': pct})
+        # Comparisons
+        priced_plans = [p for p in plans if p.price and p.price > 0]
+        if priced_plans:
+            insights['avg_price'] = round(sum(p.price for p in priced_plans) / len(priced_plans), 2)
+            insights['cheapest'] = min(priced_plans, key=lambda p: p.price)
+            insights['priciest'] = max(priced_plans, key=lambda p: p.price)
+        if plans:
+            insights['longest_duration'] = max(plans, key=lambda p: (p.duration_days_default or 0))
+        if plan_sub_counts:
+            top_plan_id = max(plan_sub_counts, key=plan_sub_counts.get)
+            insights['most_popular'] = next((p for p in plans if p.id == top_plan_id), None)
+            insights['most_popular_count'] = plan_sub_counts.get(top_plan_id, 0)
+    except Exception as exc:
+        current_app.logger.warning('admin_plans insights failed: %s', exc)
+
+    return render_template(
+        'admin_plans_phase1a.html',
+        plans=plans,
+        insights=insights,
+        distribution=distribution,
+        ui_lang=_lang(),
+    )
+
+
+@billing_bp.route('/admin/plans/new', methods=['GET','POST'])
+def admin_plan_create():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plan = None
+    if request.method == 'POST':
+        plan = SubscriptionPlan(
+            code=request.form.get('code','').strip(),
+            name_ar=request.form.get('name_ar','').strip(),
+            name_en=request.form.get('name_en','').strip(),
+            price=float(request.form.get('price') or 0),
+            currency=request.form.get('currency','USD').strip() or 'USD',
+            duration_days_default=int(request.form.get('duration_days_default') or 30),
+            max_devices=int(request.form.get('max_devices') or 1),
+            is_active=request.form.get('is_active') == 'on',
+            sort_order=int(request.form.get('sort_order') or 0),
+            features_json=merge_features_with_quota_rules({
+                'can_manage_devices': request.form.get('can_manage_devices') == 'on',
+                'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
+                'can_use_telegram': request.form.get('can_use_telegram') == 'on',
+                'can_use_sms': request.form.get('can_use_sms') == 'on',
+                'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
+                'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
+            }, parse_plan_quota_rules_from_form(request.form)),
+        )
+        db.session.add(plan)
+        db.session.commit()
+        flash('تم إنشاء الخطة بنجاح', 'success')
+        return redirect(url_for('main.admin_plans', lang=_lang()))
+    return render_template('admin_plan_form_phase1a.html', plan=plan, plan_quota_rows=plan_quota_rows_for_template(plan, _lang()), ui_lang=_lang())
+
+
+@billing_bp.route('/admin/plans/<int:plan_id>/edit', methods=['GET','POST'])
+def admin_plan_edit(plan_id):
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    plan = SubscriptionPlan.query.get_or_404(plan_id)
+    if request.method == 'POST':
+        plan.code=request.form.get('code','').strip()
+        plan.name_ar=request.form.get('name_ar','').strip()
+        plan.name_en=request.form.get('name_en','').strip()
+        plan.price=float(request.form.get('price') or 0)
+        plan.currency=request.form.get('currency','USD').strip() or 'USD'
+        plan.duration_days_default=int(request.form.get('duration_days_default') or 30)
+        plan.max_devices=int(request.form.get('max_devices') or 1)
+        plan.is_active=request.form.get('is_active') == 'on'
+        plan.sort_order=int(request.form.get('sort_order') or 0)
+        plan.features_json=merge_features_with_quota_rules({
+            'can_manage_devices': request.form.get('can_manage_devices') == 'on',
+            'can_manage_integrations': request.form.get('can_manage_integrations') == 'on',
+            'can_use_telegram': request.form.get('can_use_telegram') == 'on',
+            'can_use_sms': request.form.get('can_use_sms') == 'on',
+            'can_view_diagnostics': request.form.get('can_view_diagnostics') == 'on',
+            'can_view_api_explorer': request.form.get('can_view_api_explorer') == 'on',
+        }, parse_plan_quota_rules_from_form(request.form))
+        apply_plan_quotas_to_plan_subscribers(plan, commit=False)
+        db.session.commit()
+        flash('تم تحديث الخطة وحدود الكوتا للمشتركين المرتبطين بها', 'success')
+        return redirect(url_for('main.admin_plans', lang=_lang()))
+    # Aside enrichment: subscriber stats, revenue, recent activations
+    plan_stats = {'subs_total': 0, 'subs_active': 0, 'subs_trial': 0, 'subs_expired': 0, 'devices': 0, 'revenue': 0.0, 'avg_days_left': 0}
+    recent_subs = []
+    try:
+        sub_rows = TenantSubscription.query.filter_by(plan_id=plan.id).all()
+        plan_stats['subs_total'] = len(sub_rows)
+        days_left_acc = 0
+        days_left_count = 0
+        now_utc = datetime.utcnow()
+        for sub in sub_rows:
+            status = (sub.status or 'trial').lower()
+            if status == 'active':
+                plan_stats['subs_active'] += 1
+            elif status == 'trial':
+                plan_stats['subs_trial'] += 1
+            elif status in ('expired', 'suspended'):
+                plan_stats['subs_expired'] += 1
+            if sub.ends_at:
+                d = (sub.ends_at.date() - now_utc.date()).days
+                if d > 0:
+                    days_left_acc += d
+                    days_left_count += 1
+        plan_stats['avg_days_left'] = round(days_left_acc / days_left_count) if days_left_count else 0
+        tenant_ids = [s.tenant_id for s in sub_rows]
+        if tenant_ids:
+            tenants_owned = TenantAccount.query.filter(TenantAccount.id.in_(tenant_ids)).all()
+            owner_ids = [t.owner_user_id for t in tenants_owned if t.owner_user_id]
+            if owner_ids:
+                plan_stats['devices'] = AppDevice.query.filter(AppDevice.owner_user_id.in_(owner_ids), AppDevice.is_active.is_(True)).count()
+            try:
+                ledger = WalletLedger.query.filter(WalletLedger.tenant_id.in_(tenant_ids), WalletLedger.entry_type == 'credit').all()
+                plan_stats['revenue'] = round(sum(e.amount or 0 for e in ledger), 2)
+            except Exception:
+                pass
+        recent_rows = TenantSubscription.query.filter_by(plan_id=plan.id).order_by(TenantSubscription.created_at.desc()).limit(5).all()
+        for sub in recent_rows:
+            tenant = TenantAccount.query.get(sub.tenant_id)
+            owner = AppUser.query.get(tenant.owner_user_id) if tenant and tenant.owner_user_id else None
+            recent_subs.append({'sub': sub, 'tenant': tenant, 'owner': owner})
+    except Exception as exc:
+        current_app.logger.warning('plan-edit aside stats failed: %s', exc)
+    completeness = [
+        {'key': 'name_ar', 'label_en': 'Arabic name set',  'label_ar': 'الاسم بالعربية',  'ok': bool((plan.name_ar or '').strip())},
+        {'key': 'name_en', 'label_en': 'English name set', 'label_ar': 'الاسم بالإنجليزية', 'ok': bool((plan.name_en or '').strip())},
+        {'key': 'price',   'label_en': 'Price configured', 'label_ar': 'تم تحديد السعر',   'ok': (plan.price or 0) > 0 or plan.code in ('free', 'trial')},
+        {'key': 'days',    'label_en': 'Duration set',     'label_ar': 'تم تحديد المدة',  'ok': (plan.duration_days_default or 0) >= 1},
+        {'key': 'devices', 'label_en': 'Device cap set',   'label_ar': 'حد الأجهزة محدد', 'ok': (plan.max_devices or 0) >= 1},
+        {'key': 'active',  'label_en': 'Plan is active',   'label_ar': 'الباقة مفعّلة',   'ok': bool(plan.is_active)},
+    ]
+    completeness_done = sum(1 for c in completeness if c['ok'])
+    completeness_pct = round(completeness_done / len(completeness) * 100) if completeness else 0
+    return render_template(
+        'admin_plan_form_phase1a.html',
+        plan=plan,
+        plan_quota_rows=plan_quota_rows_for_template(plan, _lang()),
+        plan_stats=plan_stats,
+        recent_subs=recent_subs,
+        completeness=completeness,
+        completeness_done=completeness_done,
+        completeness_pct=completeness_pct,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+    )
+
+
+@billing_bp.route('/admin/subscribers')
+def admin_subscribers():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    rows=[]
+    subscriber_roles = ('', 'user', 'subscriber', 'customer')
+    users=AppUser.query.filter(
+        db.or_(AppUser.is_admin.is_(False), AppUser.is_admin.is_(None)),
+        db.or_(AppUser.role.is_(None), AppUser.role.in_(subscriber_roles)),
+    ).order_by(AppUser.created_at.desc(), AppUser.id.desc()).all()
+    plans = {p.id: p for p in SubscriptionPlan.query.order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()}
+    stats = {'total': 0, 'active': 0, 'trial': 0, 'expired': 0, 'suspended': 0, 'disabled': 0}
+    now = datetime.utcnow()
+    for user in users:
+        tenant, sub = ensure_user_tenant_and_subscription(user)
+        status = (sub.status if sub else getattr(tenant, 'status', 'trial')) or 'trial'
+        stats['total'] += 1
+        if not user.is_active:
+            stats['disabled'] += 1
+        if status in stats:
+            stats[status] += 1
+        plan = plans.get(sub.plan_id) if sub and sub.plan_id else plans.get(getattr(tenant, 'plan_id', None))
+        days_left = None
+        if sub and sub.ends_at:
+            days_left = (sub.ends_at.date() - now.date()).days
+        support_scope = db.or_(SupportCase.tenant_id == tenant.id, SupportCase.user_id == user.id)
+        support_open = db.or_(SupportCase.status.is_(None), ~SupportCase.status.in_(('closed', 'resolved')))
+        open_message_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'message').count()
+        open_ticket_count = SupportCase.query.filter(support_scope, support_open, SupportCase.case_type == 'ticket').count()
+        rows.append({'user':user,'tenant':tenant,'subscription':sub,'plan':plan,'status':status,'days_left':days_left,'device_count':AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count(),'open_message_count':open_message_count,'open_ticket_count':open_ticket_count})
+    active_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    return render_template('admin_subscribers_phase1a.html', rows=rows, stats=stats, plans=active_plans, ui_lang=_lang())
+
+
+@billing_bp.route('/admin/subscribers/<int:user_id>/activate', methods=['GET','POST'])
+def admin_subscriber_activate(user_id):
+    admin_user = _active_user()
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    user = AppUser.query.get_or_404(user_id)
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=admin_user.id if admin_user else None)
+    plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc()).all()
+    if request.method == 'POST':
+        plan = SubscriptionPlan.query.get_or_404(int(request.form.get('plan_id')))
+        days = int(request.form.get('days') or plan.duration_days_default or 30)
+        activate_tenant_subscription(tenant, plan, days, activated_by_user_id=admin_user.id if admin_user else None, notes=request.form.get('notes','').strip())
+        ensure_plan_quotas_for_tenant(tenant, plan, commit=True)
+        flash('تم تفعيل اشتراك المشترك وتطبيق حدود الخطة تلقائيًا', 'success')
+        return redirect(url_for('main.admin_subscribers', lang=_lang()))
+    return render_template('admin_subscriber_activate_phase1a.html', user=user, tenant=tenant, subscription=sub, plans=plans, ui_lang=_lang())
+
+
+@billing_bp.route('/admin/subscribers/<int:user_id>/extend', methods=['POST'])
+def admin_subscriber_extend(user_id):
+    admin_user = _active_user()
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    user = AppUser.query.get_or_404(user_id)
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=admin_user.id if admin_user else None)
+    amount = int(request.form.get('amount') or 0)
+    unit = (request.form.get('unit') or 'days').strip()
+    notes = (request.form.get('notes') or '').strip()
+    if amount <= 0:
+        flash('أدخل مدة صحيحة لإضافتها', 'warning')
+        return redirect(url_for('main.admin_subscribers', lang=_lang()))
+    base = sub.ends_at if sub and sub.ends_at and sub.ends_at > datetime.utcnow() else datetime.utcnow()
+    if unit == 'months':
+        delta_days = amount * 30
+    elif unit == 'years':
+        delta_days = amount * 365
+    else:
+        delta_days = amount
+    if sub:
+        sub.ends_at = base + timedelta(days=delta_days)
+        if unit == 'trial_days':
+            sub.status = 'trial'
+            sub.trial_ends_at = sub.ends_at
+        elif sub.status in ['expired', 'suspended', 'trial']:
+            sub.status = 'active'
+        sub.notes = ((sub.notes or '') + ('\n' if sub.notes else '') + (notes or f'Extended by {amount} {unit}')).strip()
+        sub.updated_at = datetime.utcnow()
+    if tenant:
+        tenant.status = 'trial' if unit == 'trial_days' else 'active'
+        tenant.updated_at = datetime.utcnow()
+
+    # Auto-generate ledger entry for paid extensions (skip free trial extensions)
+    if sub and unit != 'trial_days' and tenant:
+        try:
+            from ..services.subscriptions import _create_subscription_ledger_entry
+            plan_obj = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
+            if plan_obj and float(plan_obj.price or 0) > 0:
+                _create_subscription_ledger_entry(
+                    tenant, plan_obj, delta_days, sub,
+                    activated_by_user_id=admin_user.id if admin_user else None,
+                    is_renewal=True,
+                )
+        except Exception as exc:
+            current_app.logger.warning('Auto-ledger for extend failed: %s', exc)
+
+    db.session.commit()
+    flash('تمت إضافة مدة الاشتراك بنجاح', 'success')
+    return redirect(url_for('main.admin_subscribers', lang=_lang()))
+
+
+@billing_bp.route('/account/subscription')
+def account_subscription():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan = SubscriptionPlan.query.get(tenant.plan_id) if tenant and tenant.plan_id else None
+    ensure_plan_quotas_for_tenant(tenant, plan, commit=True)
+    all_plans = SubscriptionPlan.query.filter_by(is_active=True).order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc()).all()
+    # pre-parse features for each plan so the template doesn't need a from_json filter
+    from ..services.subscriptions import plan_features as _plan_features
+    plan_features_map = {p.id: _plan_features(p) for p in all_plans}
+    # compute remaining days for hero ring
+    now_dt = datetime.utcnow()
+    days_left_num = 0
+    if sub and sub.ends_at:
+        delta = (sub.ends_at.date() - now_dt.date()).days
+        days_left_num = max(delta, 0)
+    total_days = (plan.duration_days_default or 30) if plan else 30
+    pct_left = min(max(round(days_left_num / total_days * 100), 0), 100) if total_days else 0
+    # pending plan-change requests
+    pending_request = SupportCase.query.filter_by(
+        user_id=user.id, case_type='plan_change_request', status='open'
+    ).order_by(SupportCase.created_at.desc()).first()
+    return render_template(
+        'account_subscription_phase1a.html',
+        user=user, tenant=tenant, subscription=sub, plan=plan,
+        quota_rows=quota_summary_rows(getattr(tenant, 'id', None), _lang()),
+        all_plans=all_plans,
+        plan_features_map=plan_features_map,
+        days_left_num=days_left_num,
+        pct_left=pct_left,
+        pending_request=pending_request,
+        ui_lang=_lang(),
+    )
+
+
+@billing_bp.route('/account/subscription/request-change', methods=['POST'])
+def account_subscription_request_change():
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan_id = int(request.form.get('plan_id') or 0)
+    message = (request.form.get('message') or '').strip()
+    target_plan = SubscriptionPlan.query.get(plan_id) if plan_id else None
+    if not target_plan:
+        flash('الخطة المطلوبة غير موجودة', 'warning')
+        return redirect(url_for('billing.account_subscription', lang=_lang()))
+    # cancel older open requests for the same user
+    SupportCase.query.filter_by(
+        user_id=user.id, case_type='plan_change_request', status='open'
+    ).update({'status': 'cancelled'})
+    plan_name = target_plan.name_ar or target_plan.name_en or target_plan.code
+    case = SupportCase(
+        case_type='plan_change_request',
+        source_id=user.id,
+        tenant_id=getattr(tenant, 'id', None),
+        user_id=user.id,
+        subject=f'طلب تغيير الخطة إلى {plan_name}',
+        priority='normal',
+        status='open',
+    )
+    # store target plan info and user note in case subject extended form
+    case.subject = f'طلب تغيير الخطة إلى {plan_name}' + (f' — {message}' if message else '')
+    db.session.add(case)
+    db.session.commit()
+    flash(f'تم إرسال طلب تغيير الخطة إلى "{plan_name}" بنجاح. سيتواصل معك الفريق قريبًا.', 'success')
+    return redirect(url_for('billing.account_subscription', lang=_lang()))
+
+
+@billing_bp.route('/admin/subscriptions')
+def admin_subscriptions():
+    guard = _admin_guard('can_manage_users')
+    if guard:
+        return guard
+    rows = []
+    subscriptions = TenantSubscription.query.order_by(TenantSubscription.updated_at.desc(), TenantSubscription.id.desc()).all()
+    for sub in subscriptions:
+        tenant = TenantAccount.query.get(sub.tenant_id)
+        plan = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
+        owner = AppUser.query.get(tenant.owner_user_id) if tenant and tenant.owner_user_id else None
+        rows.append({'subscription': sub, 'tenant': tenant, 'plan': plan, 'owner': owner})
+    return render_template('admin_subscriptions.html', rows=rows, ui_lang=_lang(), summary=_admin_counts_snapshot())
+
+
+# ── Finance category constants ────────────────────────────────────────────────
+FINANCE_CATEGORIES = {
+    # Customer wallet / liability
+    'customer_deposit': {'label_ar': 'إيداع مشترك', 'label_en': 'Customer Deposit', 'type': 'credit', 'account': 'liability', 'icon': '🏦', 'color': '#2563eb'},
+    'refund':          {'label_ar': 'استرداد نقدي', 'label_en': 'Refund',          'type': 'debit',  'account': 'refund',    'icon': '↩',  'color': '#dc2626'},
+    'wallet_adjustment': {'label_ar': 'تسوية محفظة', 'label_en': 'Wallet Adjustment', 'type': 'both', 'account': 'liability', 'icon': '⚖', 'color': '#64748b'},
+    # Earned revenue
+    'subscription':   {'label_ar': 'اشتراك خدمة', 'label_en': 'Subscription Service', 'type': 'debit', 'account': 'revenue', 'icon': '📦', 'color': '#10b981'},
+    'renewal':        {'label_ar': 'تجديد اشتراك', 'label_en': 'Renewal',            'type': 'debit', 'account': 'revenue', 'icon': '🔄', 'color': '#34d399'},
+    'sms':            {'label_ar': 'رسائل SMS',    'label_en': 'SMS Messages',       'type': 'debit', 'account': 'revenue', 'icon': '✉',  'color': '#0ea5e9'},
+    'extra_service':  {'label_ar': 'خدمات إضافية', 'label_en': 'Extra Services',     'type': 'debit', 'account': 'revenue', 'icon': '⭐', 'color': '#6ee7b7'},
+    'setup_fee':      {'label_ar': 'رسوم إعداد',   'label_en': 'Setup Fee',          'type': 'debit', 'account': 'revenue', 'icon': '🧾', 'color': '#14b8a6'},
+    'other_income':   {'label_ar': 'إيرادات أخرى', 'label_en': 'Other Income',       'type': 'credit','account': 'revenue', 'icon': '$',  'color': '#a7f3d0'},
+    # Company expenses
+    'hosting':        {'label_ar': 'استضافة وخوادم', 'label_en': 'Hosting & Servers', 'type': 'debit','account': 'expense','icon': '🖥', 'color': '#f43f5e'},
+    'development':    {'label_ar': 'تطوير برمجي',    'label_en': 'Development',       'type': 'debit','account': 'expense','icon': '💻', 'color': '#fb7185'},
+    'maintenance':    {'label_ar': 'صيانة',          'label_en': 'Maintenance',       'type': 'debit','account': 'expense','icon': '🔧', 'color': '#fda4af'},
+    'salary':         {'label_ar': 'رواتب الموظفين', 'label_en': 'Staff Salaries',    'type': 'debit','account': 'expense','icon': '👥', 'color': '#f59e0b'},
+    'admin_salary':   {'label_ar': 'رواتب المدراء',  'label_en': 'Management Salaries','type': 'debit','account': 'expense','icon': '👔', 'color': '#d97706'},
+    'vendor_payment': {'label_ar': 'دفعة مورد',      'label_en': 'Vendor Payment',    'type': 'debit','account': 'expense','icon': '🏢', 'color': '#ef4444'},
+    'marketing':      {'label_ar': 'تسويق',          'label_en': 'Marketing',         'type': 'debit','account': 'expense','icon': '📣', 'color': '#fbbf24'},
+    'tools':          {'label_ar': 'أدوات وتراخيص',  'label_en': 'Tools & Licenses',  'type': 'debit','account': 'expense','icon': '🛠', 'color': '#fde68a'},
+    'taxes':          {'label_ar': 'ضرائب ورسوم',    'label_en': 'Taxes & Fees',      'type': 'debit','account': 'expense','icon': '％', 'color': '#7c3aed'},
+    'other_expense':  {'label_ar': 'مصاريف أخرى',    'label_en': 'Other Expenses',    'type': 'debit','account': 'expense','icon': '📤', 'color': '#94a3b8'},
+    'general':        {'label_ar': 'عام',            'label_en': 'General',           'type': 'both', 'account': 'other',  'icon': '📋', 'color': '#64748b'},
+}
+
+
+# ─────────────────────────────────────────────────────────────────
+# Payment methods catalog (used in admin_finance entry form)
+# Each method has: key, label_ar, label_en, icon (emoji), color
+# ─────────────────────────────────────────────────────────────────
+PAYMENT_METHODS = [
+    {'key': 'cash',          'label_ar': 'نقد',              'label_en': 'Cash',           'icon': '💵', 'color': '#10b981'},
+    {'key': 'bank_transfer', 'label_ar': 'تحويل بنكي',       'label_en': 'Bank Transfer',  'icon': '🏦', 'color': '#2563eb'},
+    {'key': 'bank_card',     'label_ar': 'بطاقة بنكية',      'label_en': 'Bank Card',      'icon': '💳', 'color': '#0ea5e9'},
+    {'key': 'paypal',        'label_ar': 'PayPal',           'label_en': 'PayPal',         'icon': '🅿', 'color': '#003087'},
+    {'key': 'check',         'label_ar': 'شيك',              'label_en': 'Check',          'icon': '📃', 'color': '#7c3aed'},
+    {'key': 'crypto',        'label_ar': 'عملة رقمية',       'label_en': 'Cryptocurrency', 'icon': '₿',  'color': '#f7931a'},
+    {'key': 'wallet',        'label_ar': 'محفظة إلكترونية',  'label_en': 'E-Wallet',       'icon': '📱', 'color': '#14b8a6'},
+    {'key': 'other',         'label_ar': 'أخرى',             'label_en': 'Other',          'icon': '⚙', 'color': '#64748b'},
+]
+PAYMENT_METHODS_MAP = {pm['key']: pm for pm in PAYMENT_METHODS}
+
+
+def _finance_company_tenant():
+    """Return an internal tenant row used for company-only ledger entries."""
+    tenant = TenantAccount.query.filter_by(display_name='Company Operations').first()
+    if tenant:
+        return tenant
+    tenant = TenantAccount(display_name='Company Operations', status='internal')
+    db.session.add(tenant)
+    db.session.flush()
+    return tenant
+
+
+def _finance_category_meta(category: str) -> dict:
+    return FINANCE_CATEGORIES.get(category or 'general', FINANCE_CATEGORIES['general'])
+
+
+def _finance_account_for(entry: WalletLedger) -> str:
+    meta = _finance_category_meta(entry.category)
+    account = meta.get('account')
+    if account and account != 'other':
+        return account
+    if entry.entry_type == 'credit':
+        return 'revenue'
+    return 'expense'
+
+
+def _finance_signed_wallet_amount(entry: WalletLedger) -> float:
+    account = _finance_account_for(entry)
+    if account in {'liability', 'revenue', 'refund'}:
+        return float(entry.amount or 0) if entry.entry_type == 'credit' else -float(entry.amount or 0)
+    return 0.0
+
+
+@billing_bp.route('/admin/finance', methods=['GET', 'POST'])
+def admin_finance():
+    import calendar as _cal
+    from datetime import datetime as _dt, timedelta as _td
+
+    guard = _admin_guard('can_manage_finance')
+    if guard:
+        return guard
+
+    if request.method == 'POST':
+        tenant_id = int(request.form.get('tenant_id') or 0)
+        amount    = float(request.form.get('amount') or 0)
+        operation_type = (request.form.get('operation_type') or '').strip()
+        category = (request.form.get('category') or 'general').strip()
+        if operation_type == 'customer_deposit':
+            category = 'customer_deposit'
+            entry_type = 'credit'
+        elif operation_type == 'service_charge':
+            entry_type = 'debit'
+        elif operation_type == 'refund':
+            category = 'refund'
+            entry_type = 'debit'
+        elif operation_type in {'operating_expense', 'salary', 'vendor_payment'}:
+            if operation_type == 'salary' and category == 'general':
+                category = 'salary'
+            elif operation_type == 'vendor_payment' and category == 'general':
+                category = 'vendor_payment'
+            entry_type = 'debit'
+        elif operation_type == 'other_income':
+            entry_type = 'credit'
+        else:
+            entry_type = (request.form.get('entry_type') or FINANCE_CATEGORIES.get(category, {}).get('type') or 'credit').strip()
+
+        if amount:
+            if not tenant_id:
+                company_tenant = _finance_company_tenant()
+                tenant_id = company_tenant.id
+            actor = _active_user()
+
+            # ── Handle file upload (invoice/receipt attachment) ──
+            attachment_path = None
+            attachment_name = None
+            uploaded = request.files.get('attachment') if request.files else None
+            if uploaded and getattr(uploaded, 'filename', '') and uploaded.filename.strip():
+                try:
+                    import os as _os
+                    import uuid as _uuid
+                    from werkzeug.utils import secure_filename as _secure
+                    raw_name = uploaded.filename
+                    safe_name = _secure(raw_name) or 'attachment'
+                    ext = _os.path.splitext(safe_name)[1].lower()
+                    # Whitelist of allowed extensions
+                    allowed = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.heic', '.bmp'}
+                    if ext in allowed:
+                        # Build target dir under static/uploads/finance/
+                        upload_dir = _os.path.join(current_app.root_path, 'static', 'uploads', 'finance')
+                        _os.makedirs(upload_dir, exist_ok=True)
+                        unique_name = f"{_dt.utcnow().strftime('%Y%m%d_%H%M%S')}_{_uuid.uuid4().hex[:8]}{ext}"
+                        full_path = _os.path.join(upload_dir, unique_name)
+                        uploaded.save(full_path)
+                        attachment_path = f'uploads/finance/{unique_name}'
+                        attachment_name = raw_name[:240]
+                    else:
+                        flash(f'صيغة الملف غير مدعومة: {ext}', 'warning')
+                except Exception as exc:
+                    current_app.logger.warning('Finance attachment upload failed: %s', exc)
+
+            payment_method = (request.form.get('payment_method') or '').strip() or None
+
+            # ── Salary employee: prepend employee name to the note for traceability ──
+            note_text = (request.form.get('note') or '').strip()
+            if operation_type == 'salary':
+                emp_id = (request.form.get('employee_id') or '').strip()
+                emp_other = (request.form.get('employee_name_other') or '').strip()
+                emp_label = ''
+                if emp_id == 'other' and emp_other:
+                    emp_label = emp_other
+                elif emp_id and emp_id != 'other':
+                    try:
+                        emp_user = AppUser.query.get(int(emp_id))
+                        if emp_user:
+                            emp_label = emp_user.full_name or emp_user.username or f'User #{emp_user.id}'
+                    except Exception:
+                        pass
+                if emp_label:
+                    note_text = (f'[{emp_label}] ' + note_text).strip()
+
+            entry = WalletLedger(
+                tenant_id        = tenant_id,
+                actor_user_id    = getattr(actor, 'id', None),
+                entry_type       = entry_type,
+                amount           = amount,
+                currency         = (request.form.get('currency') or 'USD').strip() or 'USD',
+                note             = note_text,
+                reference        = (request.form.get('reference') or '').strip() or None,
+                category         = category,
+                is_recurring     = request.form.get('is_recurring') == 'on',
+                recurring_period = (request.form.get('recurring_period') or '').strip() or None,
+                payment_method   = payment_method,
+                attachment_path  = attachment_path,
+                attachment_name  = attachment_name,
+            )
+            db.session.add(entry)
+            db.session.commit()
+            _admin_write_log('finance.entry', f'Added finance entry {amount} {entry.currency}',
+                             'wallet_ledger', entry.id,
+                             {'tenant_id': tenant_id, 'entry_type': entry.entry_type,
+                              'category': entry.category, 'operation_type': operation_type,
+                              'payment_method': payment_method,
+                              'has_attachment': bool(attachment_path)})
+            flash('تم حفظ الحركة المالية', 'success')
+            return redirect(url_for('billing.admin_finance', lang=_lang()))
+
+    # ── Period filter ─────────────────────────────────────────────────────
+    period   = (request.args.get('period') or 'all').strip()
+    now      = _dt.utcnow()
+    if period == 'today':
+        period_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        period_end   = None
+    elif period == 'week':
+        period_start = now - _td(days=now.weekday())
+        period_start = period_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        period_end   = None
+    elif period == 'month':
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        period_end   = None
+    elif period == 'year':
+        period_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        period_end   = None
+    elif period == 'custom':
+        from_str = request.args.get('from_date', '')
+        to_str   = request.args.get('to_date', '')
+        try:    period_start = _dt.strptime(from_str, '%Y-%m-%d')
+        except: period_start = None
+        try:    period_end   = _dt.strptime(to_str,   '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        except: period_end   = None
+    else:  # 'all'
+        period_start = None
+        period_end   = None
+
+    from_date = request.args.get('from_date', '')
+    to_date   = request.args.get('to_date',   '')
+
+    # ── Build base ledger query ────────────────────────────────────────────
+    q = WalletLedger.query
+    if period_start:
+        q = q.filter(WalletLedger.created_at >= period_start)
+    if period_end:
+        q = q.filter(WalletLedger.created_at <= period_end)
+    all_entries = q.order_by(WalletLedger.created_at.desc()).all()
+
+    # ── Accounting totals ─────────────────────────────────────────────────
+    total_credit = sum(e.amount for e in all_entries if e.entry_type == 'credit')
+    total_debit  = sum(e.amount for e in all_entries if e.entry_type == 'debit')
+    deposits_total = sum(float(e.amount or 0) for e in all_entries if _finance_account_for(e) == 'liability' and e.entry_type == 'credit')
+    earned_revenue = sum(float(e.amount or 0) for e in all_entries if _finance_account_for(e) == 'revenue')
+    refunds_total = sum(float(e.amount or 0) for e in all_entries if _finance_account_for(e) == 'refund')
+    operating_expenses = sum(float(e.amount or 0) for e in all_entries if _finance_account_for(e) == 'expense')
+    net_profit = earned_revenue - operating_expenses
+    cash_in = deposits_total + sum(float(e.amount or 0) for e in all_entries if _finance_account_for(e) == 'revenue' and e.entry_type == 'credit')
+    cash_out = refunds_total + operating_expenses
+    cash_net = cash_in - cash_out
+
+    # ── Category breakdown ─────────────────────────────────────────────────
+    from collections import defaultdict
+    cat_totals = defaultdict(float)
+    cat_credit_totals = defaultdict(float)
+    cat_debit_totals = defaultdict(float)
+    for e in all_entries:
+        cat = e.category or 'general'
+        cat_totals[cat] += e.amount
+        account = _finance_account_for(e)
+        if account == 'revenue':
+            cat_credit_totals[cat] += e.amount
+        elif account in {'expense', 'refund'}:
+            cat_debit_totals[cat] += e.amount
+    max_cat = max(
+        (cat_credit_totals[k] + cat_debit_totals[k] for k in FINANCE_CATEGORIES),
+        default=1,
+    ) or 1
+    category_breakdown = []
+    for cat_key, meta in FINANCE_CATEGORIES.items():
+        credit = cat_credit_totals.get(cat_key, 0.0)
+        debit = cat_debit_totals.get(cat_key, 0.0)
+        total = credit + debit
+        if total > 0:
+            category_breakdown.append({
+                'key':      cat_key,
+                'label_ar': meta.get('label_ar', cat_key),
+                'label_en': meta.get('label_en', cat_key),
+                'icon':     meta.get('icon', '📋'),
+                'color':    meta.get('color', '#64748b'),
+                'credit':   credit,
+                'debit':    debit,
+                'total':    total,
+                'pct':      round(total / max_cat * 100),
+            })
+    category_breakdown.sort(key=lambda x: x['total'], reverse=True)
+
+    # ── Monthly chart (last 6 months) ──────────────────────────────────────
+    import calendar as _cal
+    monthly_chart = []
+    for i in range(5, -1, -1):
+        month_dt = now.replace(day=1) - _td(days=i * 28)
+        m_start  = month_dt.replace(day=1, hour=0, minute=0, second=0)
+        last_day = _cal.monthrange(m_start.year, m_start.month)[1]
+        m_end    = m_start.replace(day=last_day, hour=23, minute=59, second=59)
+        m_entries = [e for e in WalletLedger.query.filter(
+            WalletLedger.created_at >= m_start,
+            WalletLedger.created_at <= m_end
+        ).all()]
+        m_credit = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'revenue')
+        m_debit  = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'expense')
+        m_deposit = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'liability' and e.entry_type == 'credit')
+        m_refund = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'refund')
+        monthly_chart.append({
+            'label':  m_start.strftime('%b'),
+            'credit': m_credit,
+            'debit':  m_debit,
+            'net':    m_credit - m_debit,
+            'deposits': m_deposit,
+            'refunds': m_refund,
+        })
+    max_bar = max((max(m['credit'], m['debit']) for m in monthly_chart), default=1) or 1
+
+    # ── Plan revenue breakdown ─────────────────────────────────────────────
+    plan_breakdown = []
+    plans = SubscriptionPlan.query.filter_by(is_active=True).all()
+    for plan in plans:
+        plan_subs = TenantSubscription.query.filter_by(plan_id=plan.id, status='active').count()
+        mrr = plan_subs * float(plan.price or 0)
+        if mrr > 0:
+            plan_breakdown.append({
+                'plan':     plan,
+                'name_ar':  plan.name_ar,
+                'name_en':  plan.name_en,
+                'currency': plan.currency or 'USD',
+                'count':    plan_subs,
+                'mrr':      mrr,
+                'revenue':  mrr,
+            })
+    plan_breakdown.sort(key=lambda x: x['mrr'], reverse=True)
+    total_mrr = sum(p['mrr'] for p in plan_breakdown)
+    max_plan_rev = max((p['revenue'] for p in plan_breakdown), default=1) or 1
+    active_sub_count = TenantSubscription.query.filter_by(status='active').count()
+    trial_sub_count = TenantSubscription.query.filter_by(status='trial').count()
+    tenant_count = TenantAccount.query.count()
+
+    # ── Recurring expenses ─────────────────────────────────────────────────
+    recurring_entries = WalletLedger.query.filter_by(is_recurring=True).all()
+    recurring_monthly = 0.0
+    for r in recurring_entries:
+        if _finance_account_for(r) not in {'expense', 'revenue'}:
+            continue
+        if r.recurring_period == 'monthly':
+            recurring_monthly += r.amount
+        elif r.recurring_period == 'quarterly':
+            recurring_monthly += r.amount / 3
+        elif r.recurring_period == 'yearly':
+            recurring_monthly += r.amount / 12
+
+    # ── Staff/admin list (for salary entry employee dropdown) ─────────────
+    staff_users = AppUser.query.filter(
+        (AppUser.is_admin == True) | (AppUser.role.in_(['admin', 'manager', 'staff']))
+    ).order_by(AppUser.full_name.asc(), AppUser.username.asc()).all()
+
+    # ── Tenant wallets ─────────────────────────────────────────────────────
+    wallets = []
+    tenants = TenantAccount.query.order_by(TenantAccount.id.desc()).limit(20).all()
+    for t in tenants:
+        entries = WalletLedger.query.filter_by(tenant_id=t.id).all()
+        balance = sum(_finance_signed_wallet_amount(e) for e in entries)
+        wallets.append({'tenant': t, 'balance': balance})
+    top_tenants = [(w['tenant'], w['balance']) for w in wallets]
+
+    # ── Ledger rows for the finance v3 template ───────────────────────────
+    tenant_ids = {e.tenant_id for e in all_entries if e.tenant_id}
+    tenant_ids = {e.tenant_id for e in all_entries if e.tenant_id}
+    tenant_map = {t.id: t for t in TenantAccount.query.filter(TenantAccount.id.in_(tenant_ids)).all()} if tenant_ids else {}
+
+    rows = []
+    for e in all_entries:
+        meta    = _finance_category_meta(e.category)
+        account = _finance_account_for(e)
+        rows.append({
+            'entry':   e,
+            'tenant':  tenant_map.get(e.tenant_id),
+            'meta':    meta,
+            'account': account,
+        })
+
+    # ── Period stats (daily / weekly / monthly / yearly) ──────────────────
+    class _Stats:
+        def __init__(self, revenue=0.0, expenses=0.0):
+            self.revenue  = revenue
+            self.expenses = expenses
+
+    def _compute_stats(start):
+        es = WalletLedger.query.filter(WalletLedger.created_at >= start).all()
+        rev = sum(float(e.amount or 0) for e in es if _finance_account_for(e) == 'revenue')
+        exp = sum(float(e.amount or 0) for e in es if _finance_account_for(e) == 'expense')
+        return _Stats(rev, exp)
+
+    daily_start   = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    weekly_start  = (now - _td(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    monthly_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    yearly_start  = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    daily_stats   = _compute_stats(daily_start)
+    weekly_stats  = _compute_stats(weekly_start)
+    monthly_stats = _compute_stats(monthly_start)
+    yearly_stats  = _compute_stats(yearly_start)
+
+    customer_liability = deposits_total
+    monthly_data       = monthly_chart
+    max_monthly        = max_bar
+
+    # ── Year-over-Year comparison (12 months current vs 12 months previous) ─
+    cur_year  = now.year
+    yoy_labels   = []
+    yoy_current  = []
+    yoy_previous = []
+    month_short_ar = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+                      'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+    month_short_en = ['Jan','Feb','Mar','Apr','May','Jun',
+                      'Jul','Aug','Sep','Oct','Nov','Dec']
+    is_en_lang = (_lang() or 'ar') == 'en'
+    yoy_labels = month_short_en if is_en_lang else month_short_ar
+
+    for m in range(1, 13):
+        # Current year — month range
+        c_start = _dt(cur_year, m, 1)
+        c_last  = _cal.monthrange(cur_year, m)[1]
+        c_end   = _dt(cur_year, m, c_last, 23, 59, 59)
+        c_entries = WalletLedger.query.filter(
+            WalletLedger.created_at >= c_start,
+            WalletLedger.created_at <= c_end
+        ).all()
+        c_revenue = sum(float(e.amount or 0) for e in c_entries if _finance_account_for(e) == 'revenue')
+
+        # Previous year — same month
+        p_start = _dt(cur_year - 1, m, 1)
+        p_last  = _cal.monthrange(cur_year - 1, m)[1]
+        p_end   = _dt(cur_year - 1, m, p_last, 23, 59, 59)
+        p_entries = WalletLedger.query.filter(
+            WalletLedger.created_at >= p_start,
+            WalletLedger.created_at <= p_end
+        ).all()
+        p_revenue = sum(float(e.amount or 0) for e in p_entries if _finance_account_for(e) == 'revenue')
+
+        yoy_current.append(round(c_revenue, 2))
+        yoy_previous.append(round(p_revenue, 2))
+
+    def format_local(dt):
+        if not dt:
+            return '—'
+        return dt.strftime('%Y-%m-%d %H:%M')
+
+    now_month = now.month
+    now_year  = now.year
+
+    return render_template(
+        'admin_finance.html',
+        ui_lang             = _lang(),
+        summary             = _admin_counts_snapshot(),
+        rows                = rows,
+        deposits_total      = deposits_total,
+        earned_revenue      = earned_revenue,
+        refunds_total       = refunds_total,
+        operating_expenses  = operating_expenses,
+        net_profit          = net_profit,
+        cash_in             = cash_in,
+        cash_out            = cash_out,
+        cash_net            = cash_net,
+        customer_liability  = customer_liability,
+        period              = period,
+        period_start        = period_start,
+        period_end          = period_end,
+        from_date           = from_date,
+        to_date             = to_date,
+        monthly_data        = monthly_data,
+        max_monthly         = max_monthly,
+        category_breakdown  = category_breakdown,
+        FINANCE_CATEGORIES  = FINANCE_CATEGORIES,
+        PAYMENT_METHODS     = PAYMENT_METHODS,
+        PAYMENT_METHODS_MAP = PAYMENT_METHODS_MAP,
+        plan_breakdown      = plan_breakdown,
+        total_mrr           = total_mrr,
+        max_plan_rev        = max_plan_rev,
+        active_sub_count    = active_sub_count,
+        trial_sub_count     = trial_sub_count,
+        tenant_count        = tenant_count,
+        recurring_entries   = recurring_entries,
+        recurring_monthly   = recurring_monthly,
+        recurring_count     = len(recurring_entries),
+        top_tenants         = top_tenants,
+        tenants             = tenants,
+        staff_users         = staff_users,
+        daily_stats         = daily_stats,
+        weekly_stats        = weekly_stats,
+        monthly_stats       = monthly_stats,
+        yearly_stats        = yearly_stats,
+        format_local        = format_local,
+        cur_year            = cur_year,
+        now_month           = now_month,
+        now_year            = now_year,
+        yoy_labels          = yoy_labels,
+        yoy_current         = yoy_current,
+        yoy_previous        = yoy_previous,
+        mrr                 = total_mrr,
+        net_balance         = net_profit,
+        total_revenue       = earned_revenue,
+    )
+
+
+@billing_bp.route('/admin/finance/export-pdf')
+def admin_finance_export_pdf():
+    from datetime import datetime as _dt
+    guard = _admin_guard('can_manage_finance')
+    if guard:
+        return guard
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm, mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+        from reportlab.graphics.shapes import Drawing, Circle, Rect, String, Polygon, Line, Group
+        from reportlab.graphics import renderPDF
+    except ImportError:
+        return 'reportlab not installed. Run: pip install reportlab', 500
+
+    import io, calendar as _cal
+
+    now   = _dt.utcnow()
+    mode  = (request.args.get('mode') or 'month').strip()
+    year  = int(request.args.get('year', now.year))
+
+    # ── Date range based on mode ───────────────────────────────────────────
+    if mode == 'range':
+        try:    date_start = _dt.strptime(request.args.get('from_date',''), '%Y-%m-%d')
+        except: date_start = now.replace(day=1, hour=0, minute=0, second=0)
+        try:    date_end   = _dt.strptime(request.args.get('to_date',''), '%Y-%m-%d').replace(hour=23,minute=59,second=59)
+        except: date_end   = now
+        period_label = f"{date_start.strftime('%Y-%m-%d')} → {date_end.strftime('%Y-%m-%d')}"
+        filename_tag = f"{date_start.strftime('%Y%m%d')}_{date_end.strftime('%Y%m%d')}"
+
+    elif mode == 'quarter':
+        quarter  = int(request.args.get('quarter', (now.month - 1) // 3 + 1))
+        q_months = {1:(1,3), 2:(4,6), 3:(7,9), 4:(10,12)}
+        m_start, m_end = q_months.get(quarter, (1,3))
+        date_start = _dt(year, m_start, 1)
+        last_day   = _cal.monthrange(year, m_end)[1]
+        date_end   = _dt(year, m_end, last_day, 23, 59, 59)
+        period_label = f'Q{quarter} {year}'
+        filename_tag = f'{year}_Q{quarter}'
+
+    elif mode == 'year':
+        date_start = _dt(year, 1, 1)
+        date_end   = _dt(year, 12, 31, 23, 59, 59)
+        period_label = f'Full Year {year}'
+        filename_tag = f'{year}_annual'
+
+    else:  # month
+        month      = int(request.args.get('month', now.month))
+        date_start = _dt(year, month, 1)
+        last_day   = _cal.monthrange(year, month)[1]
+        date_end   = _dt(year, month, last_day, 23, 59, 59)
+        period_label = date_start.strftime('%B %Y')
+        filename_tag = f'{year}_{month:02d}'
+
+    inc_summary  = request.args.get('inc_summary')  != '0'
+    inc_ledger   = request.args.get('inc_ledger')   != '0'
+    inc_category = request.args.get('inc_category') != '0'
+    inc_monthly  = request.args.get('inc_monthly')  != '0'
+
+    # ── Query ─────────────────────────────────────────────────────────────
+    entries = WalletLedger.query.filter(
+        WalletLedger.created_at >= date_start,
+        WalletLedger.created_at <= date_end,
+    ).order_by(WalletLedger.created_at.asc()).all()
+
+    earned  = sum(float(e.amount or 0) for e in entries if _finance_account_for(e) == 'revenue')
+    expense = sum(float(e.amount or 0) for e in entries if _finance_account_for(e) == 'expense')
+    deposit = sum(float(e.amount or 0) for e in entries if _finance_account_for(e) == 'liability' and e.entry_type == 'credit')
+    refund  = sum(float(e.amount or 0) for e in entries if _finance_account_for(e) == 'refund')
+    net     = earned - expense
+
+    # ── Build PDF ─────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            rightMargin=1.5*cm, leftMargin=1.5*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    C = colors.HexColor
+
+    title_style   = ParagraphStyle('T',  parent=styles['Title'],  fontSize=17, spaceAfter=3,  textColor=C('#0f172a'))
+    sub_style     = ParagraphStyle('S',  parent=styles['Normal'], fontSize=9,  spaceAfter=18, textColor=C('#64748b'))
+    section_style = ParagraphStyle('H',  parent=styles['Normal'], fontSize=11, spaceBefore=14, spaceAfter=6,
+                                   fontName='Helvetica-Bold', textColor=C('#1e293b'))
+    normal_style  = ParagraphStyle('N',  parent=styles['Normal'], fontSize=9,  textColor=C('#334155'))
+
+    def _tbl_style_summary(net_ok):
+        return TableStyle([
+            ('BACKGROUND',    (0,0), (-1,0),  C('#1e293b')),
+            ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
+            ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0,0), (-1,-1), 10),
+            ('BACKGROUND',    (0,-1),(-1,-1), C('#dcfce7') if net_ok else C('#fee2e2')),
+            ('FONTNAME',      (0,-1),(-1,-1), 'Helvetica-Bold'),
+            ('ALIGN',         (1,0), (1,-1),  'RIGHT'),
+            ('ROWBACKGROUNDS',(0,1), (-1,-2), [C('#f8fafc'), colors.white]),
+            ('GRID',          (0,0), (-1,-1), 0.4, C('#e2e8f0')),
+            ('TOPPADDING',    (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING',   (0,0), (-1,-1), 12),
+        ])
+
+    def _ledger_style():
+        return TableStyle([
+            ('BACKGROUND',    (0,0), (-1,0),  C('#334155')),
+            ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
+            ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0,0), (-1,-1), 8),
+            ('ALIGN',         (4,0), (4,-1),  'RIGHT'),
+            ('ROWBACKGROUNDS',(0,1), (-1,-1), [C('#f8fafc'), colors.white]),
+            ('GRID',          (0,0), (-1,-1), 0.25, C('#e2e8f0')),
+            ('TOPPADDING',    (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING',   (0,0), (-1,-1), 8),
+        ])
+
+    # ── Build company-branded header (logo + company name + report meta) ──
+    def _build_logo_header():
+        """SolarDeye-branded header: programmatic sun logo + company info table."""
+        # Logo: sun with rays + 'SD' inside
+        d = Drawing(50, 50)
+        # Outer sun rays (8 triangular rays around)
+        import math
+        cx, cy, r_in, r_out = 25, 25, 14, 22
+        for i in range(8):
+            angle = i * (math.pi / 4)
+            x1 = cx + r_in  * math.cos(angle)
+            y1 = cy + r_in  * math.sin(angle)
+            x2 = cx + r_out * math.cos(angle - 0.18)
+            y2 = cy + r_out * math.sin(angle - 0.18)
+            x3 = cx + r_out * math.cos(angle + 0.18)
+            y3 = cy + r_out * math.sin(angle + 0.18)
+            d.add(Polygon(points=[x1, y1, x2, y2, x3, y3],
+                          fillColor=C('#f59e0b'), strokeColor=None))
+        # Sun core
+        d.add(Circle(cx=25, cy=25, r=13, fillColor=C('#fbbf24'), strokeColor=C('#f59e0b'), strokeWidth=1.5))
+        # 'SD' monogram in center
+        d.add(String(25, 21, 'SD', fontName='Helvetica-Bold', fontSize=11,
+                     fillColor=C('#0f172a'), textAnchor='middle'))
+
+        # Company info paragraph next to logo
+        company_name = ParagraphStyle('CN', parent=styles['Normal'], fontSize=14, fontName='Helvetica-Bold',
+                                       textColor=C('#0f172a'), leading=16)
+        company_sub  = ParagraphStyle('CS', parent=styles['Normal'], fontSize=8.5, fontName='Helvetica',
+                                       textColor=C('#64748b'), leading=11)
+        info_cell = [
+            Paragraph('<b>SolarDeye</b> &nbsp; <font color="#94a3b8">·</font> &nbsp; Solar Energy Management', company_name),
+            Paragraph('Accounting &amp; Financial Operations Department', company_sub),
+            Paragraph(f'Issued: {now.strftime("%Y-%m-%d %H:%M")} UTC', company_sub),
+        ]
+
+        meta_cell = [
+            Paragraph(f'<b>Report:</b> {period_label}', company_sub),
+            Paragraph(f'<b>Transactions:</b> {len(entries)}', company_sub),
+            Paragraph(f'<b>Document #:</b> SD-{filename_tag}', company_sub),
+        ]
+
+        # 3-column table: logo | company info | report meta
+        header_tbl = Table(
+            [[d, info_cell, meta_cell]],
+            colWidths=[2.0*cm, 9*cm, 6*cm],
+            rowHeights=[1.6*cm],
+        )
+        header_tbl.setStyle(TableStyle([
+            ('VALIGN',     (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING',(0,0), (-1,-1), 6),
+            ('RIGHTPADDING',(0,0),(-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+            ('BACKGROUND', (0,0), (-1,-1), C('#f8fafc')),
+            ('LINEBELOW',  (0,0), (-1,-1), 2, C('#0f172a')),
+            ('ALIGN',      (2,0), (2,0), 'RIGHT'),
+        ]))
+        return header_tbl
+
+    story = [
+        _build_logo_header(),
+        Spacer(1, 0.5*cm),
+        Paragraph(f'Accounting Report — {period_label}', title_style),
+        Paragraph(f'Period: {period_label}  ·  Generated: {now.strftime("%Y-%m-%d %H:%M")} UTC  ·  {len(entries)} transactions', sub_style),
+        HRFlowable(width='100%', thickness=1, color=C('#e2e8f0'), spaceAfter=8),
+    ]
+
+    # P&L Summary
+    if inc_summary:
+        story.append(Paragraph('Profit & Loss Summary', section_style))
+        summary_data = [
+            ['Account', 'Amount (USD)'],
+            ['Customer Deposits (Liability)',  f'{deposit:,.2f}'],
+            ['Earned Service Revenue',         f'{earned:,.2f}'],
+            ['Refunds Issued',                 f'({refund:,.2f})'],
+            ['Operating Expenses',             f'({expense:,.2f})'],
+            ['Net Profit / Loss',              f'{net:+,.2f}'],
+        ]
+        t = Table(summary_data, colWidths=[11*cm, 6*cm])
+        t.setStyle(_tbl_style_summary(net >= 0))
+        story += [t, Spacer(1, 0.3*cm)]
+
+    # Category breakdown
+    if inc_category and entries:
+        from collections import defaultdict
+        cat_totals = defaultdict(float)
+        for e in entries:
+            cat_totals[e.category or 'general'] += float(e.amount or 0)
+        cat_data = [['Category', 'Amount (USD)', 'Account']]
+        for cat_key, total in sorted(cat_totals.items(), key=lambda x: -x[1]):
+            meta = _finance_category_meta(cat_key)
+            cat_data.append([
+                f"{meta.get('icon','')} {meta.get('label_en', cat_key)}",
+                f'{total:,.2f}',
+                meta.get('account','—').upper(),
+            ])
+        if len(cat_data) > 1:
+            story.append(Paragraph('Category Breakdown', section_style))
+            ct = Table(cat_data, colWidths=[9*cm, 5*cm, 3*cm])
+            ct.setStyle(TableStyle([
+                ('BACKGROUND',    (0,0), (-1,0),  C('#475569')),
+                ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
+                ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+                ('FONTSIZE',      (0,0), (-1,-1), 9),
+                ('ALIGN',         (1,0), (1,-1),  'RIGHT'),
+                ('ROWBACKGROUNDS',(0,1), (-1,-1), [C('#f8fafc'), colors.white]),
+                ('GRID',          (0,0), (-1,-1), 0.3, C('#e2e8f0')),
+                ('TOPPADDING',    (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                ('LEFTPADDING',   (0,0), (-1,-1), 10),
+            ]))
+            story += [ct, Spacer(1, 0.3*cm)]
+
+    # Monthly breakdown (year mode)
+    if inc_monthly and mode == 'year':
+        story.append(Paragraph('Monthly Breakdown', section_style))
+        month_data = [['Month', 'Revenue', 'Expenses', 'Net']]
+        for m in range(1, 13):
+            m_s = _dt(year, m, 1)
+            m_e = _dt(year, m, _cal.monthrange(year, m)[1], 23, 59, 59)
+            m_entries = [e for e in entries if m_s <= (e.created_at or _dt.min) <= m_e]
+            m_rev = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'revenue')
+            m_exp = sum(float(e.amount or 0) for e in m_entries if _finance_account_for(e) == 'expense')
+            if m_rev > 0 or m_exp > 0:
+                month_data.append([m_s.strftime('%B'), f'{m_rev:,.2f}', f'{m_exp:,.2f}', f'{m_rev-m_exp:+,.2f}'])
+        if len(month_data) > 1:
+            mt = Table(month_data, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
+            mt.setStyle(TableStyle([
+                ('BACKGROUND',    (0,0), (-1,0), C('#475569')),
+                ('TEXTCOLOR',     (0,0), (-1,0), colors.white),
+                ('FONTNAME',      (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE',      (0,0), (-1,-1), 9),
+                ('ALIGN',         (1,0), (-1,-1), 'RIGHT'),
+                ('ROWBACKGROUNDS',(0,1),(-1,-1), [C('#f8fafc'), colors.white]),
+                ('GRID',          (0,0), (-1,-1), 0.3, C('#e2e8f0')),
+                ('TOPPADDING',    (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                ('LEFTPADDING',   (0,0), (-1,-1), 10),
+            ]))
+            story += [mt, Spacer(1, 0.3*cm)]
+
+    if inc_ledger and entries:
+        story.append(Paragraph('Transaction Ledger ({} entries)'.format(len(entries)), section_style))
+        ledger_data = [['Date', 'Account', 'Category', 'Dr/Cr', 'Amount', 'Cur', 'Memo']]
+        for e in entries:
+            meta = _finance_category_meta(e.category)
+            acc  = _finance_account_for(e)
+            ledger_data.append([
+                e.created_at.strftime('%Y-%m-%d') if e.created_at else '',
+                acc.upper(),
+                meta.get('label_en', e.category or ''),
+                e.entry_type.upper(),
+                '{:,.2f}'.format(e.amount),
+                e.currency or 'USD',
+                (e.note or '')[:35],
+            ])
+        lt = Table(ledger_data, colWidths=[2.5*cm, 2.0*cm, 3.2*cm, 1.5*cm, 2.2*cm, 1.1*cm, 4.5*cm])
+        lt.setStyle(_ledger_style())
+        story.append(lt)
+
+    doc.build(story)
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name='solardeya_accounting_{}.pdf'.format(filename_tag))

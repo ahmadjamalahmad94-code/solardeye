@@ -21,3 +21,11 @@ git push -u origin main
 git init
 git add .
 git commit -m "render ready deploy"
+
+
+python -m flask --app app run
+
+
+admin
+
+Admin@Local2026
