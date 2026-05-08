@@ -158,7 +158,7 @@
                   <li>📅 <b>{{ p.duration_days_default }}</b> {{ 'days' if is_en else 'يوم' }}</li>
                 </ul>
                 {% if not is_current %}
-                <form method="post" action="{{ url_for('main.account_subscription_request_change', lang=ui_lang) }}">
+                <form method="post" action="{{ url_for('billing.account_subscription_request_change', lang=ui_lang) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="plan_id" value="{{ p.id }}">
                   <button type="submit" class="sub-btn primary">⬆ {{ 'Request this plan' if is_en else 'اطلب هذه الباقة' }}</button>

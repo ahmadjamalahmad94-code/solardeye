@@ -2,29 +2,37 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% block title %}{{ 'My Devices' if is_en else 'أجهزتي' }}{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v32-subscriber-console-unified-multidevice') }}">
 {% endblock %}
 {% block body %}
-{% set active_count = 0 %}
-{% for d in devices_list %}{% if d.is_active %}{% set active_count = active_count + 1 %}{% endif %}{% endfor %}
+{% set _ns = namespace(active=0) %}
+{% for d in devices_list %}{% if d.is_active %}{% set _ns.active = _ns.active + 1 %}{% endif %}{% endfor %}
+{% set active_count = _ns.active %}
+{% set disabled_count = (devices_list|length) - active_count %}
 {% set current_dev = none %}
 {% for d in devices_list %}{% if d.id == current_device_id %}{% set current_dev = d %}{% endif %}{% endfor %}
 {% if not current_dev and devices_list %}{% set current_dev = devices_list[0] %}{% endif %}
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area dm-page">
+  <main class="app-main content-area dm-page sub-page">
 
+    {# Persistent device switcher (renders nothing for 0 devices, soft banner for 1, full bar for 2+).
+       The partial falls back to devices_list when user_devices isn't injected by the context processor. #}
+    {% include '_device_switcher.html' %}
+
+    {# ════════ HERO ════════ #}
     <header class="hu-hero">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Account · My devices' if is_en else 'الحساب · أجهزتي' }}</span>
           <h1 class="hu-h1">{{ 'My device fleet' if is_en else 'أسطولي من الأجهزة' }}</h1>
-          <p class="hu-tagline">{{ 'Add, configure, enable/disable your inverters, batteries, and gateways. The currently selected device is the one whose data appears across the dashboard.' if is_en else 'أضف وعدّل وفعّل/أوقف الإنفرترات والبطاريات والبوابات. الجهاز المحدد هو الذي تُعرض بياناته في لوحة المعلومات.' }}</p>
+          <p class="hu-tagline">{{ 'Add, configure, and switch between your inverters, batteries, and gateways. Each device has its own data, settings, loads, and notification rules.' if is_en else 'أضف وعدّل وانتقِل بين الإنفرترات والبطاريات والبوابات. كل جهاز له بياناته وإعداداته وأحماله وقواعد تنبيهاته الخاصة.' }}</p>
           <div class="hu-hero-meta">
             <span class="hu-meta-pill"><b>{{ devices_list|length }}</b> {{ 'devices' if is_en else 'جهاز' }}</span>
-            {% if active_count %}<span class="hu-meta-pill ok"><b>{{ active_count }}</b> {{ 'active' if is_en else 'نشط' }}</span>{% endif %}
-            {% if current_dev %}<span class="hu-meta-pill">{{ '★ Selected' if is_en else '★ المحدّد' }}: <b>{{ current_dev.name }}</b></span>{% endif %}
+            {% if active_count %}<span class="hu-meta-pill ok">🟢 <b>{{ active_count }}</b> {{ 'active' if is_en else 'نشط' }}</span>{% endif %}
+            {% if disabled_count %}<span class="hu-meta-pill">⏸ <b>{{ disabled_count }}</b> {{ 'disabled' if is_en else 'معطّل' }}</span>{% endif %}
+            {% if current_dev %}<span class="hu-meta-pill is-device-scope">★ {{ 'Selected' if is_en else 'المحدّد' }}: <b>{{ current_dev.name }}</b></span>{% endif %}
           </div>
         </div>
         <div class="hu-hero-cta">
@@ -37,31 +45,31 @@
       <aside class="dm-aside">
         <div class="dm-as-card explainer">
           <h4>📘 {{ 'How devices work' if is_en else 'كيف تعمل الأجهزة' }}</h4>
-          <p>{{ 'A device is your inverter / battery / gateway connection. Each device fetches data from its provider (Deye, SolarMan, Tuya...).' if is_en else 'الجهاز هو وصلتك إلى الإنفرتر/البطارية/البوابة. كل جهاز يجلب بياناته من مزوّده (Deye، SolarMan، Tuya...).' }}</p>
-          <p>{{ 'Set one device as "selected" — its data will appear on the dashboard, statistics, and live page.' if is_en else 'حدّد جهازاً واحداً كـ"محدّد" — ستظهر بياناته في لوحة التحكم والإحصاءات وصفحة البيانات الحيّة.' }}</p>
-          <p>{{ 'Disable a device temporarily without deleting its history.' if is_en else 'يمكن تعطيل الجهاز مؤقتاً دون فقدان سجله.' }}</p>
+          <p>{{ 'A device is one connection to your inverter, battery, or gateway. Each device fetches its own data from its provider (Deye, SolarMan, Tuya …) on its own schedule.' if is_en else 'الجهاز هو اتصال واحد بإنفرترك أو بطاريتك أو بوابتك. كل جهاز يجلب بياناته من مزوّده (Deye، SolarMan، Tuya …) باستقلال تام.' }}</p>
+          <p>{{ 'Use the switcher above to flip between devices on dashboards, statistics, live data, and reports — without losing the context of any of them.' if is_en else 'استخدم محوّل الأجهزة في الأعلى للتنقل بين أجهزتك على لوحات المعلومات والإحصاءات والبيانات الحيّة والتقارير — دون فقدان سياق أي منها.' }}</p>
+          <p>{{ 'You can disable a device temporarily without deleting any of its history.' if is_en else 'يمكنك تعطيل الجهاز مؤقتاً دون فقدان سجلّه.' }}</p>
         </div>
         <div class="dm-as-card">
           <h4>🔑 {{ 'Status meanings' if is_en else 'معاني الحالات' }}</h4>
           <ul class="dm-legend-list">
-            <li><span class="dm-legend-dot" style="background:#22c55e"></span><strong>{{ 'Active + Selected' if is_en else 'نشط + محدّد' }}</strong><small>{{ 'data shows in dashboard' if is_en else 'بياناته في لوحة التحكم' }}</small></li>
-            <li><span class="dm-legend-dot" style="background:#3b82f6"></span><strong>{{ 'Active' if is_en else 'نشط' }}</strong><small>{{ 'syncing in background' if is_en else 'يُزامَن في الخلفية' }}</small></li>
-            <li><span class="dm-legend-dot" style="background:#94a3b8"></span><strong>{{ 'Disabled' if is_en else 'معطّل' }}</strong><small>{{ 'no sync' if is_en else 'لا مزامنة' }}</small></li>
+            <li><span class="dm-legend-dot" style="background:#f59e0b"></span><strong>{{ 'Selected' if is_en else 'محدّد' }}</strong><small>{{ 'data shows in the dashboard' if is_en else 'يظهر في لوحة التحكم' }}</small></li>
+            <li><span class="dm-legend-dot" style="background:#22c55e"></span><strong>{{ 'Active' if is_en else 'نشط' }}</strong><small>{{ 'syncing in the background' if is_en else 'يتزامن في الخلفية' }}</small></li>
+            <li><span class="dm-legend-dot" style="background:#94a3b8"></span><strong>{{ 'Disabled' if is_en else 'معطّل' }}</strong><small>{{ 'no sync, history kept' if is_en else 'لا مزامنة، السجلّ محفوظ' }}</small></li>
           </ul>
         </div>
         <div class="dm-as-card tips">
           <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
           <ul>
             <li>{{ 'Test the connection right after adding a device.' if is_en else 'اختبر الاتصال فور إضافة الجهاز.' }}</li>
-            <li>{{ 'Your plan limits how many active devices you can have.' if is_en else 'باقتك تحدد عدد الأجهزة النشطة المسموح بها.' }}</li>
-            <li>{{ 'Use clear names like "Home Roof" or "Workshop".' if is_en else 'استخدم أسماء واضحة مثل "سطح المنزل" أو "ورشة".' }}</li>
+            <li>{{ 'Your subscription plan limits how many active devices you can have at once.' if is_en else 'باقتك تحدّد عدد الأجهزة النشطة المسموح بها في وقت واحد.' }}</li>
+            <li>{{ 'Use clear names like "Home Roof" or "Workshop" so the switcher is easy to scan.' if is_en else 'استخدم أسماء واضحة مثل "سطح المنزل" أو "الورشة" حتى يسهل تمييزها في المحوّل.' }}</li>
           </ul>
         </div>
       </aside>
 
       <div class="dm-main">
 
-        {# Section 1: KPI strip #}
+        {# ──────────── Section 1: Fleet snapshot KPIs ──────────── #}
         <section class="dm-section" data-help="{{ 'Quick counts of your fleet. Total registered, active (syncing), and which one is currently selected for dashboard display.' if is_en else 'عدّ سريع لأسطولك. الإجمالي المسجل، النشط (يُزامَن)، والجهاز المختار حالياً للعرض في لوحة التحكم.' }}">
           <div class="dm-sec-head">
             <div>
@@ -71,25 +79,47 @@
             <span class="dm-sec-meta">{{ 'live counters' if is_en else 'عدّادات حيّة' }}</span>
           </div>
           <div class="dm-sec-body">
-            <div class="dm-kpi-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px">
-              <article class="dm-kpi accent-blue" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;position:relative;overflow:hidden">
-                <span style="width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#eff6ff;color:#1d4ed8;font-size:1.25rem;flex-shrink:0">🔌</span>
-                <div><small style="font-size:.68rem;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block">{{ 'Total' if is_en else 'الإجمالي' }}</small><strong style="font-size:1.5rem;font-weight:900;color:#0f172a;display:block">{{ devices_list|length }}</strong><span style="font-size:.72rem;color:#94a3b8;font-weight:600">{{ 'registered' if is_en else 'مسجلة' }}</span></div>
+            <div class="sub-kpis">
+              <article class="sub-kpi is-cold">
+                <span class="sub-kpi-icon">🔌</span>
+                <div class="sub-kpi-body">
+                  <small>{{ 'Total devices' if is_en else 'إجمالي الأجهزة' }}</small>
+                  <strong>{{ devices_list|length }}</strong>
+                  <em>{{ 'registered' if is_en else 'مسجلة' }}</em>
+                </div>
               </article>
-              <article class="dm-kpi accent-emerald" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;position:relative;overflow:hidden">
-                <span style="width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#f0fdf4;color:#15803d;font-size:1.25rem;flex-shrink:0">✅</span>
-                <div><small style="font-size:.68rem;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block">{{ 'Active' if is_en else 'نشط' }}</small><strong style="font-size:1.5rem;font-weight:900;color:#0f172a;display:block">{{ active_count }}</strong><span style="font-size:.72rem;color:#94a3b8;font-weight:600">{{ 'syncing' if is_en else 'يُزامَن' }}</span></div>
+              <article class="sub-kpi is-cool">
+                <span class="sub-kpi-icon">✅</span>
+                <div class="sub-kpi-body">
+                  <small>{{ 'Active' if is_en else 'النشطة' }}</small>
+                  <strong>{{ active_count }}</strong>
+                  <em>{{ 'syncing' if is_en else 'تتزامن الآن' }}</em>
+                </div>
               </article>
-              <article class="dm-kpi accent-amber" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;position:relative;overflow:hidden">
-                <span style="width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#fffbeb;color:#b45309;font-size:1.25rem;flex-shrink:0">★</span>
-                <div><small style="font-size:.68rem;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block">{{ 'Selected' if is_en else 'المحدّد' }}</small><strong style="font-size:1.05rem;font-weight:900;color:#0f172a;display:block;line-height:1.2">{{ current_dev.name if current_dev else '—' }}</strong><span style="font-size:.72rem;color:#94a3b8;font-weight:600">{{ 'shown on dashboard' if is_en else 'يظهر في الواجهة' }}</span></div>
+              <article class="sub-kpi">
+                <span class="sub-kpi-icon">★</span>
+                <div class="sub-kpi-body">
+                  <small>{{ 'Selected' if is_en else 'المحدّد' }}</small>
+                  <strong style="font-size:1.05rem;line-height:1.3">{{ current_dev.name if current_dev else '—' }}</strong>
+                  <em>{{ 'shown on dashboard' if is_en else 'يظهر في لوحة التحكم' }}</em>
+                </div>
               </article>
+              {% if disabled_count %}
+              <article class="sub-kpi is-warm">
+                <span class="sub-kpi-icon">⏸</span>
+                <div class="sub-kpi-body">
+                  <small>{{ 'Disabled' if is_en else 'المعطّلة' }}</small>
+                  <strong>{{ disabled_count }}</strong>
+                  <em>{{ 'history kept' if is_en else 'السجلّ محفوظ' }}</em>
+                </div>
+              </article>
+              {% endif %}
             </div>
           </div>
         </section>
 
-        {# Section 2: Devices list #}
-        <section class="dm-section" data-help="{{ 'All your devices. Use the buttons to select, edit, toggle on/off, or remove a device. Selecting a device makes it the dashboard source.' if is_en else 'كل أجهزتك. استخدم الأزرار للتحديد أو التعديل أو التفعيل/الإيقاف أو الحذف. تحديد الجهاز يجعله مصدر بيانات لوحة التحكم.' }}">
+        {# ──────────── Section 2: Devices list as polished cards ──────────── #}
+        <section class="dm-section" data-help="{{ 'Each device card shows its identity, connection status, and key actions. Click select to make a device the dashboard source.' if is_en else 'كل بطاقة جهاز تعرض هويته وحالة اتصاله وأهم الإجراءات. اضغط "تحديد" لجعله مصدر بيانات لوحة التحكم.' }}">
           <div class="dm-sec-head">
             <div>
               <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
@@ -99,49 +129,91 @@
           </div>
           <div class="dm-sec-body">
             {% if devices_list %}
-            <div class="dm-table-wrap">
-              <table class="dm-table" data-paginate data-page-size="20">
-                <thead><tr><th>{{ 'Avatar' if is_en else 'صورة' }}</th><th>{{ 'Device' if is_en else 'الجهاز' }}</th><th>{{ 'Provider' if is_en else 'المزوّد' }}</th><th>{{ 'Status' if is_en else 'الحالة' }}</th><th>{{ 'Actions' if is_en else 'إجراءات' }}</th></tr></thead>
-                <tbody>
-                  {% for d in devices_list %}
-                  <tr>
-                    <td><span class="pg-avatar size-sm {% if d.id == current_device_id %}tone-amber{% endif %}">{{ (d.name or '?')[:1]|upper }}</span></td>
-                    <td>
-                      <strong>{{ d.name or '—' }}</strong><br>
-                      <small style="font-size:.72rem;color:#64748b">{% if d.device_uid or d.external_device_id %}<code style="background:#f1f5f9;padding:1px 6px;border-radius:4px">{{ d.device_uid or d.external_device_id }}</code>{% else %}#ID {{ d.id }}{% endif %}</small>
-                    </td>
-                    <td><span class="dm-pill" style="background:#f0fdfa;color:#0f766e;border-color:#99f6e4">{{ d.api_provider or d.device_type or '—' }}</span></td>
-                    <td>
-                      {% if d.id == current_device_id %}<span class="dm-pill ok">★ {{ 'Selected' if is_en else 'محدّد' }}</span><br>{% endif %}
-                      {% if d.is_active %}<span class="dm-pill ok">✓ {{ 'Active' if is_en else 'نشط' }}</span>
-                      {% else %}<span class="dm-pill off">○ {{ 'Disabled' if is_en else 'معطّل' }}</span>{% endif %}
-                    </td>
-                    <td>
-                      {% if d.id != current_device_id %}
-                      <a class="dm-btn ghost sm" href="?selected_device_id={{ d.id }}&lang={{ ui_lang }}" title="{{ 'Select' if is_en else 'تحديد' }}">★</a>
+            <div class="dm-fleet-grid">
+              {% for d in devices_list %}
+                {% set is_sel = (d.id == current_device_id) %}
+                <article class="dm-device-card {% if is_sel %}is-selected{% endif %} {% if not d.is_active %}is-disabled{% endif %}"
+                         data-selected-label="{{ 'Selected' if is_en else 'محدّد' }}">
+                  <div class="dm-device-card-head">
+                    <span class="dm-device-card-icon" aria-hidden="true">
+                      {% set _n = (d.name or '')|lower %}
+                      {% if 'farm' in _n or 'مزرعة' in _n %}🌾
+                      {% elif 'workshop' in _n or 'ورشة' in _n %}🏭
+                      {% elif 'shop' in _n or 'محل' in _n %}🏪
+                      {% elif 'office' in _n or 'مكتب' in _n %}🏢
+                      {% else %}🏠{% endif %}
+                    </span>
+                    <div class="dm-device-card-title">
+                      <strong>{{ d.name or '—' }}</strong>
+                      <small>
+                        {% if d.api_provider %}{{ d.api_provider }}{% endif %}
+                        {% if d.device_uid or d.external_device_id %} · <span dir="ltr">{{ d.device_uid or d.external_device_id }}</span>{% endif %}
+                      </small>
+                    </div>
+                    <div class="dm-device-card-status">
+                      {% if d.is_active %}
+                        <span class="status-pill success">🟢 {{ 'Active' if is_en else 'نشط' }}</span>
+                      {% else %}
+                        <span class="status-pill warning">⏸ {{ 'Disabled' if is_en else 'معطّل' }}</span>
                       {% endif %}
-                      <a class="dm-btn ghost sm" href="{{ url_for('main.device_edit', device_id=d.id, lang=ui_lang) }}" title="{{ 'Edit' if is_en else 'تعديل' }}">✏</a>
-                      <form method="post" action="{{ url_for('main.device_toggle', device_id=d.id, lang=ui_lang) }}" style="display:inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="dm-btn ghost sm" title="{{ 'Toggle' if is_en else 'تبديل' }}">{{ '⏸' if d.is_active else '▶' }}</button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+
+                  <div class="dm-device-card-meta">
+                    <div>
+                      <small>{{ 'Type' if is_en else 'النوع' }}</small>
+                      <b>{{ d.device_type or '—' }}</b>
+                    </div>
+                    <div>
+                      <small>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</small>
+                      <b dir="ltr">{{ d.timezone or '—' }}</b>
+                    </div>
+                    <div>
+                      <small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small>
+                      <b>{{ format_local(d.last_connected_at) if (format_local is defined and d.last_connected_at) else (d.last_connected_at.strftime('%Y-%m-%d %H:%M') if d.last_connected_at else ('Never' if is_en else 'لا توجد')) }}</b>
+                    </div>
+                    <div>
+                      <small>{{ 'Connection' if is_en else 'حالة الاتصال' }}</small>
+                      <b>{{ d.connection_status or '—' }}</b>
+                    </div>
+                  </div>
+
+                  <div class="dm-device-card-actions">
+                    {% if not is_sel %}
+                      <a class="sub-btn sub-btn-primary"
+                         href="?selected_device_id={{ d.id }}&lang={{ ui_lang }}"
+                         title="{{ 'Make this device the dashboard source' if is_en else 'اجعل هذا الجهاز مصدر لوحة التحكم' }}">
+                        ★ {{ 'Select' if is_en else 'تحديد' }}
+                      </a>
+                    {% endif %}
+                    <a class="sub-btn sub-btn-ghost" href="{{ url_for('main.device_edit', device_id=d.id, lang=ui_lang) }}">
+                      ✏ {{ 'Edit' if is_en else 'تعديل' }}
+                    </a>
+                    <form method="post" action="{{ url_for('main.device_toggle', device_id=d.id, lang=ui_lang) }}" style="flex:1 1 auto;display:flex">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="sub-btn sub-btn-ghost" style="width:100%;justify-content:center">
+                        {% if d.is_active %}⏸ {{ 'Disable' if is_en else 'تعطيل' }}
+                        {% else %}▶ {{ 'Enable' if is_en else 'تفعيل' }}{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              {% endfor %}
             </div>
             {% else %}
-            <div class="dm-empty">
-              <span>📭</span>
-              <strong>{{ 'No devices yet' if is_en else 'لا توجد أجهزة بعد' }}</strong>
-              <p>{{ 'Add your first device using the form below.' if is_en else 'أضف أول جهاز باستخدام النموذج أدناه.' }}</p>
+            <div class="sub-empty-multidevice">
+              <span class="sub-empty-icon">📭</span>
+              <strong class="sub-empty-title">{{ 'No devices yet' if is_en else 'لا توجد أجهزة بعد' }}</strong>
+              <p class="sub-empty-body">{{ 'Connect your first inverter, battery, or gateway using the form below. After it is added, the dashboard, live data, and reports will start showing its data.' if is_en else 'وصّل أول إنفرتر أو بطاريّة أو بوابة باستخدام النموذج بالأسفل. بعد الإضافة، ستبدأ لوحة التحكم والبيانات الحيّة والتقارير بعرض بياناته.' }}</p>
+              <div class="sub-empty-actions">
+                <a class="sub-btn sub-btn-primary" href="#dm-add-device">＋ {{ 'Add my first device' if is_en else 'أضف أوّل جهاز' }}</a>
+              </div>
             </div>
             {% endif %}
           </div>
         </section>
 
-        {# Section 3: Add new device #}
+        {# ──────────── Section 3: Add new device ──────────── #}
         <section class="dm-section" id="dm-add-device" data-help="{{ 'Pick a provider then enter your account details. The system will validate the connection before saving.' if is_en else 'اختر المزوّد ثم أدخل بيانات حسابك. سيتحقّق النظام من الاتصال قبل الحفظ.' }}">
           <div class="dm-sec-head">
             <div>
@@ -157,7 +229,7 @@
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px">
                 <label class="dm-field">
                   <span>{{ 'Device name' if is_en else 'اسم الجهاز' }}</span>
-                  <input type="text" name="device_name" required placeholder="{{ 'e.g. Home roof' if is_en else 'مثلاً: سطح المنزل' }}">
+                  <input type="text" name="device_name" required placeholder="{{ 'e.g. Home Roof' if is_en else 'مثلاً: سطح المنزل' }}">
                 </label>
                 <label class="dm-field">
                   <span>{{ 'Provider' if is_en else 'المزوّد' }}</span>
@@ -177,9 +249,9 @@
                   <input type="password" name="api_password" dir="ltr">
                 </label>
               </div>
-              <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
-                <button type="reset" class="dm-btn ghost">↺ {{ 'Reset' if is_en else 'تفريغ' }}</button>
-                <button type="submit" class="dm-btn primary">＋ {{ 'Add device' if is_en else 'أضف الجهاز' }}</button>
+              <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+                <button type="reset" class="sub-btn sub-btn-ghost">↺ {{ 'Reset' if is_en else 'تفريغ' }}</button>
+                <button type="submit" class="sub-btn sub-btn-primary">＋ {{ 'Add device' if is_en else 'أضف الجهاز' }}</button>
               </div>
             </form>
           </div>

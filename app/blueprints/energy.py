@@ -1399,11 +1399,48 @@ def live_data():
     except Exception:
         daily_consumption_history = []
 
+    # v32: inline device-switcher payload — avoids importing a helper that the
+    # running Python process may not yet have (services/device_context.py is loaded
+    # at startup; new functions added there require a restart).
+    _user_devices = []
+    _current_device_id = None
+    _aggregate_mode = False
+    try:
+        from ..models import AppDevice
+        from ..services.scope import get_current_user, is_admin_scope
+        if not is_admin_scope():
+            _user = get_current_user()
+            if _user is not None:
+                _user_devices = (AppDevice.query
+                                 .filter_by(owner_user_id=_user.id)
+                                 .order_by(AppDevice.is_active.desc(), AppDevice.id.asc())
+                                 .all())
+                _raw = session.get('current_device_id')
+                if _raw == '__all__':
+                    _aggregate_mode = True
+                else:
+                    if _raw:
+                        try:
+                            _rid = int(_raw)
+                            if any(d.id == _rid for d in _user_devices):
+                                _current_device_id = _rid
+                        except (ValueError, TypeError):
+                            pass
+                    if _current_device_id is None:
+                        _current_device_id = (_user.preferred_device_id
+                                              if (_user.preferred_device_id and
+                                                  any(d.id == _user.preferred_device_id for d in _user_devices))
+                                              else (_user_devices[0].id if _user_devices else None))
+    except Exception:
+        pass
     return render_template('live_data.html',
                            latest=latest, d=d, settings=settings,
                            daily_consumption_history=daily_consumption_history,
                            format_energy=format_energy,
                            format_power=format_power,
+                           user_devices=_user_devices,
+                           current_device_id=_current_device_id,
+                           aggregate_mode=_aggregate_mode,
                            format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang())
 
 
@@ -1452,5 +1489,75 @@ def loads_page():
         elif action == 'save_night_limit':
             save_value = safe_float(request.form.get('night_max_w'), 0)
             if save_value > 0:
-                _save_setting_value('night_max_load_w', str(int(round(save_value))))
-                db.sessio
+                # _save_setting_value lives in main.py; import lazily to avoid circular deps.
+                try:
+                    from .main import _save_setting_value
+                    _save_setting_value('night_max_load_w', str(int(round(save_value))))
+                    flash('تم حفظ الحد الأقصى الليلي', 'success')
+                except Exception as exc:
+                    current_app.logger.warning('save_night_limit failed: %s', exc)
+                    flash('فشل حفظ الحد الأقصى الليلي', 'warning')
+            return redirect(url_for('main.loads_page', lang=_lang()))
+
+    # GET — render the loads page.
+    user = _active_user() if '_active_user' in globals() else None
+    user_id = getattr(user, 'id', None)
+    loads = UserLoad.query
+    if user_id is not None:
+        loads = loads.filter((UserLoad.user_id == user_id) | (UserLoad.user_id.is_(None)))
+    loads = loads.order_by(UserLoad.priority.asc(), UserLoad.id.asc()).all()
+
+    # v32: pass multi-device switcher payload directly so the partial works
+    # without waiting for the global context_processor to reload.
+    # v32: inline device-switcher payload — avoids importing a helper that the
+    # running Python process may not yet have (services/device_context.py is loaded
+    # at startup; new functions added there require a restart).
+    _user_devices = []
+    _current_device_id = None
+    _aggregate_mode = False
+    try:
+        from ..models import AppDevice
+        from ..services.scope import get_current_user, is_admin_scope
+        if not is_admin_scope():
+            _user = get_current_user()
+            if _user is not None:
+                _user_devices = (AppDevice.query
+                                 .filter_by(owner_user_id=_user.id)
+                                 .order_by(AppDevice.is_active.desc(), AppDevice.id.asc())
+                                 .all())
+                _raw = session.get('current_device_id')
+                if _raw == '__all__':
+                    _aggregate_mode = True
+                else:
+                    if _raw:
+                        try:
+                            _rid = int(_raw)
+                            if any(d.id == _rid for d in _user_devices):
+                                _current_device_id = _rid
+                        except (ValueError, TypeError):
+                            pass
+                    if _current_device_id is None:
+                        _current_device_id = (_user.preferred_device_id
+                                              if (_user.preferred_device_id and
+                                                  any(d.id == _user.preferred_device_id for d in _user_devices))
+                                              else (_user_devices[0].id if _user_devices else None))
+    except Exception:
+        pass
+    return render_template(
+        'loads.html',
+        latest=latest,
+        weather=weather,
+        settings=settings,
+        loads=loads,
+        smart_loads=_smart_load_suggestions(latest),
+        saved_night_max_w=saved_night_max_w,
+        simulate_max_w=simulate_max_w,
+        simulation=simulation,
+        format_power=format_power,
+        format_energy=format_energy,
+        format_local=lambda dt: format_local_datetime(dt, tz_name),
+        user_devices=_user_devices,
+        current_device_id=_current_device_id,
+        aggregate_mode=_aggregate_mode,
+        ui_lang=_lang(),
+    )

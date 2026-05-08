@@ -1,0 +1,166 @@
+{# ════════════════════════════════════════════════════════════════════
+   _device_switcher.html — persistent device selector (v32)
+
+   Drops at the top of any subscriber page (above the hero) to let
+   the user switch between their devices, view an aggregate of all
+   devices, or jump to /devices/manage to add a new one.
+
+   Required context (provided automatically by services.device_context):
+     - user_devices       : list of AppDevice this user owns
+     - current_device_id  : int or None (currently selected device)
+     - aggregate_mode     : bool (True if user picked "all devices")
+     - ui_lang            : 'ar' or 'en'
+
+   Behaviour:
+     - 0 devices   → renders nothing (page should show its own empty state).
+     - 1 device    → renders a soft "single-device-banner" with name + manage link.
+     - 2+ devices  → renders the full switcher bar with a dropdown.
+
+   Switching:
+     - Each item link is `?selected_device_id=N&lang=...`. The
+       device-context before_request hook flips the session and redirects
+       back to a clean URL.
+   ════════════════════════════════════════════════════════════════════ #}
+{% set _is_en = (ui_lang or 'ar') == 'en' %}
+{# Resolve devices from any of three sources, in order:
+   1. user_devices (set by services.device_context.context_processor — preferred)
+   2. devices_list (set by /devices/manage route)
+   3. user_devices_fallback (route-injected hot path for v32 pre-restart) #}
+{% set _devices = user_devices if user_devices is defined else (devices_list if devices_list is defined else (user_devices_fallback if user_devices_fallback is defined else [])) %}
+
+{# Resolve current device object (or None for aggregate / no devices). #}
+{% set _curr_dev = none %}
+{% for d in _devices %}{% if d.id == current_device_id %}{% set _curr_dev = d %}{% endif %}{% endfor %}
+
+{# Helper: pick an icon emoji for a device based on its name keywords. #}
+{% macro device_icon(dev) %}
+  {%- if dev is none -%}🏠
+  {%- else -%}
+    {%- set _n = (dev.name or '')|lower -%}
+    {%- if 'farm' in _n or 'مزرعة' in _n -%}🌾
+    {%- elif 'workshop' in _n or 'ورشة' in _n -%}🏭
+    {%- elif 'shop' in _n or 'محل' in _n -%}🏪
+    {%- elif 'office' in _n or 'مكتب' in _n -%}🏢
+    {%- elif 'roof' in _n or 'سطح' in _n -%}🏘️
+    {%- else -%}🏠
+    {%- endif -%}
+  {%- endif -%}
+{% endmacro %}
+
+{% if _devices and _devices|length == 1 %}
+  {% set _only = _devices[0] %}
+  <div class="dswx-single-banner" role="status">
+    <span class="dswx-single-icon">{{ device_icon(_only) }}</span>
+    <span>
+      {{ 'Viewing data for' if _is_en else 'تعرض بيانات الجهاز' }}
+      <b>{{ _only.name or '—' }}</b>
+      {% if _only.api_provider %}<span style="opacity:.65"> · {{ _only.api_provider }}</span>{% endif %}
+      {% if _only.timezone %}<span style="opacity:.65"> · <span dir="ltr">{{ _only.timezone }}</span></span>{% endif %}
+    </span>
+    <a class="dswx-btn-manage" style="margin-inline-start:auto" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+      <span aria-hidden="true">⚙</span>
+      <span>{{ 'Manage' if _is_en else 'إدارة' }}</span>
+    </a>
+  </div>
+{% elif _devices and _devices|length > 1 %}
+<div class="dswx-bar" data-dswx role="region" aria-label="{{ 'Device switcher' if _is_en else 'محوّل الأجهزة' }}">
+  <div class="dswx-current">
+    <span class="dswx-icon" aria-hidden="true">
+      {% if aggregate_mode %}📊
+      {% else %}{{ device_icon(_curr_dev) }}{% endif %}
+    </span>
+    <div class="dswx-text">
+      <small>{{ 'Currently viewing' if _is_en else 'تعرض الآن' }}</small>
+      <strong>
+        {% if aggregate_mode %}{{ 'All devices (aggregate)' if _is_en else 'كل الأجهزة (مجمّع)' }}
+        {% elif _curr_dev %}{{ _curr_dev.name }}
+        {% else %}{{ _devices[0].name }}{% endif %}
+      </strong>
+      {% if _curr_dev and not aggregate_mode %}
+        <em>
+          {% if _curr_dev.api_provider %}{{ _curr_dev.api_provider }}{% endif %}
+          {% if _curr_dev.timezone %} · <span dir="ltr">{{ _curr_dev.timezone }}</span>{% endif %}
+          {% if _curr_dev.is_active %}
+            · <span style="color:#047857">🟢 {{ 'active' if _is_en else 'نشط' }}</span>
+          {% else %}
+            · <span style="color:#94a3b8">⏸ {{ 'disabled' if _is_en else 'معطّل' }}</span>
+          {% endif %}
+        </em>
+      {% elif aggregate_mode %}
+        <em>{{ _devices|length }} {{ 'devices combined' if _is_en else 'جهاز مدموج' }}</em>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="dswx-actions">
+    <button type="button" class="dswx-btn-switch" data-dswx-toggle aria-haspopup="true" aria-expanded="false">
+      <span aria-hidden="true">🔀</span>
+      <span>{{ 'Switch device' if _is_en else 'تبديل الجهاز' }}</span>
+      <span class="dswx-chevron" aria-hidden="true">▼</span>
+    </button>
+    <a class="dswx-btn-manage" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+      <span aria-hidden="true">⚙</span>
+      <span>{{ 'Manage' if _is_en else 'إدارة' }}</span>
+    </a>
+  </div>
+
+  <div class="dswx-menu" hidden data-dswx-menu role="menu">
+    <header>
+      <small>{{ 'Pick a device' if _is_en else 'اختر جهازاً' }}</small>
+    </header>
+    {% for d in _devices %}
+      {% set is_sel = (d.id == current_device_id) and not aggregate_mode %}
+      <a class="dswx-item {% if is_sel %}is-selected{% endif %}"
+         href="?selected_device_id={{ d.id }}&lang={{ ui_lang }}"
+         role="menuitem">
+        <span class="dswx-item-icon" aria-hidden="true">{{ device_icon(d) }}</span>
+        <div class="dswx-item-text">
+          <strong>{{ d.name or '—' }}</strong>
+          <small>
+            {% if d.api_provider %}{{ d.api_provider }}{% endif %}
+            {% if d.is_active %} · <span style="color:#047857">🟢 {{ 'Active' if _is_en else 'نشط' }}</span>
+            {% else %} · <span style="color:#94a3b8">⏸ {{ 'Disabled' if _is_en else 'معطّل' }}</span>{% endif %}
+          </small>
+        </div>
+        {% if is_sel %}<span class="dswx-item-check" aria-hidden="true">✓</span>{% endif %}
+      </a>
+    {% endfor %}
+
+    <div class="dswx-divider" aria-hidden="true"></div>
+    <a class="dswx-item dswx-item-aggregate {% if aggregate_mode %}is-selected{% endif %}"
+       href="?selected_device_id=__all__&lang={{ ui_lang }}"
+       role="menuitem">
+      <span class="dswx-item-icon" aria-hidden="true">📊</span>
+      <div class="dswx-item-text">
+        <strong>{{ 'All devices (aggregate)' if _is_en else 'كل الأجهزة (مجمّع)' }}</strong>
+        <small>{{ 'Combined statistics across every device' if _is_en else 'إحصاءات مدموجة من كل الأجهزة' }}</small>
+      </div>
+      {% if aggregate_mode %}<span class="dswx-item-check" aria-hidden="true">✓</span>{% endif %}
+    </a>
+
+    <div class="dswx-divider" aria-hidden="true"></div>
+    <a class="dswx-item dswx-item-add" href="{{ url_for('main.devices_manage', lang=ui_lang) }}#dm-add-device" role="menuitem">
+      <span class="dswx-item-icon" aria-hidden="true">＋</span>
+      <div class="dswx-item-text">
+        <strong>{{ 'Add a new device' if _is_en else 'إضافة جهاز جديد' }}</strong>
+        <small>{{ 'Connect another inverter or gateway' if _is_en else 'وصّل إنفرتر أو بوابة جديدة' }}</small>
+      </div>
+    </a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var bar = document.querySelector('[data-dswx]');
+  if (!bar) return;
+  var btn = bar.querySelector('[data-dswx-toggle]');
+  var menu = bar.querySelector('[data-dswx-menu]');
+  if (!btn || !menu) return;
+  function close(){ menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  function open_(){ menu.hidden = false; btn.setAttribute('aria-expanded', 'true'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); if (menu.hidden) open_(); else close(); });
+  document.addEventListener('click', function(e){ if (!bar.contains(e.target)) close(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+})();
+</script>
+{% endif %}

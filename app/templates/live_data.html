@@ -2,12 +2,30 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% block title %}{{ 'Live Data' if is_en else 'البيانات الحيّة' }}{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v32-subscriber-console-unified-multidevice') }}">
 {% endblock %}
 {% block body %}
+{# Resolve current device for live data scope. #}
+{% set _ns = namespace(curr=none) %}
+{% if user_devices is defined %}
+  {% for d in user_devices %}{% if d.id == current_device_id %}{% set _ns.curr = d %}{% endif %}{% endfor %}
+{% endif %}
+{# Fallback to the first device for single-device users. #}
+{% if (not _ns.curr) and user_devices is defined and (user_devices|length == 1) %}{% set _ns.curr = user_devices[0] %}{% endif %}
+{% set _curr_dev = _ns.curr %}
+{# Determine freshness state of the latest reading. #}
+{% set _stale_minutes = 0 %}
+{% if latest and latest.created_at %}
+  {# Best-effort freshness — server passes format_local but not raw deltas, so we
+     keep the visual cue conservative. #}
+{% endif %}
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area lv-page">
+  <main class="app-main content-area lv-page sub-page sub-cool">
+
+    {# Persistent device switcher — renders nothing if 0 devices, soft banner for 1, full bar for 2+. #}
+    {% include '_device_switcher.html' %}
 
     {# ════════ HERO ════════ #}
     <header class="hu-hero">
@@ -15,15 +33,41 @@
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Energy · Live data' if is_en else 'الطاقة · بيانات حيّة' }}</span>
           <h1 class="hu-h1">{{ 'Real-time energy snapshot' if is_en else 'نظرة حيّة لطاقتك الآن' }}</h1>
-          <p class="hu-tagline">{{ 'See your solar production, battery state, grid flow, and home consumption updated every 30 seconds.' if is_en else 'شاهد إنتاج الطاقة الشمسية وحالة البطارية والشبكة واستهلاك المنزل، تتحدث كل 30 ثانية.' }}</p>
-          {% if latest %}
+          <p class="hu-tagline">
+            {% if aggregate_mode and user_devices and user_devices|length > 1 %}
+              {{ 'Aggregated solar production, battery state, grid flow, and home consumption across all your devices.' if is_en else 'مجموع إنتاج الطاقة الشمسية وحالة البطارية والشبكة واستهلاك المنزل عبر كل أجهزتك.' }}
+            {% elif _curr_dev %}
+              {{ 'Live readings from %s, refreshed every 30 seconds.'|format(_curr_dev.name) if is_en else 'القراءات الحيّة من جهاز %s، تتحدّث كل 30 ثانية.'|format(_curr_dev.name) }}
+            {% else %}
+              {{ 'Solar production, battery state, grid flow, and home consumption updated every 30 seconds.' if is_en else 'إنتاج الطاقة الشمسية وحالة البطارية والشبكة واستهلاك المنزل، تتحدّث كل 30 ثانية.' }}
+            {% endif %}
+          </p>
+          {% if latest or _curr_dev %}
           <div class="hu-hero-meta">
-            <span class="hu-meta-pill">🔄 {{ 'updated' if is_en else 'حُدّث' }} <b>{{ format_local(latest.created_at) if latest.created_at else '—' }}</b></span>
+            {% if latest and latest.created_at %}<span class="hu-meta-pill">🔄 {{ 'updated' if is_en else 'حُدّث' }} <b>{{ format_local(latest.created_at) }}</b></span>{% endif %}
+            {% if _curr_dev and not aggregate_mode %}<span class="hu-meta-pill is-device-scope">★ <b>{{ _curr_dev.name }}</b></span>{% endif %}
+            {% if aggregate_mode and user_devices %}<span class="hu-meta-pill is-device-scope is-aggregate">📊 <b>{{ user_devices|length }}</b> {{ 'devices' if is_en else 'جهاز' }}</span>{% endif %}
           </div>
           {% endif %}
         </div>
       </div>
     </header>
+
+    {# Device-context strip — quick-glance "you're looking at X" with status dot. #}
+    {% if _curr_dev and not aggregate_mode %}
+    <div class="lv-context-strip {% if latest %}is-online{% else %}is-offline{% endif %}">
+      <span class="lv-context-dot" aria-hidden="true"></span>
+      <strong>{{ _curr_dev.name }}</strong>
+      <small>
+        {% if _curr_dev.api_provider %}{{ _curr_dev.api_provider }}{% endif %}
+        {% if _curr_dev.timezone %} · <span dir="ltr">{{ _curr_dev.timezone }}</span>{% endif %}
+      </small>
+      <div class="lv-context-meta">
+        {% if latest and latest.created_at %}<span>🔄 {{ 'last reading' if is_en else 'آخر قراءة' }}: {{ format_local(latest.created_at) }}</span>{% else %}<span style="color:#b91c1c">⚠ {{ 'no data yet' if is_en else 'لا توجد بيانات بعد' }}</span>{% endif %}
+        <span>{% if _curr_dev.is_active %}🟢 {{ 'syncing' if is_en else 'يتزامن' }}{% else %}⏸ {{ 'disabled' if is_en else 'معطّل' }}{% endif %}</span>
+      </div>
+    </div>
+    {% endif %}
 
     {# 2-column shell #}
     <div class="lv-shell">

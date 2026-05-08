@@ -7,7 +7,9 @@
 {% block body %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area lds-page">
+  <main class="app-main content-area lds-page sub-page sub-cool">
+
+    {% include '_device_switcher.html' %}
 
     {# ════════ HERO ════════ #}
     <header class="hu-hero">

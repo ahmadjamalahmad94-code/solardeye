@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% import '_location_picker.html' as loc %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/devices_manage_v64.css', v='v66-devices-hub-playbook-pass-20260501') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/devices_manage_v64.css', v='v32-subscriber-console-unified-multidevice') }}">
 {% endblock %}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
@@ -11,46 +11,59 @@
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
 
-  <main class="app-main content-area dm64-page">
-    <section class="dm64-hero dm64-form-page-shell">
-      <div class="dm64-hero-head">
-        <span class="dm64-hero-badge">{{ 'Device fleet' if is_en else 'أسطول الأجهزة' }}</span>
-      </div>
-      <div class="dm64-hero-grid">
-        <div class="dm64-hero-copy">
-          <div class="dm64-hero-actions">
-            <a class="dm64-btn dm64-btn-secondary" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
-              <span>{{ 'Back' if is_en else 'الرجوع' }}</span>
-              <span>↩</span>
-            </a>
+  <main class="app-main content-area dm64-page sub-page" data-edit-device-page>
+
+    {# Persistent device switcher / single-device banner above the hero #}
+    {% include '_device_switcher.html' %}
+
+    <header class="hu-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Account · Edit device' if is_en else 'الحساب · تعديل الجهاز' }}</span>
+          <h1 class="hu-h1">{% if device.name %}{{ device.name }}{% else %}{{ 'Edit device' if is_en else 'تعديل الجهاز' }}{% endif %}</h1>
+          <p class="hu-tagline">{{ 'Update provider credentials, location, timezone, and notes for this device. Leave secret inputs blank to keep the saved values.' if is_en else 'حدّث بيانات المزود والموقع والمنطقة الزمنية والملاحظات لهذا الجهاز. اترك الحقول السرية فارغة للاحتفاظ بالقيم المحفوظة.' }}</p>
+          <div class="hu-hero-meta">
+            {% if device.api_provider %}<span class="hu-meta-pill">{{ device.api_provider }}</span>{% endif %}
+            {% if device.timezone %}<span class="hu-meta-pill" dir="ltr"><b>{{ device.timezone }}</b></span>{% endif %}
+            {% if device.is_active %}<span class="hu-meta-pill ok">🟢 <b>{{ 'Active' if is_en else 'نشط' }}</b></span>{% else %}<span class="hu-meta-pill warn">⏸ <b>{{ 'Disabled' if is_en else 'معطّل' }}</b></span>{% endif %}
+            {% if device.connection_status %}<span class="hu-meta-pill"><b>{{ device.connection_status }}</b></span>{% endif %}
           </div>
         </div>
-        <div class="dm64-hero-content">
-          <h1>{{ 'Edit device' if is_en else 'تعديل الجهاز' }}</h1>
-          <p>{{ 'Update the provider fields and keep secret inputs blank to preserve the saved values.' if is_en else 'حدّث بيانات المزود واترك الحقول السرية فارغة للاحتفاظ بالقيم المحفوظة.' }}</p>
+        <div class="hu-hero-cta">
+          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">
+            <span aria-hidden="true">↩</span>
+            <span>{{ 'Back to fleet' if is_en else 'الرجوع إلى الأسطول' }}</span>
+          </a>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section class="dm64-form-page-shell">
-      <article class="dm64-panel dm64-form-shell">
-        <form method="post" class="dm64-device-form" data-device-provider-form data-edit-device>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="post" class="dm64-device-form" data-device-provider-form data-edit-device>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-          <div class="dm64-form-section-title">{{ '1. Provider' if is_en else '1. نوع الجهاز' }}</div>
-          <div class="dm64-form-full provider-picker-v10519">
-            <select class="form-select form-select-lg" name="device_type" data-provider-select>
-              {% for p in providers %}
-                <option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }}</option>
-              {% endfor %}
-            </select>
-            <div class="provider-selected-note-v10519" data-provider-note></div>
-          </div>
+      <section class="sub-card" style="margin-top:14px">
+        <div class="sub-card-head">
+          <h3>1 · {{ 'Provider' if is_en else 'نوع المزوّد' }}</h3>
+          <small>{{ 'Pick the integration this device uses to fetch data.' if is_en else 'اختر المزوّد الذي يجلب البيانات لهذا الجهاز.' }}</small>
+        </div>
+        <div class="provider-picker-v10519">
+          <label class="form-label">{{ 'Provider' if is_en else 'المزوّد' }}</label>
+          <select class="form-select form-select-lg" name="device_type" data-provider-select>
+            {% for p in providers %}<option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+          </select>
+          <div class="provider-selected-note-v10519" data-provider-note></div>
+        </div>
+      </section>
 
-          <div class="dm64-form-section-title">{{ '2. Basic info' if is_en else '2. البيانات الأساسية' }}</div>
+      <section class="sub-card">
+        <div class="sub-card-head">
+          <h3>2 · {{ 'Identity & location' if is_en else 'الهوية والموقع' }}</h3>
+          <small>{{ 'Give this device a clear name. Timezone determines daily/weekly aggregation.' if is_en else 'امنح الجهاز اسماً واضحاً. المنطقة الزمنية تحدد التجميع اليومي والأسبوعي.' }}</small>
+        </div>
+        <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))">
           <div>
             <label class="form-label">{{ 'Device name' if is_en else 'اسم الجهاز' }}</label>
-            <input class="form-control form-control-lg" name="name" value="{{ device.name }}" required>
+            <input class="form-control form-control-lg" name="name" value="{{ device.name }}" required placeholder="{{ 'e.g. Home Roof' if is_en else 'مثلاً: سطح المنزل' }}">
           </div>
           <div>
             <label class="form-label">{{ 'Plant / site name' if is_en else 'اسم المحطة / الموقع' }}</label>
@@ -58,32 +71,49 @@
           </div>
           <div>
             <label class="form-label">{{ 'API base URL' if is_en else 'رابط API الأساسي' }}</label>
-            <input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or device_settings.get('api_base_url', '') or '' }}" data-provider-base-url>
+            <input class="form-control form-control-lg" name="api_base_url" value="{{ device.api_base_url or device_settings.get('api_base_url', '') or '' }}" data-provider-base-url dir="ltr">
           </div>
           <div>
             <label class="form-label">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</label>
             {{ loc.timezone_select(name='timezone', value=(device.timezone or 'Asia/Hebron'), classes='form-control form-control-lg', groups=timezone_groups, lang=ui_lang) }}
           </div>
+        </div>
+      </section>
 
-          <div class="dm64-form-section-title">{{ '3. Connection fields' if is_en else '3. بيانات الربط المطلوبة' }}</div>
-          <div class="dm64-form-full dynamic-fields-v10519" data-provider-fields></div>
+      <section class="sub-card">
+        <div class="sub-card-head">
+          <h3>3 · {{ 'Connection credentials' if is_en else 'بيانات الاتصال' }}</h3>
+          <small>{{ 'Fields below change with the selected provider. Leave any password / secret blank to keep the saved value.' if is_en else 'الحقول أدناه تتغيّر بحسب المزوّد المختار. اترك أي كلمة مرور أو سرّ فارغة للاحتفاظ بالقيم المحفوظة.' }}</small>
+        </div>
+        <div class="dynamic-fields-v10519" data-provider-fields></div>
+      </section>
 
-          <div class="dm64-form-full">
+      <section class="sub-card">
+        <div class="sub-card-head">
+          <h3>4 · {{ 'Notes & status' if is_en else 'الملاحظات والحالة' }}</h3>
+          <small>{{ 'Disable a device temporarily without deleting its history.' if is_en else 'يمكن تعطيل الجهاز مؤقتاً دون فقدان سجلّه.' }}</small>
+        </div>
+        <div style="display:grid;gap:14px">
+          <div>
             <label class="form-label">{{ 'Notes' if is_en else 'ملاحظات' }}</label>
-            <textarea class="form-control" rows="4" name="notes">{{ device.notes or '' }}</textarea>
+            <textarea class="form-control" rows="4" name="notes" placeholder="{{ 'Anything you want to remember about this device.' if is_en else 'أي ملاحظات تريد تذكرها عن هذا الجهاز.' }}">{{ device.notes or '' }}</textarea>
           </div>
-          <label class="dm64-form-full dm64-switch-row">
-            <input type="checkbox" name="is_active" {% if device.is_active %}checked{% endif %}>
-            <span>{{ 'Device enabled' if is_en else 'الجهاز مفعل' }}</span>
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fafcff;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer">
+            <input type="checkbox" name="is_active" {% if device.is_active %}checked{% endif %} style="width:18px;height:18px;cursor:pointer">
+            <div>
+              <strong style="font-weight:900;color:#0f172a;display:block">{{ 'Device enabled' if is_en else 'الجهاز مفعّل' }}</strong>
+              <small style="color:#64748b;font-weight:600">{{ 'When off, the scheduler skips this device but keeps its history.' if is_en else 'عند الإيقاف يتجاوز المُجدوِل هذا الجهاز مع الاحتفاظ بسجلّه.' }}</small>
+            </div>
           </label>
+        </div>
+      </section>
 
-          <div class="dm64-form-actions dm64-form-full">
-            <button class="dm64-btn dm64-btn-primary" type="submit">{{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
-            <a class="dm64-btn dm64-btn-ghost" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
-          </div>
-        </form>
-      </article>
-    </section>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding:14px 0">
+        <a class="sub-btn sub-btn-ghost" href="{{ url_for('main.devices_manage', lang=ui_lang) }}">{{ 'Cancel' if is_en else 'إلغاء' }}</a>
+        <button class="sub-btn sub-btn-primary" type="submit">💾 {{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
+      </div>
+    </form>
+
   </main>
 </div>
 

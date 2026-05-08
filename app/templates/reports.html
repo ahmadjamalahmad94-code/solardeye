@@ -7,7 +7,9 @@
 {% block body %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area rp-page">
+  <main class="app-main content-area rp-page sub-page sub-cool">
+
+    {% include '_device_switcher.html' %}
 
     <header class="hu-hero">
       <div class="hu-hero-grid">
@@ -71,8 +73,8 @@
               </label>
               <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
                 <button type="submit" class="rp-btn primary">{{ '🔎 Preview' if is_en else '🔎 معاينة' }}</button>
-                <a href="{{ url_for('main.statistics_export_csv', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📊 CSV</a>
-                <a href="{{ url_for('main.statistics_export_pdf', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📄 PDF</a>
+                <a href="{{ url_for('main.export_statistics_csv', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📊 CSV</a>
+                <a href="{{ url_for('main.export_statistics_pdf', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📄 PDF</a>
               </div>
             </form>
           </div>

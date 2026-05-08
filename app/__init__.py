@@ -17,6 +17,7 @@ from .services.i18n import register_i18n
 from .services.backup_service import ensure_backup_settings
 from .services.energy_integrations import provider_catalog
 from .services.rbac import register_access_control, seed_access_control
+from .services.device_context import register_device_context
 from .scheduler import start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ def create_app():
     register_security(app)
     register_template_helpers(app)
     register_access_control(app)
+    register_device_context(app)
 
     from .blueprints.auth import auth_bp
     from .blueprints.integrations import integrations_bp

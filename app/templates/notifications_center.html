@@ -2,20 +2,49 @@
 {% from 'components/_ncv40_icons.html' import ncv40_icon %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_center_v40.css', v='v40-notifications-center-redesign-20260430') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_center_v40.css', v='v32-subscriber-console-unified-multidevice') }}">
 {% endblock %}
 
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 
+{# Resolve current device context for the inbox. #}
+{% set _ns = namespace(curr=none) %}
+{% if user_devices is defined %}
+  {% for d in user_devices %}{% if d.id == current_device_id %}{% set _ns.curr = d %}{% endif %}{% endfor %}
+{% endif %}
+{% if (not _ns.curr) and user_devices is defined and (user_devices|length == 1) %}{% set _ns.curr = user_devices[0] %}{% endif %}
+{% set _curr_dev = _ns.curr %}
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
 
-  <main class="app-main content-area ncv40-page"
+  <main class="app-main content-area ncv40-page sub-page"
         data-ncv40-root
         data-mark-read-url="{{ url_for('main.notifications_mark_read', lang=ui_lang) }}">
 
+    {# Persistent device switcher above the inbox (renders nothing for 0 devices). #}
+    {% include '_device_switcher.html' %}
+
     {% include 'components/_ncv40_hero.html' %}
+
+    {# Device-scope meta strip — one-glance reminder of what the inbox is filtered to. #}
+    {% if _curr_dev or aggregate_mode %}
+    <div class="dswx-single-banner" style="margin-top:0">
+      <span class="dswx-single-icon" aria-hidden="true">{% if aggregate_mode %}📊{% else %}🔔{% endif %}</span>
+      <span>
+        {% if aggregate_mode %}
+          {{ 'Showing notifications from all your devices.' if is_en else 'تعرض الإشعارات من كل أجهزتك.' }}
+        {% else %}
+          {{ 'Showing notifications related to' if is_en else 'تعرض الإشعارات المتعلّقة بـ' }} <b>{{ _curr_dev.name }}</b>{{ '.' }}
+          {% if user_devices and user_devices|length > 1 %}
+            <small style="opacity:.75">{{ 'Switch device above to see another inbox.' if is_en else 'بدّل الجهاز من الأعلى لعرض صندوق وارد آخر.' }}</small>
+          {% endif %}
+        {% endif %}
+      </span>
+    </div>
+    {% endif %}
+
     {% include 'components/_ncv40_stats.html' %}
     {% include 'components/_ncv40_toolbar.html' %}
 
@@ -26,5 +55,5 @@
   </main>
 </div>
 
-<script src="{{ url_for('static', filename='js/notifications_center_v40.js', v='v40-notifications-center-redesign-20260430') }}" defer></script>
+<script src="{{ url_for('static', filename='js/notifications_center_v40.js', v='v32-subscriber-console-unified-multidevice') }}" defer></script>
 {% endblock %}
