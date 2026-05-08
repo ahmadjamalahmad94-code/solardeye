@@ -1,0 +1,120 @@
+{# ════════════════════════════════════════════════════════════════════
+   _live_fleet_rail.html — v33-β Live Device Rail / Fleet Switcher
+
+   A horizontal chip strip placed ABOVE the existing hero on the
+   subscriber dashboard and live-data pages. Each chip represents one
+   active device the user owns; clicking switches the visible viewport.
+
+   Behaviour
+   ─────────
+     * Server-renders chips from ``user_devices`` so no-JS users get
+       a fully working strip with status + SOC + solar power per chip.
+     * Each chip is a regular ``<a href="?selected_device_id=N&lang=…">``
+       so JS-disabled clients fall back to v33-α reload-redirect.
+     * When JS is on, ``live_fleet_v33b.js`` intercepts the click,
+       POSTs ``/api/fleet/select``, then refreshes ``data-bind`` slots
+       in place — no full page reload.
+     * Renders nothing if user has 0 or 1 device — keeps the v32
+       single-device-banner experience for users with one device.
+
+   Required context (provided automatically by services.device_context):
+     * user_devices       : list[AppDevice]
+     * current_device_id  : int | None
+     * aggregate_mode     : bool
+     * ui_lang            : 'ar' or 'en'
+
+   Locked components NOT touched: the Flow Graph (.d40-flow-card),
+   the existing _device_switcher.html partial, all v32 hero blocks.
+════════════════════════════════════════════════════════════════════ #}
+{% set _is_en = (ui_lang or 'ar') == 'en' %}
+{% set _devices = user_devices if user_devices is defined else [] %}
+{# Only render the rail when user has 2 or more devices. Users with
+   0 or 1 device keep the v32 _device_switcher.html banner experience. #}
+{% if _devices and (_devices|length > 1) %}
+
+{# Rail self-loads its CSS+JS so pages just need a single include. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/live_fleet_rail_v33b.css', v='v33-beta-live-fleet-dashboard') }}">
+
+<nav class="live-fleet-rail" data-live-fleet-rail
+     data-select-url="{{ url_for('fleet_api.fleet_select') }}"
+     data-summary-url="{{ url_for('fleet_api.fleet_summary') }}"
+     data-overview-url="{{ url_for('fleet_api.fleet_overview') }}"
+     data-live-summary-base="/api/devices/"
+     data-poll-seconds="30"
+     aria-label="{{ 'Live device rail' if _is_en else 'شريط الأجهزة الحيّة' }}">
+
+  <span class="lfr-info" tabindex="0"
+        data-help="{{ 'All your active devices keep running in the background. Switching here only changes what you see — it does NOT pause or activate any device.' if _is_en else 'كل أجهزتك النشطة تعمل في الخلفية. التبديل هنا يغير العرض فقط — لا يوقف أو يشغّل أي جهاز.' }}"
+        aria-label="{{ 'Help' if _is_en else 'مساعدة' }}">ℹ</span>
+
+  <div class="lfr-track" role="tablist">
+
+    {# All Devices / Aggregate chip — always first in the visual order #}
+    <a class="lfr-chip lfr-chip-aggregate {% if aggregate_mode %}is-active{% endif %}"
+       href="?selected_device_id=__all__&lang={{ ui_lang }}"
+       data-fleet-chip="__all__"
+       role="tab"
+       aria-selected="{{ 'true' if aggregate_mode else 'false' }}">
+      <span class="lfr-chip-icon" aria-hidden="true">📊</span>
+      <span class="lfr-chip-text">
+        <strong>{{ 'All Devices' if _is_en else 'كل الأجهزة' }}</strong>
+        <small>{{ _devices|length }} {{ 'combined' if _is_en else 'مدموج' }}</small>
+      </span>
+    </a>
+
+    {# Per-device chips #}
+    {% for d in _devices %}
+      {% set _is_curr = (not aggregate_mode) and (d.id == current_device_id) %}
+      {% set _ic = '🌾' if (('farm' in (d.name or '')|lower) or ('مزرعة' in (d.name or ''))) else
+                   '🏭' if (('workshop' in (d.name or '')|lower) or ('ورشة' in (d.name or ''))) else
+                   '🏪' if (('shop' in (d.name or '')|lower) or ('محل' in (d.name or ''))) else
+                   '🏢' if (('office' in (d.name or '')|lower) or ('مكتب' in (d.name or ''))) else
+                   '🏘️' if (('roof' in (d.name or '')|lower) or ('سطح' in (d.name or ''))) else
+                   '🏠' %}
+      <a class="lfr-chip {% if _is_curr %}is-active{% endif %} {% if not d.is_active %}is-disabled{% endif %}"
+         href="?selected_device_id={{ d.id }}&lang={{ ui_lang }}"
+         data-fleet-chip="{{ d.id }}"
+         role="tab"
+         aria-selected="{{ 'true' if _is_curr else 'false' }}">
+        <span class="lfr-chip-icon" aria-hidden="true">{{ _ic }}</span>
+        <span class="lfr-chip-text">
+          <strong>{{ d.name or '—' }}</strong>
+          <small data-fleet-chip-meta>
+            <span class="lfr-status-dot" data-fleet-chip-status="offline" aria-hidden="true"></span>
+            <span data-fleet-chip-soc>—</span>
+            {% if d.api_provider %} · <span dir="ltr">{{ d.api_provider }}</span>{% endif %}
+          </small>
+        </span>
+        <span class="lfr-chip-alerts" data-fleet-chip-alerts hidden>0</span>
+      </a>
+    {% endfor %}
+
+  </div>
+
+  {# Scope hint pill — visually summarises the current viewport #}
+  <div class="lfr-scope-hint" data-fleet-scope-hint>
+    {% if aggregate_mode %}
+      <span class="lfr-pill is-aggregate">
+        <span aria-hidden="true">📊</span>
+        <span>{{ 'Viewing: All %s devices combined'|format(_devices|length) if _is_en else 'تعرض الآن: كل %s أجهزة مجمّعة'|format(_devices|length) }}</span>
+      </span>
+    {% else %}
+      {% set _curr_dev = none %}
+      {% for d in _devices %}{% if d.id == current_device_id %}{% set _curr_dev = d %}{% endif %}{% endfor %}
+      {% if _curr_dev %}
+      <span class="lfr-pill is-single">
+        <span aria-hidden="true">★</span>
+        <span>{{ 'Viewing:' if _is_en else 'تعرض الآن:' }} <b>{{ _curr_dev.name }}</b></span>
+      </span>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {# ARIA live region — announced when JS swaps device #}
+  <div class="lfr-sr-live" role="status" aria-live="polite" aria-atomic="true" data-fleet-aria-live></div>
+</nav>
+
+{# JS controller — defer-loaded so it runs after DOMContentLoaded #}
+<script defer src="{{ url_for('static', filename='js/live_fleet_v33b.js', v='v33-beta-live-fleet-dashboard') }}"></script>
+
+{% endif %}

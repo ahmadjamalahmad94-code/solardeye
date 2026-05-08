@@ -27,6 +27,9 @@
     {# Persistent device switcher — renders nothing if 0 devices, soft banner for 1, full bar for 2+. #}
     {% include '_device_switcher.html' %}
 
+    {# v33-β: Live Device Rail (renders only when 2+ devices). #}
+    {% include '_live_fleet_rail.html' %}
+
     {# ════════ HERO ════════ #}
     <header class="hu-hero">
       <div class="hu-hero-grid">

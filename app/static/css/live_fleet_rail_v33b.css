@@ -1,0 +1,275 @@
+/* ════════════════════════════════════════════════════════════════════
+   live_fleet_rail_v33b.css — v33-β Live Device Rail / Fleet Switcher
+
+   * Scoped under .live-fleet-rail. Zero global overrides.
+   * Reuses tokens from unified_theme_v1.css (var(--u-line) etc).
+   * Mobile: horizontal scroll-snap strip.
+   * RTL-friendly: chips flow naturally with logical properties.
+   * Does NOT touch any flow-graph / d40-flow-* / dashboard hero / hu-hero
+     selectors. Lives entirely in its own .lfr-* namespace.
+═══════════════════════════════════════════════════════════════════════ */
+
+.live-fleet-rail {
+  /* Card container — matches v32 .sub-card cosmetic baseline */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, .06);
+  font-family: 'Cairo', 'Inter', system-ui, sans-serif;
+  position: relative;
+}
+
+.live-fleet-rail .lfr-info {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  font-size: .9rem;
+  font-weight: 800;
+  cursor: help;
+  transition: background .15s ease, color .15s ease;
+}
+.live-fleet-rail .lfr-info:hover,
+.live-fleet-rail .lfr-info:focus-visible {
+  background: #fef3c7;
+  color: #b45309;
+  outline: none;
+}
+
+/* Track holds the chips. Scroll-snap on narrow viewports. */
+.live-fleet-rail .lfr-track {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .live-fleet-rail {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .live-fleet-rail .lfr-track {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
+  }
+  .live-fleet-rail .lfr-chip {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+}
+
+/* ── Chip — base ─────────────────────────────────────────────────── */
+.live-fleet-rail .lfr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: .82rem;
+  min-height: 44px;
+  max-width: 240px;
+  position: relative;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease,
+              background .15s ease, border-color .15s ease;
+}
+.live-fleet-rail .lfr-chip:hover {
+  background: #fff;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .08);
+  text-decoration: none;
+}
+.live-fleet-rail .lfr-chip:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.live-fleet-rail .lfr-chip-icon {
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.live-fleet-rail .lfr-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.live-fleet-rail .lfr-chip-text strong {
+  font-size: .92rem;
+  font-weight: 900;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.live-fleet-rail .lfr-chip-text small {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Status dot inside chip */
+.live-fleet-rail .lfr-status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+.live-fleet-rail .lfr-chip [data-fleet-chip-status="online"]  { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+.live-fleet-rail .lfr-chip [data-fleet-chip-status="stale"]   { background: #f59e0b; }
+.live-fleet-rail .lfr-chip [data-fleet-chip-status="offline"] { background: #ef4444; }
+
+/* Active chip — amber gradient (v32 brand accent) */
+.live-fleet-rail .lfr-chip.is-active {
+  background: linear-gradient(135deg, #ffcf4d, #f59e0b);
+  border-color: transparent;
+  color: #0b1531;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, .28);
+}
+.live-fleet-rail .lfr-chip.is-active .lfr-chip-icon {
+  background: rgba(255, 255, 255, .55);
+  border-color: rgba(255, 255, 255, .65);
+}
+.live-fleet-rail .lfr-chip.is-active .lfr-chip-text strong { color: #0b1531; }
+.live-fleet-rail .lfr-chip.is-active .lfr-chip-text small  { color: #b45309; }
+
+/* Aggregate ("All Devices") chip — violet accent when active */
+.live-fleet-rail .lfr-chip-aggregate.is-active {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, .30);
+}
+.live-fleet-rail .lfr-chip-aggregate.is-active .lfr-chip-text strong { color: #ffffff; }
+.live-fleet-rail .lfr-chip-aggregate.is-active .lfr-chip-text small  { color: #ede9fe; }
+
+/* Disabled device chip */
+.live-fleet-rail .lfr-chip.is-disabled {
+  opacity: .55;
+  filter: grayscale(40%);
+}
+
+/* Alert badge */
+.live-fleet-rail .lfr-chip-alerts {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: .68rem;
+  font-weight: 900;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 10px rgba(239, 68, 68, .35);
+}
+.live-fleet-rail .lfr-chip-alerts[hidden] { display: none !important; }
+
+/* ── Scope hint pill ─────────────────────────────────────────────── */
+.live-fleet-rail .lfr-scope-hint {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.live-fleet-rail .lfr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.live-fleet-rail .lfr-pill.is-single {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border-color: #fcd34d;
+}
+.live-fleet-rail .lfr-pill.is-aggregate {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+  border-color: #c4b5fd;
+}
+.live-fleet-rail .lfr-pill b { font-weight: 950; }
+
+/* ── ARIA live region (visually hidden) ──────────────────────────── */
+.live-fleet-rail .lfr-sr-live {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Skeleton state (during AJAX swap) ───────────────────────────── */
+.live-fleet-rail.is-swapping .lfr-chip:not(.is-pending) {
+  opacity: .7;
+  pointer-events: none;
+}
+.live-fleet-rail .lfr-chip.is-pending {
+  position: relative;
+}
+.live-fleet-rail .lfr-chip.is-pending::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  animation: lfrShimmer 1.2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes lfrShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .live-fleet-rail .lfr-chip:hover { transform: none; }
+  .live-fleet-rail .lfr-chip.is-pending::after { animation: none; }
+}
+
+/* ── Print: hide the rail (subscriber pages already strip
+       interactive chrome on print via unified_theme_v1.css) ───────── */
+@media print {
+  .live-fleet-rail { display: none !important; }
+}
