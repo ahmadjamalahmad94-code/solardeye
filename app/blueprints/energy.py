@@ -1465,8 +1465,48 @@ def loads_page():
             name = (request.form.get('name') or '').strip()
             power_w = safe_float(request.form.get('power_w'), 0)
             priority = int(safe_float(request.form.get('priority'), 1) or 1)
+            # v33-α: resolve target device for the new load.
+            # Posted device_id (when the form is in aggregate mode) takes
+            # precedence over the session's current_device_id.
+            try:
+                _posted_did = request.form.get('device_id')
+                _form_device_id = int(_posted_did) if (_posted_did and _posted_did != '__all__') else None
+            except (ValueError, TypeError):
+                _form_device_id = None
+            from ..services.scope import get_current_user as _gcu
+            from ..models import AppDevice as _AppDeviceForLoad  # local import to avoid module-level coupling
+            AppDevice = _AppDeviceForLoad
+            _u_for_load = _gcu()
+            _aggregate_now = (session.get('current_device_id') == '__all__')
+            _session_did = session.get('current_device_id')
+            if isinstance(_session_did, str) and _session_did.isdigit():
+                _session_did = int(_session_did)
+            if _aggregate_now:
+                _target_device_id = _form_device_id
+            else:
+                _target_device_id = _form_device_id or (_session_did if isinstance(_session_did, int) else None)
+                if _target_device_id is None and _u_for_load and getattr(_u_for_load, 'preferred_device_id', None):
+                    _target_device_id = _u_for_load.preferred_device_id
+            # Validate ownership of the target device, if one was resolved.
+            if _target_device_id is not None and _u_for_load is not None:
+                _owned = AppDevice.query.filter_by(id=_target_device_id, owner_user_id=_u_for_load.id).first()
+                if _owned is None:
+                    _target_device_id = None
+            if _aggregate_now and _target_device_id is None:
+                # In aggregate mode the user must pick a device explicitly.
+                flash('اختر جهازاً قبل إضافة الحمل (أنت في وضع كل الأجهزة).', 'warning')
+                return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
             if name and power_w > 0:
-                db.session.add(UserLoad(name=name, power_w=power_w, priority=max(priority, 1), is_enabled=True))
+                # v33-α: the new UserLoad row carries device_id so future
+                # device-scoped reads do not leak loads across devices.
+                db.session.add(UserLoad(
+                    name=name,
+                    power_w=power_w,
+                    priority=max(priority, 1),
+                    is_enabled=True,
+                    user_id=getattr(_u_for_load, 'id', None),
+                    device_id=_target_device_id,
+                ))
                 db.session.commit()
                 flash('تمت إضافة الحمل بنجاح', 'success')
             else:

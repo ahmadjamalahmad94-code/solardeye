@@ -88,6 +88,19 @@ def get_current_device():
         if user is not None:
             is_admin = bool(getattr(user, 'is_active', True) and (getattr(user, 'is_admin', False) or getattr(user, 'role', '') == 'admin'))
             device_id = session.get('current_device_id')
+            # v33-α: aggregate token '__all__' must not be passed to AppDevice.query.
+            # When the user picks "all devices", we return None here so that
+            # current_scope_ids() yields (user_id, None) and scoped_query falls
+            # back to user-only filtering.
+            if isinstance(device_id, str) and device_id == '__all__':
+                return None
+            # Coerce numeric strings to int defensively (SQLite is lax but
+            # PostgreSQL raises DataError on string vs integer PK comparison).
+            if isinstance(device_id, str):
+                if device_id.isdigit():
+                    device_id = int(device_id)
+                else:
+                    device_id = None
             if device_id and not is_admin:
                 found = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id, is_active=True).first()
                 if found:

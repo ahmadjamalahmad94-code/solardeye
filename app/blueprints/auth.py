@@ -505,15 +505,29 @@ def protect_routes():
         if g.current_user is None and session.get('username'):
             g.current_user = AppUser.query.filter_by(username=session.get('username')).first()
         if session.get('current_device_id') and g.current_user is not None:
-            if _is_admin_like_user(g.current_user):
-                g.current_device = AppDevice.query.filter_by(id=session.get('current_device_id'), is_active=True).first()
+            _raw_did = session.get('current_device_id')
+            # v33-α: aggregate token '__all__' must not be passed to AppDevice.query.filter_by(id=...).
+            # Skip the device lookup; downstream code falls back to user-only scope.
+            if isinstance(_raw_did, str) and _raw_did == '__all__':
+                g.current_device = None
             else:
-                g.current_device = AppDevice.query.filter_by(
-                    id=session.get('current_device_id'),
-                    owner_user_id=g.current_user.id,
-                    is_active=True,
-                ).first()
-        if g.current_device is None and g.current_user is not None:
+                # Coerce numeric strings to int (PostgreSQL is strict about PK types).
+                if isinstance(_raw_did, str):
+                    _raw_did = int(_raw_did) if _raw_did.isdigit() else None
+                if _raw_did is not None:
+                    if _is_admin_like_user(g.current_user):
+                        g.current_device = AppDevice.query.filter_by(id=_raw_did, is_active=True).first()
+                    else:
+                        g.current_device = AppDevice.query.filter_by(
+                            id=_raw_did,
+                            owner_user_id=g.current_user.id,
+                            is_active=True,
+                        ).first()
+        # v33-α: in aggregate mode, deliberately leave g.current_device=None so
+        # downstream queries fall back to user-only scope. Do not auto-pick a
+        # device or overwrite the '__all__' token in session.
+        _is_aggregate = (session.get('current_device_id') == '__all__')
+        if g.current_device is None and g.current_user is not None and not _is_aggregate:
             g.current_device = AppDevice.query.filter_by(owner_user_id=g.current_user.id, is_active=True).order_by(AppDevice.id.asc()).first()
             if g.current_device:
                 session['current_device_id'] = g.current_device.id
@@ -545,22 +559,4 @@ def protect_routes():
                 g.mail_notification_count = 0
                 g.ticket_notification_count = 0
 
-    # Security: subscriber sessions must never render /admin/* pages, even if a notification contains an old admin URL.
-    if session.get('logged_in') and path.startswith('/admin') and (g.current_user is None or not g.is_admin):
-        flash('هذه الصفحة خاصة بالإدارة. تم تحويلك إلى بوابتك.', 'warning')
-        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
-
-    if not session.get('logged_in'):
-        wants_json = (
-            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-            or request.accept_mimetypes.best == 'application/json'
-            or path.startswith('/telegram/webhook')
-            or path.startswith('/telegram/multilink-webhook')
-        )
-        if wants_json:
-            return jsonify({
-                'ok': False,
-                'message': 'انتهت جلسة تسجيل الدخول. أعد تسجيل الدخول ثم جرّب مرة أخرى.'
-            }), 401
-        return redirect(url_for('auth.login'))
-
+    # Security: subscriber sessions must never render /admin/* pages, even if a notification conta

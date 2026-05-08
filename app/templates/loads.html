@@ -114,6 +114,22 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="action" value="add">
               <h3 class="lds-form-title">📱 {{ 'Add new appliance' if is_en else 'أضف جهازاً جديداً' }}</h3>
+              {# v33-α: target-device picker.
+                 In aggregate mode the user must pick a device; in normal
+                 mode we ride the session's current_device_id (hidden field
+                 sent only as a defensive bind — the route ALSO falls back
+                 to the session, so a missing field still works). #}
+              {% if aggregate_mode and user_devices and (user_devices|length > 1) %}
+                <label class="lds-field" data-v33a-aggregate-device>
+                  <span>⚠ {{ 'Pick a target device first' if is_en else 'اختر الجهاز المستهدف أولاً' }}</span>
+                  <select name="device_id" required>
+                    <option value="" disabled selected>{{ '— pick a device —' if is_en else '— اختر جهازاً —' }}</option>
+                    {% for d in user_devices %}<option value="{{ d.id }}">{{ d.name or '—' }}{% if d.api_provider %} · {{ d.api_provider }}{% endif %}</option>{% endfor %}
+                  </select>
+                </label>
+              {% else %}
+                {% if current_device_id %}<input type="hidden" name="device_id" value="{{ current_device_id }}">{% endif %}
+              {% endif %}
               <label class="lds-field">
                 <span>{{ 'Appliance name' if is_en else 'اسم الجهاز' }}</span>
                 <input type="text" name="name" required placeholder="{{ 'e.g. Fridge' if is_en else 'مثلاً: ثلاجة' }}">

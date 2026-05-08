@@ -584,6 +584,27 @@ def _sms_should_send(settings: dict, event_key: str, signature: str) -> bool:
 # NOTIFICATION LOG & DISPATCH  (~lines 565-605)
 # ═══════════════════════════════════════════════════════════════════════
 
+def _build_device_dedup_key(base_key: str, user_id: int | None, device_id: int | None) -> str:
+    """v33-α: append a device suffix to a notification dedup key so that
+    the same logical event firing on two different devices does NOT
+    suppress the second one.
+
+    The helper is a pure function, safe to call from any scope:
+    - When ``device_id`` is None (admin / global / unscoped runs), it
+      returns the base key unchanged — preserving the v32 behaviour
+      for any code path that still operates outside a device scope.
+    - When ``device_id`` is set, it returns ``"{base_key}::dev{N}"``.
+
+    The ``::devN`` suffix was chosen because it cannot occur in any
+    base key the codebase produces today (no existing key ends in
+    ``::dev<digits>``), so no migration is needed.
+    """
+    if not device_id:
+        return base_key
+    return f"{base_key}::dev{int(device_id)}"
+
+
+
 def notification_exists(event_key: str, minutes: int = 1440) -> bool:
     since = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
     return scoped_query(NotificationLog).filter(
@@ -610,6 +631,11 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
     channel_pref = (channel_pref or 'none').lower()
     if channel_pref in ('', 'none'):
         return
+    # v33-α: build a device-aware dedup key so the same event firing on
+    # two devices does not suppress one another. Falls back to the base
+    # key when no device is in scope (admin / global runs).
+    _user_id, _device_id = current_scope_ids()
+    event_key = _build_device_dedup_key(event_key, _user_id, _device_id)
     if dedupe_minutes > 0 and notification_exists(event_key, dedupe_minutes):
         return
     for channel in (['telegram', 'sms'] if channel_pref == 'both' else [channel_pref]):
