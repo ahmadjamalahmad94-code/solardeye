@@ -24,10 +24,16 @@
   {% include '_sidebar.html' %}
   <main class="app-main content-area lv-page sub-page sub-cool">
 
-    {# Persistent device switcher — renders nothing if 0 devices, soft banner for 1, full bar for 2+. #}
-    {% include '_device_switcher.html' %}
+    {# v33-β: Live Device Rail is the primary device switcher on /live-data
+       for users with 2+ devices. For 0/1 devices the rail self-suppresses,
+       so we still include the v32 single-device-banner partial as a
+       fallback in that case. The rail's <a href> chips supply the no-JS
+       fallback for multi-device users automatically. #}
+    {% if user_devices is defined and (user_devices|length <= 1) %}
+      {% include '_device_switcher.html' %}
+    {% endif %}
 
-    {# v33-β: Live Device Rail (renders only when 2+ devices). #}
+    {# Live Device Rail (renders only when 2+ devices). #}
     {% include '_live_fleet_rail.html' %}
 
     {# ════════ HERO ════════ #}

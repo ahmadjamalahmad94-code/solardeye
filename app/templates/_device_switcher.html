@@ -28,9 +28,16 @@
    3. user_devices_fallback (route-injected hot path for v32 pre-restart) #}
 {% set _devices = user_devices if user_devices is defined else (devices_list if devices_list is defined else (user_devices_fallback if user_devices_fallback is defined else [])) %}
 
-{# Resolve current device object (or None for aggregate / no devices). #}
-{% set _curr_dev = none %}
-{% for d in _devices %}{% if d.id == current_device_id %}{% set _curr_dev = d %}{% endif %}{% endfor %}
+{# Resolve current device object (or None for aggregate / no devices).
+   IMPORTANT: Jinja's `{% set %}` inside a `{% for %}` is loop-local — it does
+   not propagate to the outer scope. Without `namespace()`, _curr_dev would
+   always remain `none` after the loop, causing the "Currently viewing"
+   indicator to silently fall back to `_devices[0].name` regardless of which
+   device the user actually selected. Use a `namespace` so the assignment
+   is visible after the loop. #}
+{% set _curr_ns = namespace(d=none) %}
+{% for d in _devices %}{% if d.id == current_device_id %}{% set _curr_ns.d = d %}{% endif %}{% endfor %}
+{% set _curr_dev = _curr_ns.d %}
 
 {# Helper: pick an icon emoji for a device based on its name keywords. #}
 {% macro device_icon(dev) %}

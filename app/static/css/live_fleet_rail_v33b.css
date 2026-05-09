@@ -1,233 +1,457 @@
 /* ════════════════════════════════════════════════════════════════════
-   live_fleet_rail_v33b.css — v33-β Live Device Rail / Fleet Switcher
+   live_fleet_rail_v33b.css — v33-β Live Device Rail (v3 premium)
+
+   Header strip + horizontal one-row carousel of device cards. Soft
+   purple/indigo accent, airy spacing, thin borders, subtle shadows.
 
    * Scoped under .live-fleet-rail. Zero global overrides.
-   * Reuses tokens from unified_theme_v1.css (var(--u-line) etc).
-   * Mobile: horizontal scroll-snap strip.
-   * RTL-friendly: chips flow naturally with logical properties.
+   * Lives entirely in its own .lfr-* namespace.
    * Does NOT touch any flow-graph / d40-flow-* / dashboard hero / hu-hero
-     selectors. Lives entirely in its own .lfr-* namespace.
+     selectors.
 ═══════════════════════════════════════════════════════════════════════ */
 
 .live-fleet-rail {
-  /* Card container — matches v32 .sub-card cosmetic baseline */
+  --lfr-violet:        #7c3aed;
+  --lfr-violet-soft:   #a78bfa;
+  --lfr-violet-tint:   #f5f3ff;
+  --lfr-violet-edge:   #ddd6fe;
+  --lfr-bg:            #ffffff;
+  --lfr-card:          #ffffff;
+  --lfr-line:          #e5e7eb;
+  --lfr-line-strong:   #d1d5db;
+  --lfr-ink:           #0f172a;
+  --lfr-muted:         #64748b;
+  --lfr-muted-strong:  #475569;
+  --lfr-radius:        16px;
+  --lfr-radius-sm:     10px;
+  --lfr-shadow-sm:     0 1px 2px rgba(15,23,42,.04);
+  --lfr-shadow-md:     0 4px 14px rgba(15,23,42,.06);
+  --lfr-shadow-active: 0 6px 20px rgba(124,58,237,.18);
+
+  display: block;
+  position: relative;
+  margin: 0 0 16px;
+  padding: 16px 18px 14px;
+  background:
+    radial-gradient(900px 200px at 50% -20%, rgba(124,58,237,.04), transparent 60%),
+    var(--lfr-bg);
+  border: 1px solid var(--lfr-line);
+  border-radius: 18px;
+  box-shadow: var(--lfr-shadow-sm);
+  font-family: 'Cairo', 'Inter', system-ui, sans-serif;
+  color: var(--lfr-ink);
+}
+
+/* ── Header strip ────────────────────────────────────────────────── */
+.live-fleet-rail .lfr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 14px;
+  flex-wrap: wrap;
+}
+
+.live-fleet-rail .lfr-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.live-fleet-rail .lfr-title-icon {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: var(--lfr-violet);
+  border: 1px solid var(--lfr-violet-edge);
+}
+.live-fleet-rail .lfr-title-icon svg { width: 22px; height: 22px; }
+
+.live-fleet-rail .lfr-title-text { min-width: 0; }
+.live-fleet-rail .lfr-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--lfr-ink);
+  letter-spacing: -.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.25;
+}
+.live-fleet-rail .lfr-live-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16,185,129,.18);
+  animation: lfrLivePulse 2s ease-in-out infinite;
+}
+@keyframes lfrLivePulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  50%      { box-shadow: 0 0 0 6px rgba(16,185,129,.10); }
+}
+.live-fleet-rail .lfr-subtitle {
+  margin: 2px 0 0;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--lfr-muted);
+  line-height: 1.35;
+}
+
+.live-fleet-rail .lfr-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, .06);
-  font-family: 'Cairo', 'Inter', system-ui, sans-serif;
-  position: relative;
 }
 
-.live-fleet-rail .lfr-info {
-  flex-shrink: 0;
-  width: 28px; height: 28px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-  border-radius: 50%;
-  font-size: .9rem;
-  font-weight: 800;
-  cursor: help;
-  transition: background .15s ease, color .15s ease;
-}
-.live-fleet-rail .lfr-info:hover,
-.live-fleet-rail .lfr-info:focus-visible {
-  background: #fef3c7;
-  color: #b45309;
-  outline: none;
-}
-
-/* Track holds the chips. Scroll-snap on narrow viewports. */
-.live-fleet-rail .lfr-track {
-  display: flex;
-  gap: 8px;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  min-width: 0;
-}
-
-@media (max-width: 720px) {
-  .live-fleet-rail {
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
-  .live-fleet-rail .lfr-track {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    padding-bottom: 4px;
-  }
-  .live-fleet-rail .lfr-chip {
-    scroll-snap-align: start;
-    flex-shrink: 0;
-  }
-}
-
-/* ── Chip — base ─────────────────────────────────────────────────── */
-.live-fleet-rail .lfr-chip {
+/* ── All-Devices pill in the header ──────────────────────────────── */
+.live-fleet-rail .lfr-aggregate-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 8px 12px 8px 10px;
   border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  text-decoration: none;
-  color: #0f172a;
-  font-weight: 800;
+  background: var(--lfr-violet-tint);
+  border: 1px solid var(--lfr-violet-edge);
+  color: var(--lfr-violet);
+  font-weight: 700;
   font-size: .82rem;
-  min-height: 44px;
-  max-width: 240px;
-  position: relative;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease,
-              background .15s ease, border-color .15s ease;
+  text-decoration: none;
+  transition: all .15s ease;
 }
-.live-fleet-rail .lfr-chip:hover {
-  background: #fff;
-  border-color: #cbd5e1;
+[dir="rtl"] .live-fleet-rail .lfr-aggregate-pill { padding: 8px 10px 8px 12px; }
+.live-fleet-rail .lfr-aggregate-pill:hover {
+  background: #ede9fe;
+  border-color: var(--lfr-violet-soft);
+  text-decoration: none;
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, .08);
+}
+.live-fleet-rail .lfr-aggregate-pill:focus-visible {
+  outline: 2px solid var(--lfr-violet);
+  outline-offset: 2px;
+}
+.live-fleet-rail .lfr-aggregate-icon {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.live-fleet-rail .lfr-aggregate-icon svg { width: 14px; height: 14px; }
+.live-fleet-rail .lfr-aggregate-pill strong {
+  font-weight: 800;
+  color: #5b21b6;
+  letter-spacing: -.005em;
+  white-space: nowrap;
+}
+.live-fleet-rail .lfr-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 22px; padding: 0 8px;
+  border-radius: 999px;
+  background: var(--lfr-violet);
+  color: #ffffff;
+  font-size: .72rem;
+  font-weight: 800;
+  font-feature-settings: "tnum" 1;
+}
+
+.live-fleet-rail .lfr-aggregate-pill.is-active {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-color: var(--lfr-violet);
+  color: #4c1d95;
+  box-shadow: 0 0 0 4px rgba(124,58,237,.10), var(--lfr-shadow-md);
+}
+.live-fleet-rail .lfr-aggregate-pill.is-active strong { color: #4c1d95; }
+.live-fleet-rail .lfr-aggregate-pill.is-active .lfr-count-badge {
+  background: #4c1d95;
+}
+
+/* ── Help link ───────────────────────────────────────────────────── */
+.live-fleet-rail .lfr-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--lfr-muted-strong);
+  font-size: .76rem;
+  font-weight: 600;
+  cursor: help;
+  transition: background .15s ease, color .15s ease;
+  position: relative;
+}
+.live-fleet-rail .lfr-help:hover,
+.live-fleet-rail .lfr-help:focus-visible {
+  background: #f1f5f9;
+  color: var(--lfr-ink);
+  outline: none;
+}
+.live-fleet-rail .lfr-help-icon {
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.live-fleet-rail .lfr-help-icon svg { width: 16px; height: 16px; }
+
+/* ── Carousel wrapper (chevrons + track + progress) ─────────────── */
+.live-fleet-rail .lfr-rail-wrap {
+  position: relative;
+  display: block;
+}
+
+/* ── Chevron buttons ─────────────────────────────────────────────── */
+.live-fleet-rail .lfr-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(calc(-50% - 6px));
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #ffffff;
+  border: 1px solid var(--lfr-line);
+  border-radius: 50%;
+  color: var(--lfr-muted-strong);
+  cursor: pointer;
+  box-shadow: var(--lfr-shadow-sm);
+  transition: all .15s ease;
+}
+.live-fleet-rail .lfr-nav:hover {
+  border-color: var(--lfr-violet-soft);
+  color: var(--lfr-violet);
+  box-shadow: var(--lfr-shadow-md);
+}
+.live-fleet-rail .lfr-nav:focus-visible {
+  outline: 2px solid var(--lfr-violet);
+  outline-offset: 2px;
+}
+.live-fleet-rail .lfr-nav[disabled],
+.live-fleet-rail .lfr-nav.is-disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.live-fleet-rail .lfr-nav-prev { inset-inline-start: -4px; }
+.live-fleet-rail .lfr-nav-next { inset-inline-end: -4px; }
+.live-fleet-rail .lfr-nav svg { width: 14px; height: 14px; }
+/* In RTL the visual chevrons should still point inward; flip the SVG */
+[dir="rtl"] .live-fleet-rail .lfr-nav svg { transform: scaleX(-1); }
+
+/* Hidden by JS until track overflows */
+.live-fleet-rail .lfr-nav[hidden] { display: none !important; }
+
+/* ── Track (the scrolling row of cards) ──────────────────────────── */
+.live-fleet-rail .lfr-track {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline-start: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;            /* hide native scrollbar; we have a progress bar */
+  padding: 6px 4px 12px;            /* room for selected glow + badge */
+  /* room for chevron buttons */
+  margin-inline: 24px;
+  scroll-behavior: smooth;
+}
+.live-fleet-rail .lfr-track::-webkit-scrollbar { display: none; }
+
+/* ── Device card ─────────────────────────────────────────────────── */
+.live-fleet-rail .lfr-card {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  min-width: 168px;
+  max-width: 220px;
+  padding: 12px 14px;
+  background: var(--lfr-card);
+  border: 1px solid var(--lfr-line);
+  border-radius: var(--lfr-radius);
+  text-decoration: none;
+  color: var(--lfr-ink);
+  scroll-snap-align: start;
+  box-shadow: var(--lfr-shadow-sm);
+  transition: transform .18s ease, box-shadow .18s ease,
+              background .18s ease, border-color .18s ease;
+}
+.live-fleet-rail .lfr-card:hover {
+  border-color: var(--lfr-line-strong);
+  box-shadow: var(--lfr-shadow-md);
+  transform: translateY(-1px);
   text-decoration: none;
 }
-.live-fleet-rail .lfr-chip:focus-visible {
-  outline: 2px solid #f59e0b;
+.live-fleet-rail .lfr-card:focus-visible {
+  outline: 2px solid var(--lfr-violet);
   outline-offset: 2px;
 }
 
-.live-fleet-rail .lfr-chip-icon {
-  width: 28px; height: 28px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  font-size: 1rem;
+/* Card icon tile (left-visual side; in RTL flex naturally flips) */
+.live-fleet-rail .lfr-card-icon {
   flex-shrink: 0;
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border: 1px solid var(--lfr-violet-edge);
+  font-size: 1.4rem;
+  line-height: 1;
 }
-.live-fleet-rail .lfr-chip-text {
+
+/* Card body — name + meta */
+.live-fleet-rail .lfr-card-body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 4px;
   min-width: 0;
   flex: 1 1 auto;
 }
-.live-fleet-rail .lfr-chip-text strong {
-  font-size: .92rem;
-  font-weight: 900;
-  color: #0f172a;
+.live-fleet-rail .lfr-card-name {
+  font-size: .9rem;
+  font-weight: 800;
+  color: var(--lfr-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  line-height: 1.2;
+  letter-spacing: -.005em;
+  max-width: 140px;
 }
-.live-fleet-rail .lfr-chip-text small {
-  font-size: .72rem;
-  font-weight: 700;
-  color: #64748b;
+.live-fleet-rail .lfr-card-meta {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-size: .72rem;
+  color: var(--lfr-muted);
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+  overflow: hidden;
 }
+.live-fleet-rail .lfr-card-provider {
+  font-weight: 800;
+  color: var(--lfr-muted-strong);
+  font-size: .68rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.live-fleet-rail .lfr-card-soc {
+  font-weight: 800;
+  color: var(--lfr-ink);
+  font-size: .76rem;
+}
+.live-fleet-rail .lfr-card-battery-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--lfr-muted);
+  width: 14px; height: 14px;
+}
+.live-fleet-rail .lfr-card-battery-icon svg { width: 14px; height: 14px; }
 
-/* Status dot inside chip */
+/* ── Status dot inside meta ──────────────────────────────────────── */
 .live-fleet-rail .lfr-status-dot {
   display: inline-block;
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: #94a3b8;          /* default → unknown/disconnected gray */
   flex-shrink: 0;
+  margin-inline-start: 2px;
 }
-.live-fleet-rail .lfr-chip [data-fleet-chip-status="online"]  { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
-.live-fleet-rail .lfr-chip [data-fleet-chip-status="stale"]   { background: #f59e0b; }
-.live-fleet-rail .lfr-chip [data-fleet-chip-status="offline"] { background: #ef4444; }
+.live-fleet-rail .lfr-status-dot[data-fleet-chip-status="online"]  { background: #10b981; }
+.live-fleet-rail .lfr-status-dot[data-fleet-chip-status="stale"]   { background: #f59e0b; }
+.live-fleet-rail .lfr-status-dot[data-fleet-chip-status="offline"] { background: #ef4444; }
 
-/* Active chip — amber gradient (v32 brand accent) */
-.live-fleet-rail .lfr-chip.is-active {
-  background: linear-gradient(135deg, #ffcf4d, #f59e0b);
-  border-color: transparent;
-  color: #0b1531;
-  box-shadow: 0 8px 20px rgba(245, 158, 11, .28);
+/* ── Selected state — soft purple/indigo ─────────────────────────── */
+.live-fleet-rail .lfr-card.is-active {
+  background: var(--lfr-violet-tint);
+  border: 2px solid var(--lfr-violet);
+  /* compensate +1px border so the card height stays stable */
+  padding: 11px 13px;
+  box-shadow: 0 0 0 4px rgba(124,58,237,.10), var(--lfr-shadow-active);
 }
-.live-fleet-rail .lfr-chip.is-active .lfr-chip-icon {
-  background: rgba(255, 255, 255, .55);
-  border-color: rgba(255, 255, 255, .65);
+.live-fleet-rail .lfr-card.is-active .lfr-card-icon {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  border-color: var(--lfr-violet-soft);
 }
-.live-fleet-rail .lfr-chip.is-active .lfr-chip-text strong { color: #0b1531; }
-.live-fleet-rail .lfr-chip.is-active .lfr-chip-text small  { color: #b45309; }
+.live-fleet-rail .lfr-card.is-active .lfr-card-name { color: #2e1065; }
+.live-fleet-rail .lfr-card.is-active .lfr-card-meta { color: #6d28d9; }
+.live-fleet-rail .lfr-card.is-active .lfr-card-soc  { color: #4c1d95; }
 
-/* Aggregate ("All Devices") chip — violet accent when active */
-.live-fleet-rail .lfr-chip-aggregate.is-active {
-  background: linear-gradient(135deg, #a78bfa, #7c3aed);
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(124, 58, 237, .30);
-}
-.live-fleet-rail .lfr-chip-aggregate.is-active .lfr-chip-text strong { color: #ffffff; }
-.live-fleet-rail .lfr-chip-aggregate.is-active .lfr-chip-text small  { color: #ede9fe; }
-
-/* Disabled device chip */
-.live-fleet-rail .lfr-chip.is-disabled {
+/* ── Disabled / inactive devices ─────────────────────────────────── */
+.live-fleet-rail .lfr-card.is-disabled {
   opacity: .55;
   filter: grayscale(40%);
 }
 
-/* Alert badge */
-.live-fleet-rail .lfr-chip-alerts {
+/* ── Alert badge — top-end corner ────────────────────────────────── */
+.live-fleet-rail .lfr-card-alerts {
   position: absolute;
   top: -6px;
   inset-inline-end: -6px;
-  min-width: 18px; height: 18px;
-  padding: 0 5px;
+  min-width: 20px; height: 20px;
+  padding: 0 6px;
   border-radius: 999px;
   background: #ef4444;
   color: #ffffff;
-  font-size: .68rem;
-  font-weight: 900;
+  font-size: .66rem;
+  font-weight: 800;
+  font-feature-settings: "tnum" 1;
   display: inline-flex; align-items: center; justify-content: center;
   border: 2px solid #ffffff;
-  box-shadow: 0 4px 10px rgba(239, 68, 68, .35);
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(239,68,68,.30);
 }
-.live-fleet-rail .lfr-chip-alerts[hidden] { display: none !important; }
+.live-fleet-rail .lfr-card-alerts[hidden] { display: none !important; }
 
-/* ── Scope hint pill ─────────────────────────────────────────────── */
-.live-fleet-rail .lfr-scope-hint {
-  flex-shrink: 0;
-  margin-inline-start: auto;
-}
-.live-fleet-rail .lfr-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: .76rem;
-  font-weight: 800;
+/* ── Scroll progress bar ─────────────────────────────────────────── */
+.live-fleet-rail .lfr-progress {
+  position: relative;
+  margin: 4px auto 0;
+  width: 80px;
+  height: 4px;
   background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
 }
-.live-fleet-rail .lfr-pill.is-single {
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  color: #92400e;
-  border-color: #fcd34d;
+.live-fleet-rail .lfr-progress-bar {
+  display: block;
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, var(--lfr-violet-soft), var(--lfr-violet));
+  border-radius: 999px;
+  transition: width .25s ease;
 }
-.live-fleet-rail .lfr-pill.is-aggregate {
-  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
-  color: #5b21b6;
-  border-color: #c4b5fd;
+
+/* ── Skeleton state during AJAX swap ─────────────────────────────── */
+.live-fleet-rail.is-swapping .lfr-card:not(.is-pending),
+.live-fleet-rail.is-swapping .lfr-aggregate-pill:not(.is-pending) {
+  opacity: .65;
+  pointer-events: none;
 }
-.live-fleet-rail .lfr-pill b { font-weight: 950; }
+.live-fleet-rail .lfr-card.is-pending,
+.live-fleet-rail .lfr-aggregate-pill.is-pending {
+  position: relative;
+  overflow: hidden;
+}
+.live-fleet-rail .lfr-card.is-pending::after,
+.live-fleet-rail .lfr-aggregate-pill.is-pending::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,.10), transparent);
+  animation: lfrShimmer 1.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes lfrShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
 
 /* ── ARIA live region (visually hidden) ──────────────────────────── */
 .live-fleet-rail .lfr-sr-live {
@@ -239,37 +463,39 @@
   border: 0;
 }
 
-/* ── Skeleton state (during AJAX swap) ───────────────────────────── */
-.live-fleet-rail.is-swapping .lfr-chip:not(.is-pending) {
-  opacity: .7;
-  pointer-events: none;
-}
-.live-fleet-rail .lfr-chip.is-pending {
-  position: relative;
-}
-.live-fleet-rail .lfr-chip.is-pending::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-  animation: lfrShimmer 1.2s linear infinite;
-  pointer-events: none;
+/* ── Responsive: phones ──────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .live-fleet-rail {
+    padding: 12px 12px 10px;
+    border-radius: 14px;
+  }
+  .live-fleet-rail .lfr-header { gap: 10px; }
+  .live-fleet-rail .lfr-title-icon { width: 36px; height: 36px; }
+  .live-fleet-rail .lfr-title { font-size: 1rem; }
+  .live-fleet-rail .lfr-subtitle { font-size: .72rem; }
+  .live-fleet-rail .lfr-help-text { display: none; }
+  .live-fleet-rail .lfr-track { margin-inline: 0; padding: 6px 2px 12px; }
+  .live-fleet-rail .lfr-nav { display: none; }
+  .live-fleet-rail .lfr-card { min-width: 156px; max-width: 200px; min-height: 72px; }
+  .live-fleet-rail .lfr-card-icon { width: 40px; height: 40px; font-size: 1.25rem; }
 }
 
-@keyframes lfrShimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+/* Tablet: chevrons present but slightly smaller */
+@media (max-width: 1024px) and (min-width: 721px) {
+  .live-fleet-rail .lfr-track { margin-inline: 22px; }
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .live-fleet-rail .lfr-chip:hover { transform: none; }
-  .live-fleet-rail .lfr-chip.is-pending::after { animation: none; }
+  .live-fleet-rail .lfr-card:hover { transform: none; }
+  .live-fleet-rail .lfr-aggregate-pill:hover { transform: none; }
+  .live-fleet-rail .lfr-live-dot { animation: none; }
+  .live-fleet-rail .lfr-card.is-pending::after,
+  .live-fleet-rail .lfr-aggregate-pill.is-pending::after { animation: none; }
+  .live-fleet-rail .lfr-track { scroll-behavior: auto; }
 }
 
-/* ── Print: hide the rail (subscriber pages already strip
-       interactive chrome on print via unified_theme_v1.css) ───────── */
+/* ── Print: hide the rail ────────────────────────────────────────── */
 @media print {
   .live-fleet-rail { display: none !important; }
 }

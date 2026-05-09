@@ -1459,15 +1459,68 @@ def loads_page():
     simulate_max_w = safe_float(raw_sim, saved_night_max_w)
     simulation = _manual_load_planner(latest, simulate_max_w, weather=weather, now_local=now_local) if simulate_max_w > 0 else None
 
+    # v33-γ: resolve the selected device for read AND mutation paths.
+    # Aggregate mode (`session['current_device_id'] == '__all__'`) means
+    # show/affect every device the user owns. Single-device mode resolves
+    # to a concrete device id with the SAME fallback chain the canonical
+    # _device_context_payload uses, so the loads filter and the page's
+    # "Currently viewing" header can never disagree:
+    #   1) session['current_device_id']
+    #   2) user.preferred_device_id (if it's still owned)
+    #   3) user's first owned AppDevice (active first, then by id)
+    # If all three fail (user owns ZERO devices), returns (False, None) and
+    # the GET filter falls back to user-id-only — but the add path will
+    # already have refused the save, so this is just defensive.
+    def _loads_current_scope(active_user):
+        """Return (aggregate_bool, current_device_id_or_None) for this request."""
+        raw = session.get('current_device_id')
+        if raw == '__all__':
+            return True, None
+        did = None
+        if isinstance(raw, int):
+            did = raw
+        elif isinstance(raw, str) and raw.isdigit():
+            did = int(raw)
+        if active_user is not None:
+            try:
+                from ..models import AppDevice as _AD
+                _owned = (_AD.query
+                          .filter_by(owner_user_id=active_user.id)
+                          .order_by(_AD.is_active.desc(), _AD.id.asc())
+                          .all())
+                # Validate the session value points to a device this user owns
+                if did is not None and not any(d.id == did for d in _owned):
+                    did = None
+                # Fallback chain
+                if did is None and getattr(active_user, 'preferred_device_id', None):
+                    if any(d.id == active_user.preferred_device_id for d in _owned):
+                        did = active_user.preferred_device_id
+                if did is None and _owned:
+                    did = _owned[0].id
+            except Exception:
+                pass
+        return False, did
+
     if request.method == 'POST':
         action = (request.form.get('action') or 'add').strip()
         if action == 'add':
             name = (request.form.get('name') or '').strip()
             power_w = safe_float(request.form.get('power_w'), 0)
             priority = int(safe_float(request.form.get('priority'), 1) or 1)
-            # v33-α: resolve target device for the new load.
-            # Posted device_id (when the form is in aggregate mode) takes
-            # precedence over the session's current_device_id.
+            # v33-γ Bug #1b: resolve a real device_id for every new load.
+            # If we cannot resolve one, REFUSE THE SAVE rather than writing
+            # device_id=NULL — NULL rows used to leak across every device.
+            #
+            # Resolution order in single-device mode:
+            #   1) Posted form device_id (the hidden field rendered by the
+            #      template from current_device_id).
+            #   2) session['current_device_id'] (covers the case where the
+            #      template's current_device_id was None for some reason).
+            #   3) user.preferred_device_id.
+            #   4) The user's first active AppDevice (last-resort hard
+            #      backstop so we never silently produce a NULL row).
+            # In aggregate mode only the posted device_id is honoured —
+            # the user must explicitly pick a target.
             try:
                 _posted_did = request.form.get('device_id')
                 _form_device_id = int(_posted_did) if (_posted_did and _posted_did != '__all__') else None
@@ -1478,15 +1531,20 @@ def loads_page():
             AppDevice = _AppDeviceForLoad
             _u_for_load = _gcu()
             _aggregate_now = (session.get('current_device_id') == '__all__')
-            _session_did = session.get('current_device_id')
-            if isinstance(_session_did, str) and _session_did.isdigit():
-                _session_did = int(_session_did)
+            _agg_resolved, _curr_did_resolved = _loads_current_scope(_u_for_load)
             if _aggregate_now:
                 _target_device_id = _form_device_id
             else:
-                _target_device_id = _form_device_id or (_session_did if isinstance(_session_did, int) else None)
-                if _target_device_id is None and _u_for_load and getattr(_u_for_load, 'preferred_device_id', None):
-                    _target_device_id = _u_for_load.preferred_device_id
+                _target_device_id = _form_device_id or _curr_did_resolved
+                # Hard backstop: pick the user's first active device so we
+                # never write device_id=NULL on a normal single-device add.
+                if _target_device_id is None and _u_for_load is not None:
+                    _first_active = (AppDevice.query
+                                     .filter_by(owner_user_id=_u_for_load.id, is_active=True)
+                                     .order_by(AppDevice.id.asc())
+                                     .first())
+                    if _first_active is not None:
+                        _target_device_id = _first_active.id
             # Validate ownership of the target device, if one was resolved.
             if _target_device_id is not None and _u_for_load is not None:
                 _owned = AppDevice.query.filter_by(id=_target_device_id, owner_user_id=_u_for_load.id).first()
@@ -1496,9 +1554,16 @@ def loads_page():
                 # In aggregate mode the user must pick a device explicitly.
                 flash('اختر جهازاً قبل إضافة الحمل (أنت في وضع كل الأجهزة).', 'warning')
                 return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
+            # v33-γ Bug #1b: even in single-device mode, refuse the save
+            # if every resolution path failed (e.g. user owns no devices).
+            # This prevents creating a NULL device_id row that would leak
+            # to every future device.
+            if (not _aggregate_now) and _target_device_id is None:
+                flash('تعذّر تحديد الجهاز المستهدف للحمل. الرجاء اختيار جهاز نشط من شريط الأجهزة ثم المحاولة مجددًا.', 'warning')
+                return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
             if name and power_w > 0:
-                # v33-α: the new UserLoad row carries device_id so future
-                # device-scoped reads do not leak loads across devices.
+                # v33-γ: the new UserLoad row ALWAYS carries device_id so
+                # future device-scoped reads cannot leak across devices.
                 db.session.add(UserLoad(
                     name=name,
                     power_w=power_w,
@@ -1513,18 +1578,56 @@ def loads_page():
                 flash('أدخل اسم الجهاز والقدرة بشكل صحيح', 'warning')
             return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
         elif action == 'toggle':
-            row = UserLoad.query.get(int(request.form.get('load_id') or 0))
+            # v33-γ Bug #2 fix: enforce ownership AND device scope on mutation.
+            # The previous implementation used UserLoad.query.get(id) which
+            # would happily mutate a row regardless of who owns it or which
+            # device it belongs to (an IDOR risk if the form was crafted).
+            from ..services.scope import get_current_user as _gcu_toggle
+            _u_toggle = _gcu_toggle()
+            try:
+                _load_id = int(request.form.get('load_id') or 0)
+            except (TypeError, ValueError):
+                _load_id = 0
+            row = None
+            if _u_toggle is not None and _load_id > 0:
+                _q = UserLoad.query.filter_by(id=_load_id, user_id=_u_toggle.id)
+                _agg_t, _curr_did_t = _loads_current_scope(_u_toggle)
+                if (not _agg_t) and (_curr_did_t is not None):
+                    # v33-γ Bug #1c: strict device match — NULL device_id
+                    # rows are not toggleable from a specific-device view.
+                    _q = _q.filter(UserLoad.device_id == _curr_did_t)
+                row = _q.first()
             if row:
                 row.is_enabled = not row.is_enabled
                 db.session.commit()
                 flash('تم تحديث حالة الحمل', 'success')
+            else:
+                flash('تعذّر تحديث الحمل (غير موجود أو لا يخصّك)', 'warning')
             return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
         elif action == 'delete':
-            row = UserLoad.query.get(int(request.form.get('load_id') or 0))
+            # v33-γ Bug #2 fix: same ownership/device-scope guard as toggle.
+            from ..services.scope import get_current_user as _gcu_delete
+            _u_delete = _gcu_delete()
+            try:
+                _load_id = int(request.form.get('load_id') or 0)
+            except (TypeError, ValueError):
+                _load_id = 0
+            row = None
+            if _u_delete is not None and _load_id > 0:
+                _q = UserLoad.query.filter_by(id=_load_id, user_id=_u_delete.id)
+                _agg_d, _curr_did_d = _loads_current_scope(_u_delete)
+                if (not _agg_d) and (_curr_did_d is not None):
+                    # v33-γ Bug #1c: strict device match — NULL device_id
+                    # rows are not deletable from a specific-device view
+                    # (they show only in aggregate mode).
+                    _q = _q.filter(UserLoad.device_id == _curr_did_d)
+                row = _q.first()
             if row:
                 db.session.delete(row)
                 db.session.commit()
                 flash('تم حذف الحمل', 'success')
+            else:
+                flash('تعذّر حذف الحمل (غير موجود أو لا يخصّك)', 'warning')
             return redirect(url_for('main.loads_page', lang=_lang(), simulate_max_w=int(simulate_max_w or 0) if simulate_max_w > 0 else None))
         elif action == 'save_night_limit':
             save_value = safe_float(request.form.get('night_max_w'), 0)
@@ -1542,10 +1645,31 @@ def loads_page():
     # GET — render the loads page.
     user = _active_user() if '_active_user' in globals() else None
     user_id = getattr(user, 'id', None)
+    # v33-γ Bug #1c: filter UserLoad rows STRICTLY by the currently-selected
+    # device. NULL device_id rows (legacy entries created before v33-α and
+    # any rows that escaped the v33-γ Bug #1b add-path before today's fix)
+    # were previously OR'd in here and caused cross-device leakage — every
+    # device saw every NULL row. They are now hidden in single-device mode.
+    # Aggregate mode (`__all__`) still shows everything so the user can
+    # discover and migrate or delete legacy NULL rows.
+    _agg_for_loads, _curr_did_for_loads = _loads_current_scope(user)
     loads = UserLoad.query
     if user_id is not None:
-        loads = loads.filter((UserLoad.user_id == user_id) | (UserLoad.user_id.is_(None)))
+        loads = loads.filter(UserLoad.user_id == user_id)
+    if (not _agg_for_loads) and (_curr_did_for_loads is not None):
+        loads = loads.filter(UserLoad.device_id == _curr_did_for_loads)
     loads = loads.order_by(UserLoad.priority.asc(), UserLoad.id.asc()).all()
+    # v33-γ: one-line diagnostic so we can SEE in the Flask log what the
+    # filter resolved to. Cheap, single line, no PII. Remove later if
+    # noise becomes a concern.
+    try:
+        current_app.logger.info(
+            '[v33-γ /loads] user=%s aggregate=%s current_device_id=%s rows=%d ids=%s device_ids=%s',
+            user_id, _agg_for_loads, _curr_did_for_loads, len(loads),
+            [r.id for r in loads], [r.device_id for r in loads],
+        )
+    except Exception:
+        pass
 
     # v32: pass multi-device switcher payload directly so the partial works
     # without waiting for the global context_processor to reload.

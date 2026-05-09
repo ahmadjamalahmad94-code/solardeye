@@ -429,11 +429,16 @@ def _get_setting_value(key: str, default: str = '') -> str:
 
 
 def _save_setting_value(key: str, value: str):
+    """Upsert a Setting row. v33-γ: now commits unconditionally. The previous
+    implementation silently lost writes when callers (e.g. the /loads
+    save_night_limit branch) didn't commit afterward themselves — that bug
+    caused 'الحد الأقصى للأحمال ليلاً' to never persist."""
     row = Setting.query.filter_by(key=key).first()
     if row:
         row.value = value
     else:
         db.session.add(Setting(key=key, value=value))
+    db.session.commit()
 
 
 def _load_suggestion_mode(now_local, weather=None, latest=None, settings=None):

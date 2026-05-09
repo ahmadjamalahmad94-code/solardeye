@@ -9,8 +9,13 @@
 {% for d in devices_list %}{% if d.is_active %}{% set _ns.active = _ns.active + 1 %}{% endif %}{% endfor %}
 {% set active_count = _ns.active %}
 {% set disabled_count = (devices_list|length) - active_count %}
-{% set current_dev = none %}
-{% for d in devices_list %}{% if d.id == current_device_id %}{% set current_dev = d %}{% endif %}{% endfor %}
+{# Jinja for-loop scope: `{% set %}` inside `{% for %}` is loop-local. Use
+   namespace() so the assignment survives the loop. Without this fix the
+   page would always render data for devices_list[0] regardless of which
+   device the user actually selected. #}
+{% set _curr_ns = namespace(d=none) %}
+{% for d in devices_list %}{% if d.id == current_device_id %}{% set _curr_ns.d = d %}{% endif %}{% endfor %}
+{% set current_dev = _curr_ns.d %}
 {% if not current_dev and devices_list %}{% set current_dev = devices_list[0] %}{% endif %}
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
