@@ -461,6 +461,178 @@ def reports():
 # ═══════════════════════════════════════════════════════════════════════
 # CSV/PDF EXPORTS
 # ═══════════════════════════════════════════════════════════════════════
+# ─── v33-γ HOTFIX: HTTP-safe Content-Disposition builder ──────────────
+# HTTP/1.1 requires header values to be ISO-8859-1 (latin-1). Putting raw
+# UTF-8 (Arabic) in `filename=...` causes Werkzeug.send_header() to raise
+# UnicodeEncodeError. This helper emits a safe ASCII `filename=...` and,
+# when an Arabic display name is provided, an additional RFC 5987
+# `filename*=UTF-8''<percent-encoded>` so modern browsers show the
+# pretty unicode name during download.
+def _content_disposition(ascii_filename: str, unicode_display: str | None = None) -> str:
+    from urllib.parse import quote
+    # Strip anything outside printable ASCII from the safe filename.
+    safe_ascii = ''.join(ch if 32 < ord(ch) < 127 and ch not in '"\\' else '_'
+                         for ch in (ascii_filename or 'download.bin'))
+    parts = [f'attachment; filename="{safe_ascii}"']
+    if unicode_display and unicode_display != safe_ascii:
+        # quote() with safe='' percent-escapes everything non-ASCII.
+        parts.append(f"filename*=UTF-8''{quote(unicode_display, safe='')}")
+    return '; '.join(parts)
+
+
+# ─── v33-γ Reports: shared period + device/scope resolver ─────────────
+# Both CSV and PDF exports use this so the file header always matches the
+# data range AND clearly identifies which device (or aggregate) the report
+# belongs to. Keeps the per-export code surgical.
+def _report_period_and_scope(selected_view, selected_date, filtered_rows, tz_name):
+    """Resolve the *real* period boundaries (from selected_view+selected_date,
+    cross-checked with filtered_rows when present) and the device/aggregate
+    scope. Returns a dict with period_start, period_end, period_label_ar,
+    aggregate (bool), device (AppDevice | None), device_count (int),
+    scope_label_ar (str), safe_filename_token (str)."""
+    from datetime import timedelta as _td
+    # Compute the canonical view-derived [start, end) range.
+    if selected_view == 'day':
+        period_start = selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        period_end = period_start + _td(days=1)
+    elif selected_view == 'week':
+        days_since_sat = (selected_date.weekday() - 5) % 7
+        period_start = (selected_date - _td(days=days_since_sat)).replace(hour=0, minute=0, second=0, microsecond=0)
+        period_end = period_start + _td(days=7)
+    else:                           # month
+        period_start = selected_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        period_end = (period_start + _td(days=32)).replace(day=1)
+    # Pretty Arabic label that matches the actual range
+    fmt = '%Y-%m-%d'
+    if selected_view == 'day':
+        period_label_ar = f'يوم {period_start.strftime(fmt)}'
+    elif selected_view == 'week':
+        last = (period_end - _td(days=1)).strftime(fmt)
+        period_label_ar = f'أسبوع: من {period_start.strftime(fmt)} إلى {last}'
+    else:
+        last = (period_end - _td(days=1)).strftime(fmt)
+        period_label_ar = f'شهر: من {period_start.strftime(fmt)} إلى {last}'
+
+    # Resolve device / aggregate scope using the SAME rules /loads uses.
+    # v33-γ HOTFIX-2: expose discrete fields (device_name / device_provider /
+    # device_timezone / device_names list) so the PDF can render each on its
+    # own line. Reason: when label+value+separator (`•`, `:`) all live in one
+    # Arabic-shaped string, arabic_reshaper + python-bidi reorder bidi-neutral
+    # punctuation around LTR fragments (provider names, timezones) and the LTR
+    # values disappear or get pushed off-canvas. Drawing each label/value pair
+    # with its own draw_text() (each shaped independently) avoids that entirely.
+    aggregate = False
+    device = None
+    device_count = 0
+    device_names: list[str] = []
+    device_name_value = ''
+    device_provider_value = ''
+    device_timezone_value = ''
+    scope_label_ar = ''
+    safe_filename_token = ''
+    NA_PROVIDER = 'غير محدد'
+    NA_TIMEZONE = 'غير محددة'
+    try:
+        from ..services.scope import get_current_user as _gcu, is_admin_scope as _ias
+        from ..models import AppDevice as _AD
+        if not _ias():
+            _u = _gcu()
+            try:
+                from flask import session as _sess
+                raw = _sess.get('current_device_id')
+            except Exception:
+                raw = None
+            if raw == '__all__':
+                aggregate = True
+                if _u is not None:
+                    _devs = (_AD.query
+                             .filter_by(owner_user_id=_u.id, is_active=True)
+                             .order_by(_AD.id.asc())
+                             .all())
+                    device_count = len(_devs)
+                    device_names = [(d.name or f'#{d.id}') for d in _devs]
+                scope_label_ar = f'النطاق: كل الأجهزة ({device_count})'
+                safe_filename_token = 'all_devices'
+            else:
+                did = None
+                if isinstance(raw, int):
+                    did = raw
+                elif isinstance(raw, str) and raw.isdigit():
+                    did = int(raw)
+                if _u is not None:
+                    if did is not None:
+                        device = _AD.query.filter_by(id=did, owner_user_id=_u.id).first()
+                    if device is None and getattr(_u, 'preferred_device_id', None):
+                        device = _AD.query.filter_by(id=_u.preferred_device_id, owner_user_id=_u.id).first()
+                    if device is None:
+                        device = (_AD.query
+                                  .filter_by(owner_user_id=_u.id)
+                                  .order_by(_AD.is_active.desc(), _AD.id.asc())
+                                  .first())
+                if device is not None:
+                    device_name_value = (device.name or '—').strip()
+                    # v33-γ HOTFIX-5: deeper provider fallback. The schema
+                    # uses `api_provider` (NOT NULL default 'deye'), but be
+                    # defensive — also try `provider` / `provider_slug` if
+                    # they exist on some other model variant, then peek into
+                    # settings_json (some onboarding flows nest it there).
+                    raw_provider = (
+                        (getattr(device, 'api_provider', None) or '').strip()
+                        or (getattr(device, 'provider', None) or '').strip()
+                        or (getattr(device, 'provider_slug', None) or '').strip()
+                    )
+                    raw_timezone = (getattr(device, 'timezone', None) or '').strip()
+                    if not raw_provider or not raw_timezone:
+                        # Last-resort: parse settings_json for either value
+                        try:
+                            import json as _json
+                            sj = device.settings_json
+                            if sj:
+                                _settings = _json.loads(sj) if isinstance(sj, str) else sj
+                                if not raw_provider:
+                                    raw_provider = (str(_settings.get('provider', '')
+                                                        or _settings.get('api_provider', '')) or '').strip()
+                                if not raw_timezone:
+                                    raw_timezone = (str(_settings.get('regionTimezone', '')
+                                                        or _settings.get('timezone', '')) or '').strip()
+                        except Exception:
+                            pass
+                    device_provider_value = raw_provider or NA_PROVIDER
+                    device_timezone_value = raw_timezone or NA_TIMEZONE
+                    # Concatenated label kept ONLY for CSV / non-PDF callers
+                    # that want a one-liner; PDF code uses the discrete
+                    # fields below to avoid the bidi-reorder bug.
+                    scope_label_ar = (
+                        f'الجهاز: {device_name_value} • '
+                        f'المزوّد: {device_provider_value} • '
+                        f'المنطقة الزمنية: {device_timezone_value}'
+                    )
+                    # ASCII-only filename token (Arabic in `filename=` crashes
+                    # Werkzeug at send_header — see _content_disposition).
+                    safe_filename_token = f'device_{device.id}'
+                else:
+                    scope_label_ar = 'النطاق: لا يوجد جهاز'
+                    safe_filename_token = 'no_device'
+    except Exception:
+        # Never break the export over scope resolution
+        pass
+
+    return {
+        'period_start': period_start,
+        'period_end': period_end,
+        'period_label_ar': period_label_ar,
+        'aggregate': aggregate,
+        'device': device,
+        'device_count': device_count,
+        'device_names': device_names,            # list[str], used by aggregate PDF/CSV
+        'device_name_value': device_name_value,   # discrete fields — drawn line-by-line in PDF
+        'device_provider_value': device_provider_value,
+        'device_timezone_value': device_timezone_value,
+        'scope_label_ar': scope_label_ar,         # one-liner kept for CSV one-cell display
+        'safe_filename_token': safe_filename_token,
+    }
+
+
 @energy_bp.route('/statistics/export/csv')
 def export_statistics_csv():
     tz_name = current_app.config['LOCAL_TIMEZONE']
@@ -468,9 +640,27 @@ def export_statistics_csv():
     stats = compute_energy_stats(filtered_rows)
     table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
 
+    # v33-γ: real period range + device/scope label so the CSV self-identifies.
+    _meta = _report_period_and_scope(selected_view, selected_date, filtered_rows, tz_name)
+
     sio = io.StringIO()
     writer = csv.writer(sio)
+    # v33-γ HOTFIX-2: self-identifying header block — one row PER field so
+    # spreadsheet apps (LibreOffice, Excel) show each label/value cleanly.
     writer.writerow(['النطاق', title_hint])
+    writer.writerow(['الفترة', _meta['period_label_ar']])
+    if _meta.get('aggregate'):
+        writer.writerow(['النطاق', 'كل الأجهزة'])
+        writer.writerow(['عدد الأجهزة', _meta.get('device_count', 0)])
+        if _meta.get('device_names'):
+            writer.writerow(['الأجهزة المشمولة', '، '.join(_meta['device_names'])])
+    elif _meta.get('device') is not None:
+        writer.writerow(['النطاق', 'جهاز محدد'])
+        writer.writerow(['الجهاز', _meta.get('device_name_value', '—')])
+        writer.writerow(['المزوّد', _meta.get('device_provider_value', 'غير محدد')])
+        writer.writerow(['المنطقة الزمنية', _meta.get('device_timezone_value', 'غير محددة')])
+    else:
+        writer.writerow(['النطاق', 'لا يوجد جهاز'])
     writer.writerow([])
     writer.writerow(['المؤشر', 'القيمة'])
     for label, key in [
@@ -487,8 +677,19 @@ def export_statistics_csv():
                          row['solar_to_home_kwh'], row['solar_to_battery_kwh'],
                          row['battery_to_home_kwh'], row['grid_to_home_kwh'], row['avg_battery_soc']])
     output = sio.getvalue().encode('utf-8-sig')
-    filename = f"statistics_{selected_view}_{selected_date.strftime('%Y-%m-%d')}.csv"
-    return Response(output, mimetype='text/csv; charset=utf-8', headers={'Content-Disposition': f'attachment; filename={filename}'})
+    # v33-γ: device-aware filename. ASCII-only `filename=` to satisfy
+    # HTTP/1.1 latin-1 header rule; readable Arabic name (when present)
+    # is added via RFC 5987 `filename*=UTF-8''…` so browsers can show it.
+    _scope_token = _meta['safe_filename_token'] or 'scope'
+    _date_str = selected_date.strftime('%Y-%m-%d')   # always YYYY-MM-DD, no junk
+    ascii_filename = f"statistics_{_scope_token}_{selected_view}_{_date_str}.csv"
+    unicode_display = None
+    if _meta.get('device') is not None and getattr(_meta['device'], 'name', None):
+        unicode_display = f"statistics_{_meta['device'].name}_{selected_view}_{_date_str}.csv"
+    elif _meta.get('aggregate'):
+        unicode_display = f"statistics_كل_الأجهزة_{selected_view}_{_date_str}.csv"
+    return Response(output, mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': _content_disposition(ascii_filename, unicode_display)})
 
 
 @energy_bp.route('/statistics/export/pdf')
@@ -505,6 +706,8 @@ def export_statistics_pdf():
     stats = compute_energy_stats(filtered_rows)
     table_rows = build_statistics_table(filtered_rows, tz_name, selected_view)
     chart = build_period_chart(filtered_rows, tz_name, selected_view)
+    # v33-γ: real period range + device/scope label so the PDF self-identifies.
+    _meta = _report_period_and_scope(selected_view, selected_date, filtered_rows, tz_name)
 
     # ── Arabic shaping (UNTOUCHED) ─────────────────────────────────────────
     def ar(text):
@@ -899,10 +1102,9 @@ def export_statistics_pdf():
 
         # title (right-aligned)
         draw_text('تقرير منصة الطاقة الشمسية', x + w, y - 60, font_bold, 22, INK, align='right')
-        # subtitle / date range
-        date_str = selected_date.strftime('%Y-%m-%d')
-        # date pill
-        sub_text = f'الفترة: يوم {date_str}   إلى التاريخ {date_str}'
+        # v33-γ: real period range — was hardcoded "يوم {today} إلى التاريخ {today}"
+        # which lied for week/month views and didn't reflect the actual data.
+        sub_text = f'الفترة: {_meta["period_label_ar"]}'
         c.setFont(font_name, 9.5)
         sub_w = c.stringWidth(ar(sub_text), font_name, 9.5)
         sub_x = x + w - sub_w - 24
@@ -914,6 +1116,82 @@ def export_statistics_pdf():
         c.rect(x + w - 14, sub_y + 7, 8, 1.5, stroke=0, fill=1)
         c.rect(x + w - 14, sub_y + 1, 8, 5, stroke=0, fill=1)
         draw_text(sub_text, x + w - 22, sub_y + 1, font_name, 9.5, INK_SOFT, align='right')
+
+        # v33-γ HOTFIX-2: scope metadata block, ONE label/value pair per line.
+        # Drawing each row separately (each shaped via ar() in isolation)
+        # avoids the bidi-reorder bug we hit when label + LTR value (DEYE,
+        # Asia/Hebron) + neutral separators (`•`, `:`) all lived in a single
+        # arabic_reshaper-produced string. Each row is its own draw_text call.
+        scope_rows = []
+        if _meta.get('aggregate'):
+            scope_rows.append(('النطاق', f"كل الأجهزة ({_meta.get('device_count', 0)})", 'aggregate'))
+            _names = _meta.get('device_names') or []
+            if _names:
+                # Cap displayed list at ~4 names; the rest live in the table.
+                shown = _names[:4]
+                tail = '، …' if len(_names) > 4 else ''
+                scope_rows.append(('الأجهزة', '، '.join(shown) + tail, 'aggregate'))
+        elif _meta.get('device') is not None:
+            scope_rows.append(('النطاق', 'جهاز محدد', 'device'))
+            scope_rows.append(('الجهاز', _meta.get('device_name_value', '—'), 'device'))
+            scope_rows.append(('المزوّد', _meta.get('device_provider_value', 'غير محدد'), 'device'))
+            scope_rows.append(('المنطقة الزمنية', _meta.get('device_timezone_value', 'غير محددة'), 'device'))
+        else:
+            scope_rows.append(('النطاق', 'لا يوجد جهاز', 'device'))
+
+        if scope_rows:
+            # v33-γ HOTFIX-4: slightly larger rows + wider value zone so
+            # device name / provider / timezone are all clearly legible.
+            row_h = 15
+            block_pad = 8
+            block_h = len(scope_rows) * row_h + block_pad * 2
+            block_w = 320  # wider — fits long device names and timezone strings
+            block_x = x + w - block_w
+            block_y = sub_y - 10 - block_h
+            kind = scope_rows[0][2]
+            if kind == 'aggregate':
+                bg, fg_label, fg_value = '#ede9fe', '#5b21b6', '#1e1b4b'
+            else:
+                bg, fg_label, fg_value = '#fef3c7', '#92400e', '#0b1531'
+            c.setFillColor(hex_color(bg))
+            c.setStrokeColor(hex_color('#e5e7eb'))
+            c.setLineWidth(0.6)
+            c.roundRect(block_x, block_y, block_w, block_h, 8, stroke=1, fill=1)
+
+            # Each label/value row, drawn line-by-line. RTL: label on the
+            # right edge, value flush-left of the label. Both right-aligned
+            # within their OWN zone so Arabic shaping stays predictable.
+            #
+            # v33-γ HOTFIX-5: ASCII values (e.g. "DEYE", "Asia/Hebron") are
+            # rendered with Helvetica — a PDF Standard built-in font that
+            # ALWAYS has Latin glyphs. The registered Arabic font (Noto /
+            # Amiri) frequently lacks Latin glyphs on the deployed server,
+            # so c.drawRightString(...) produced empty output for "DEYE" and
+            # the timezone string. Arabic values still use the Arabic font.
+            def _is_ascii_value(s):
+                try:
+                    str(s).encode('ascii'); return True
+                except UnicodeEncodeError:
+                    return False
+            label_right = block_x + block_w - 12
+            value_right = block_x + block_w - 130    # ~118pt for value zone
+            row_y0 = block_y + block_h - block_pad - row_h + 4
+            for i, (lbl, val, _kind) in enumerate(scope_rows):
+                ry = row_y0 - i * row_h
+                # Label (Arabic, bold, right-aligned)
+                c.setFont(font_bold, 8.6)
+                c.setFillColor(hex_color(fg_label))
+                c.drawRightString(label_right, ry, ar(f'{lbl}:'))
+                # Value: choose font + skip ar() for ASCII so we don't run
+                # Latin text through Arabic shaping AND we get usable glyphs.
+                val_str = '' if val is None else str(val)
+                c.setFillColor(hex_color(fg_value))
+                if _is_ascii_value(val_str):
+                    c.setFont('Helvetica', 8.6)
+                    c.drawRightString(value_right, ry, val_str)
+                else:
+                    c.setFont(font_name, 8.6)
+                    c.drawRightString(value_right, ry, ar(val_str))
 
     # ────────────── Energy flow card ──────────────
     def draw_energy_flow_card(x, y, w, h):
@@ -1182,8 +1460,22 @@ def export_statistics_pdf():
     # top y
     top_y = height - PAD
 
-    # Right column title block (compute height first so left hero matches its level)
-    title_block_h = 110
+    # Right column title block — height now accounts for the scope metadata
+    # block (4 rows for a single device, 2 rows for aggregate, 1 row for
+    # no-device) so chart cards never overlap the scope rows.
+    # Layout (top → bottom inside the title block):
+    #   chip       : ~30pt
+    #   title      : ~32pt
+    #   period line: ~18pt
+    #   spacing    : ~10pt
+    #   scope card : 4*15 + 2*8 = 76pt (device) / 2*15+16 = 46pt (agg) / 31pt (none)
+    #   bottom pad : ~14pt
+    if _meta.get('aggregate'):
+        title_block_h = 165
+    elif _meta.get('device') is not None:
+        title_block_h = 200
+    else:
+        title_block_h = 130
     draw_right_title(rx, top_y, RIGHT_W)
 
     # LEFT — hero illustration  (slightly extends below right title)
@@ -1222,37 +1514,79 @@ def export_statistics_pdf():
         draw_trust_badge(lx, trust_y, LEFT_W, trust_h)
 
     # RIGHT — energy flow + trend chart row
+    # v33-γ HOTFIX-4: with the analytical table moved to page 2, page 1 has
+    # extra vertical room. Enlarge charts + summary card so they fill the
+    # space without crowding. (Was 220 + 130; now 270 + 175.)
     charts_top = top_y - title_block_h - 10
-    charts_h = 220
+    charts_h = 270
     flow_w = (RIGHT_W - 10) * 0.42
     trend_w = (RIGHT_W - 10) * 0.58
     draw_energy_flow_card(rx, charts_top - charts_h, flow_w, charts_h)
     draw_trend_chart(rx + flow_w + 10, charts_top - charts_h, trend_w, charts_h)
 
-    # RIGHT — summary card
-    summary_top = charts_top - charts_h - 12
-    summary_h = 130
+    # RIGHT — summary card  (last block on page 1; analytical table moves to page 2)
+    summary_top = charts_top - charts_h - 14
+    summary_h = 175
     draw_summary_card(rx, summary_top - summary_h, RIGHT_W, summary_h)
 
-    # RIGHT — analytical table
-    table_top = summary_top - summary_h - 12
-    table_h = max(140, table_top - PAD - 30)
-    draw_analytical_table(rx, table_top - table_h, RIGHT_W, table_h)
+    # ── Footer (page 1) ──
+    def draw_footer(page_num: int):
+        c.setStrokeColor(hex_color(LINE)); c.setLineWidth(0.6)
+        c.line(PAD, PAD + 12, width - PAD, PAD + 12)
+        c.setFont(font_name, 7.5)
+        c.setFillColor(hex_color(MUTED))
+        c.drawRightString(width - PAD, PAD + 2, ar('منصة الطاقة الشمسية • تقرير تحليلي'))
+        c.drawString(PAD, PAD + 2, ar(f'صفحة {page_num}'))
+    draw_footer(1)
 
-    # Footer
-    c.setStrokeColor(hex_color(LINE)); c.setLineWidth(0.6)
-    c.line(PAD, PAD + 12, width - PAD, PAD + 12)
-    c.setFont(font_name, 7.5)
-    c.setFillColor(hex_color(MUTED))
-    c.drawRightString(width - PAD, PAD + 2, ar('منصة الطاقة الشمسية • تقرير تحليلي'))
-    c.drawString(PAD, PAD + 2, ar(f'صفحة 1'))
+    # ════════════ PAGE 2 — analytical table only ════════════
+    # v33-γ HOTFIX-3: table ALWAYS starts on page 2. Page 1 stays a clean
+    # summary; page 2 dedicates full width + height to the analytical table
+    # so columns aren't cramped.
+    c.showPage()
+    paint_bg()
+
+    p2_top = height - PAD
+    # Page 2 title — same shape as page 1's title block but compact
+    draw_text('الجدول التحليلي', width - PAD, p2_top - 28, font_bold, 18, INK, align='right')
+    # Period + scope context line directly under the title (one short row each
+    # — drawn with separate calls so bidi can't mangle LTR provider/timezone)
+    p2_meta_y = p2_top - 50
+    draw_text(f'الفترة: {_meta["period_label_ar"]}', width - PAD, p2_meta_y, font_name, 9.5, INK_SOFT, align='right')
+    if _meta.get('aggregate'):
+        scope_short = f'النطاق: كل الأجهزة ({_meta.get("device_count", 0)})'
+    elif _meta.get('device') is not None:
+        scope_short = f'الجهاز: {_meta.get("device_name_value") or "—"}'
+    else:
+        scope_short = 'النطاق: لا يوجد جهاز'
+    draw_text(scope_short, width - PAD, p2_meta_y - 14, font_name, 9.5, INK_SOFT, align='right')
+
+    # Full-width table on page 2 — much more breathing room than page 1
+    p2_table_top = p2_meta_y - 26
+    p2_table_w = width - 2 * PAD
+    p2_table_x = PAD
+    p2_table_h = p2_table_top - PAD - 30                  # leave room for footer
+    draw_analytical_table(p2_table_x, p2_table_top - p2_table_h, p2_table_w, p2_table_h)
+
+    draw_footer(2)
 
     c.showPage()
     c.save()
     buf.seek(0)
-    filename = f"taqrir_{selected_view}_{selected_date.strftime('%Y-%m-%d')}.pdf"
+    # v33-γ: device-aware filename. ASCII-only `filename=` to satisfy
+    # HTTP/1.1 latin-1 header rule (Arabic in `filename=` crashes Werkzeug
+    # with UnicodeEncodeError on send_header); readable Arabic name is
+    # added via RFC 5987 `filename*=UTF-8''…` so modern browsers show it.
+    _scope_token = _meta.get('safe_filename_token') or 'scope'
+    _date_str = selected_date.strftime('%Y-%m-%d')   # always YYYY-MM-DD, no junk
+    ascii_filename = f"taqrir_{_scope_token}_{selected_view}_{_date_str}.pdf"
+    unicode_display = None
+    if _meta.get('device') is not None and getattr(_meta['device'], 'name', None):
+        unicode_display = f"taqrir_{_meta['device'].name}_{selected_view}_{_date_str}.pdf"
+    elif _meta.get('aggregate'):
+        unicode_display = f"taqrir_كل_الأجهزة_{selected_view}_{_date_str}.pdf"
     return Response(buf.getvalue(), mimetype='application/pdf',
-                    headers={'Content-Disposition': f'attachment; filename={filename}'})
+                    headers={'Content-Disposition': _content_disposition(ascii_filename, unicode_display)})
 
 
 

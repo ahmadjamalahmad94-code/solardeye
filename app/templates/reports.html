@@ -96,7 +96,7 @@
                 <span class="rp-kpi-icon">☀</span>
                 <div class="rp-kpi-body">
                   <small>{{ 'Production' if is_en else 'الإنتاج' }}</small>
-                  <strong>{{ format_energy(stats.production_kwh or 0) }}<em>kWh</em></strong>
+                  <strong>{{ format_energy(stats.production_kwh or 0) }}</strong>
                   <span>{{ 'PV total' if is_en else 'إجمالي الإنتاج الشمسي' }}</span>
                 </div>
               </article>
@@ -104,7 +104,7 @@
                 <span class="rp-kpi-icon">🏠</span>
                 <div class="rp-kpi-body">
                   <small>{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
-                  <strong>{{ format_energy(stats.consumption_kwh or 0) }}<em>kWh</em></strong>
+                  <strong>{{ format_energy(stats.consumption_kwh or 0) }}</strong>
                   <span>{{ 'home total' if is_en else 'إجمالي المنزل' }}</span>
                 </div>
               </article>
@@ -112,7 +112,7 @@
                 <span class="rp-kpi-icon">🔋</span>
                 <div class="rp-kpi-body">
                   <small>{{ 'Battery cycle' if is_en else 'دورة البطارية' }}</small>
-                  <strong>{{ format_energy(stats.battery_in_kwh or 0) }}<em>kWh</em></strong>
+                  <strong>{{ format_energy(stats.battery_in_kwh or 0) }}</strong>
                   <span>{{ 'in / out' if is_en else 'دخول / خروج' }}</span>
                 </div>
               </article>
@@ -120,7 +120,7 @@
                 <span class="rp-kpi-icon">⚡</span>
                 <div class="rp-kpi-body">
                   <small>{{ 'Grid usage' if is_en else 'استخدام الشبكة' }}</small>
-                  <strong>{{ format_energy(stats.grid_in_kwh or 0) }}<em>kWh</em></strong>
+                  <strong>{{ format_energy(stats.grid_in_kwh or 0) }}</strong>
                   <span>{{ 'imported' if is_en else 'مستورد' }}</span>
                 </div>
               </article>
@@ -147,10 +147,10 @@
                   {% for r in table_rows %}
                   <tr>
                     <td><time>{{ r.label or r.date or r.timestamp or '' }}</time></td>
-                    <td>{{ format_energy(r.production_kwh or 0) }} <em>kWh</em></td>
-                    <td>{{ format_energy(r.consumption_kwh or 0) }} <em>kWh</em></td>
-                    <td>{{ format_energy(r.battery_kwh or 0) }} <em>kWh</em></td>
-                    <td>{{ format_energy(r.grid_kwh or 0) }} <em>kWh</em></td>
+                    <td>{{ format_energy(r.production_kwh or 0) }}</td>
+                    <td>{{ format_energy(r.consumption_kwh or 0) }}</td>
+                    <td>{{ format_energy(r.battery_kwh or 0) }}</td>
+                    <td>{{ format_energy(r.grid_kwh or 0) }}</td>
                   </tr>
                   {% endfor %}
                 </tbody>
