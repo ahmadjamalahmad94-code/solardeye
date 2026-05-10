@@ -12,14 +12,19 @@ client_secret_*.json
 __pycache__/
 *.py[cod]
 *.sqlite
+*.sqlite3
 *.db
 instance/
 .venv/
 venv/
+.venvtest/
 
 # Logs/build artifacts
 *.log
+*.zip
 SolarDeye_*.zip
+.pytest_cache/
+.tmp.driveupload/
 .DS_Store
 node_modules/
 dist/

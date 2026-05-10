@@ -102,7 +102,7 @@ Request summary:
 {
   "username": "subscriber1",
   "email": "subscriber@example.com",
-  "password": "Test12345!",
+  "password": "YOUR_STRONG_PASSWORD_HERE",
   "full_name": "Subscriber Name",
   "preferred_language": "ar",
   "country": "PS",
@@ -138,7 +138,7 @@ Request:
 ```json
 {
   "username": "subscriber1",
-  "password": "Test12345!",
+  "password": "YOUR_STRONG_PASSWORD_HERE",
   "device_label": "Pixel"
 }
 ```

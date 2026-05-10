@@ -4,7 +4,7 @@
   "account": {
     "username": "qa.subscriber.v34",
     "email": "qa.subscriber.v34@example.test",
-    "password": "Test12345!"
+    "password": "[REDACTED]"
   },
   "screenshots": [
     {
@@ -320,7 +320,7 @@
     {
       "page": "Authentication",
       "control": "Valid login",
-      "action": "Typed qa.subscriber.v34 + Test12345! and submitted",
+      "action": "Typed qa.subscriber.v34 + [REDACTED] and submitted",
       "before": "auth_invalid_after",
       "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_login.png",
       "result": "Redirected to dashboard.",

@@ -8,7 +8,7 @@
 - Browser method used: Codex Browser plugin / in-app browser using Playwright API against `http://127.0.0.1:5000`.
 - Screenshot folder: `docs/qa/screenshots/v34_subscriber_browser_qa/`
 - Raw browser result file: `docs/qa/screenshots/v34_subscriber_browser_qa/_raw_results.json`
-- Test account: `qa.subscriber.v34 / qa.subscriber.v34@example.test / Test12345!`
+- Test account: `qa.subscriber.v34 / qa.subscriber.v34@example.test / [REDACTED]`
 - Test account role: subscriber/user, not admin.
 
 ## 2. Browser Availability Note
@@ -80,7 +80,7 @@ Note: several FAIL rows are preserved as before-fix evidence. The root cause for
 |---|---|---|---|---|---|---|---|
 | Authentication | Login page | Opened /login?lang=ar | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png` | Login page rendered in Arabic RTL. | PASS | Real browser navigation and screenshot captured. |
 | Authentication | Invalid login | Typed qa.subscriber.v34 + wrong password and submitted | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_invalid_after.png` | Stayed on login page with invalid credential feedback area visible. | PASS | No account state changed. |
-| Authentication | Valid login | Typed qa.subscriber.v34 + Test12345! and submitted | `auth_invalid_after` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_login.png` | Redirected to dashboard. | PASS | Real subscriber session established. |
+| Authentication | Valid login | Typed qa.subscriber.v34 + [REDACTED] and submitted | `auth_invalid_after` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_login.png` | Redirected to dashboard. | PASS | Real subscriber session established. |
 | Authentication | Logout | Looked for logout control after login | `auth_dashboard_after_login` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_logout_not_available.png` | logout control not found: a[href*="/logout"] \| button[name="logout"] | NEEDS_VISUAL_REVIEW | Logout control was not uniquely found/clickable through browser automation. |
 | Authentication | Logout | Clicked sidebar POST logout button | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_before_logout_retry.png` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_after_logout.png` | POST logout completed and returned to a public/auth page. | PASS | Initial lookup missed form-based logout; direct form selector worked. |
 | Authentication | Re-login after logout | Logged in again after POST logout | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_after_logout.png` | `C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_relogin.png` | Dashboard restored after re-login. | PASS |  |
