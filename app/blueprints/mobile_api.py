@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from flask import Blueprint, request, session
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
@@ -14,7 +15,7 @@ from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
 from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
-from ..services.api_responses import api_error, api_ok
+from ..services.api_responses import api_error, api_ok, page_meta, pagination_args
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 mobile_core_api_bp = Blueprint('mobile_core_api', __name__, url_prefix='/api/mobile')
@@ -24,6 +25,9 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
     '/device-providers': {'GET'},
+    '/dashboard': {'GET'},
+    '/dashboard/feed': {'GET'},
+    '/live': {'GET'},
     '/bootstrap': {'GET'},
     '/health': {'GET'},
 }
@@ -192,6 +196,31 @@ def _device_summary_payload(user):
             'timezone': dev.timezone,
         } for dev in devices],
     }
+
+
+def _mobile_owned_devices(user):
+    return (
+        AppDevice.query
+        .filter_by(owner_user_id=user.id)
+        .order_by(AppDevice.is_active.desc(), AppDevice.id.asc())
+        .all()
+    )
+
+
+def _mobile_device_payload(dev):
+    if not dev:
+        return None
+    return sanitize_response_payload({
+        'id': dev.id,
+        'name': dev.name,
+        'device_type': dev.device_type,
+        'api_provider': dev.api_provider,
+        'connection_status': dev.connection_status,
+        'last_connected_at': dev.last_connected_at.isoformat() if dev.last_connected_at else None,
+        'is_active': bool(dev.is_active),
+        'plant_name': dev.plant_name,
+        'timezone': dev.timezone,
+    })
 
 
 def _selected_device_for_user(user):
@@ -530,6 +559,247 @@ def _reading_payload(row):
         'total_production': row.total_production,
         'status_text': row.status_text,
     })
+
+
+def _reading_number(value):
+    try:
+        return round(float(value or 0), 2)
+    except Exception:
+        return 0.0
+
+
+def _bounded_int(value, *, default: int, maximum: int):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(1, min(parsed, maximum))
+
+
+def _mobile_reading_payload(row):
+    if not row:
+        return None
+    payload = _reading_payload(row) or {}
+    payload.update({
+        'device_id': row.device_id,
+        'user_id': row.user_id,
+        'pv1_power': row.pv1_power,
+        'pv2_power': row.pv2_power,
+        'pv3_power': row.pv3_power,
+        'pv4_power': row.pv4_power,
+        'inverter_temp': row.inverter_temp,
+        'dc_temp': row.dc_temp,
+        'grid_voltage': row.grid_voltage,
+        'grid_frequency': row.grid_frequency,
+    })
+    return sanitize_response_payload(payload)
+
+
+def _mobile_reading_cards(row):
+    if not row:
+        return {
+            'solar_power_w': 0.0,
+            'home_load_w': 0.0,
+            'battery_soc_percent': 0.0,
+            'battery_power_w': 0.0,
+            'grid_power_w': 0.0,
+            'inverter_power_w': 0.0,
+            'daily_production_kwh': 0.0,
+            'monthly_production_kwh': 0.0,
+            'total_production_kwh': 0.0,
+        }
+    return {
+        'solar_power_w': _reading_number(row.solar_power),
+        'home_load_w': _reading_number(row.home_load),
+        'battery_soc_percent': _reading_number(row.battery_soc),
+        'battery_power_w': _reading_number(row.battery_power),
+        'grid_power_w': _reading_number(row.grid_power),
+        'inverter_power_w': _reading_number(row.inverter_power),
+        'daily_production_kwh': _reading_number(row.daily_production),
+        'monthly_production_kwh': _reading_number(row.monthly_production),
+        'total_production_kwh': _reading_number(row.total_production),
+    }
+
+
+def _mobile_device_scope(user):
+    raw_device_id = (request.args.get('device_id') or request.args.get('device') or '').strip()
+    raw_scope = (request.args.get('scope') or '').strip().lower()
+    if raw_scope == 'all' or raw_device_id.lower() == 'all':
+        return 'all', None, None
+    if raw_device_id:
+        try:
+            device_id = int(raw_device_id)
+        except (TypeError, ValueError):
+            return None, None, api_error('Device id is invalid.', code='invalid_device_id', status=400)
+        device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
+        if not device:
+            return None, None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return 'device', device, None
+    return 'device', _selected_device_for_user(user), None
+
+
+def _mobile_readings_query(user, *, mode: str, device=None):
+    q = Reading.query
+    if mode == 'all':
+        device_ids = [dev.id for dev in _mobile_owned_devices(user)]
+        if device_ids:
+            return q.filter(Reading.device_id.in_(device_ids))
+        return q.filter_by(user_id=user.id)
+    if device:
+        return q.filter_by(device_id=device.id)
+    return q.filter_by(user_id=user.id)
+
+
+def _mobile_latest_reading(user, *, mode: str, device=None):
+    return (
+        _mobile_readings_query(user, mode=mode, device=device)
+        .order_by(Reading.created_at.desc(), Reading.id.desc())
+        .first()
+    )
+
+
+def _mobile_feed_rows(user, *, mode: str, device=None, limit: int = 48):
+    bounded_limit = _bounded_int(limit, default=48, maximum=200)
+    rows = (
+        _mobile_readings_query(user, mode=mode, device=device)
+        .order_by(Reading.created_at.desc(), Reading.id.desc())
+        .limit(bounded_limit)
+        .all()
+    )
+    return list(reversed(rows))
+
+
+def _mobile_fleet_snapshot(user):
+    items = []
+    latest_rows = []
+    for dev in _mobile_owned_devices(user):
+        latest = (
+            Reading.query
+            .filter_by(device_id=dev.id)
+            .order_by(Reading.created_at.desc(), Reading.id.desc())
+            .first()
+        )
+        if latest:
+            latest_rows.append(latest)
+        items.append({
+            'device': _mobile_device_payload(dev),
+            'latest': _mobile_reading_payload(latest),
+            'cards': _mobile_reading_cards(latest),
+            'empty': latest is None,
+        })
+    battery_values = [_reading_number(row.battery_soc) for row in latest_rows if row.battery_soc is not None]
+    return {
+        'items': items,
+        'aggregate': {
+            'device_count': len(items),
+            'devices_with_readings': len(latest_rows),
+            'solar_power_w': round(sum(_reading_number(row.solar_power) for row in latest_rows), 2),
+            'home_load_w': round(sum(_reading_number(row.home_load) for row in latest_rows), 2),
+            'battery_power_w': round(sum(_reading_number(row.battery_power) for row in latest_rows), 2),
+            'grid_power_w': round(sum(_reading_number(row.grid_power) for row in latest_rows), 2),
+            'inverter_power_w': round(sum(_reading_number(row.inverter_power) for row in latest_rows), 2),
+            'daily_production_kwh': round(sum(_reading_number(row.daily_production) for row in latest_rows), 2),
+            'monthly_production_kwh': round(sum(_reading_number(row.monthly_production) for row in latest_rows), 2),
+            'total_production_kwh': round(sum(_reading_number(row.total_production) for row in latest_rows), 2),
+            'battery_soc_average_percent': round(sum(battery_values) / len(battery_values), 2) if battery_values else 0.0,
+        },
+    }
+
+
+def _mobile_dashboard_payload(user, *, include_feed: bool = True):
+    mode, device, error = _mobile_device_scope(user)
+    if error:
+        return None, error
+    latest = _mobile_latest_reading(user, mode=mode, device=device)
+    limit = request.args.get('limit') or request.args.get('page_size') or 48
+    feed_rows = _mobile_feed_rows(user, mode=mode, device=device, limit=limit) if include_feed else []
+    payload = {
+        'scope': {
+            'mode': 'all' if mode == 'all' else 'device',
+            'device_id': device.id if device else None,
+            'is_all_devices': mode == 'all',
+        },
+        'device': _mobile_device_payload(device),
+        'devices': _device_summary_payload(user),
+        'latest': _mobile_reading_payload(latest),
+        'cards': _mobile_reading_cards(latest),
+        'feed': {
+            'items': [_mobile_reading_payload(row) for row in feed_rows],
+            'count': len(feed_rows),
+            'order': 'oldest_first',
+        },
+        'empty': latest is None,
+        'generated_at': datetime.utcnow().isoformat(),
+    }
+    if mode == 'all':
+        fleet = _mobile_fleet_snapshot(user)
+        aggregate = fleet['aggregate']
+        payload['fleet'] = fleet
+        payload['cards'] = {
+            'solar_power_w': aggregate['solar_power_w'],
+            'home_load_w': aggregate['home_load_w'],
+            'battery_soc_percent': aggregate['battery_soc_average_percent'],
+            'battery_power_w': aggregate['battery_power_w'],
+            'grid_power_w': aggregate['grid_power_w'],
+            'inverter_power_w': aggregate['inverter_power_w'],
+            'daily_production_kwh': aggregate['daily_production_kwh'],
+            'monthly_production_kwh': aggregate['monthly_production_kwh'],
+            'total_production_kwh': aggregate['total_production_kwh'],
+        }
+    return payload, None
+
+
+@mobile_core_api_bp.get('/dashboard')
+def mobile_dashboard():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    payload, error = _mobile_dashboard_payload(user, include_feed=True)
+    if error:
+        return error
+    return api_ok(payload, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/live')
+def mobile_live():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    payload, error = _mobile_dashboard_payload(user, include_feed=False)
+    if error:
+        return error
+    return api_ok({
+        'scope': payload['scope'],
+        'device': payload['device'],
+        'latest': payload['latest'],
+        'cards': payload['cards'],
+        'empty': payload['empty'],
+        'generated_at': payload['generated_at'],
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/dashboard/feed')
+def mobile_dashboard_feed():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    mode, device, error = _mobile_device_scope(user)
+    if error:
+        return error
+    page, page_size = pagination_args(default_size=50, max_size=200)
+    q = _mobile_readings_query(user, mode=mode, device=device).order_by(Reading.created_at.desc(), Reading.id.desc())
+    total = q.count()
+    rows = q.offset((page - 1) * page_size).limit(page_size).all()
+    return api_ok({
+        'scope': {
+            'mode': 'all' if mode == 'all' else 'device',
+            'device_id': device.id if device else None,
+            'is_all_devices': mode == 'all',
+        },
+        'device': _mobile_device_payload(device),
+        'items': [_mobile_reading_payload(row) for row in rows],
+        'order': 'newest_first',
+    }, meta={**page_meta(page, page_size, total), 'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
 @mobile_core_api_bp.get('/bootstrap')
