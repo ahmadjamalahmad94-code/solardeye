@@ -16,19 +16,23 @@
      1. Soft white-to-transparent overlay for text readability (top-down).
      2. The solar hero image, covering the card.
      The overlay sits on top of the image because background layers in CSS
-     are painted from the LAST listed (bottom) up to the FIRST (top). */
-  background-image:
+     are painted from the LAST listed (bottom) up to the FIRST (top).
+     The custom property lets the legacy .hu-hero rules reuse the same
+     background without selector escalation. */
+  --sd-hero-background:
     linear-gradient(
       180deg,
       rgba(255, 255, 255, .80) 0%,
       rgba(255, 255, 255, .55) 35%,
       rgba(255, 255, 255, .25) 75%,
       rgba(255, 255, 255, .15) 100%
-    ),
-    url("/static/img/hero/solar_hero_bg_v1.webp") !important;
-  background-size: 100% 100%, cover !important;
-  background-position: center, center !important;
-  background-repeat: no-repeat, no-repeat !important;
+    ) center / 100% 100% no-repeat,
+    url("/static/img/hero/solar_hero_bg_v1.webp") center / cover no-repeat;
+}
+
+.hu-hero.sd-hero-bg,
+.ns-hero.sd-hero-bg {
+  background: var(--sd-hero-background) !important;
   background-color: #f8fafc !important;
 }
 
