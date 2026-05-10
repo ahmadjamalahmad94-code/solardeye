@@ -9,7 +9,7 @@ from uuid import uuid4
 from flask import Blueprint
 from werkzeug.utils import secure_filename
 from ..services.energy_integrations import provider_catalog
-from ..services.location_catalog import countries_for_template, timezones_for_template, timezones_grouped_for_template
+from ..services.location_catalog import countries_for_template, phone_prefixes_for_template, timezones_for_template, timezones_grouped_for_template
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -344,7 +344,7 @@ def account_profile():
 
     lang = _lang()
     is_en = lang == 'en'
-    country_options = _profile_country_options(lang)
+    country_options = countries_for_template()
     timezone_options = timezones_for_template()
     current_phone_code = (user.phone_country_code or '+970').strip() or '+970'
 
@@ -388,13 +388,46 @@ def account_profile():
             flash('تم تحديث الملف الشخصي بنجاح.' if not is_en else 'Profile updated successfully.', 'success')
             return redirect(url_for('main.account_profile', lang=user.preferred_language or lang))
 
+    # v33-ε: surface read-only context for the redesigned profile page.
+    # All values come from existing tables/columns — no schema changes.
+    profile_devices_count = AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count()
+    profile_total_devices = AppDevice.query.filter_by(owner_user_id=user.id).count()
+    profile_selected_device = None
+    if user.preferred_device_id:
+        try:
+            profile_selected_device = AppDevice.query.filter_by(
+                id=user.preferred_device_id, owner_user_id=user.id
+            ).first()
+        except Exception:
+            profile_selected_device = None
+    profile_subscription = None
+    profile_plan = None
+    try:
+        from ..services.subscriptions import current_subscription_for_user
+        from ..models import SubscriptionPlan as _SubscriptionPlan
+        profile_subscription = current_subscription_for_user(user)
+        if profile_subscription is not None:
+            try:
+                profile_plan = _SubscriptionPlan.query.filter_by(id=profile_subscription.plan_id).first()
+            except Exception:
+                profile_plan = None
+    except Exception:
+        profile_subscription = None
+
     return render_template(
         'account_profile.html',
         user_obj=user,
         country_options=country_options,
+        phone_prefix_options=phone_prefixes_for_template(),
         timezone_options=timezone_options,
         timezone_groups=timezones_grouped_for_template(),
         current_phone_code=current_phone_code,
+        # v33-ε read-only context
+        profile_devices_count=profile_devices_count,
+        profile_total_devices=profile_total_devices,
+        profile_selected_device=profile_selected_device,
+        profile_subscription=profile_subscription,
+        profile_plan=profile_plan,
         ui_lang=lang,
     )
 
@@ -608,6 +641,4 @@ def battery_lab():
         voltage_values=voltage_values, current_values=current_values,
         format_local=lambda dt: format_local_datetime(dt, tz_name), ui_lang=_lang(),
     )
-
-
 

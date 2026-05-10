@@ -18,14 +18,16 @@
           {% if required %}required{% endif %}>
     <option value="">{{ ph }}</option>
     {% for c in countries %}
-      {% set label_value = c.name_en if is_en else c.name_ar %}
+      {% set label_ar = c.name_ar|default(c.label|default(c.name_en|default(c.code, true), true), true) %}
+      {% set label_en = c.name_en|default(c.label|default(c.name_ar|default(c.code, true), true), true) %}
+      {% set label_value = label_en if is_en else label_ar %}
       <option value="{{ label_value }}"
         data-code="{{ c.code }}"
         data-dial="{{ c.dial }}"
         data-tz="{{ c.timezone }}"
-        data-cities-ar='{{ c.cities_ar|tojson }}'
-        data-cities-en='{{ c.cities_en|tojson }}'
-        {% if value and (value == c.name_ar or value == c.name_en) %}selected{% endif %}>
+        data-cities-ar='{{ (c.cities_ar|default([], true))|tojson }}'
+        data-cities-en='{{ (c.cities_en|default([], true))|tojson }}'
+        {% if value and (value == label_ar or value == label_en or value == c.code) %}selected{% endif %}>
         {% if with_flag and c.flag %}{{ c.flag }} {% endif %}{{ label_value }}
       </option>
     {% endfor %}
@@ -54,6 +56,20 @@
           <option value="{{ item.tz }}" {% if value == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>
         {% endfor %}
       </optgroup>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+{% macro phone_prefix_select(name='phone_country_code', value='+970', classes='', prefixes=[], countries=[], required=false, id_attr=None) %}
+  {% set rows = prefixes if prefixes else countries %}
+  <select class="{{ classes }}" name="{{ name }}" {% if id_attr %}id="{{ id_attr }}"{% endif %}
+          dir="ltr" {% if required %}required{% endif %}>
+    {% for opt in rows %}
+      {% set dial = opt.dial or '' %}
+      {% set code = opt.code or '' %}
+      {% if dial and dial != '+' %}
+        <option value="{{ dial }}" {% if value == dial or value == code %}selected{% endif %}>{{ code }} {{ dial }}</option>
+      {% endif %}
     {% endfor %}
   </select>
 {% endmacro %}

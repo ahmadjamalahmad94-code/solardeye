@@ -32,7 +32,7 @@ from ..services.rbac import (
     user_portal_visibility_map,
 )
 from ..services.quota_engine import apply_plan_quotas_to_tenant, ensure_plan_quotas_for_tenant
-from ..services.location_catalog import countries_for_template, timezones_grouped_for_template
+from ..services.location_catalog import countries_for_template, phone_prefixes_for_template, timezones_grouped_for_template
 
 users_bp = Blueprint('users_routes', __name__)
 
@@ -976,6 +976,156 @@ def admin_users_legacy():
         permission_rows_by_user=permission_rows_by_user,
         ui_lang=_lang(),
     )
+
+
+@users_bp.route('/admin/me', methods=['GET', 'POST'])
+def admin_me():
+    """Admin self-profile (`/admin/me`).
+
+    v33-ε-2: a dedicated 'My profile' page for admins/staff that mirrors
+    the same prof-* visual language as the staff edit page, but for the
+    SIGNED-IN admin only. We deliberately disallow self-demotion and
+    self-deactivation to prevent admins from locking themselves out.
+    No permission editing here — those still live on the staff edit page.
+    """
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    lang = _lang()
+    is_en = lang == 'en'
+
+    if request.method == 'POST':
+        # Limited self-edit: identity, contact, locale, password.
+        # Role and is_active are NEVER mutated here.
+        username = (request.form.get('username') or user.username or '').strip()
+        other = AppUser.query.filter(AppUser.username == username, AppUser.id != user.id).first()
+        if not username:
+            flash('اسم المستخدم مطلوب.' if not is_en else 'Username is required.', 'warning')
+        elif other:
+            flash('اسم المستخدم مستخدم من قبل.' if not is_en else 'Username is already in use.', 'danger')
+        else:
+            user.username = username
+            user.full_name = (request.form.get('full_name') or '').strip() or None
+            user.email = (request.form.get('email') or '').strip() or None
+            user.phone_country_code = (request.form.get('phone_country_code') or '').strip() or None
+            user.phone_number = (request.form.get('phone_number') or '').strip() or None
+            user.country = (request.form.get('country') or '').strip() or None
+            user.city = (request.form.get('city') or '').strip() or None
+            user.timezone = (request.form.get('timezone') or 'Asia/Hebron').strip() or 'Asia/Hebron'
+            user.preferred_language = (request.form.get('preferred_language') or 'ar').strip() or 'ar'
+            password = (request.form.get('password') or '').strip()
+            if password:
+                from werkzeug.security import generate_password_hash as _gph
+                user.password_hash = _gph(password)
+            db.session.commit()
+            session['username'] = user.username
+            session['ui_lang'] = user.preferred_language or 'ar'
+            flash('تم تحديث ملفك الشخصي بنجاح.' if not is_en else 'Your profile was updated successfully.', 'success')
+            return redirect(url_for('users_routes.admin_me', lang=user.preferred_language or lang))
+
+    # ── Read-only context for the page ────────────────────────────────
+    try:
+        from ..services.rbac import role_permissions, all_permission_defaults
+        _granted_perms = role_permissions(getattr(user, 'role', None)) or {}
+        if (getattr(user, 'role', '') or '').strip().lower() == 'admin':
+            _granted_perms.update(all_permission_defaults(True))
+        admin_granted = sum(1 for v in _granted_perms.values() if bool(v))
+        admin_total = max(1, len(_granted_perms))
+    except Exception:
+        admin_granted = 0
+        admin_total = 0
+
+    try:
+        admin_open_support = (
+            SupportTicket.query.filter_by(assigned_admin_id=user.id).filter(SupportTicket.status.in_(['new','open','in_progress','pending','waiting_user'])).count()
+            + InternalMailThread.query.filter_by(assigned_admin_id=user.id).filter(InternalMailThread.status.in_(['new','open','in_progress','pending','waiting_user'])).count()
+        )
+    except Exception:
+        admin_open_support = 0
+
+    try:
+        admin_activity_count = AdminActivityLog.query.filter_by(actor_user_id=user.id).count()
+    except Exception:
+        admin_activity_count = 0
+
+    return render_template(
+        'admin_me.html',
+        user_obj=user,
+        country_options=countries_for_template(),
+        phone_prefix_options=phone_prefixes_for_template(),
+        timezone_groups=timezones_grouped_for_template(),
+        role_label=role_label,
+        admin_granted=admin_granted,
+        admin_total=admin_total,
+        admin_open_support=admin_open_support,
+        admin_activity_count=admin_activity_count,
+        ui_lang=lang,
+    )
+
+
+# v33-ε-3: admin self-avatar endpoints (cherry-picked, force-sync)
+@users_bp.route('/admin/me/avatar', methods=['POST'])
+def admin_me_avatar_upload():
+    """Admin self-avatar upload. v33-ε-3: same logic as staff-edit avatar
+    but operates on the SIGNED-IN admin only (no user_id in URL — derived
+    from session). Mirrors `admin_user_avatar_upload` for parity."""
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = _active_user()
+    if user is None:
+        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+    file = request.files.get('avatar')
+    if not file or not file.filename:
+        return jsonify({'ok': False, 'error': 'no file'}), 400
+    ext = (file.filename.rsplit('.', 1)[-1] if '.' in file.filename else '').lower()
+    if ext not in {'png', 'jpg', 'jpeg', 'webp', 'gif'}:
+        return jsonify({'ok': False, 'error': 'invalid format'}), 400
+    import os, time
+    avatars_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+    os.makedirs(avatars_dir, exist_ok=True)
+    for fname in os.listdir(avatars_dir):
+        if fname.startswith(f'user_{user.id}.'):
+            try: os.remove(os.path.join(avatars_dir, fname))
+            except Exception: pass
+    fname = f'user_{user.id}.{ext}'
+    file.save(os.path.join(avatars_dir, fname))
+    bust = int(time.time())
+    user.profile_image_url = f'/static/uploads/avatars/{fname}?v={bust}'
+    db.session.commit()
+    try:
+        _admin_write_log('admin.self_avatar_upload', f'Uploaded own avatar', 'app_user', user.id, {'user_id': user.id})
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'url': user.profile_image_url})
+
+
+@users_bp.route('/admin/me/avatar/remove', methods=['POST'])
+def admin_me_avatar_remove():
+    """Admin self-avatar remove. v33-ε-3."""
+    guard = _admin_guard()
+    if guard:
+        return guard
+    user = _active_user()
+    if user is None:
+        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+    import os
+    avatars_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+    if os.path.isdir(avatars_dir):
+        for fname in os.listdir(avatars_dir):
+            if fname.startswith(f'user_{user.id}.'):
+                try: os.remove(os.path.join(avatars_dir, fname))
+                except Exception: pass
+    user.profile_image_url = None
+    db.session.commit()
+    try:
+        _admin_write_log('admin.self_avatar_remove', f'Removed own avatar', 'app_user', user.id, {'user_id': user.id})
+    except Exception:
+        pass
+    return jsonify({'ok': True})
 
 
 @users_bp.route('/admin/team', methods=['GET', 'POST'])

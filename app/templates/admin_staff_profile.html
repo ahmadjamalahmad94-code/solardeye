@@ -88,7 +88,15 @@
             <div class="prof-hero-meta">
               <span class="prof-tag">@{{ user_obj.username }}</span>
               {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
-              {% if user_obj.phone_number %}<span class="prof-tag">📱 {{ user_obj.phone_country_code or '' }} {{ user_obj.phone_number }}</span>{% endif %}
+              {% if user_obj.phone_number %}
+              <span class="prof-tag prof-tag-phone">
+                <span aria-hidden="true">📱</span>
+                <span class="prof-phone-display" dir="ltr">
+                  <span class="prof-phone-display-code">{{ user_obj.phone_country_code or '+970' }}</span>
+                  <span class="prof-phone-display-number">{{ user_obj.phone_number }}</span>
+                </span>
+              </span>
+              {% endif %}
               <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
             </div>
             <div class="prof-hero-stats">
@@ -136,9 +144,8 @@
               <div class="prof-step-body">
                 <label class="prof-field"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='prof-input', countries=country_options, lang=ui_lang) }}</label>
                 <label class="prof-field"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='prof-input', lang=ui_lang) }}</label>
-                <label class="prof-field"><span>{{ 'Phone' if is_en else 'الجوال' }}</span><input class="prof-input ltr" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}"></label>
                 {% set current_phone_code = user_obj.phone_country_code if user_obj and user_obj.phone_country_code else '+970' %}
-                <label class="prof-field prof-field-narrow"><span>{{ 'Country code' if is_en else 'بدالة الدولة' }}</span><select class="prof-input ltr" name="phone_country_code">{% for country in country_options %}<option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>{% endfor %}</select></label>
+                <label class="prof-field prof-field-full"><span>{{ 'Phone' if is_en else 'الجوال' }}</span><div class="prof-phone" dir="ltr">{{ loc.phone_prefix_select(name='phone_country_code', value=current_phone_code, classes='prof-input ltr prof-phone-code', countries=country_options) }}<input class="prof-input ltr prof-phone-num" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}"></div></label>
               </div>
             </article>
 

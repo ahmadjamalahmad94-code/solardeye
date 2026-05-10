@@ -1,3 +1,4 @@
+{% import '_location_picker.html' as loc %}
 <div class="up-pane" data-up-pane="profile" {% if tab != 'profile' %}hidden{% endif %}>
 
 <div class="prof-shell">
@@ -9,7 +10,15 @@
       <div class="prof-hero-meta">
         <span class="prof-tag">@{{ user_obj.username }}</span>
         {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
-        {% if user_obj.phone_number %}<span class="prof-tag">📱 {{ user_obj.phone_country_code or '' }} {{ user_obj.phone_number }}</span>{% endif %}
+        {% if user_obj.phone_number %}
+        <span class="prof-tag prof-tag-phone">
+          <span aria-hidden="true">📱</span>
+          <span class="prof-phone-display" dir="ltr">
+            <span class="prof-phone-display-code">{{ user_obj.phone_country_code or '+970' }}</span>
+            <span class="prof-phone-display-number">{{ user_obj.phone_number }}</span>
+          </span>
+        </span>
+        {% endif %}
         <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
         <span class="prof-tag prof-tag-tz">🕒 {{ user_obj.timezone or 'Asia/Hebron' }}</span>
       </div>
@@ -79,14 +88,10 @@
         </label>
         <label class="prof-field">
           <span>{{ 'Phone' if is_en else 'رقم الجوال' }}</span>
-          <div class="prof-phone">
-            <select class="prof-input prof-phone-code" name="phone_country_code">
-              {% set current_phone_code = user_obj.phone_country_code or '+970' %}
-              {% for country in country_options %}
-                <option value="{{ country.dial }}" {% if current_phone_code == country.dial %}selected{% endif %}>{{ country.flag }} {{ country.dial }}</option>
-              {% endfor %}
-            </select>
-            <input class="prof-input prof-input-ltr prof-phone-num" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
+          <div class="prof-phone" dir="ltr">
+            {% set current_phone_code = user_obj.phone_country_code or '+970' %}
+            {{ loc.phone_prefix_select(name='phone_country_code', value=current_phone_code, classes='prof-input ltr prof-phone-code', countries=country_options) }}
+            <input class="prof-input ltr prof-phone-num" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599000000">
           </div>
         </label>
       </div>
@@ -104,40 +109,15 @@
       <div class="prof-step-body">
         <label class="prof-field">
           <span>{{ 'Country' if is_en else 'الدولة' }}</span>
-          <select class="prof-input" name="country" id="prof-country" data-current="{{ user_obj.country or '' }}">
-            <option value="">{{ '— Select country —' if is_en else '— اختر الدولة —' }}</option>
-            {% for c in country_options %}
-              {% set label_value = c.name_en if is_en else c.name_ar %}
-              <option value="{{ label_value }}"
-                data-code="{{ c.code }}"
-                data-tz="{{ c.timezone }}"
-                data-cities-ar='{{ c.cities_ar|tojson }}'
-                data-cities-en='{{ c.cities_en|tojson }}'
-                {% if user_obj.country and (user_obj.country == c.name_ar or user_obj.country == c.name_en) %}selected{% endif %}>
-                {{ c.flag }} {{ label_value }}
-              </option>
-            {% endfor %}
-          </select>
+          {{ loc.country_select(name='country', value=user_obj.country, classes='prof-input', countries=country_options, lang=ui_lang, id_attr='prof-country') }}
         </label>
         <label class="prof-field">
           <span>{{ 'City' if is_en else 'المدينة' }}</span>
-          <select class="prof-input" name="city" id="prof-city" data-current="{{ user_obj.city or '' }}">
-            <option value="">{{ '— Select city —' if is_en else '— اختر المدينة —' }}</option>
-            {% if user_obj.city %}<option value="{{ user_obj.city }}" selected>{{ user_obj.city }}</option>{% endif %}
-          </select>
+          {{ loc.city_select(name='city', value=user_obj.city, classes='prof-input', lang=ui_lang, id_attr='prof-city') }}
         </label>
         <label class="prof-field">
           <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-          <select class="prof-input prof-input-ltr" name="timezone" id="prof-timezone">
-            {% set current_tz = user_obj.timezone or 'Asia/Hebron' %}
-            {% for group in timezone_groups %}
-              <optgroup label="{{ group.group_en if is_en else group.group_ar }}">
-                {% for item in group['items'] %}
-                  <option value="{{ item.tz }}" {% if current_tz == item.tz %}selected{% endif %}>{{ item.label_en if is_en else item.label_ar }}</option>
-                {% endfor %}
-              </optgroup>
-            {% endfor %}
-          </select>
+          {{ loc.timezone_select(name='timezone', value=(user_obj.timezone or 'Asia/Hebron'), classes='prof-input prof-input-ltr', groups=timezone_groups, lang=ui_lang, id_attr='prof-timezone') }}
         </label>
         <label class="prof-field">
           <span>{{ 'UI language' if is_en else 'لغة الواجهة' }}</span>

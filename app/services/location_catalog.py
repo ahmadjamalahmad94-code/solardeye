@@ -144,6 +144,20 @@ TIMEZONE_OPTIONS = [item["tz"] for group in TIMEZONE_OPTIONS_GROUPED for item in
 def countries_for_template():
     return COUNTRY_CATALOG
 
+def phone_prefixes_for_template():
+    rows = []
+    for country in COUNTRY_CATALOG:
+        code = (country.get("code") or "").strip().upper()
+        dial = (country.get("dial") or "").strip()
+        if not dial or dial == "+":
+            continue
+        rows.append({
+            "code": code,
+            "dial": dial,
+            "label": f"{code} {dial}".strip(),
+        })
+    return rows
+
 def timezones_for_template():
     return TIMEZONE_OPTIONS
 

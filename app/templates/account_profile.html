@@ -1,204 +1,257 @@
 {% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% block title %}{{ 'My Profile' if is_en else 'ملفي الشخصي' }}{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+{# v33-ε-2: subscriber profile reuses the SAME prof-* visual system the admin
+   profile page uses — single source of design truth (admin_user_profile.css
+   + admin_staff_profile_v2.css). Subscriber-only adjustments live in the
+   account_profile.css override layer (loaded last). #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v33-profile-hero-avatar-actions-final') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_staff_profile_v2.css', v='v33-profile-hero-avatar-actions-final') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account_profile.css', v='v33-profile-hero-avatar-actions-final') }}">
 {% endblock %}
 {% block body %}
+{% set _initial = ((user_obj.full_name or user_obj.username or '?')|trim)[:1]|upper %}
+{% set _has_image = user_obj.profile_image_url and user_obj.profile_image_url|trim %}
+{% set _is_admin_role = (user_obj.role or '')|lower == 'admin' %}
+{% set _role_label = ('Administrator' if is_en else 'مدير النظام') if _is_admin_role else (('Subscriber' if is_en else 'مشترك')) %}
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area ap-page">
+  <main class="app-main content-area up-page ap-profile-page" data-up-tab="profile">
 
-    <header class="hu-hero">
+    {# ═══════════════ HERO ═══════════════ #}
+    <header class="hu-hero hu-hero-staff-v2">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
-          <span class="hu-eyebrow">{{ 'Account · Profile' if is_en else 'الحساب · الملف الشخصي' }}</span>
-          <h1 class="hu-h1">{{ 'My personal profile' if is_en else 'ملفي الشخصي' }}</h1>
-          <p class="hu-tagline">{{ 'Keep your information current. These details are used for billing, support contact, and notifications.' if is_en else 'حافظ على معلوماتك محدّثة. هذه البيانات تُستخدم في الفواتير والتواصل مع الدعم والتنبيهات.' }}</p>
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            {{ 'Account · My Profile' if is_en else 'الحساب · ملفي الشخصي' }}
+          </span>
+          <h1 class="hu-h1">{{ user_obj.full_name or user_obj.username }}</h1>
+          <p class="hu-tagline">
+            {{ 'Keep your information current. These details are used for billing, support contact, and notifications.' if is_en else 'حافظ على معلوماتك محدّثة. هذه البيانات تُستخدم في الفواتير والتواصل مع الدعم والتنبيهات.' }}
+          </p>
           <div class="hu-hero-meta">
-            <span class="hu-meta-pill">@<b>{{ user_obj.username }}</b></span>
-            {% if user_obj.email %}<span class="hu-meta-pill ok">✓ {{ 'email' if is_en else 'بريد' }}</span>{% endif %}
-            {% if user_obj.phone_number %}<span class="hu-meta-pill ok">✓ {{ 'phone' if is_en else 'هاتف' }}</span>{% endif %}
+            <span class="hu-meta-pill {{ 'ok' if user_obj.is_active else 'warn' }}">{% if user_obj.is_active %}🟢 <b>{{ 'Active' if is_en else 'نشط' }}</b>{% else %}⛔ <b>{{ 'Disabled' if is_en else 'معطّل' }}</b>{% endif %}</span>
+            <span class="hu-meta-pill"><b>@{{ user_obj.username }}</b></span>
+            {% if user_obj.email %}<span class="hu-meta-pill">📧 <b dir="ltr">{{ user_obj.email }}</b></span>{% endif %}
+            <span class="hu-meta-pill role-pill role-{{ user_obj.role or 'user' }}">🛡️ <b>{{ _role_label }}</b></span>
           </div>
         </div>
       </div>
     </header>
 
-    <div class="ap-shell">
-      <aside class="ap-aside">
-        <div class="ap-as-card explainer">
-          <h4>📘 {{ 'Why we need these details' if is_en else 'لماذا نحتاج هذه البيانات' }}</h4>
-          <p>{{ 'Your name and email appear on invoices. The phone is used for SMS alerts. The country/timezone affect timestamps and weather.' if is_en else 'اسمك وبريدك يظهران على الفواتير. الهاتف يُستخدم لتنبيهات SMS. الدولة والمنطقة الزمنية تؤثران على التواريخ والطقس.' }}</p>
-          <p>{{ 'Your password is never visible to anyone — including admins. Reset it anytime from the Security section.' if is_en else 'كلمة المرور لا تُعرض لأي شخص — حتى للإدارة. يمكنك إعادة تعيينها من قسم الأمان.' }}</p>
-        </div>
-        <div class="ap-as-card">
-          <h4>🔑 {{ 'Profile fields' if is_en else 'حقول الملف' }}</h4>
-          <ul class="ap-legend-list">
-            <li><span class="ap-legend-dot" style="background:#3b82f6"></span><strong>{{ 'Identity' if is_en else 'الهوية' }}</strong><small>{{ 'name + username' if is_en else 'الاسم واسم المستخدم' }}</small></li>
-            <li><span class="ap-legend-dot" style="background:#22c55e"></span><strong>{{ 'Contact' if is_en else 'التواصل' }}</strong><small>{{ 'email + phone' if is_en else 'بريد + هاتف' }}</small></li>
-            <li><span class="ap-legend-dot" style="background:#f59e0b"></span><strong>{{ 'Location' if is_en else 'الموقع' }}</strong><small>{{ 'country + timezone' if is_en else 'دولة + منطقة زمنية' }}</small></li>
-            <li><span class="ap-legend-dot" style="background:#ef4444"></span><strong>{{ 'Security' if is_en else 'الأمان' }}</strong><small>{{ 'password' if is_en else 'كلمة المرور' }}</small></li>
-          </ul>
-        </div>
-        <div class="ap-as-card tips">
-          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
-          <ul>
-            <li>{{ 'Use a strong, unique password (at least 8 chars with mix).' if is_en else 'استخدم كلمة مرور قوية وفريدة (8 أحرف على الأقل بمزيج).' }}</li>
-            <li>{{ 'Match your country code to your phone number.' if is_en else 'احرص أن يطابق رمز الدولة رقم هاتفك.' }}</li>
-          </ul>
-        </div>
-      </aside>
+    {# ═══════════════ KPI strip ═══════════════ #}
+    <section class="up-stats up-stats-staff-v2">
+      <article class="up-stat s-violet">
+        <span class="up-stat-icon">🛡️</span>
+        <small>{{ 'Account type' if is_en else 'نوع الحساب' }}</small>
+        <strong>{{ _role_label }}</strong>
+      </article>
+      <article class="up-stat s-emerald">
+        <span class="up-stat-icon">{% if user_obj.is_active %}🟢{% else %}⛔{% endif %}</span>
+        <small>{{ 'Account status' if is_en else 'حالة الحساب' }}</small>
+        <strong>{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}</strong>
+      </article>
+      <article class="up-stat s-sky">
+        <span class="up-stat-icon">📡</span>
+        <small>{{ 'Active devices' if is_en else 'الأجهزة النشطة' }}</small>
+        <strong>{{ profile_devices_count or 0 }} <em>/ {{ profile_total_devices or 0 }}</em></strong>
+      </article>
+      <article class="up-stat s-amber">
+        <span class="up-stat-icon">⏰</span>
+        <small>{{ 'Member since' if is_en else 'عضو منذ' }}</small>
+        <strong>{{ user_obj.created_at.strftime('%Y-%m-%d') if user_obj.created_at else '—' }}</strong>
+      </article>
+    </section>
 
-      <div class="ap-main">
+    {# ═══════════════ Profile pane (single, untabbed) ═══════════════ #}
+    <div class="up-pane" data-up-pane="profile">
+      <div class="prof-shell">
 
-        <form method="post" enctype="multipart/form-data" class="ap-master-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-          {# Section 1: Identity #}
-          <section class="ap-section" data-help="{{ 'Your name and how the system addresses you. The display name is shown on receipts and team mentions.' if is_en else 'اسمك وكيف يخاطبك النظام. اسم العرض يظهر على الفواتير ومخاطبات الفريق.' }}">
-            <div class="ap-sec-head">
-              <div>
-                <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
-                <h2><span class="ap-sec-icon">👤</span> {{ 'Identity' if is_en else 'الهوية' }}</h2>
-              </div>
-              <span class="ap-sec-meta">{{ 'name & username' if is_en else 'الاسم واسم المستخدم' }}</span>
+        {# ─── Inner profile hero (avatar + chips) ─── #}
+        <div class="prof-hero prof-hero-staff-v2">
+          <div class="prof-hero-bg"></div>
+          <div class="prof-hero-text">
+            <h2>{{ user_obj.full_name or user_obj.username }}</h2>
+            <div class="prof-hero-meta">
+              <span class="prof-tag">@{{ user_obj.username }}</span>
+              {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
+              {% if user_obj.phone_number %}
+              <span class="prof-tag prof-tag-phone">
+                <span aria-hidden="true">📱</span>
+                <span class="prof-phone-display" dir="ltr">
+                  <span class="prof-phone-display-code">{{ user_obj.phone_country_code or '+970' }}</span>
+                  <span class="prof-phone-display-number">{{ user_obj.phone_number }}</span>
+                </span>
+              </span>
+              {% endif %}
+              <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
             </div>
-            <div class="ap-sec-body">
-              <div class="ap-grid-2">
-                <label class="ap-field">
-                  <span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span>
-                  <input type="text" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'e.g. Ahmad Ahmad' if is_en else 'مثلاً: أحمد أحمد' }}">
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'Username' if is_en else 'اسم المستخدم' }} <em style="font-style:normal;color:#94a3b8">{{ '(read-only)' if is_en else '(للعرض فقط)' }}</em></span>
-                  <input type="text" value="{{ user_obj.username }}" disabled dir="ltr">
-                </label>
-              </div>
-            </div>
-          </section>
-
-          {# Section 2: Contact #}
-          <section class="ap-section" data-help="{{ 'Email and phone — used for billing receipts, password resets, and notifications. Keep them up to date.' if is_en else 'البريد والهاتف — يُستخدمان للفواتير وإعادة تعيين كلمة المرور والتنبيهات. حافظ عليهما محدّثين.' }}">
-            <div class="ap-sec-head">
-              <div>
-                <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
-                <h2><span class="ap-sec-icon">✉</span> {{ 'Contact details' if is_en else 'بيانات التواصل' }}</h2>
-              </div>
-              <span class="ap-sec-meta">{{ 'email & phone' if is_en else 'بريد + هاتف' }}</span>
-            </div>
-            <div class="ap-sec-body">
-              <div class="ap-grid-2">
-                <label class="ap-field">
-                  <span>{{ 'Email address' if is_en else 'البريد الإلكتروني' }}</span>
-                  <input type="email" name="email" value="{{ user_obj.email or '' }}" placeholder="you@example.com" dir="ltr">
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'Country code' if is_en else 'رمز الدولة' }}</span>
-                  <select name="phone_country_code">
-                    <option value="">— {{ 'Select' if is_en else 'اختر' }} —</option>
-                    {% for opt in country_options %}
-                      <option value="{{ opt.code }}" {% if opt.code == current_phone_code %}selected{% endif %}>{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'Phone number' if is_en else 'رقم الهاتف' }}</span>
-                  <input type="tel" name="phone_number" value="{{ user_obj.phone_number or '' }}" placeholder="599..." dir="ltr">
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'City (optional)' if is_en else 'المدينة (اختياري)' }}</span>
-                  <input type="text" name="city" value="{{ user_obj.city or '' }}">
-                </label>
-              </div>
-            </div>
-          </section>
-
-          {# Section 3: Location & timezone #}
-          <section class="ap-section" data-help="{{ 'Your country and timezone are used to display dates correctly and fetch local weather data.' if is_en else 'دولتك ومنطقتك الزمنية تُستخدم لعرض التواريخ بشكل صحيح وجلب بيانات الطقس المحلية.' }}">
-            <div class="ap-sec-head">
-              <div>
-                <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
-                <h2><span class="ap-sec-icon">🌍</span> {{ 'Location & timezone' if is_en else 'الموقع والمنطقة الزمنية' }}</h2>
-              </div>
-              <span class="ap-sec-meta">{{ 'for accurate timestamps' if is_en else 'لدقة التواريخ' }}</span>
-            </div>
-            <div class="ap-sec-body">
-              <div class="ap-grid-2">
-                <label class="ap-field">
-                  <span>{{ 'Country' if is_en else 'الدولة' }}</span>
-                  <input type="text" name="country" value="{{ user_obj.country or '' }}" placeholder="{{ 'e.g. Palestine' if is_en else 'مثلاً: فلسطين' }}">
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
-                  <select name="timezone">
-                    {% for grp in timezone_groups %}
-                      <optgroup label="{{ grp.label }}">
-                        {% for tz in grp.zones %}
-                          <option value="{{ tz }}" {% if user_obj.timezone == tz %}selected{% endif %}>{{ tz }}</option>
-                        {% endfor %}
-                      </optgroup>
-                    {% endfor %}
-                  </select>
-                </label>
-              </div>
-            </div>
-          </section>
-
-          {# Section 4: Security #}
-          <section class="ap-section" data-help="{{ 'Change your password. Leave both fields empty to keep the current one. Use a strong password with letters, numbers, and symbols.' if is_en else 'غيّر كلمة المرور. اترك الحقلين فارغين للإبقاء على الحالية. استخدم كلمة قوية تحوي أحرف وأرقام ورموز.' }}">
-            <div class="ap-sec-head">
-              <div>
-                <small>{{ 'Section 04' if is_en else 'القسم 4' }}</small>
-                <h2><span class="ap-sec-icon">🔒</span> {{ 'Security' if is_en else 'الأمان' }}</h2>
-              </div>
-              <span class="ap-sec-meta">{{ 'change password' if is_en else 'تغيير كلمة المرور' }}</span>
-            </div>
-            <div class="ap-sec-body">
-              <div class="ap-grid-2">
-                <label class="ap-field">
-                  <span>{{ 'New password' if is_en else 'كلمة المرور الجديدة' }}</span>
-                  <input type="password" name="password" placeholder="••••••••" autocomplete="new-password">
-                </label>
-                <label class="ap-field">
-                  <span>{{ 'Confirm new password' if is_en else 'تأكيد كلمة المرور' }}</span>
-                  <input type="password" name="password_confirm" placeholder="••••••••" autocomplete="new-password">
-                </label>
-              </div>
-              <p class="ap-help-text">{{ 'Tip: a strong password is at least 8 characters with mixed letters, numbers, and a symbol.' if is_en else 'تلميح: كلمة المرور القوية لا تقل عن 8 أحرف بمزيج أحرف وأرقام ورمز.' }}</p>
-            </div>
-          </section>
-
-          <div class="ap-save-bar">
-            <span class="ap-save-hint">{{ 'Changes are applied immediately after save.' if is_en else 'التعديلات تُطبَّق فوراً بعد الحفظ.' }}</span>
-            <button type="submit" class="ap-btn primary">💾 {{ 'Save profile' if is_en else 'حفظ الملف الشخصي' }}</button>
           </div>
-        </form>
+          {# v33-profile-hero-avatar-actions-final-polish:
+             avatar + vertical action buttons live as siblings inside the hero.
+             The hidden file input and clear-image checkbox both live in the form
+             below (still submitting via name="profile_image_file" / "clear_profile_image"),
+             and the visible action labels here trigger them via for=... and a tiny
+             onclick handler that toggles the form checkbox. #}
+          <div class="prof-hero-avatar-block">
+            <div class="prof-hero-avatar prof-hero-avatar-v33mu">
+              <div class="prof-hero-avatar-inner">
+                {% if _has_image %}
+                  <img src="{{ user_obj.profile_image_url }}" alt="{{ user_obj.full_name or user_obj.username }}" />
+                {% else %}
+                  <span class="prof-hero-avatar-letter">{{ _initial }}</span>
+                {% endif %}
+              </div>
+              <span class="prof-hero-status {{ 'is-active' if user_obj.is_active else 'is-disabled' }}" title="{{ 'Active' if user_obj.is_active else 'Disabled' }}"></span>
+            </div>
+            <div class="prof-hero-avatar-actions">
+              <label class="prof-hero-action" for="ap-profile-image-file">
+                <span aria-hidden="true">📷</span> {{ 'Change photo' if is_en else 'تغيير الصورة' }}
+              </label>
+              {% if _has_image %}
+              <label class="prof-hero-action prof-hero-action-clear" for="ap-clear-img" id="ap-clear-img-label">
+                <span aria-hidden="true">🗑️</span> {{ 'Remove photo' if is_en else 'إزالة الصورة' }}
+              </label>
+              {% endif %}
+              <small class="prof-hero-action-msg ap-photo-hint">{{ 'يطبَّق عند الحفظ' if not is_en else 'Applies on save' }}</small>
+            </div>
+          </div>
+        </div>
 
+        {# ─── 3-column grid: form (center) + side cards (end) ─── #}
+        <div class="prof-grid">
+
+          <form method="post" enctype="multipart/form-data" class="prof-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {# Step 1 — Identity #}
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">1</span>
+                <span class="prof-step-icon">🪪</span>
+                <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+                <h3>{{ 'Identity' if is_en else 'الهوية' }}</h3>
+                <p>{{ 'Username, name and email — what we use to recognize you on the platform.' if is_en else 'اسم المستخدم والاسم والإيميل — ما نستخدمه للتعرّف عليك في المنصّة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field" data-field-help="{{ 'اسم دخولك للمنصّة؛ اختر اسمًا واضحًا وثابتًا.' if not is_en else 'Your login name; pick something clear and stable.' }}"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="prof-input ltr" name="username" value="{{ user_obj.username }}" required></label>
+                <label class="prof-field" data-field-help="{{ 'اكتب اسمًا واضحًا يظهر لفريق الدعم في التذاكر والفواتير.' if not is_en else 'A clear name shown to support on tickets and invoices.' }}"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="prof-input" name="full_name" value="{{ user_obj.full_name or '' }}" placeholder="{{ 'e.g. Ahmad Ahmad' if is_en else 'مثلاً: أحمد أحمد' }}"></label>
+                <label class="prof-field" data-field-help="{{ 'استخدم بريدًا يمكنك الوصول إليه لاستعادة الحساب والإشعارات المهمة.' if not is_en else 'Use an address you can access for recovery and key alerts.' }}"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="prof-input ltr" type="email" name="email" value="{{ user_obj.email or '' }}" placeholder="you@example.com"></label>
+                <label class="prof-field" data-field-help="{{ 'تغيير اللغة يخص واجهتك فقط ولا يؤثر على باقي المستخدمين.' if not is_en else 'Language change affects your interface only.' }}"><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="prof-input" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+                {# v33-profile-hero-avatar-actions-final-polish: profile image
+                   inputs are now hidden here and triggered from the hero action
+                   buttons above. Same name= attrs, same submit behavior. #}
+                <input type="file" id="ap-profile-image-file" name="profile_image_file" accept="image/png,image/jpeg,image/webp" hidden>
+                {% if _has_image %}
+                <input type="checkbox" name="clear_profile_image" id="ap-clear-img" value="1" hidden>
+                {% endif %}
+              </div>
+            </article>
+
+            {# Step 2 — Contact & locale #}
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">2</span>
+                <span class="prof-step-icon">🌍</span>
+                <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+                <h3>{{ 'Contact & locale' if is_en else 'التواصل والمنطقة' }}</h3>
+                <p>{{ 'Phone, country, city, and timezone — used for billing and accurate timestamps.' if is_en else 'الجوال والدولة والمدينة والمنطقة الزمنية — تُستخدم للفواتير وعرض التواريخ بدقّة.' }}</p>
+              </div>
+              <div class="prof-step-body prof-contact-grid">
+                <label class="prof-field prof-contact-country" data-field-help="{{ 'اختر دولة المنظومة لضبط التوقيت والموقع المحلي.' if not is_en else 'Select the system country to set local time and context.' }}"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='prof-input', countries=country_options, lang=ui_lang) }}</label>
+                <label class="prof-field prof-contact-city" data-field-help="{{ 'اختر المدينة الأقرب للمنظومة لتحسين دقّة السياق المحلي.' if not is_en else 'Choose the closest city to the system for clearer local context.' }}"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='prof-input', lang=ui_lang) }}</label>
+                <label class="prof-field prof-field-phone prof-contact-phone" data-field-help="{{ 'اكتب بدالة الدولة ثم الرقم المحلي. يظهر الرقم في البطاقات بصيغة مثل +970 599043337.' if not is_en else 'Enter the country code and local number. Profile cards display it like +970 599043337.' }}">
+                  <span>{{ 'Phone' if is_en else 'الجوال' }}</span>
+                  <div class="prof-phone" dir="ltr">
+                  {{ loc.phone_prefix_select(name='phone_country_code', value=current_phone_code, classes='prof-input ltr prof-phone-code', prefixes=phone_prefix_options, countries=country_options) }}
+                  <input class="prof-input ltr prof-phone-num" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}" placeholder="599...">
+                  </div>
+                </label>
+                <label class="prof-field prof-contact-timezone" data-field-help="{{ 'تُستخدم لعرض السجلات والتنبيهات بتوقيتك المحلي.' if not is_en else 'Shows logs and alerts in your local time.' }}">
+                  <span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+                  {{ loc.timezone_select(name='timezone', value=(user_obj.timezone or 'Asia/Hebron'), classes='prof-input ltr', groups=timezone_groups, lang=ui_lang) }}
+                </label>
+              </div>
+            </article>
+
+            {# Step 3 — Security & account #}
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">3</span>
+                <span class="prof-step-icon">🔒</span>
+                <small>{{ 'Step 3' if is_en else 'الخطوة 3' }}</small>
+                <h3>{{ 'Security & account' if is_en else 'الأمان والحساب' }}</h3>
+                <p>{{ 'Change your password. Account status and role are managed by the platform.' if is_en else 'غيّر كلمة المرور. حالة الحساب والدور تُدار من قِبل المنصّة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field" data-field-help="{{ 'اتركها فارغة للإبقاء على كلمة المرور الحالية.' if not is_en else 'Leave blank to keep the current password.' }}"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input class="prof-input" type="password" name="password" placeholder="{{ 'Leave blank to keep current' if is_en else 'اتركها فارغة للإبقاء' }}" autocomplete="new-password"></label>
+                <label class="prof-field" data-field-help="{{ 'يجب أن تطابق كلمة المرور الجديدة وإلا لن يتم تغييرها.' if not is_en else 'Must match the new password, otherwise it will not change.' }}"><span>{{ 'Confirm password' if is_en else 'تأكيد كلمة المرور' }}</span><input class="prof-input" type="password" name="confirm_password" placeholder="••••••••" autocomplete="new-password"></label>
+                <label class="prof-field" data-field-help="{{ 'الدور للعرض فقط ولا يُغيَّر من هذه الصفحة.' if not is_en else 'Role is read-only and not changed from this page.' }}"><span>{{ 'Role' if is_en else 'الدور' }}</span><input class="prof-input" type="text" value="{{ _role_label }}" disabled></label>
+                <label class="prof-field" data-field-help="{{ 'حالة الحساب للعرض فقط، وتُدار من قِبل الإدارة.' if not is_en else 'Account status is read-only and managed by admin.' }}"><span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span><input class="prof-input" type="text" value="{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}" disabled></label>
+              </div>
+            </article>
+
+            <div class="prof-form-actions">
+              <button type="submit" class="prof-btn-save" data-help-title="{{ 'حفظ الملف الشخصي' if not is_en else 'Save profile' }}" data-help-text="{{ 'يحفظ بياناتك الشخصية فقط؛ الدور وحالة الحساب للعرض.' if not is_en else 'Saves personal data only; role and status are read-only.' }}">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button>
+            </div>
+          </form>
+
+          {# ─── Side cards (RTL: visually on the start side) ─── #}
+          <aside class="prof-side">
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Quick info' if is_en else 'معلومات سريعة' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Member since' if is_en else 'منذ' }}</span><b dir="ltr">{{ user_obj.created_at.strftime('%Y/%m/%d') if user_obj.created_at else '—' }}</b></div>
+                <div><span>{{ 'Last update' if is_en else 'آخر تحديث' }}</span><b dir="ltr">{{ user_obj.updated_at.strftime('%Y/%m/%d %H:%M') if user_obj.updated_at else '—' }}</b></div>
+                <div><span>{{ 'Status' if is_en else 'الحالة' }}</span><b>{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}</b></div>
+                <div><span>{{ 'Locale' if is_en else 'اللغة' }}</span><b>{{ 'English' if (user_obj.preferred_language or 'ar') == 'en' else 'العربية' }}</b></div>
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Subscription snapshot' if is_en else 'لمحة الاشتراك' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Plan' if is_en else 'الخطة' }}</span>
+                  <b>{% if profile_plan %}{{ profile_plan.name_ar if (ui_lang or 'ar') == 'ar' and profile_plan.name_ar else (profile_plan.name_en or profile_plan.name_ar or '—') }}{% else %}—{% endif %}</b>
+                </div>
+                <div><span>{{ 'Status' if is_en else 'الحالة' }}</span>
+                  <b>
+                    {% if profile_subscription %}
+                      {% set _ss = (profile_subscription.status or 'active')|lower %}
+                      {% if _ss == 'active' %}{{ 'Active' if is_en else 'نشط' }}
+                      {% elif _ss == 'trial' %}{{ 'Trial' if is_en else 'تجريبي' }}
+                      {% elif _ss in ('expired','ended') %}{{ 'Expired' if is_en else 'منتهي' }}
+                      {% elif _ss == 'suspended' %}{{ 'Suspended' if is_en else 'معلَّق' }}
+                      {% else %}{{ _ss }}{% endif %}
+                    {% else %}—{% endif %}
+                  </b>
+                </div>
+                {% if profile_subscription and profile_subscription.ends_at %}
+                <div><span>{{ 'Ends' if is_en else 'الانتهاء' }}</span><b dir="ltr">{{ profile_subscription.ends_at.strftime('%Y/%m/%d') }}</b></div>
+                {% endif %}
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'My fleet' if is_en else 'أجهزتي' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Active' if is_en else 'النشطة' }}</span><b>{{ profile_devices_count or 0 }}</b></div>
+                <div><span>{{ 'Total' if is_en else 'الإجمالي' }}</span><b>{{ profile_total_devices or 0 }}</b></div>
+                <div><span>{{ 'Default device' if is_en else 'الجهاز الافتراضي' }}</span>
+                  <b>{% if profile_selected_device %}{{ profile_selected_device.name }}{% else %}{{ 'Not set' if is_en else 'غير محدد' }}{% endif %}</b>
+                </div>
+              </div>
+            </section>
+          </aside>
+
+        </div>
       </div>
     </div>
+
   </main>
 </div>
-
-<style>
-  .ap-master-form { display: grid; gap: 22px; }
-  .ap-grid-2 {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
-  }
-  @media (max-width: 720px) { .ap-grid-2 { grid-template-columns: 1fr; } }
-  .ap-help-text {
-    margin: 12px 0 0; font-size: .82rem; color: #64748b; font-style: italic;
-  }
-  .ap-save-bar {
-    display: flex; align-items: center; justify-content: flex-end;
-    gap: 14px;
-    padding: 14px 22px;
-    background: rgba(255,255,255,.95);
-    backdrop-filter: blur(14px);
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 8px 28px rgba(15,23,42,.08);
-    position: sticky; bottom: 14px; z-index: 10;
-  }
-  .ap-save-hint { font-size: .82rem; color: #64748b; font-weight: 600; margin-inline-end: auto; }
-</style>
 {% endblock %}

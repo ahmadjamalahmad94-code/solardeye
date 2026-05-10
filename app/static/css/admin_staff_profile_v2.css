@@ -1056,7 +1056,7 @@
 
 /* The avatar container should have no own background — only the letter does.
    Match border-radius so any inherited bg/shadow can't leak square corners. */
-.staff-page-v2 .prof-hero-avatar{
+.staff-page-v2 .prof-hero-avatar:not(.prof-hero-avatar-v33mu){
   background:transparent !important;
   border-radius:22px !important;
   overflow:visible;
@@ -1071,7 +1071,7 @@
 }
 
 /* Also make sure the letter clips its own gradient cleanly */
-.staff-page-v2 .prof-hero-avatar-letter{
+.staff-page-v2 .prof-hero-avatar:not(.prof-hero-avatar-v33mu) .prof-hero-avatar-letter{
   border-radius:22px !important;
   overflow:hidden;
 }

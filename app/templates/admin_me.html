@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% import '_location_picker.html' as loc %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'My profile' if is_en else 'ملفي الشخصي' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_user_profile.css', v='v33-profile-hero-avatar-actions-final') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_staff_profile_v2.css', v='v33-profile-hero-avatar-actions-final') }}">
+{% endblock %}
+{% block body %}
+{% set _initial = ((user_obj.full_name or user_obj.username or 'A')|trim)[:1]|upper %}
+{% set _is_full_admin = (user_obj.role or '')|lower == 'admin' %}
+{% set _has_image = user_obj.profile_image_url and user_obj.profile_image_url|trim %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area up-page staff-page-v2" data-up-tab="profile" data-up-user-id="{{ user_obj.id }}">
+
+    {# ═══════════════ HERO ═══════════════ #}
+    <header class="hu-hero hu-hero-staff-v2">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            {{ 'My admin profile' if is_en else 'الصفحة الشخصية للمدير' }}
+          </span>
+          <h1 class="hu-h1">{{ user_obj.full_name or user_obj.username }}</h1>
+          <p class="hu-tagline">
+            {{ 'Your personal data, role, and account state. Permissions are managed by the platform owner.' if is_en else 'بياناتك الشخصية ودورك وحالة الحساب. الصلاحيات يديرها مالك المنصة.' }}
+          </p>
+          <div class="hu-hero-meta">
+            <span class="hu-meta-pill {{ 'ok' if user_obj.is_active else 'warn' }}">{% if user_obj.is_active %}🟢 <b>{{ 'Active' if is_en else 'نشط' }}</b>{% else %}⛔ <b>{{ 'Disabled' if is_en else 'معطّل' }}</b>{% endif %}</span>
+            <span class="hu-meta-pill"><b>@{{ user_obj.username }}</b></span>
+            {% if user_obj.email %}<span class="hu-meta-pill">📧 <b dir="ltr">{{ user_obj.email }}</b></span>{% endif %}
+            <span class="hu-meta-pill role-pill role-{{ user_obj.role or 'user' }}">🛡️ <b>{{ role_label(user_obj.role or 'user', ui_lang) }}</b></span>
+            {% if _is_full_admin %}<span class="hu-meta-pill ok">⭐ <b>{{ 'Full admin' if is_en else 'مدير كامل' }}</b></span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {# ═══════════════ KPI strip ═══════════════ #}
+    <section class="up-stats up-stats-staff-v2">
+      <article class="up-stat s-violet">
+        <span class="up-stat-icon">🛡️</span>
+        <small>{{ 'Role' if is_en else 'الدور' }}</small>
+        <strong>{{ role_label(user_obj.role or 'user', ui_lang) }}</strong>
+      </article>
+      <article class="up-stat s-emerald">
+        <span class="up-stat-icon">🔐</span>
+        <small>{{ 'Permissions' if is_en else 'الصلاحيات' }}</small>
+        <strong>{{ admin_granted }} <em>/ {{ admin_total }}</em></strong>
+      </article>
+      <article class="up-stat s-amber">
+        <span class="up-stat-icon">🎧</span>
+        <small>{{ 'Open cases' if is_en else 'حالات مفتوحة' }}</small>
+        <strong>{{ admin_open_support }}</strong>
+      </article>
+      <article class="up-stat s-sky">
+        <span class="up-stat-icon">⏱</span>
+        <small>{{ 'Activity' if is_en else 'النشاط' }}</small>
+        <strong>{{ admin_activity_count }}</strong>
+      </article>
+    </section>
+
+    {# ═══════════════ Profile pane ═══════════════ #}
+    <div class="up-pane" data-up-pane="profile">
+      <div class="prof-shell">
+
+        <div class="prof-hero prof-hero-staff-v2">
+          <div class="prof-hero-bg"></div>
+          <div class="prof-hero-text">
+            <h2>{{ user_obj.full_name or user_obj.username }}</h2>
+            <div class="prof-hero-meta">
+              <span class="prof-tag">@{{ user_obj.username }}</span>
+              {% if user_obj.email %}<span class="prof-tag prof-tag-email">📧 {{ user_obj.email }}</span>{% endif %}
+              {% if user_obj.phone_number %}
+              <span class="prof-tag prof-tag-phone">
+                <span aria-hidden="true">📱</span>
+                <span class="prof-phone-display" dir="ltr">
+                  <span class="prof-phone-display-code">{{ user_obj.phone_country_code or '+970' }}</span>
+                  <span class="prof-phone-display-number">{{ user_obj.phone_number }}</span>
+                </span>
+              </span>
+              {% endif %}
+              <span class="prof-tag prof-tag-loc">📍 {{ user_obj.city or '—' }} · {{ user_obj.country or '—' }}</span>
+            </div>
+          </div>
+          {# v33-profile-hero-avatar-actions-final-polish:
+             avatar + vertical action buttons live as siblings inside the hero. #}
+          <div class="prof-hero-avatar-block">
+            <div class="prof-hero-avatar prof-hero-avatar-v33mu" id="admin-me-avatar-wrap">
+              <div class="prof-hero-avatar-inner">
+                {% if _has_image %}
+                  <img src="{{ user_obj.profile_image_url }}" alt="{{ user_obj.full_name or user_obj.username }}" id="admin-me-avatar-img" />
+                {% else %}
+                  <span class="prof-hero-avatar-letter" id="admin-me-avatar-letter">{{ _initial }}</span>
+                {% endif %}
+              </div>
+              <span class="prof-hero-status {{ 'is-active' if user_obj.is_active else 'is-disabled' }}" title="{{ 'Active' if user_obj.is_active else 'Disabled' }}"></span>
+            </div>
+            <div class="prof-hero-avatar-actions">
+              <input type="file" id="admin-me-avatar-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+              <button type="button" class="prof-hero-action" id="admin-me-avatar-pick">
+                <span aria-hidden="true">📷</span> {{ 'Change photo' if is_en else 'تغيير الصورة' }}
+              </button>
+              {% if _has_image %}
+              <button type="button" class="prof-hero-action prof-hero-action-clear" id="admin-me-avatar-clear">
+                <span aria-hidden="true">🗑️</span> {{ 'Remove photo' if is_en else 'إزالة الصورة' }}
+              </button>
+              {% endif %}
+              <small id="admin-me-avatar-msg" class="prof-hero-action-msg"></small>
+            </div>
+          </div>
+        </div>
+
+        <div class="prof-grid">
+          <form method="post" class="prof-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">1</span>
+                <span class="prof-step-icon">🪪</span>
+                <small>{{ 'Step 1' if is_en else 'الخطوة 1' }}</small>
+                <h3>{{ 'Identity' if is_en else 'الهوية' }}</h3>
+                <p>{{ 'Username, name and email — what we use to recognize you as an admin team member.' if is_en else 'اسم المستخدم والاسم والإيميل — ما نستخدمه للتعرّف عليك كعضو إدارة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field" data-field-help="{{ 'اسم دخولك للوحة الإدارة؛ تجنّب تغييره إلا عند الضرورة.' if not is_en else 'Your admin login name; avoid changing unless necessary.' }}"><span>{{ 'Username' if is_en else 'اسم المستخدم' }}</span><input class="prof-input ltr" name="username" value="{{ user_obj.username }}" required></label>
+                <label class="prof-field" data-field-help="{{ 'الاسم الذي يظهر لفريق الإدارة في السجلات والتذاكر.' if not is_en else 'Name shown to admin teammates in logs and tickets.' }}"><span>{{ 'Full name' if is_en else 'الاسم الكامل' }}</span><input class="prof-input" name="full_name" value="{{ user_obj.full_name or '' }}"></label>
+                <label class="prof-field" data-field-help="{{ 'بريدك الإداري للتواصل والتنبيهات المهمة.' if not is_en else 'Admin contact email for important notices.' }}"><span>{{ 'Email' if is_en else 'البريد الإلكتروني' }}</span><input class="prof-input ltr" type="email" name="email" value="{{ user_obj.email or '' }}"></label>
+                <label class="prof-field" data-field-help="{{ 'تغيير اللغة يخص واجهتك الإدارية فقط.' if not is_en else 'Language change affects your admin interface only.' }}"><span>{{ 'Language' if is_en else 'اللغة' }}</span><select class="prof-input" name="preferred_language"><option value="ar" {% if (user_obj.preferred_language or 'ar') == 'ar' %}selected{% endif %}>عربي</option><option value="en" {% if user_obj.preferred_language == 'en' %}selected{% endif %}>English</option></select></label>
+              </div>
+            </article>
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">2</span>
+                <span class="prof-step-icon">🌍</span>
+                <small>{{ 'Step 2' if is_en else 'الخطوة 2' }}</small>
+                <h3>{{ 'Contact & locale' if is_en else 'التواصل والمنطقة' }}</h3>
+                <p>{{ 'Phone, country, city and timezone. The timezone updates automatically when you change country.' if is_en else 'الجوال والدولة والمدينة والمنطقة الزمنية. تتحدّث المنطقة تلقائياً عند تغيير الدولة.' }}</p>
+              </div>
+              <div class="prof-step-body prof-contact-grid">
+                <label class="prof-field prof-contact-country" data-field-help="{{ 'دولة عملك الأساسية لضبط سياق السجلات والتنبيهات الإدارية.' if not is_en else 'Your primary work country for admin logs and alerts context.' }}"><span>{{ 'Country' if is_en else 'الدولة' }}</span>{{ loc.country_select(name='country', value=user_obj.country, classes='prof-input', countries=country_options, lang=ui_lang) }}</label>
+                <label class="prof-field prof-contact-city" data-field-help="{{ 'المدينة الأقرب لك لعرض الوقت والموقع المحلي بدقّة.' if not is_en else 'Closest city for accurate local time and location display.' }}"><span>{{ 'City' if is_en else 'المدينة' }}</span>{{ loc.city_select(name='city', value=user_obj.city, classes='prof-input', lang=ui_lang) }}</label>
+                <label class="prof-field prof-contact-timezone" data-field-help="{{ 'تُستخدم لعرض السجلات والتنبيهات بتوقيتك، مثل Asia/Hebron.' if not is_en else 'Shows logs and alerts in your timezone, e.g. Asia/Hebron.' }}"><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>{{ loc.timezone_select(name='timezone', value=(user_obj.timezone or 'Asia/Hebron'), classes='prof-input', groups=timezone_groups, lang=ui_lang) }}</label>
+                {% set _phc = user_obj.phone_country_code or '+970' %}
+                <label class="prof-field prof-field-phone prof-contact-phone" data-field-help="{{ 'اكتب بدالة الدولة ثم الرقم المحلي. يظهر الرقم في البطاقات بصيغة مثل +970 599043337.' if not is_en else 'Enter the country code and local number. Profile cards display it like +970 599043337.' }}"><span>{{ 'Phone' if is_en else 'الجوال' }}</span><div class="prof-phone" dir="ltr">{{ loc.phone_prefix_select(name='phone_country_code', value=_phc, classes='prof-input ltr prof-phone-code', prefixes=phone_prefix_options, countries=country_options) }}<input class="prof-input ltr prof-phone-num" name="phone_number" inputmode="tel" autocomplete="tel-national" value="{{ user_obj.phone_number or '' }}"></div></label>
+              </div>
+            </article>
+
+            <article class="prof-step">
+              <div class="prof-step-side">
+                <span class="prof-step-num">3</span>
+                <span class="prof-step-icon">🛡️</span>
+                <small>{{ 'Step 3' if is_en else 'الخطوة 3' }}</small>
+                <h3>{{ 'Security & role' if is_en else 'الأمان والدور' }}</h3>
+                <p>{{ 'Update your password. Your role and account status can only be changed by the platform owner.' if is_en else 'حدِّث كلمة مرورك. الدور وحالة الحساب لا يمكن تغييرهما من هنا — يديرهما مالك المنصة.' }}</p>
+              </div>
+              <div class="prof-step-body">
+                <label class="prof-field" data-field-help="{{ 'اتركها فارغة للإبقاء على كلمة المرور الحالية.' if not is_en else 'Leave blank to keep the current password.' }}"><span>{{ 'New password' if is_en else 'كلمة مرور جديدة' }}</span><input class="prof-input" type="password" name="password" placeholder="{{ 'Leave blank to keep current' if is_en else 'اتركها فارغة للإبقاء' }}" autocomplete="new-password"></label>
+                <label class="prof-field" data-field-help="{{ 'الدور للعرض فقط ويُدار من إدارة المستخدمين.' if not is_en else 'Role is read-only and managed from user management.' }}">
+                  <span>{{ 'Role (read-only)' if is_en else 'الدور (للعرض)' }}</span>
+                  <input class="prof-input" type="text" value="{{ role_label(user_obj.role or 'user', ui_lang) }}" disabled>
+                </label>
+                <label class="prof-field prof-field-full" data-field-help="{{ 'حالة الحساب للعرض؛ لا يمكنك تعطيل نفسك من هنا.' if not is_en else 'Account status is read-only; you cannot disable yourself here.' }}">
+                  <span>{{ 'Account status' if is_en else 'حالة الحساب' }}</span>
+                  <input class="prof-input" type="text" value="{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}" disabled>
+                </label>
+              </div>
+            </article>
+
+            <div class="prof-form-actions">
+              <button type="submit" class="prof-btn-save" data-help-title="{{ 'حفظ بياناتي' if not is_en else 'Save my data' }}" data-help-text="{{ 'يحفظ بيانات ملفك الإداري فقط؛ الصلاحيات والحالة تُدار من إدارة المستخدمين.' if not is_en else 'Saves admin profile data only; permissions/status managed elsewhere.' }}">{{ 'Save personal data' if is_en else 'حفظ البيانات الشخصية' }}</button>
+            </div>
+          </form>
+
+          <aside class="prof-side">
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Quick info' if is_en else 'معلومات سريعة' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Member since' if is_en else 'منذ' }}</span><b dir="ltr">{{ user_obj.created_at.strftime('%Y/%m/%d') if user_obj.created_at else '—' }}</b></div>
+                <div><span>{{ 'Last login' if is_en else 'آخر دخول' }}</span><b dir="ltr">{{ user_obj.last_login_at.strftime('%Y/%m/%d %H:%M') if user_obj.last_login_at else '—' }}</b></div>
+                <div><span>{{ 'Status' if is_en else 'الحالة' }}</span><b>{{ ('Active' if is_en else 'نشط') if user_obj.is_active else ('Disabled' if is_en else 'معطّل') }}</b></div>
+                <div><span>{{ 'Locale' if is_en else 'اللغة' }}</span><b>{{ 'English' if (user_obj.preferred_language or 'ar') == 'en' else 'العربية' }}</b></div>
+                <div><span>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span><b dir="ltr">{{ user_obj.timezone or 'Asia/Hebron' }}</b></div>
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Permissions snapshot' if is_en else 'لمحة الصلاحيات' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>{{ 'Granted' if is_en else 'ممنوحة' }}</span><b>{{ admin_granted }}</b></div>
+                <div><span>{{ 'Total' if is_en else 'الإجمالي' }}</span><b>{{ admin_total }}</b></div>
+                <div><span>{{ 'Full admin' if is_en else 'مدير كامل' }}</span><b>{{ ('Yes' if is_en else 'نعم') if _is_full_admin else ('No' if is_en else 'لا') }}</b></div>
+              </div>
+            </section>
+            <section class="prof-side-card">
+              <header><span class="prof-side-eyebrow">{{ 'Workload' if is_en else 'حمل العمل' }}</span></header>
+              <div class="prof-side-rows">
+                <div><span>🎧 {{ 'Open cases' if is_en else 'حالات مفتوحة' }}</span><b>{{ admin_open_support }}</b></div>
+                <div><span>⏱ {{ 'Activity entries' if is_en else 'إدخالات النشاط' }}</span><b>{{ admin_activity_count }}</b></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+{# ═══════════════ Avatar upload/remove handlers (v33-ε-3) ═══════════════ #}
+<script>
+(function(){
+  var picker = document.getElementById('admin-me-avatar-pick');
+  var input  = document.getElementById('admin-me-avatar-input');
+  var clear  = document.getElementById('admin-me-avatar-clear');
+  var wrap   = document.getElementById('admin-me-avatar-wrap');
+  var msg    = document.getElementById('admin-me-avatar-msg');
+  if (!picker || !input || !wrap) return;
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfTok  = csrfMeta ? csrfMeta.getAttribute('content') : '';
+  var T_OK   = {{ ('"Saved."' if is_en else '"تم الحفظ."')|safe }};
+  var T_ERR  = {{ ('"Could not save photo."' if is_en else '"تعذّر حفظ الصورة."')|safe }};
+  var T_BIG  = {{ ('"Image too large (max 5 MB)."' if is_en else '"الصورة كبيرة (الحد ٥ ميغابايت)."')|safe }};
+  var T_FMT  = {{ ('"Unsupported format."' if is_en else '"الصيغة غير مدعومة."')|safe }};
+
+  picker.addEventListener('click', function(){ input.click(); });
+
+  input.addEventListener('change', function(){
+    var f = input.files && input.files[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { msg.textContent = T_BIG; return; }
+    var ok = ['image/png','image/jpeg','image/webp','image/gif'].indexOf(f.type) !== -1;
+    if (!ok) { msg.textContent = T_FMT; return; }
+    var fd = new FormData();
+    fd.append('avatar', f);
+    msg.textContent = '⏳';
+    fetch({{ url_for('users_routes.admin_me_avatar_upload')|tojson }}, {
+      method: 'POST',
+      body: fd,
+      headers: csrfTok ? { 'X-CSRFToken': csrfTok } : {},
+      credentials: 'same-origin'
+    }).then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+      .then(function(j){
+        if (j && j.ok && j.url) {
+          // Replace letter (or old img) with new <img>
+          var existing = wrap.querySelector('img');
+          if (existing) {
+            existing.src = j.url;
+          } else {
+            var letter = document.getElementById('admin-me-avatar-letter');
+            if (letter) letter.remove();
+            var img = document.createElement('img');
+            img.id = 'admin-me-avatar-img';
+            img.src = j.url;
+            img.alt = '';
+            wrap.insertBefore(img, wrap.firstChild);
+          }
+          msg.textContent = T_OK;
+          setTimeout(function(){ window.location.reload(); }, 600);
+        } else {
+          msg.textContent = T_ERR;
+        }
+      }).catch(function(){ msg.textContent = T_ERR; });
+  });
+
+  if (clear) {
+    clear.addEventListener('click', function(){
+      msg.textContent = '⏳';
+      fetch({{ url_for('users_routes.admin_me_avatar_remove')|tojson }}, {
+        method: 'POST',
+        headers: csrfTok ? { 'X-CSRFToken': csrfTok, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: '{}'
+      }).then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+        .then(function(j){
+          if (j && j.ok) {
+            msg.textContent = T_OK;
+            setTimeout(function(){ window.location.reload(); }, 400);
+          } else {
+            msg.textContent = T_ERR;
+          }
+        }).catch(function(){ msg.textContent = T_ERR; });
+    });
+  }
+})();
+</script>
+{% endblock %}
