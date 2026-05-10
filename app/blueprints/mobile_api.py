@@ -7,7 +7,7 @@ from flask import Blueprint, request, session
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, NotificationEvent, Reading, SubscriptionPlan, TenantAccount
+from ..models import AppDevice, AppUser, NotificationEvent, Reading, SubscriptionPlan, TenantAccount, UserLoad
 from ..services.energy_integrations import provider_catalog
 from ..services.location_catalog import countries_for_template, find_country, phone_prefixes_for_template, timezones_grouped_for_template, timezones_for_template
 from ..services.rbac import portal_pages, portal_page_visible, role_label
@@ -28,6 +28,8 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/location-catalog': {'GET'},
     '/device-providers': {'GET'},
     '/devices': {'GET', 'POST'},
+    '/loads': {'GET', 'POST'},
+    '/loads/recommendations': {'GET'},
     '/notifications': {'GET'},
     '/notifications/settings': {'GET', 'PATCH'},
     '/notifications/read-all': {'POST'},
@@ -39,8 +41,11 @@ _MOBILE_CORE_ALLOWED_METHODS = {
 }
 
 _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
+_MOBILE_LOAD_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
+_MOBILE_LOAD_TOGGLE_ALLOWED_METHODS = {'POST'}
 _MOBILE_NOTIFICATION_READ_ALLOWED_METHODS = {'POST'}
 _SAFE_DEVICE_SETTING_KEYS = {'battery_capacity_kwh', 'battery_reserve_percent'}
+_MOBILE_LOAD_ALLOWED_FIELDS = {'name', 'power_w', 'wattage', 'watts', 'power', 'priority', 'device_id', 'is_enabled', 'enabled'}
 _MOBILE_NOTIFICATION_CHANNEL_VALUES = {'telegram', 'sms', 'both', 'none', 'disabled', ''}
 
 
@@ -132,6 +137,20 @@ def _float_or_error(value, field: str, *, minimum: float | None = None, maximum:
         number = float(value)
     except (TypeError, ValueError):
         return None, _json_error(f'{field} must be a number.', code='invalid_number', field=field)
+    if minimum is not None and number < minimum:
+        return None, _json_error(f'{field} is below the allowed range.', code='number_too_low', field=field)
+    if maximum is not None and number > maximum:
+        return None, _json_error(f'{field} is above the allowed range.', code='number_too_high', field=field)
+    return number, None
+
+
+def _int_or_error(value, field: str, *, minimum: int | None = None, maximum: int | None = None):
+    if isinstance(value, bool):
+        return None, _json_error(f'{field} must be a whole number.', code='invalid_number', field=field)
+    try:
+        number = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None, _json_error(f'{field} must be a whole number.', code='invalid_number', field=field)
     if minimum is not None and number < minimum:
         return None, _json_error(f'{field} is below the allowed range.', code='number_too_low', field=field)
     if maximum is not None and number > maximum:
@@ -329,6 +348,119 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
 
     device.owner_user_id = user.id
     device.updated_at = datetime.utcnow()
+    return None
+
+
+def _mobile_load_payload(load: UserLoad) -> dict:
+    return sanitize_response_payload({
+        'id': load.id,
+        'name': load.name,
+        'power_w': float(load.power_w or 0),
+        'priority': int(load.priority or 1),
+        'is_enabled': bool(load.is_enabled),
+        'device_id': load.device_id,
+        'created_at': load.created_at.isoformat() if load.created_at else None,
+        'control_type': 'persisted_preference',
+        'execution_note': 'Toggling a load only changes the saved preference. It does not send commands to an inverter, relay, scheduler, or hardware device.',
+    })
+
+
+def _mobile_load_device_from_payload(user, data: dict, *, required: bool = False):
+    raw_device_id = data.get('device_id')
+    if raw_device_id in (None, ''):
+        if not required:
+            return None, None
+        selected = _selected_device_for_user(user)
+        if selected:
+            return selected, None
+        return None, _json_error('A target device is required before creating a load.', code='device_required', field='device_id')
+    try:
+        device_id = int(str(raw_device_id).strip())
+    except (TypeError, ValueError):
+        return None, _json_error('Device id is invalid.', code='invalid_device_id', field='device_id')
+    device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
+    if not device:
+        return None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+    return device, None
+
+
+def _mobile_loads_query(user):
+    query = UserLoad.query.filter_by(user_id=user.id)
+    raw_device_id = (request.args.get('device_id') or request.args.get('device') or '').strip()
+    if not raw_device_id or raw_device_id.lower() == 'all':
+        return query, None, None
+    try:
+        device_id = int(raw_device_id)
+    except (TypeError, ValueError):
+        return None, None, api_error('Device id is invalid.', code='invalid_device_id', status=400)
+    device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
+    if not device:
+        return None, None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+    return query.filter_by(device_id=device.id), device, None
+
+
+def _mobile_load_for_user(user, load_id: int):
+    return UserLoad.query.filter_by(id=load_id, user_id=user.id).first()
+
+
+def _mobile_validate_load_fields(data: dict):
+    for key in data:
+        if key not in _MOBILE_LOAD_ALLOWED_FIELDS:
+            return _json_error('Load field is not supported by the mobile API.', code='unsupported_field', field=key)
+    return None
+
+
+def _mobile_load_power_value(data: dict):
+    for key in ('power_w', 'wattage', 'watts', 'power'):
+        if key in data:
+            return data.get(key), key
+    return None, 'power_w'
+
+
+def _mobile_apply_load_fields(load: UserLoad, user, data: dict, *, creating: bool = False):
+    error = _mobile_validate_load_fields(data)
+    if error:
+        return error
+
+    if creating or 'name' in data:
+        name = (data.get('name') or '').strip()
+        if not name:
+            return _json_error('Load name is required.', code='missing_load_name', field='name')
+        if len(name) > 120:
+            return _json_error('Load name is too long.', code='load_name_too_long', field='name')
+        load.name = name
+
+    if creating or any(key in data for key in ('power_w', 'wattage', 'watts', 'power')):
+        raw_power, power_field = _mobile_load_power_value(data)
+        power_w, error = _float_or_error(raw_power, power_field, minimum=0.1, maximum=100000)
+        if error:
+            return error
+        load.power_w = power_w
+
+    if 'priority' in data:
+        priority, error = _int_or_error(data.get('priority'), 'priority', minimum=1, maximum=100)
+        if error:
+            return error
+        load.priority = priority
+    elif creating:
+        load.priority = 1
+
+    if 'is_enabled' in data or 'enabled' in data:
+        parsed, error = _boolean_or_error(data.get('is_enabled') if 'is_enabled' in data else data.get('enabled'), 'is_enabled')
+        if error:
+            return error
+        load.is_enabled = parsed
+    elif creating:
+        load.is_enabled = True
+
+    if creating or 'device_id' in data:
+        device, error = _mobile_load_device_from_payload(user, data, required=creating)
+        if error:
+            return error
+        if device is not None:
+            load.device_id = device.id
+
+    load.user_id = user.id
     return None
 
 
@@ -954,6 +1086,143 @@ def mobile_device_delete(device_id: int):
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
+@mobile_core_api_bp.get('/loads')
+def mobile_loads_list():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    query, device, error = _mobile_loads_query(user)
+    if error:
+        return error
+    rows = query.order_by(UserLoad.priority.asc(), UserLoad.id.asc()).all()
+    return api_ok({
+        'items': [_mobile_load_payload(row) for row in rows],
+        'total': len(rows),
+        'device': _mobile_device_payload(device),
+        'scope': {
+            'mode': 'device' if device else 'all',
+            'device_id': device.id if device else None,
+        },
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/loads')
+def mobile_load_create():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    load = UserLoad()
+    error = _mobile_apply_load_fields(load, user, data, creating=True)
+    if error:
+        return error
+    db.session.add(load)
+    db.session.commit()
+    return api_ok({
+        'load': _mobile_load_payload(load),
+    }, status=201, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/loads/<int:load_id>')
+def mobile_load_detail(load_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    load = _mobile_load_for_user(user, load_id)
+    if not load:
+        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+    return api_ok({'load': _mobile_load_payload(load)}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/loads/<int:load_id>')
+def mobile_load_update(load_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    load = _mobile_load_for_user(user, load_id)
+    if not load:
+        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+    error = _mobile_apply_load_fields(load, user, data)
+    if error:
+        return error
+    db.session.commit()
+    return api_ok({'load': _mobile_load_payload(load)}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.delete('/loads/<int:load_id>')
+def mobile_load_delete(load_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    load = _mobile_load_for_user(user, load_id)
+    if not load:
+        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+    deleted_id = load.id
+    db.session.delete(load)
+    db.session.commit()
+    return api_ok({
+        'deleted': True,
+        'load_id': deleted_id,
+        'note': 'The saved load row was removed. No readings, device history, scheduler jobs, or hardware controls were changed.',
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/loads/<int:load_id>/toggle')
+def mobile_load_toggle(load_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    for key in data:
+        if key not in {'is_enabled', 'enabled'}:
+            return _json_error('Toggle field is not supported by the mobile API.', code='unsupported_field', field=key)
+    load = _mobile_load_for_user(user, load_id)
+    if not load:
+        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+    if 'is_enabled' in data or 'enabled' in data:
+        parsed, error = _boolean_or_error(data.get('is_enabled') if 'is_enabled' in data else data.get('enabled'), 'is_enabled')
+        if error:
+            return error
+        load.is_enabled = parsed
+    else:
+        load.is_enabled = not load.is_enabled
+    db.session.commit()
+    return api_ok({
+        'load': _mobile_load_payload(load),
+        'control_type': 'persisted_preference',
+        'executed_hardware_command': False,
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/loads/recommendations')
+def mobile_load_recommendations():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    query, device, error = _mobile_loads_query(user)
+    if error:
+        return error
+    enabled_count = query.filter_by(is_enabled=True).count()
+    return api_ok({
+        'available': False,
+        'reason': 'mobile_recommendations_deferred',
+        'message': 'Mobile load recommendations are not exposed yet because the existing recommendation helpers are coupled to the web dashboard/session context. This endpoint is read-only and does not run scheduler, energy recalculation, or hardware control.',
+        'scope': {
+            'mode': 'device' if device else 'all',
+            'device_id': device.id if device else None,
+        },
+        'enabled_load_count': enabled_count,
+        'items': [],
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
 @mobile_core_api_bp.get('/notifications/settings')
 def mobile_notification_settings_get():
     user, err = _require_bearer_user()
@@ -1420,6 +1689,18 @@ def _mobile_allowed_methods_for(normalized_path: str):
         try:
             int(parts[1])
             return _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    if len(parts) == 2 and parts[0] == 'loads':
+        try:
+            int(parts[1])
+            return _MOBILE_LOAD_DETAIL_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    if len(parts) == 3 and parts[0] == 'loads' and parts[2] == 'toggle':
+        try:
+            int(parts[1])
+            return _MOBILE_LOAD_TOGGLE_ALLOWED_METHODS
         except (TypeError, ValueError):
             return None
     if len(parts) == 3 and parts[0] == 'notifications' and parts[2] == 'read':
