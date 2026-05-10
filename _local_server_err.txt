@@ -1,9 +1,0 @@
-C:\Users\Ahmad J Ahmad\Desktop\solardeya\app\config.py:13: UserWarning: ADMIN_PASSWORD is not set. A random bootstrap password will be generated for first-run admin creation.
-  class Config:
-C:\Users\Ahmad J Ahmad\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.7) doesn't match a supported version!
-  warnings.warn(
-WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
- * Running on http://192.168.1.148:5000
-Press CTRL+C to quit
