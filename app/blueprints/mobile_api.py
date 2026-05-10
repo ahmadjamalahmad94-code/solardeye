@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from flask import Blueprint, request, session
+from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from ..extensions import db
 from ..models import AppDevice, AppUser, NotificationEvent, Reading, SubscriptionPlan, TenantAccount
@@ -17,6 +18,15 @@ from ..services.api_responses import api_error, api_ok
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 mobile_core_api_bp = Blueprint('mobile_core_api', __name__, url_prefix='/api/mobile')
+
+_MOBILE_CORE_ALLOWED_METHODS = {
+    '/profile': {'GET', 'PATCH'},
+    '/onboarding': {'GET', 'POST', 'PATCH'},
+    '/location-catalog': {'GET'},
+    '/device-providers': {'GET'},
+    '/bootstrap': {'GET'},
+    '/health': {'GET'},
+}
 
 
 def _lang() -> str:
@@ -41,8 +51,30 @@ def _require_bearer_user():
     return user, None
 
 
-def _json():
-    return request.get_json(silent=True) or {}
+def _strict_json_object():
+    if not request.content_length and not request.is_json:
+        return {}, None
+    try:
+        data = request.get_json(silent=False)
+    except (BadRequest, UnsupportedMediaType):
+        return None, _json_error('Request body must be valid JSON.', code='invalid_json')
+    if data is None:
+        return {}, None
+    if not isinstance(data, dict):
+        return None, _json_error('JSON object is required.', code='invalid_json')
+    return data, None
+
+
+def _boolean_or_error(value, field: str):
+    if isinstance(value, bool):
+        return value, None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'true', '1', 'yes'}:
+            return True, None
+        if normalized in {'false', '0', 'no'}:
+            return False, None
+    return None, _json_error('Boolean value is invalid.', code='invalid_boolean', field=field)
 
 
 def _safe_json_loads(raw_value):
@@ -308,9 +340,9 @@ def mobile_profile_update():
     user, err = _require_bearer_user()
     if err:
         return err
-    data = _json()
-    if not isinstance(data, dict):
-        return _json_error('JSON object is required.', code='invalid_json')
+    data, error = _strict_json_object()
+    if error:
+        return error
 
     if 'full_name' in data:
         user.full_name = (data.get('full_name') or '').strip() or None
@@ -373,6 +405,7 @@ def mobile_profile_update():
     return api_ok({
         'user': _profile_payload(user),
         'onboarding': _onboarding_payload(user),
+        'subscription': _subscription_payload(user),
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
@@ -393,9 +426,9 @@ def mobile_onboarding_update():
     user, err = _require_bearer_user()
     if err:
         return err
-    data = _json()
-    if not isinstance(data, dict):
-        return _json_error('JSON object is required.', code='invalid_json')
+    data, error = _strict_json_object()
+    if error:
+        return error
 
     allowed_steps = {'welcome', 'profile', 'device', 'notifications', 'finish', 'done', 'explore_services'}
     if 'onboarding_step' in data or 'step' in data:
@@ -405,8 +438,12 @@ def mobile_onboarding_update():
         user.onboarding_step = step
 
     if 'onboarding_completed' in data or 'completed' in data:
+        field = 'onboarding_completed' if 'onboarding_completed' in data else 'completed'
         completed = data.get('onboarding_completed') if 'onboarding_completed' in data else data.get('completed')
-        user.onboarding_completed = bool(completed)
+        parsed_completed, error = _boolean_or_error(completed, field)
+        if error:
+            return error
+        user.onboarding_completed = parsed_completed
         if user.onboarding_completed and not user.onboarding_step:
             user.onboarding_step = 'done'
 
@@ -569,3 +606,17 @@ def health():
 @mobile_core_api_bp.get('/health')
 def mobile_health():
     return api_ok({'version': '10.1', 'message': 'SolarDeye mobile API is ready'}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.route('/<path:mobile_path>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+def mobile_core_missing_or_method_not_allowed(mobile_path):
+    normalized_path = '/' + (mobile_path or '').strip('/')
+    allowed_methods = _MOBILE_CORE_ALLOWED_METHODS.get(normalized_path)
+    if allowed_methods:
+        return api_error(
+            'Method is not allowed for this mobile API endpoint.',
+            code='method_not_allowed',
+            status=405,
+            allowed_methods=sorted(allowed_methods),
+        )
+    return api_error('Mobile API endpoint was not found.', code='not_found', status=404)
