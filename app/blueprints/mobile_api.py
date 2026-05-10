@@ -5,9 +5,10 @@ from datetime import datetime
 
 from flask import Blueprint, request, session
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, NotificationEvent, Reading, SubscriptionPlan, TenantAccount, UserLoad
+from ..models import AppDevice, AppUser, MobileRefreshToken, NotificationEvent, Reading, SubscriptionPlan, TenantAccount, UserLoad
 from ..services.energy_integrations import provider_catalog
 from ..services.location_catalog import countries_for_template, find_country, phone_prefixes_for_template, timezones_grouped_for_template, timezones_for_template
 from ..services.rbac import portal_pages, portal_page_visible, role_label
@@ -23,6 +24,9 @@ mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 mobile_core_api_bp = Blueprint('mobile_core_api', __name__, url_prefix='/api/mobile')
 
 _MOBILE_CORE_ALLOWED_METHODS = {
+    '/account': {'GET', 'PATCH', 'DELETE'},
+    '/account/change-password': {'POST'},
+    '/account/logout-all': {'POST'},
     '/profile': {'GET', 'PATCH'},
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
@@ -47,6 +51,17 @@ _MOBILE_NOTIFICATION_READ_ALLOWED_METHODS = {'POST'}
 _SAFE_DEVICE_SETTING_KEYS = {'battery_capacity_kwh', 'battery_reserve_percent'}
 _MOBILE_LOAD_ALLOWED_FIELDS = {'name', 'power_w', 'wattage', 'watts', 'power', 'priority', 'device_id', 'is_enabled', 'enabled'}
 _MOBILE_NOTIFICATION_CHANNEL_VALUES = {'telegram', 'sms', 'both', 'none', 'disabled', ''}
+_MOBILE_ACCOUNT_ALLOWED_FIELDS = {
+    'full_name',
+    'email',
+    'phone_country_code',
+    'phone_number',
+    'country',
+    'country_code',
+    'city',
+    'timezone',
+    'preferred_language',
+}
 
 
 def _lang() -> str:
@@ -704,6 +719,45 @@ def _subscription_payload(user):
     }
 
 
+def _account_capabilities_payload():
+    return {
+        'profile_update': True,
+        'password_change': True,
+        'logout_all_refresh_tokens': True,
+        'account_deletion': False,
+        'mobile_api_sections': [
+            'auth',
+            'profile',
+            'onboarding',
+            'dashboard',
+            'devices',
+            'loads',
+            'notifications',
+            'support',
+            'account',
+        ],
+    }
+
+
+def _account_payload(user):
+    devices = _device_summary_payload(user)
+    return {
+        'user': _profile_payload(user),
+        'role': {
+            'code': user.role,
+            'label': role_label(user.role, _lang()),
+            'is_admin': bool(user.is_admin),
+        },
+        'subscription': _subscription_payload(user),
+        'devices': {
+            'total': devices.get('total', 0),
+            'active': devices.get('active', 0),
+            'selected_device_id': devices.get('selected_device_id'),
+        },
+        'capabilities': _account_capabilities_payload(),
+    }
+
+
 def _onboarding_payload(user):
     has_location = bool((user.country or '').strip() and (user.city or '').strip() and (user.timezone or '').strip())
     has_device = bool(AppDevice.query.filter_by(owner_user_id=user.id).first())
@@ -767,27 +821,7 @@ def _location_payload():
     }
 
 
-@mobile_core_api_bp.get('/profile')
-def mobile_profile_get():
-    user, err = _require_bearer_user()
-    if err:
-        return err
-    return api_ok({
-        'user': _profile_payload(user),
-        'onboarding': _onboarding_payload(user),
-        'subscription': _subscription_payload(user),
-    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
-
-
-@mobile_core_api_bp.patch('/profile')
-def mobile_profile_update():
-    user, err = _require_bearer_user()
-    if err:
-        return err
-    data, error = _strict_json_object()
-    if error:
-        return error
-
+def _apply_mobile_profile_fields(user, data):
     if 'full_name' in data:
         user.full_name = (data.get('full_name') or '').strip() or None
 
@@ -845,12 +879,132 @@ def mobile_profile_update():
             return _json_error('Preferred language must be ar or en.', code='invalid_language', field='preferred_language')
         user.preferred_language = lang
 
+    return None
+
+
+@mobile_core_api_bp.get('/profile')
+def mobile_profile_get():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok({
+        'user': _profile_payload(user),
+        'onboarding': _onboarding_payload(user),
+        'subscription': _subscription_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/profile')
+def mobile_profile_update():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    error = _apply_mobile_profile_fields(user, data)
+    if error:
+        return error
+
     db.session.commit()
     return api_ok({
         'user': _profile_payload(user),
         'onboarding': _onboarding_payload(user),
         'subscription': _subscription_payload(user),
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/account')
+def mobile_account_get():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok(_account_payload(user), meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/account')
+def mobile_account_update():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    for key in data:
+        if key not in _MOBILE_ACCOUNT_ALLOWED_FIELDS:
+            return _json_error('Account field is not supported by the mobile API.', code='unsupported_field', field=key)
+
+    error = _apply_mobile_profile_fields(user, data)
+    if error:
+        return error
+
+    db.session.commit()
+    return api_ok(_account_payload(user), meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/account/change-password')
+def mobile_account_change_password():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    if not isinstance(current_password, str) or not current_password:
+        return _json_error('Current password is required.', code='missing_field', field='current_password')
+    if not isinstance(new_password, str) or not new_password:
+        return _json_error('New password is required.', code='missing_field', field='new_password')
+    if not check_password_hash(user.password_hash or '', current_password):
+        return _json_error('Current password is incorrect.', code='invalid_current_password', status=401, field='current_password')
+    if len(new_password) < 6:
+        return _json_error('New password must be at least 6 characters.', code='weak_password', field='new_password')
+
+    user.password_hash = generate_password_hash(new_password)
+    user.updated_at = datetime.utcnow()
+    db.session.commit()
+    return api_ok({'changed': True}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/account/logout-all')
+def mobile_account_logout_all():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    _, error = _strict_json_object()
+    if error:
+        return error
+
+    now = datetime.utcnow()
+    revoked_count = (
+        MobileRefreshToken.query
+        .filter(MobileRefreshToken.user_id == user.id, MobileRefreshToken.revoked_at.is_(None))
+        .update({'revoked_at': now}, synchronize_session=False)
+    )
+    db.session.commit()
+    return api_ok({
+        'supported': True,
+        'revoked_refresh_tokens': int(revoked_count or 0),
+        'access_tokens_revoked': False,
+        'access_token_note': 'Access tokens are stateless and expire automatically.',
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.delete('/account')
+def mobile_account_delete():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_error(
+        'Account deletion is not supported by the mobile API.',
+        code='account_deletion_not_supported',
+        status=501,
+        supported=False,
+    )
 
 
 @mobile_core_api_bp.get('/onboarding')
