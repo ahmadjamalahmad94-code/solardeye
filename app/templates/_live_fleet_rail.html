@@ -44,7 +44,7 @@
           {{ 'Live Devices' if _is_en else 'الأجهزة المباشرة' }}
         </h3>
         <p class="lfr-subtitle">
-          {{ 'Monitor your solar systems performance in real time' if _is_en else 'راقب أداء منظومات الطاقة الشمسية في الوقت الفعلي' }}
+          {{ 'Monitor your solar systems performance in real time' if _is_en else 'اختر الجهاز الذي تريد عرض بياناته أو شاهد ملخص كل الأجهزة' }}
         </p>
       </div>
     </div>
@@ -68,7 +68,7 @@
       </a>
 
       <span class="lfr-help" tabindex="0"
-            data-help="{{ 'All your active devices keep running in the background. Switching here only changes what you see — it does NOT pause or activate any device.' if _is_en else 'كل أجهزتك النشطة تعمل في الخلفية. التبديل هنا يغير العرض فقط — لا يوقف أو يشغّل أي جهاز.' }}"
+            data-help="{{ 'All active devices may keep syncing in the background. Switching here changes the displayed dashboard scope only.' if _is_en else 'الأجهزة النشطة قد تواصل المزامنة في الخلفية. التبديل هنا يغيّر نطاق العرض في لوحة التحكم فقط ولا يفعّل أو يوقف أي جهاز.' }}"
             aria-label="{{ 'About this view' if _is_en else 'حول هذا العرض' }}">
         <span class="lfr-help-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
