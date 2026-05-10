@@ -111,7 +111,10 @@ def user_from_bearer_or_session() -> AppUser | None:
 
 
 def authenticate_username_password(username: str, password: str) -> AppUser | None:
-    user = AppUser.query.filter(AppUser.username == (username or '').strip()).first()
+    login = (username or '').strip()
+    user = AppUser.query.filter(AppUser.username == login).first()
+    if user is None and '@' in login:
+        user = AppUser.query.filter(db.func.lower(AppUser.email) == login.lower()).first()
     if not user:
         return None
     if not check_password_hash(user.password_hash or '', password or ''):

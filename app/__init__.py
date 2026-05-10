@@ -51,8 +51,8 @@ def create_app():
     from .blueprints.platform import platform_bp
     from .blueprints.admin_ops import admin_ops_bp
     from .blueprints.access_control import access_control_bp
-    from .blueprints.mobile_api import mobile_api_bp
-    from .blueprints.mobile_auth_api import mobile_auth_api_bp
+    from .blueprints.mobile_api import mobile_api_bp, mobile_core_api_bp
+    from .blueprints.mobile_auth_api import mobile_auth_api_bp, mobile_auth_api_v2_bp
     from .blueprints.mobile_devices_api import mobile_devices_api_bp
     from .blueprints.mobile_support_api import mobile_support_api_bp
     from .blueprints.mobile_notifications_api import mobile_notifications_api_bp
@@ -73,7 +73,9 @@ def create_app():
     app.register_blueprint(admin_ops_bp)
     app.register_blueprint(access_control_bp)
     app.register_blueprint(mobile_api_bp)
+    app.register_blueprint(mobile_core_api_bp)
     app.register_blueprint(mobile_auth_api_bp)
+    app.register_blueprint(mobile_auth_api_v2_bp)
     app.register_blueprint(mobile_devices_api_bp)
     app.register_blueprint(mobile_support_api_bp)
     app.register_blueprint(mobile_notifications_api_bp)

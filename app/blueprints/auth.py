@@ -490,7 +490,7 @@ def protect_routes():
     # Mobile/API routes authenticate with bearer tokens inside their own handlers.
     # Let those handlers return precise API errors instead of browser-session redirects.
     # Exception: /api/v1/docs is a browser HTML page that needs the session context (g.is_admin etc).
-    if path.startswith('/api/v1/') and path != '/api/v1/docs':
+    if (path.startswith('/api/v1/') and path != '/api/v1/docs') or path.startswith('/api/mobile/'):
         return
     g.current_user = None
     g.current_device = None

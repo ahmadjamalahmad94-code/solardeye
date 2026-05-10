@@ -113,12 +113,18 @@ def register_security(app):
         endpoint = request.endpoint or ''
         path = request.path or ''
         # Auth endpoints must remain usable; logout is allowed from preview mode.
-        if endpoint in {'auth.login', 'auth.register', 'auth.logout', 'mobile_auth_api.mobile_login', 'mobile_auth_api.mobile_refresh', 'mobile_auth_api.mobile_logout'}:
+        if endpoint in {
+            'auth.login', 'auth.register', 'auth.logout',
+            'mobile_auth_api.mobile_login', 'mobile_auth_api.mobile_refresh', 'mobile_auth_api.mobile_logout',
+            'mobile_auth_api.mobile_register',
+            'mobile_auth_api_v2.mobile_login', 'mobile_auth_api_v2.mobile_refresh',
+            'mobile_auth_api_v2.mobile_logout', 'mobile_auth_api_v2.mobile_register',
+        }:
             return None
         from .access_state import account_access_state, request_user_from_session
         user = request_user_from_session()
         # Bearer-token mobile requests do not have a browser session; resolve lazily.
-        if user is None and path.startswith('/api/v1/'):
+        if user is None and (path.startswith('/api/v1/') or path.startswith('/api/mobile/')):
             try:
                 from .mobile_auth import user_from_bearer_or_session
                 user = user_from_bearer_or_session()
@@ -150,7 +156,7 @@ def register_security(app):
             return None
         # Mobile/API clients authenticate with bearer/refresh tokens instead of browser cookies.
         # They are intentionally CSRF-exempt so Android can call JSON endpoints cleanly.
-        if (request.path or '').startswith('/api/v1/'):
+        if (request.path or '').startswith(('/api/v1/', '/api/mobile/')):
             return None
         expected = session.get(CSRF_SESSION_KEY)
         supplied = _csrf_from_request()
