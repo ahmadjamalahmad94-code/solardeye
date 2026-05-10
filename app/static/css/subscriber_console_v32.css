@@ -252,118 +252,361 @@
 
 /* ── 4. Devices-manage hub polish ──────────────────────────────── */
 
-.dm-fleet-grid{
+/* ════════════════════════════════════════════════════════════════════
+   v33-δ-2  Fleet section redesign — clean SaaS multi-device console
+   ──────────────────────────────────────────────────────────────────────
+   Goals: calm hierarchy, badges INSIDE the card, soft selected state,
+   intentional action priority (primary / secondary / tertiary), 1/2/3
+   columns responsive grid, RTL-correct, info panel using simple flex
+   rows (the prior dl/dt/dd mangled under bidi).
+
+   IMPORTANT: every `.dm-act-*` and key card selector is qualified with
+   `.dm-fleet-section` to give it specificity 0,0,2,0 — that beats any
+   global `.btn-primary` / `.sub-btn-primary` / `.app-main a` rules in
+   the codebase that would otherwise repaint the action buttons blue
+   or red. Without this scope-qualifier the cards inherit the legacy
+   palette and the redesign is invisible.
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Section header ───────────────────────────────────────────────── */
+.dm-fleet-section .dm-fleet-head{
+  display: flex; align-items: flex-end;
+  justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.dm-fleet-section .dm-fleet-head-text{ min-width: 0; flex: 1 1 280px; }
+.dm-fleet-section .dm-fleet-subtitle{
+  margin: 4px 0 0;
+  font-size: .82rem;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.dm-fleet-section .dm-fleet-head-actions{
+  display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.dm-fleet-section .dm-fleet-count{
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  border-color: #e0e7ff !important;
+  font-weight: 800;
+}
+.dm-fleet-section a.dm-fleet-add-btn,
+.dm-fleet-section .dm-fleet-add-btn{
+  display: inline-flex !important; align-items: center; gap: 8px;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: .82rem !important;
+  text-decoration: none !important;
+  border: 1px solid #3730a3 !important;
+  box-shadow: 0 6px 14px rgba(67,56,202,.20) !important;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.dm-fleet-section a.dm-fleet-add-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(67,56,202,.28) !important;
+  text-decoration: none !important; color: #fff !important;
+}
+.dm-fleet-section a.dm-fleet-add-btn:focus-visible{ outline: 2px solid #818cf8; outline-offset: 2px; }
+
+/* ── Grid: 1 / 2 / 3 columns ──────────────────────────────────────── */
+.dm-fleet-section .dm-fleet-grid{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
 }
-.dm-device-card{
+@media (min-width: 1280px){
+  .dm-fleet-section .dm-fleet-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 760px) and (max-width: 1279px){
+  .dm-fleet-section .dm-fleet-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── Card shell ───────────────────────────────────────────────────── */
+.dm-fleet-section .dm-device-card{
+  --dm-card-accent:        #6366f1;     /* indigo by default */
+  --dm-card-accent-tint:   #eef2ff;
+  --dm-card-accent-edge:   #e0e7ff;
+  --dm-card-bg:            #ffffff;
+  --dm-card-line:          #e5e7eb;
+  --dm-card-line-strong:   #d1d5db;
+  --dm-card-ink:           #0f172a;
+  --dm-card-muted:         #64748b;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 18px 20px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(15,23,42,.05);
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  display: flex; flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 16px;
+  background: var(--dm-card-bg);
+  border: 1px solid var(--dm-card-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04);
+  transition: transform .18s ease, box-shadow .18s ease,
+              border-color .18s ease, background .18s ease;
 }
-.dm-device-card:hover{
+.dm-fleet-section .dm-device-card:hover{
+  border-color: var(--dm-card-line-strong);
+  box-shadow: 0 8px 24px rgba(15,23,42,.07);
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(15,23,42,.10);
-  border-color: #cbd5e1;
 }
-.dm-device-card.is-selected{
-  border-color: #fbbf24;
-  box-shadow: 0 12px 32px rgba(245,158,11,.18);
+
+/* Selected state — soft warm cream + subtle orange outline */
+.dm-fleet-section .dm-device-card.is-selected{
+  --dm-card-accent:        #f59e0b;
+  --dm-card-accent-tint:   #fffbeb;
+  --dm-card-accent-edge:   #fde68a;
+  --dm-card-line:          #f59e0b;
+  border-width: 2px;
+  padding: 17px 17px 15px;       /* compensate the +1px border so card height stays steady */
+  background: linear-gradient(180deg, #fffaf0 0%, #ffffff 70%);
+  box-shadow:
+    0 0 0 4px rgba(245,158,11,.10),
+    0 12px 28px rgba(245,158,11,.10);
 }
-.dm-device-card.is-selected::before{
-  content: "★ "attr(data-selected-label);
-  position: absolute;
-  top: -10px;
-  inset-inline-end: 14px;
-  background: linear-gradient(135deg, #ffcf4d, #f59e0b);
-  color: #0b1531;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: .7rem;
-  font-weight: 900;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  box-shadow: 0 4px 10px rgba(245,158,11,.30);
+
+/* Disabled device — softly muted, still readable */
+.dm-fleet-section .dm-device-card.is-disabled{ background: #fafafa; }
+.dm-fleet-section .dm-device-card.is-disabled .dm-card-name{ color: #475569; }
+.dm-fleet-section .dm-device-card.is-disabled .dm-card-avatar{ filter: grayscale(60%); }
+
+/* ── Top row: avatar + identity ───────────────────────────────────── */
+.dm-fleet-section .dm-card-top{
+  display: flex; align-items: flex-start; gap: 12px;
+  min-width: 0;
 }
-.dm-device-card-head{
-  display: flex; align-items: center; gap: 12px;
-}
-.dm-device-card-icon{
-  width: 48px; height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  color: #1d4ed8;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
+.dm-fleet-section .dm-card-avatar{
   flex-shrink: 0;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: var(--dm-card-accent-tint);
+  border: 1px solid var(--dm-card-accent-edge);
+  color: var(--dm-card-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.65rem; line-height: 1;
+  margin-top: 2px;
 }
-.dm-device-card.is-selected .dm-device-card-icon{
+.dm-fleet-section .dm-device-card.is-selected .dm-card-avatar{
   background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-color: #f59e0b;
   color: #b45309;
 }
-.dm-device-card.is-disabled .dm-device-card-icon{
-  background: #f1f5f9;
-  color: #94a3b8;
+.dm-fleet-section .dm-card-identity{
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 0; flex: 1 1 auto;
 }
-.dm-device-card-title{ display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
-.dm-device-card-title strong{
-  font-size: 1rem;
-  font-weight: 900;
-  color: #0f172a;
-  line-height: 1.2;
-  word-break: break-word;
-}
-.dm-device-card-title small{
-  font-size: .76rem;
-  color: #64748b;
-  font-weight: 700;
-}
-.dm-device-card-status{
-  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
-}
-.dm-device-card-status .status-pill{
-  font-size: .72rem;
-  padding: 4px 10px;
+.dm-fleet-section .dm-card-name{
+  font-size: 1.05rem;
   font-weight: 800;
+  color: var(--dm-card-ink);
+  line-height: 1.25;
+  letter-spacing: -.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.dm-device-card-meta{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-  padding: 10px 0;
-  border-top: 1px dashed #e2e8f0;
+.dm-fleet-section .dm-card-meta-row{
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
-.dm-device-card-meta > div{
-  display: flex; flex-direction: column; gap: 2px;
-}
-.dm-device-card-meta small{
+/* v33-δ-2: Dark UID pill — high-contrast identifier matching target spec */
+.dm-fleet-section .dm-card-uid{
+  display: inline-flex; align-items: center;
+  font-family: 'JetBrains Mono', 'Menlo', ui-monospace, monospace;
   font-size: .68rem;
+  font-weight: 700;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 3px 9px;
+  border-radius: 6px;
+  letter-spacing: .02em;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dm-fleet-section .dm-card-provider{
+  font-size: .65rem;
   font-weight: 800;
-  color: #94a3b8;
+  color: #64748b;
+  letter-spacing: .05em;
   text-transform: uppercase;
-  letter-spacing: .04em;
 }
-.dm-device-card-meta b{
-  font-size: .82rem;
+
+/* ── Flag row — INSIDE the card ───────────────────────────────────── */
+.dm-fleet-section .dm-card-flags{
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: -2px;
+}
+.dm-fleet-section .dm-flag{
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .7rem;
   font-weight: 800;
-  color: #0f172a;
-  word-break: break-word;
+  letter-spacing: .005em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  font-feature-settings: "tnum" 1;
+  line-height: 1.4;
 }
-.dm-device-card-actions{
-  display: flex; gap: 8px; flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px dashed #e2e8f0;
+.dm-fleet-section .dm-flag.is-selected{
+  background: #fef3c7; color: #92400e; border-color: #fcd34d;
 }
-.dm-device-card-actions .sub-btn,
-.dm-device-card-actions .dm-btn{ flex: 1 1 auto; justify-content: center; }
+.dm-fleet-section .dm-flag.is-active{
+  background: #ecfdf5; color: #047857; border-color: #a7f3d0;
+}
+.dm-fleet-section .dm-flag.is-disabled{
+  background: #f1f5f9; color: #64748b; border-color: #e2e8f0;
+}
+.dm-fleet-section .dm-flag.is-new{
+  background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;
+}
+.dm-fleet-section .dm-flag.is-online{
+  background: #f0fdf4; color: #166534; border-color: #bbf7d0;
+}
+
+/* ── Info panel — flex-row label/value pairs (replaces fragile dl/dt/dd) ─ */
+.dm-fleet-section .dm-card-info{
+  margin: 2px 0 0;
+  display: flex; flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+}
+.dm-fleet-section .dm-device-card.is-selected .dm-card-info{
+  background: rgba(255,251,235,.7);
+  border-color: #fde68a;
+}
+.dm-fleet-section .dm-info-row{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.dm-fleet-section .dm-info-label{
+  font-size: .72rem;
+  font-weight: 700;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.dm-fleet-section .dm-info-value{
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--dm-card-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-feature-settings: "tnum" 1;
+  text-align: end;
+  min-width: 0;
+}
+
+/* ── Action footer — clear primary / secondary / tertiary hierarchy ─
+   All `.dm-act` selectors are scoped under `.dm-fleet-section` for
+   specificity 0,0,2,0 — that beats global `.btn-primary`,
+   `.sub-btn-primary`, `.app-main a`, etc. that would otherwise repaint
+   these blue/red. We also use `!important` on the keys (background,
+   color, border) as a defense-in-depth in case any style.css rule
+   uses `!important` on .btn-primary (it does, see style.css:1723).  */
+.dm-fleet-section .dm-card-foot{
+  display: flex; gap: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dm-fleet-section .dm-device-card.is-selected .dm-card-foot{
+  border-top-color: #fde68a;
+}
+.dm-fleet-section .dm-act-form{ flex: 0 0 auto; display: flex; }
+
+.dm-fleet-section .dm-act,
+.dm-fleet-section a.dm-act,
+.dm-fleet-section button.dm-act{
+  display: inline-flex !important;
+  align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  font-size: .8rem !important;
+  font-weight: 800 !important;
+  text-decoration: none !important;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease,
+              background .15s ease, border-color .15s ease, color .15s ease;
+  min-height: 36px;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.2;
+  box-shadow: none;
+}
+.dm-fleet-section .dm-act:focus-visible{ outline: 2px solid #f59e0b; outline-offset: 2px; }
+
+/* Primary — "تحديد" — filled warm amber, the boldest CTA */
+.dm-fleet-section .dm-act-primary,
+.dm-fleet-section a.dm-act-primary{
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #0b1531 !important;
+  border-color: #d97706 !important;
+  flex: 1 1 auto;
+  box-shadow: 0 4px 10px rgba(245,158,11,.22) !important;
+}
+.dm-fleet-section a.dm-act-primary:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(245,158,11,.30) !important;
+  color: #0b1531 !important;
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+/* "✓ محدّد حالياً" sentinel — replaces primary button on the selected card */
+.dm-fleet-section .dm-act-current{
+  background: #fffbeb !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+  flex: 1 1 auto;
+  cursor: default;
+}
+
+/* Secondary — "تعديل" — white outline, quiet but clear */
+.dm-fleet-section .dm-act-secondary,
+.dm-fleet-section a.dm-act-secondary{
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+  flex: 0 0 auto;
+}
+.dm-fleet-section a.dm-act-secondary:hover{
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+  transform: translateY(-1px);
+}
+
+/* Tertiary — "تعطيل/تفعيل" — softest, ghost-style */
+.dm-fleet-section .dm-act-tertiary,
+.dm-fleet-section button.dm-act-tertiary{
+  background: transparent !important;
+  color: #64748b !important;
+  border-color: transparent !important;
+  flex: 0 0 auto;
+}
+.dm-fleet-section button.dm-act-tertiary:hover{
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+/* Mobile: stack actions full-width for thumb-friendly tap targets */
+@media (max-width: 540px){
+  .dm-fleet-section .dm-card-foot{ flex-direction: column; align-items: stretch; }
+  .dm-fleet-section .dm-act-form{ width: 100%; }
+  .dm-fleet-section .dm-act{ width: 100%; }
+}
+
+/* Reduced motion — drop transforms */
+@media (prefers-reduced-motion: reduce){
+  .dm-fleet-section .dm-device-card:hover{ transform: none; }
+  .dm-fleet-section a.dm-act-primary:hover,
+  .dm-fleet-section a.dm-fleet-add-btn:hover,
+  .dm-fleet-section a.dm-act-secondary:hover{ transform: none; }
+}
 
 
 /* ── 5. Live-data refinements: device-context strip above KPIs ─── */

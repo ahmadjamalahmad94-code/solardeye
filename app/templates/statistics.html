@@ -11,7 +11,7 @@
 
     {% include '_device_switcher.html' %}
 
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Energy · Statistics' if is_en else 'الطاقة · الإحصاءات' }}</span>
@@ -50,7 +50,7 @@
       <div class="st-main">
 
         {# Section 1: View switcher #}
-        <section class="st-section" data-help="{{ 'Pick a time range. The page reloads with figures for that period.' if is_en else 'اختر الفترة الزمنية. تُحدَّث الصفحة بالأرقام لتلك الفترة.' }}">
+        <section class="st-section" data-help="{{ 'Choose the analysis scope. The same date means a day, month, or year depending on the selected view.' if is_en else 'اختر نطاق التحليل. التاريخ نفسه قد يعني يومًا أو شهرًا أو سنة حسب نوع العرض المحدد.' }}">
           <div class="st-sec-head">
             <div>
               <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
@@ -61,7 +61,7 @@
           <div class="st-sec-body">
             <form method="get" class="st-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
               <input type="hidden" name="lang" value="{{ ui_lang }}">
-              <label class="st-field">
+              <label class="st-field" data-field-help="{{ 'اختر طريقة التجميع: يوم لقراءات يوم واحد، شهر لمقارنة الأيام، سنة لرؤية الاتجاه العام.' if not is_en else 'Choose aggregation: day for one day, month for daily comparison, year for long-term trend.' }}">
                 <span>{{ 'View' if is_en else 'العرض' }}</span>
                 <select name="view">
                   <option value="day" {% if selected_view=='day' %}selected{% endif %}>{{ 'Day' if is_en else 'يوم' }}</option>
@@ -69,12 +69,12 @@
                   <option value="year" {% if selected_view=='year' %}selected{% endif %}>{{ 'Year' if is_en else 'سنة' }}</option>
                 </select>
               </label>
-              <label class="st-field">
+              <label class="st-field" data-field-help="{{ 'في عرض اليوم يُستخدم التاريخ نفسه. في الشهر تُستخدم سنة وشهر التاريخ، وفي السنة تُستخدم سنة التاريخ.' if not is_en else 'Day view uses the exact date; month/year views use the date month or year.' }}">
                 <span>{{ 'Date' if is_en else 'التاريخ' }}</span>
                 <input type="date" name="date" value="{{ selected_date or '' }}">
               </label>
               <div style="display:flex;gap:10px;align-items:end">
-                <button type="submit" class="st-btn primary">{{ '🔎 Apply' if is_en else '🔎 تطبيق' }}</button>
+                <button type="submit" class="st-btn primary" data-help-title="{{ 'تطبيق الفلتر' if not is_en else 'Apply filter' }}" data-help-text="{{ 'يحدّث الجداول والبطاقات حسب العرض والتاريخ. لا يغيّر إعدادات الجهاز أو التقارير.' if not is_en else 'Refreshes tables and cards for the selected view/date without changing device or report settings.' }}">{{ '🔎 Apply' if is_en else '🔎 تطبيق' }}</button>
               </div>
             </form>
           </div>
@@ -82,7 +82,7 @@
 
         {# Section 2: KPI summary #}
         {% if stats %}
-        <section class="st-section" data-help="{{ 'Headline numbers for the selected period. Click any tile to see more detail in the table below.' if is_en else 'الأرقام الرئيسية للفترة المختارة. اضغط أي بطاقة لمزيد من التفاصيل في الجدول أدناه.' }}">
+        <section class="st-section" data-help="{{ 'Headline totals for the selected period. Energy totals use kWh; battery percentage appears as % in live views.' if is_en else 'إجماليات الفترة المختارة. إجماليات الطاقة هنا بوحدة kWh، أما نسبة البطارية فتظهر % في الصفحات الحية.' }}">
           <div class="st-sec-head">
             <div>
               <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
@@ -95,7 +95,7 @@
               <article class="st-kpi accent-amber">
                 <span class="st-kpi-icon">☀</span>
                 <div class="st-kpi-body">
-                  <small>{{ 'Production' if is_en else 'الإنتاج' }}</small>
+                  <small data-help-title="{{ 'إنتاج الشمس' if not is_en else 'Solar production' }}" data-help-text="{{ 'إجمالي الطاقة التي أنتجتها الألواح خلال الفترة المحددة. kWh تعني كيلوواط-ساعة، وهي كمية طاقة وليست قدرة لحظية.' if not is_en else 'Total panel energy in the selected period. kWh is energy, not instant power.' }}">{{ 'Production' if is_en else 'الإنتاج' }}</small>
                   <strong>{{ format_energy(stats.production_kwh or 0) }}</strong>
                   <span>{{ 'PV total' if is_en else 'إجمالي الشمسي' }}</span>
                 </div>
@@ -103,7 +103,7 @@
               <article class="st-kpi accent-blue">
                 <span class="st-kpi-icon">🏠</span>
                 <div class="st-kpi-body">
-                  <small>{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
+                  <small data-help-title="{{ 'استهلاك المنزل' if not is_en else 'Home consumption' }}" data-help-text="{{ 'مجموع ما استهلكته أحمال المنزل خلال الفترة. الرقم يساعدك على مقارنة أيام الاستخدام العالي والمنخفض.' if not is_en else 'Total home load energy for the period; useful for comparing high and low usage days.' }}">{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
                   <strong>{{ format_energy(stats.consumption_kwh or 0) }}</strong>
                   <span>{{ 'home total' if is_en else 'إجمالي المنزل' }}</span>
                 </div>
@@ -111,7 +111,7 @@
               <article class="st-kpi accent-emerald">
                 <span class="st-kpi-icon">🔋</span>
                 <div class="st-kpi-body">
-                  <small>{{ 'Battery in' if is_en else 'بطارية - شحن' }}</small>
+                  <small data-help-title="{{ 'شحن البطارية' if not is_en else 'Battery charge' }}" data-help-text="{{ 'كمية الطاقة التي دخلت البطارية خلال الفترة. ارتفاعها يعني أن جزءًا جيدًا من الشمس ذهب للتخزين.' if not is_en else 'Energy charged into the battery. Higher means more solar went into storage.' }}">{{ 'Battery in' if is_en else 'بطارية - شحن' }}</small>
                   <strong>{{ format_energy(stats.battery_in_kwh or 0) }}</strong>
                   <span>{{ 'charged' if is_en else 'تم شحنها' }}</span>
                 </div>
@@ -119,7 +119,7 @@
               <article class="st-kpi accent-violet">
                 <span class="st-kpi-icon">⚡</span>
                 <div class="st-kpi-body">
-                  <small>{{ 'Grid use' if is_en else 'استخدام الشبكة' }}</small>
+                  <small data-help-title="{{ 'الشبكة' if not is_en else 'Grid' }}" data-help-text="{{ 'يوضح كمية الطاقة التي احتجت أخذها من الشبكة خلال الفترة، حسب قراءات الجهاز.' if not is_en else 'Shows energy taken from the grid in the period based on device readings.' }}">{{ 'Grid use' if is_en else 'استخدام الشبكة' }}</small>
                   <strong>{{ format_energy(stats.grid_in_kwh or 0) }}</strong>
                   <span>{{ 'imported' if is_en else 'مستورد' }}</span>
                 </div>
@@ -131,7 +131,7 @@
 
         {# Section 3: Detailed rows table #}
         {% if table_rows %}
-        <section class="st-section" data-help="{{ 'Detailed breakdown for each interval in the selected period. Sort and search by clicking column headers (where available).' if is_en else 'تفصيل لكل فاصل زمني في الفترة المحددة. يمكن الترتيب والبحث بالنقر على العناوين (حيث يتوفر).' }}">
+        <section class="st-section" data-help="{{ 'Each row breaks the selected period into smaller time slices so you can spot when production, load, or grid use changed.' if is_en else 'كل صف يقسم الفترة المحددة إلى أجزاء زمنية أصغر حتى تعرف متى تغيّر الإنتاج أو الحمل أو استخدام الشبكة.' }}">
           <div class="st-sec-head">
             <div>
               <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>

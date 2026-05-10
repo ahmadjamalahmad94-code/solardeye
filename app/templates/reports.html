@@ -11,7 +11,7 @@
 
     {% include '_device_switcher.html' %}
 
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Energy · Reports' if is_en else 'الطاقة · التقارير' }}</span>
@@ -48,7 +48,7 @@
       <div class="rp-main">
 
         {# Section 1: Period chooser & export buttons #}
-        <section class="rp-section" data-help="{{ 'Pick a period and click an export button to download. Files generate on the fly with your data.' if is_en else 'اختر الفترة واضغط زر التصدير للتنزيل. يتم توليد الملفات لحظياً ببياناتك.' }}">
+        <section class="rp-section" data-help="{{ 'Choose the period first, preview it, then export the same selected data as CSV or PDF.' if is_en else 'اختر الفترة أولًا، عاين الأرقام، ثم صدّر نفس البيانات المحددة بصيغة CSV أو PDF.' }}">
           <div class="rp-sec-head">
             <div>
               <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
@@ -59,7 +59,7 @@
           <div class="rp-sec-body">
             <form method="get" class="rp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
               <input type="hidden" name="lang" value="{{ ui_lang }}">
-              <label class="rp-field">
+              <label class="rp-field" data-field-help="{{ 'اختر نطاق التقرير: يوم لتفاصيل يوم واحد، شهر لمقارنة أيام الشهر، أو سنة لملخص طويل المدى.' if not is_en else 'Choose report scope: day for one day, month for month comparison, or year for long-term summary.' }}">
                 <span>{{ 'Period' if is_en else 'الفترة' }}</span>
                 <select name="view">
                   <option value="day" {% if selected_view=='day' %}selected{% endif %}>{{ 'Day' if is_en else 'يوم' }}</option>
@@ -67,14 +67,14 @@
                   <option value="year" {% if selected_view=='year' %}selected{% endif %}>{{ 'Year' if is_en else 'سنة' }}</option>
                 </select>
               </label>
-              <label class="rp-field">
+              <label class="rp-field" data-field-help="{{ 'اختر تاريخًا داخل الفترة المطلوبة. في عرض الشهر يكفي أي يوم من ذلك الشهر، وفي عرض السنة يكفي أي يوم من تلك السنة.' if not is_en else 'Choose a date inside the target period. For month/year views, any day inside that month/year works.' }}">
                 <span>{{ 'Date' if is_en else 'التاريخ' }}</span>
                 <input type="date" name="date" value="{{ selected_date or '' }}">
               </label>
               <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
-                <button type="submit" class="rp-btn primary">{{ '🔎 Preview' if is_en else '🔎 معاينة' }}</button>
-                <a href="{{ url_for('main.export_statistics_csv', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📊 CSV</a>
-                <a href="{{ url_for('main.export_statistics_pdf', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost">📄 PDF</a>
+                <button type="submit" class="rp-btn primary" data-help-title="{{ 'معاينة التقرير' if not is_en else 'Preview report' }}" data-help-text="{{ 'يعرض أرقام الفترة على الصفحة قبل تنزيل الملف، حتى تتأكد من التاريخ والنطاق.' if not is_en else 'Shows the selected numbers before download so you can confirm period and date.' }}">{{ '🔎 Preview' if is_en else '🔎 معاينة' }}</button>
+                <a href="{{ url_for('main.export_statistics_csv', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost" data-help-title="CSV" data-help-text="{{ 'نزّل جدولًا قابلًا للتحليل في Excel أو Google Sheets. مناسب لمن يريد الحسابات والفرز.' if not is_en else 'Downloads a spreadsheet for Excel/Google Sheets, useful for analysis and sorting.' }}">📊 CSV</a>
+                <a href="{{ url_for('main.export_statistics_pdf', lang=ui_lang, view=selected_view, date=selected_date) }}" class="rp-btn ghost" data-help-title="PDF" data-help-text="{{ 'نزّل تقريرًا جاهزًا للطباعة أو المشاركة مع العميل، بنفس أرقام الفترة المعروضة.' if not is_en else 'Downloads a printable/shareable report using the same displayed period numbers.' }}">📄 PDF</a>
               </div>
             </form>
           </div>
@@ -82,7 +82,7 @@
 
         {# Section 2: Period summary #}
         {% if stats %}
-        <section class="rp-section" data-help="{{ 'Quick summary of the selected period — these are the headline numbers that will appear in your exported report.' if is_en else 'ملخص سريع للفترة المختارة — هذه الأرقام الرئيسية التي ستظهر في التقرير المُصدَّر.' }}">
+        <section class="rp-section" data-help="{{ 'Quick summary of the selected period. Energy values are kWh, while instant power values elsewhere use W.' if is_en else 'ملخص الفترة المختارة. قيم الطاقة هنا بوحدة kWh، أما القدرة اللحظية في الصفحات الأخرى فتظهر بوحدة W.' }}">
           <div class="rp-sec-head">
             <div>
               <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
@@ -95,7 +95,7 @@
               <article class="rp-kpi accent-amber">
                 <span class="rp-kpi-icon">☀</span>
                 <div class="rp-kpi-body">
-                  <small>{{ 'Production' if is_en else 'الإنتاج' }}</small>
+                  <small data-help-title="{{ 'إنتاج الشمس' if not is_en else 'Solar production' }}" data-help-text="{{ 'إجمالي الطاقة التي أنتجتها الألواح خلال الفترة المحددة. الوحدة kWh وليست W.' if not is_en else 'Total energy produced by panels in the selected period. Unit is kWh, not W.' }}">{{ 'Production' if is_en else 'الإنتاج' }}</small>
                   <strong>{{ format_energy(stats.production_kwh or 0) }}</strong>
                   <span>{{ 'PV total' if is_en else 'إجمالي الإنتاج الشمسي' }}</span>
                 </div>
@@ -103,7 +103,7 @@
               <article class="rp-kpi accent-blue">
                 <span class="rp-kpi-icon">🏠</span>
                 <div class="rp-kpi-body">
-                  <small>{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
+                  <small data-help-title="{{ 'استهلاك المنزل' if not is_en else 'Home consumption' }}" data-help-text="{{ 'إجمالي الطاقة التي استهلكتها أحمال المنزل خلال الفترة المحددة، بوحدة kWh.' if not is_en else 'Total energy consumed by home loads in the selected period, in kWh.' }}">{{ 'Consumption' if is_en else 'الاستهلاك' }}</small>
                   <strong>{{ format_energy(stats.consumption_kwh or 0) }}</strong>
                   <span>{{ 'home total' if is_en else 'إجمالي المنزل' }}</span>
                 </div>
@@ -111,7 +111,7 @@
               <article class="rp-kpi accent-emerald">
                 <span class="rp-kpi-icon">🔋</span>
                 <div class="rp-kpi-body">
-                  <small>{{ 'Battery cycle' if is_en else 'دورة البطارية' }}</small>
+                  <small data-help-title="{{ 'دورة البطارية' if not is_en else 'Battery cycle' }}" data-help-text="{{ 'يوضح الطاقة الداخلة أو الخارجة من البطارية، ويفيد لفهم ضغط الاستخدام على البطارية.' if not is_en else 'Shows energy in/out of the battery and helps understand battery usage stress.' }}">{{ 'Battery cycle' if is_en else 'دورة البطارية' }}</small>
                   <strong>{{ format_energy(stats.battery_in_kwh or 0) }}</strong>
                   <span>{{ 'in / out' if is_en else 'دخول / خروج' }}</span>
                 </div>
@@ -119,7 +119,7 @@
               <article class="rp-kpi accent-violet">
                 <span class="rp-kpi-icon">⚡</span>
                 <div class="rp-kpi-body">
-                  <small>{{ 'Grid usage' if is_en else 'استخدام الشبكة' }}</small>
+                  <small data-help-title="{{ 'استخدام الشبكة' if not is_en else 'Grid usage' }}" data-help-text="{{ 'الطاقة المستوردة من الشبكة خلال الفترة المحددة حسب قراءات الجهاز.' if not is_en else 'Energy imported from the grid in the selected period based on device readings.' }}">{{ 'Grid usage' if is_en else 'استخدام الشبكة' }}</small>
                   <strong>{{ format_energy(stats.grid_in_kwh or 0) }}</strong>
                   <span>{{ 'imported' if is_en else 'مستورد' }}</span>
                 </div>
@@ -131,7 +131,7 @@
 
         {# Section 3: Detailed table #}
         {% if table_rows %}
-        <section class="rp-section" data-help="{{ 'Detailed breakdown that will be exported. Sorted chronologically.' if is_en else 'تفاصيل سيتم تصديرها. مرتّبة زمنياً.' }}">
+        <section class="rp-section" data-help="{{ 'Detailed rows used for export. Each row is a time slice in the selected period and is sorted from oldest to newest.' if is_en else 'هذه هي الصفوف التفصيلية التي تُصدّر. كل صف يمثل جزءًا زمنيًا من الفترة المحددة ومرتّب من الأقدم إلى الأحدث.' }}">
           <div class="rp-sec-head">
             <div>
               <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>

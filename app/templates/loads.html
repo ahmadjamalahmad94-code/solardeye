@@ -12,7 +12,7 @@
     {% include '_device_switcher.html' %}
 
     {# ════════ HERO ════════ #}
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Energy · Smart loads' if is_en else 'الطاقة · الأحمال الذكية' }}</span>
@@ -60,7 +60,7 @@
 
         {# Section 1: Live recommendation #}
         {% if smart_loads %}
-        <section class="lds-section" data-help="{{ 'Live recommendation: shows what loads are safe to run RIGHT NOW based on current solar generation, battery level, and weather.' if is_en else 'التوصية الحيّة: تعرض ما يمكن تشغيله من الأحمال الآن بناءً على إنتاج الطاقة الحالي ومستوى البطارية والطقس.' }}">
+        <section class="lds-section" data-help="{{ 'Live recommendation compares current solar surplus, battery SOC, and saved appliance wattages to suggest what can run safely now.' if is_en else 'التوصية الحيّة تقارن الفائض الشمسي الحالي ونسبة البطارية وقدرات الأحمال المحفوظة لتقترح ما يمكن تشغيله بأمان الآن.' }}">
           <div class="lds-sec-head">
             <div>
               <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
@@ -101,7 +101,7 @@
         {% endif %}
 
         {# Section 2: Add load + Night limit #}
-        <section class="lds-section" data-help="{{ 'Add a new appliance: name it, enter the power in watts (e.g. fridge=150W, AC=1200W), and set priority. Then save night limit to plan after sunset.' if is_en else 'أضف جهازاً جديداً: سمّه وأدخل قدرته بالواط (مثلاً ثلاجة=150، تكييف=1200) وحدّد أولويته. ثم احفظ الحد الليلي للتخطيط بعد المغرب.' }}">
+        <section class="lds-section" data-help="{{ 'Add appliances with realistic wattages and priorities. These values drive the load suggestions on dashboard and alerts.' if is_en else 'أضف الأحمال بقدرات واقعية وأولويات واضحة. هذه القيم تُستخدم في اقتراحات الأحمال داخل لوحة التحكم والتنبيهات.' }}">
           <div class="lds-sec-head">
             <div>
               <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
@@ -120,7 +120,7 @@
                  sent only as a defensive bind — the route ALSO falls back
                  to the session, so a missing field still works). #}
               {% if aggregate_mode and user_devices and (user_devices|length > 1) %}
-                <label class="lds-field" data-v33a-aggregate-device>
+                <label class="lds-field" data-v33a-aggregate-device data-field-help="{{ 'في وضع كل الأجهزة يجب ربط الحمل بجهاز محدد، لأن الاقتراحات تُحسب حسب قراءات ذلك الجهاز وليس لكل الأجهزة معًا.' if not is_en else 'In all-devices mode, bind the load to one device because suggestions use that device readings, not all devices together.' }}">
                   <span>⚠ {{ 'Pick a target device first' if is_en else 'اختر الجهاز المستهدف أولاً' }}</span>
                   <select name="device_id" required>
                     <option value="" disabled selected>{{ '— pick a device —' if is_en else '— اختر جهازاً —' }}</option>
@@ -130,15 +130,15 @@
               {% else %}
                 {% if current_device_id %}<input type="hidden" name="device_id" value="{{ current_device_id }}">{% endif %}
               {% endif %}
-              <label class="lds-field">
+              <label class="lds-field" data-field-help="{{ 'اكتب اسمًا واضحًا مثل: ثلاجة، مضخة ماء، ميكرويف. سيظهر الاسم في الاقتراحات والتنبيهات كما تكتبه هنا.' if not is_en else 'Use a clear name like fridge, water pump, or microwave. It appears in suggestions and alerts exactly as entered.' }}">
                 <span>{{ 'Appliance name' if is_en else 'اسم الجهاز' }}</span>
                 <input type="text" name="name" required placeholder="{{ 'e.g. Fridge' if is_en else 'مثلاً: ثلاجة' }}">
               </label>
-              <label class="lds-field">
+              <label class="lds-field" data-field-help="{{ 'أدخل قدرة الحمل بالواط من ملصق الجهاز. مثال: 120 للثلاجة، 800 للميكرويف، 1500 للسخان.' if not is_en else 'Enter watts from the appliance label. Example: fridge 120W, microwave 800W, heater 1500W.' }}">
                 <span>{{ 'Power (watts)' if is_en else 'القدرة (واط)' }}</span>
                 <input type="number" name="power_w" min="1" required placeholder="150">
               </label>
-              <label class="lds-field">
+              <label class="lds-field" data-field-help="{{ 'الأولوية تساعد النظام على ترتيب الاقتراحات. الأولوية 1 أهم من 3، مثل ثلاجة قبل سخان أو مضخة قبل شاحن.' if not is_en else 'Priority orders suggestions. Priority 1 is more important than 3, such as fridge before heater.' }}">
                 <span>{{ 'Priority' if is_en else 'الأولوية' }}</span>
                 <select name="priority">
                   <option value="1">1 — {{ 'Critical' if is_en else 'حرج' }}</option>
@@ -146,24 +146,24 @@
                   <option value="3">3 — {{ 'Optional' if is_en else 'اختياري' }}</option>
                 </select>
               </label>
-              <button type="submit" class="lds-btn primary">＋ {{ 'Add appliance' if is_en else 'أضف الجهاز' }}</button>
+              <button type="submit" class="lds-btn primary" data-help-title="{{ 'إضافة الحمل' if not is_en else 'Add appliance' }}" data-help-text="{{ 'يحفظ الحمل للجهاز المحدد حتى يدخل في حسابات الاقتراحات والتنبيهات.' if not is_en else 'Saves the appliance to the selected device for suggestions and alerts.' }}">＋ {{ 'Add appliance' if is_en else 'أضف الجهاز' }}</button>
             </form>
             <form method="post" class="lds-form lds-night-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="action" value="save_night_limit">
               <h3 class="lds-form-title">🌙 {{ 'Save night max draw' if is_en else 'احفظ الحد الأقصى الليلي' }}</h3>
-              <label class="lds-field">
+              <label class="lds-field" data-field-help="{{ 'هذا حد السحب الآمن ليلًا عندما لا توجد شمس. مثال: 500 واط يعني تجنب اقتراح أحمال ترفع السحب فوق 500 واط.' if not is_en else 'Safe night draw limit when there is no sun. Example: 500W avoids suggesting loads above that draw.' }}">
                 <span>{{ 'Maximum watts at night' if is_en else 'الحد الأقصى للأحمال ليلاً (واط)' }}</span>
                 <input type="number" name="night_max_w" min="0" step="50" value="{{ saved_night_max_w|round(0)|int }}">
               </label>
-              <p class="lds-help-text">{{ 'This cap helps protect your battery overnight by limiting what the system suggests after sunset.' if is_en else 'هذا الحد يحمي بطاريتك ليلاً من خلال تقييد الاقتراحات بعد المغرب.' }}</p>
-              <button type="submit" class="lds-btn primary">💾 {{ 'Save night limit' if is_en else 'حفظ الحد الليلي' }}</button>
+              <p class="lds-help-text">{{ 'This cap helps protect your battery overnight by limiting what the system suggests after sunset.' if is_en else 'هذا الحد لا يطفئ الأحمال تلقائيًا؛ هو يوجّه الاقتراحات والتنبيهات حتى لا تُستنزف البطارية بعد الغروب.' }}</p>
+              <button type="submit" class="lds-btn primary" data-help-title="{{ 'حفظ الحد الليلي' if not is_en else 'Save night limit' }}" data-help-text="{{ 'يحدث حد السحب الليلي المستخدم في الاقتراحات فقط، ولا يطفئ أي حمل فعليًا.' if not is_en else 'Updates the night draw limit used in suggestions only; it does not switch appliances off.' }}">💾 {{ 'Save night limit' if is_en else 'حفظ الحد الليلي' }}</button>
             </form>
           </div>
         </section>
 
         {# Section 3: Loads list #}
-        <section class="lds-section" data-help="{{ 'Your saved appliances. Toggle each one on/off (e.g. when away on vacation) or remove it permanently. The system uses this list when calculating smart suggestions.' if is_en else 'قائمة أجهزتك المحفوظة. شغّل/أوقف كل جهاز (مثلاً عند السفر) أو احذفه نهائياً. النظام يستخدم هذه القائمة عند حساب الاقتراحات الذكية.' }}">
+        <section class="lds-section" data-help="{{ 'Saved appliances for the selected device. Pausing a load removes it from suggestions without deleting its wattage history.' if is_en else 'الأحمال المحفوظة للجهاز المحدد. إيقاف الحمل مؤقتًا يخرجه من الاقتراحات بدون حذف قدرته أو سجله.' }}">
           <div class="lds-sec-head">
             <div>
               <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
@@ -180,7 +180,7 @@
                   {% for ld in loads %}
                   <tr>
                     <td><strong>{{ ld.name }}</strong></td>
-                    <td><span class="lds-watts">{{ ld.power_w|round(0)|int }}<em>W</em></span></td>
+                    <td><span class="lds-watts" data-help-title="{{ 'القدرة بالواط' if not is_en else 'Power in watts' }}" data-help-text="{{ 'هذه القدرة تُطرح من الفائض المتاح عند حساب هل تشغيل الحمل الآن آمن للبطارية.' if not is_en else 'This wattage is subtracted from available surplus to decide whether running the load is safe.' }}">{{ ld.power_w|round(0)|int }}<em>W</em></span></td>
                     <td><span class="lds-pill priority-{{ ld.priority }}">{{ '★' * (ld.priority or 1) }} ({{ ld.priority }})</span></td>
                     <td>{% if ld.is_enabled %}<span class="lds-pill ok">✓ {{ 'Enabled' if is_en else 'مفعّل' }}</span>{% else %}<span class="lds-pill off">○ {{ 'Disabled' if is_en else 'معطّل' }}</span>{% endif %}</td>
                     <td>
@@ -188,13 +188,13 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="load_id" value="{{ ld.id }}">
-                        <button type="submit" class="lds-btn ghost sm">{{ '⏸' if ld.is_enabled else '▶' }}</button>
+                        <button type="submit" class="lds-btn ghost sm" data-help-title="{{ 'تفعيل أو إيقاف الحمل' if not is_en else 'Toggle load' }}" data-help-text="{{ 'استخدم الإيقاف عند السفر أو عند فصل الجهاز من المنزل؛ سيبقى محفوظًا لكن لن يدخل في الاقتراحات.' if not is_en else 'Use pause when away or when the appliance is unplugged; it remains saved but excluded from suggestions.' }}">{{ '⏸' if ld.is_enabled else '▶' }}</button>
                       </form>
                       <form method="post" style="display:inline" onsubmit="return confirm('{{ 'Delete?' if is_en else 'حذف؟' }}')">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="load_id" value="{{ ld.id }}">
-                        <button type="submit" class="lds-btn danger sm">🗑</button>
+                        <button type="submit" class="lds-btn danger sm" data-help-title="{{ 'حذف الحمل' if not is_en else 'Delete load' }}" data-help-text="{{ 'يحذف الحمل من قائمة الجهاز المحدد نهائيًا. استخدم الإيقاف بدل الحذف إذا كان الحمل سيعود لاحقًا.' if not is_en else 'Permanently removes this load from the selected device. Pause instead if it may return later.' }}">🗑</button>
                       </form>
                     </td>
                   </tr>

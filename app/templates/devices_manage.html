@@ -27,7 +27,7 @@
     {% include '_device_switcher.html' %}
 
     {# ════════ HERO ════════ #}
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Account · My devices' if is_en else 'الحساب · أجهزتي' }}</span>
@@ -75,7 +75,7 @@
       <div class="dm-main">
 
         {# ──────────── Section 1: Fleet snapshot KPIs ──────────── #}
-        <section class="dm-section" data-help="{{ 'Quick counts of your fleet. Total registered, active (syncing), and which one is currently selected for dashboard display.' if is_en else 'عدّ سريع لأسطولك. الإجمالي المسجل، النشط (يُزامَن)، والجهاز المختار حالياً للعرض في لوحة التحكم.' }}">
+        <section class="dm-section" data-help="{{ 'Quick counts of your fleet. Selected changes the dashboard view; active devices may keep syncing when supported.' if is_en else 'ملخص سريع لأجهزتك. الجهاز المحدد يغيّر ما يظهر في الواجهة، أما الأجهزة النشطة فقد تواصل المزامنة في الخلفية عند توفر ذلك.' }}">
           <div class="dm-sec-head">
             <div>
               <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
@@ -123,85 +123,116 @@
           </div>
         </section>
 
-        {# ──────────── Section 2: Devices list as polished cards ──────────── #}
-        <section class="dm-section" data-help="{{ 'Each device card shows its identity, connection status, and key actions. Click select to make a device the dashboard source.' if is_en else 'كل بطاقة جهاز تعرض هويته وحالة اتصاله وأهم الإجراءات. اضغط "تحديد" لجعله مصدر بيانات لوحة التحكم.' }}">
-          <div class="dm-sec-head">
-            <div>
+        {# ──────────── Section 2: Devices list as polished cards (v33-δ redesign) ──────────── #}
+        <section class="dm-section dm-fleet-section" data-help="{{ 'Each card shows which system the readings come from, whether it is active, and actions such as select, edit, or disable.' if is_en else 'كل بطاقة توضّح مصدر القراءات، وهل الجهاز نشط، والإجراءات المتاحة مثل التحديد أو التعديل أو التعطيل.' }}">
+          <div class="dm-sec-head dm-fleet-head">
+            <div class="dm-fleet-head-text">
               <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
               <h2><span class="dm-sec-icon">📋</span> {{ 'Your devices' if is_en else 'أجهزتك' }}</h2>
+              <p class="dm-fleet-subtitle">{{ 'Manage and compare the devices linked to your account.' if is_en else 'إدارة ومقارنة الأجهزة المرتبطة بحسابك.' }}</p>
             </div>
-            <span class="dm-sec-meta">{{ devices_list|length }} {{ 'items' if is_en else 'عنصر' }}</span>
+            <div class="dm-fleet-head-actions">
+              <span class="dm-sec-meta dm-fleet-count">{{ devices_list|length }} {{ 'devices' if is_en else 'جهاز' }}</span>
+              {% if devices_list %}
+              <a class="dm-fleet-add-btn" href="#dm-add-device">
+                <span aria-hidden="true">＋</span>
+                <span>{{ 'Add device' if is_en else 'إضافة جهاز' }}</span>
+              </a>
+              {% endif %}
+            </div>
           </div>
           <div class="dm-sec-body">
             {% if devices_list %}
             <div class="dm-fleet-grid">
               {% for d in devices_list %}
                 {% set is_sel = (d.id == current_device_id) %}
-                <article class="dm-device-card {% if is_sel %}is-selected{% endif %} {% if not d.is_active %}is-disabled{% endif %}"
-                         data-selected-label="{{ 'Selected' if is_en else 'محدّد' }}">
-                  <div class="dm-device-card-head">
-                    <span class="dm-device-card-icon" aria-hidden="true">
-                      {% set _n = (d.name or '')|lower %}
-                      {% if 'farm' in _n or 'مزرعة' in _n %}🌾
-                      {% elif 'workshop' in _n or 'ورشة' in _n %}🏭
-                      {% elif 'shop' in _n or 'محل' in _n %}🏪
-                      {% elif 'office' in _n or 'مكتب' in _n %}🏢
-                      {% else %}🏠{% endif %}
-                    </span>
-                    <div class="dm-device-card-title">
-                      <strong>{{ d.name or '—' }}</strong>
-                      <small>
-                        {% if d.api_provider %}{{ d.api_provider }}{% endif %}
-                        {% if d.device_uid or d.external_device_id %} · <span dir="ltr">{{ d.device_uid or d.external_device_id }}</span>{% endif %}
-                      </small>
+                {% set _n = (d.name or '')|lower %}
+                {% set _avatar =
+                       '🌾' if ('farm' in _n or 'مزرعة' in _n) else
+                       '🏭' if ('workshop' in _n or 'ورشة' in _n) else
+                       '🏪' if ('shop' in _n or 'محل' in _n) else
+                       '🏢' if ('office' in _n or 'مكتب' in _n) else
+                       '🏠' %}
+                <article class="dm-device-card {% if is_sel %}is-selected{% endif %} {% if not d.is_active %}is-disabled{% endif %}" data-help-title="{{ 'بطاقة الجهاز' if not is_en else 'Device card' }}" data-help-text="{{ 'استخدم البطاقة لمعرفة حالة هذا الجهاز بسرعة. اختيار الجهاز يغيّر لوحة التحكم والتقارير المعروضة، ولا يعني تعطيل الأجهزة الأخرى.' if not is_en else 'Use the card to read this device status quickly. Selecting changes dashboard/report views and does not disable other devices.' }}">
+
+                  {# v33-δ-2: Top row — avatar tile + identity stack (name, dark UID pill, provider) #}
+                  <header class="dm-card-top">
+                    <span class="dm-card-avatar" aria-hidden="true">{{ _avatar }}</span>
+                    <div class="dm-card-identity">
+                      <strong class="dm-card-name">{{ d.name or '—' }}</strong>
+                      <div class="dm-card-meta-row">
+                        {% if d.device_uid or d.external_device_id %}
+                          <span class="dm-card-uid" dir="ltr">{{ d.device_uid or d.external_device_id }}</span>
+                        {% endif %}
+                        {% if d.api_provider %}<span class="dm-card-provider" dir="ltr">{{ d.api_provider|upper }}</span>{% endif %}
+                      </div>
                     </div>
-                    <div class="dm-device-card-status">
-                      {% if d.is_active %}
-                        <span class="status-pill success">🟢 {{ 'Active' if is_en else 'نشط' }}</span>
-                      {% else %}
-                        <span class="status-pill warning">⏸ {{ 'Disabled' if is_en else 'معطّل' }}</span>
-                      {% endif %}
+                  </header>
+
+                  {# Flags row — status + selected, ALL inside the card (no floating badges) #}
+                  <div class="dm-card-flags" role="list">
+                    {% if is_sel %}
+                      <span class="dm-flag is-selected" role="listitem">★ {{ 'Selected' if is_en else 'محدّد' }}</span>
+                    {% endif %}
+                    {% if d.is_active %}
+                      <span class="dm-flag is-active" role="listitem">● {{ 'Active' if is_en else 'نشط' }}</span>
+                    {% else %}
+                      <span class="dm-flag is-disabled" role="listitem">⏸ {{ 'Disabled' if is_en else 'معطّل' }}</span>
+                    {% endif %}
+                    {% if d.connection_status and d.connection_status|lower in ('new','pending') %}
+                      <span class="dm-flag is-new" role="listitem">✨ {{ 'New' if is_en else 'جديد' }}</span>
+                    {% elif d.connection_status and d.connection_status|lower in ('online','ok','connected') %}
+                      <span class="dm-flag is-online" role="listitem">● {{ 'Online' if is_en else 'متصل' }}</span>
+                    {% endif %}
+                  </div>
+
+                  {# v33-δ-2: Info panel using simple flex divs (replaces fragile dl/dt/dd
+                     that mangled label/value pairs under bidi/RTL) #}
+                  <div class="dm-card-info">
+                    <div class="dm-info-row">
+                      <span class="dm-info-label" data-help-title="{{ 'نوع الجهاز' if not is_en else 'Device type' }}" data-help-text="{{ 'يوضح هل هذا الجهاز إنفرتر أو بطارية أو بوابة؛ يفيد عند وجود أكثر من مصدر بيانات في نفس الحساب.' if not is_en else 'Shows whether this is an inverter, battery, or gateway; useful when multiple data sources exist.' }}">{{ 'Type' if is_en else 'النوع' }}</span>
+                      <span class="dm-info-value">{{ d.device_type or '—' }}</span>
+                    </div>
+                    <div class="dm-info-row">
+                      <span class="dm-info-label" data-help-title="{{ 'المنطقة الزمنية' if not is_en else 'Timezone' }}" data-help-text="{{ 'تُستخدم لضبط أوقات الشروق والغروب، الرسوم، التقارير، وجدولة التنبيهات لهذا الجهاز.' if not is_en else 'Used for sunrise/sunset, charts, reports, and notification timing for this device.' }}">{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</span>
+                      <span class="dm-info-value" dir="ltr">{{ d.timezone or '—' }}</span>
+                    </div>
+                    <div class="dm-info-row">
+                      <span class="dm-info-label" data-help-title="{{ 'حالة الاتصال' if not is_en else 'Connection status' }}" data-help-text="{{ 'توضح هل بيانات الجهاز تصل فعلاً. إذا ظهرت حالة غير متصل فراجع بيانات المزود أو آخر مزامنة.' if not is_en else 'Shows whether data is arriving. If disconnected, check provider credentials or last sync.' }}">{{ 'Connection' if is_en else 'حالة الاتصال' }}</span>
+                      <span class="dm-info-value">{{ d.connection_status or '—' }}</span>
+                    </div>
+                    <div class="dm-info-row">
+                      <span class="dm-info-label" data-help-title="{{ 'آخر مزامنة' if not is_en else 'Last sync' }}" data-help-text="{{ 'آخر وقت وصلت فيه قراءة. إذا كان قديمًا، فقد تكون لوحة التحكم تعرض بيانات غير حديثة.' if not is_en else 'The last time a reading arrived. If old, dashboard values may be stale.' }}">{{ 'Last sync' if is_en else 'آخر مزامنة' }}</span>
+                      <span class="dm-info-value">{{ format_local(d.last_connected_at) if (format_local is defined and d.last_connected_at) else (d.last_connected_at.strftime('%Y-%m-%d %H:%M') if d.last_connected_at else ('Never' if is_en else 'لا توجد')) }}</span>
                     </div>
                   </div>
 
-                  <div class="dm-device-card-meta">
-                    <div>
-                      <small>{{ 'Type' if is_en else 'النوع' }}</small>
-                      <b>{{ d.device_type or '—' }}</b>
-                    </div>
-                    <div>
-                      <small>{{ 'Timezone' if is_en else 'المنطقة الزمنية' }}</small>
-                      <b dir="ltr">{{ d.timezone or '—' }}</b>
-                    </div>
-                    <div>
-                      <small>{{ 'Last sync' if is_en else 'آخر مزامنة' }}</small>
-                      <b>{{ format_local(d.last_connected_at) if (format_local is defined and d.last_connected_at) else (d.last_connected_at.strftime('%Y-%m-%d %H:%M') if d.last_connected_at else ('Never' if is_en else 'لا توجد')) }}</b>
-                    </div>
-                    <div>
-                      <small>{{ 'Connection' if is_en else 'حالة الاتصال' }}</small>
-                      <b>{{ d.connection_status or '—' }}</b>
-                    </div>
-                  </div>
-
-                  <div class="dm-device-card-actions">
+                  {# Action footer — clear visual hierarchy: primary > secondary > tertiary #}
+                  <footer class="dm-card-foot">
                     {% if not is_sel %}
-                      <a class="sub-btn sub-btn-primary"
+                      <a class="dm-act dm-act-primary"
                          href="?selected_device_id={{ d.id }}&lang={{ ui_lang }}"
-                         title="{{ 'Make this device the dashboard source' if is_en else 'اجعل هذا الجهاز مصدر لوحة التحكم' }}">
+                         title="{{ 'Make this device the dashboard source' if is_en else 'اجعل هذا الجهاز مصدر لوحة التحكم' }}"
+                         data-help-title="{{ 'تحديد الجهاز' if not is_en else 'Select device' }}"
+                         data-help-text="{{ 'يجعل هذا الجهاز مصدر العرض في لوحة التحكم والبيانات الحية والتقارير، ولا يوقف مزامنة الأجهزة الأخرى.' if not is_en else 'Makes this device the source for dashboard/live/reports and does not stop other device sync.' }}">
                         ★ {{ 'Select' if is_en else 'تحديد' }}
                       </a>
+                    {% else %}
+                      <span class="dm-act dm-act-current" aria-disabled="true">
+                        ✓ {{ 'Currently selected' if is_en else 'محدّد حالياً' }}
+                      </span>
                     {% endif %}
-                    <a class="sub-btn sub-btn-ghost" href="{{ url_for('main.device_edit', device_id=d.id, lang=ui_lang) }}">
+                    <a class="dm-act dm-act-secondary" href="{{ url_for('main.device_edit', device_id=d.id, lang=ui_lang) }}" data-help-title="{{ 'تعديل الجهاز' if not is_en else 'Edit device' }}" data-help-text="{{ 'افتح صفحة تعديل بيانات الاتصال أو الاسم أو الإعدادات الخاصة بهذا الجهاز فقط.' if not is_en else 'Open settings for this device only, such as credentials, name, or options.' }}">
                       ✏ {{ 'Edit' if is_en else 'تعديل' }}
                     </a>
-                    <form method="post" action="{{ url_for('main.device_toggle', device_id=d.id, lang=ui_lang) }}" style="flex:1 1 auto;display:flex">
+                    <form method="post" action="{{ url_for('main.device_toggle', device_id=d.id, lang=ui_lang) }}" class="dm-act-form">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="sub-btn sub-btn-ghost" style="width:100%;justify-content:center">
+                      <button type="submit" class="dm-act dm-act-tertiary" data-help-title="{{ 'تفعيل أو تعطيل' if not is_en else 'Enable or disable' }}" data-help-text="{{ 'التعطيل يوقف استخدام هذا الجهاز كجهاز نشط ويحافظ على سجله السابق؛ لا يحذف الجهاز.' if not is_en else 'Disabling removes the device from active use and keeps prior history; it does not delete the device.' }}">
                         {% if d.is_active %}⏸ {{ 'Disable' if is_en else 'تعطيل' }}
                         {% else %}▶ {{ 'Enable' if is_en else 'تفعيل' }}{% endif %}
                       </button>
                     </form>
-                  </div>
+                  </footer>
                 </article>
               {% endfor %}
             </div>
@@ -219,7 +250,7 @@
         </section>
 
         {# ──────────── Section 3: Add new device ──────────── #}
-        <section class="dm-section" id="dm-add-device" data-help="{{ 'Pick a provider then enter your account details. The system will validate the connection before saving.' if is_en else 'اختر المزوّد ثم أدخل بيانات حسابك. سيتحقّق النظام من الاتصال قبل الحفظ.' }}">
+        <section class="dm-section" id="dm-add-device" data-help="{{ 'Pick the provider first so the right integration fields are used, then enter the external account credentials used to fetch readings.' if is_en else 'اختر المزوّد أولًا حتى تُستخدم حقول التكامل المناسبة، ثم أدخل بيانات الحساب الخارجي التي تجلب قراءات الجهاز.' }}">
           <div class="dm-sec-head">
             <div>
               <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
@@ -232,11 +263,11 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="form_type" value="add_device">
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px">
-                <label class="dm-field">
+                <label class="dm-field" data-field-help="{{ 'اكتب اسمًا يسهل تمييزه مثل: سطح المنزل أو منظومة المخزن. سيظهر هذا الاسم في مبدّل الأجهزة والتقارير.' if not is_en else 'Use a recognizable name such as Home Roof or Warehouse system. It appears in the switcher and reports.' }}">
                   <span>{{ 'Device name' if is_en else 'اسم الجهاز' }}</span>
                   <input type="text" name="device_name" required placeholder="{{ 'e.g. Home Roof' if is_en else 'مثلاً: سطح المنزل' }}">
                 </label>
-                <label class="dm-field">
+                <label class="dm-field" data-field-help="{{ 'اختيار المزود يحدد طريقة الربط والحقول المطلوبة. اختر الشركة أو التكامل الذي يملك قراءات جهازك فعليًا.' if not is_en else 'Provider controls the integration and required fields. Choose the service that actually holds your device readings.' }}">
                   <span>{{ 'Provider' if is_en else 'المزوّد' }}</span>
                   <select name="provider_code" required>
                     <option value="">— {{ 'Select' if is_en else 'اختر' }} —</option>
@@ -245,18 +276,18 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="dm-field">
+                <label class="dm-field" data-field-help="{{ 'اكتب اسم المستخدم أو مفتاح API الخاص بمنصة الجهاز. هذه ليست بيانات دخول SolarDeye بل بيانات المزود لجلب القراءات.' if not is_en else 'Enter the provider username or API key. This is not your SolarDeye login; it fetches device readings.' }}">
                   <span>{{ 'Username / API key' if is_en else 'اسم المستخدم / مفتاح API' }}</span>
                   <input type="text" name="api_username" dir="ltr">
                 </label>
-                <label class="dm-field">
+                <label class="dm-field" data-field-help="{{ 'أدخل كلمة المرور أو السر من مزود الجهاز. تُستخدم للتحقق من الاتصال ثم تُحفظ بشكل آمن لاستخدام المزامنة.' if not is_en else 'Enter the provider password or secret. It validates the connection and is stored for sync.' }}">
                   <span>{{ 'Password / secret' if is_en else 'كلمة المرور / السر' }}</span>
                   <input type="password" name="api_password" dir="ltr">
                 </label>
               </div>
               <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-                <button type="reset" class="sub-btn sub-btn-ghost">↺ {{ 'Reset' if is_en else 'تفريغ' }}</button>
-                <button type="submit" class="sub-btn sub-btn-primary">＋ {{ 'Add device' if is_en else 'أضف الجهاز' }}</button>
+                <button type="reset" class="sub-btn sub-btn-ghost" data-help-title="{{ 'تفريغ النموذج' if not is_en else 'Reset form' }}" data-help-text="{{ 'يمسح ما كتبته في النموذج فقط، ولا يغيّر أي جهاز محفوظ.' if not is_en else 'Clears only the form fields and does not change saved devices.' }}">↺ {{ 'Reset' if is_en else 'تفريغ' }}</button>
+                <button type="submit" class="sub-btn sub-btn-primary" data-help-title="{{ 'إضافة الجهاز' if not is_en else 'Add device' }}" data-help-text="{{ 'يحاول التحقق من بيانات المزود ثم حفظ الجهاز لاستخدامه في لوحة التحكم والبيانات الحية.' if not is_en else 'Validates provider credentials and saves the device for dashboard/live data.' }}">＋ {{ 'Add device' if is_en else 'أضف الجهاز' }}</button>
               </div>
             </form>
           </div>
