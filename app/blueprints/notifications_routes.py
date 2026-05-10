@@ -149,6 +149,7 @@ def notifications_settings():
     energy_guard = _energy_portal_guard()
     if energy_guard:
         return energy_guard
+    lang = request.args.get('lang') or request.form.get('lang') or _lang()
     settings = load_settings()
     if request.method == 'POST':
         section = (request.args.get('section') or request.form.get('settings_section') or '').strip().lower()
@@ -163,16 +164,21 @@ def notifications_settings():
             if _is_ajax_request():
                 return _json_response(False, f'فشل حفظ الإعدادات: {exc}'), 400
             flash(f'فشل حفظ الإعدادات: {exc}', 'danger')
-            return redirect(url_for('main.notifications_settings', tab=section or 'general'))
+            return redirect(url_for('main.notifications_settings', lang=lang, tab=section or 'general'))
 
         if _is_ajax_request():
             return _json_response(True, success_message, saved_section=section or 'all')
         flash(success_message, 'success')
-        return redirect(url_for('main.notifications_settings', tab=section or 'general'))
+        return redirect(url_for('main.notifications_settings', lang=lang, tab=section or 'general'))
 
     settings = load_settings()
     rules = load_notification_rules(settings)
-    recent_notifications = scoped_query(NotificationLog).order_by(NotificationLog.created_at.desc()).limit(30).all()
+    log_page = 1
+    log_per_page = 10
+    log_query = scoped_query(NotificationLog)
+    log_total = log_query.count()
+    log_total_pages = max((log_total + log_per_page - 1) // log_per_page, 1)
+    recent_notifications = log_query.order_by(NotificationLog.created_at.desc()).limit(log_per_page).all()
     notification_preview = session.pop('notification_preview', None)
     latest = _latest_reading()
     weather = get_weather_for_latest(latest) if latest else None
@@ -187,8 +193,50 @@ def notifications_settings():
         telegram_webhook_url=telegram_webhook_url,
         webhook_info=webhook_info,
         active_tab=(request.args.get('tab') or 'general'),
+        log_page=log_page,
+        log_total_pages=log_total_pages,
+        log_total=log_total,
         format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
     )
+
+
+@notifications_routes_bp.route('/notifications/log-fragment')
+def notifications_log_fragment():
+    energy_guard = _energy_portal_guard()
+    if energy_guard:
+        return energy_guard
+    try:
+        page = max(int(request.args.get('page', '1') or 1), 1)
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 10
+    log_query = scoped_query(NotificationLog)
+    total = log_query.count()
+    total_pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    recent_notifications = (
+        log_query
+        .order_by(NotificationLog.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    html = render_template(
+        '_notifications_log_fragment.html',
+        recent_notifications=recent_notifications,
+        log_page=page,
+        log_total_pages=total_pages,
+        log_total=total,
+        ui_lang=_lang(),
+        format_local=lambda dt: format_local_datetime(dt, current_app.config['LOCAL_TIMEZONE']),
+    )
+    return jsonify({
+        'ok': True,
+        'html': html,
+        'page': page,
+        'total_pages': total_pages,
+        'total': total,
+    })
 
 
 @notifications_routes_bp.route('/notifications/test', methods=['POST'])
@@ -581,5 +629,3 @@ def notifications_mark_read():
     db.session.commit()
     total, mail, ticket = _aggregated_unread_counts(user)
     return jsonify({'ok': True, 'changed': changed, 'count': total, 'mail_count': mail, 'ticket_count': ticket})
-
-

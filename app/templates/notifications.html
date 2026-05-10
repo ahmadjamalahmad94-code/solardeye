@@ -1,233 +1,734 @@
 {% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% block title %}{{ 'Notifications Settings' if is_en else 'إعدادات التنبيهات' }}{% endblock %}
+{% block title %}{{ 'Notification Settings' if is_en else 'إعدادات الإشعارات' }}{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_v3.css', v='v211-subscriber-pages-20260506') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_settings_v33.css', v='v33-threshold-compact-icon-cards-final') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications_v33iota.css', v='v33-threshold-compact-icon-cards-final') }}">
+<script defer src="{{ url_for('static', filename='js/notifications_settings_v33.js', v='v33-threshold-compact-icon-cards-final') }}"></script>
 {% endblock %}
+
+{% macro is_on(key) -%}
+{{ ((settings.get(key) or '')|lower) in ['true', '1', 'on', 'yes'] }}
+{%- endmacro %}
+
+{% macro channel_select(name, label) %}
+<label class="ns-field" data-help-title="{{ 'قناة الإرسال' if not is_en else 'Channel' }}" data-help-text="{{ 'حدد أين تصل رسائل هذا القسم فقط. اختيار SMS قد يرسل رسالة مدفوعة، أما إعدادات التوكن والأرقام فتُدار من صفحة القنوات.' if not is_en else 'Choose where this section sends. SMS may incur provider charges; channel credentials are managed on the channels page.' }}">
+  <span>{{ label }}</span>
+  <select name="{{ name }}">
+    {% set value = settings.get(name, 'telegram') %}
+    <option value="telegram" {% if value == 'telegram' %}selected{% endif %}>Telegram</option>
+    <option value="sms" {% if value == 'sms' %}selected{% endif %}>SMS</option>
+    <option value="both" {% if value == 'both' %}selected{% endif %}>Telegram + SMS</option>
+    <option value="none" {% if value in ['none', '', 'disabled'] %}selected{% endif %}>{{ 'معطل' if not is_en else 'Disabled' }}</option>
+  </select>
+</label>
+{% endmacro %}
+
+{% macro schedule_mode_select(name) %}
+<label class="ns-field">
+  <span>{{ 'نمط التشغيل' if not is_en else 'Schedule mode' }}</span>
+  {% set value = settings.get(name, 'interval') %}
+  <select name="{{ name }}">
+    <option value="manual" {% if value == 'manual' %}selected{% endif %}>{{ 'يدوي فقط' if not is_en else 'Manual only' }}</option>
+    <option value="interval" {% if value == 'interval' %}selected{% endif %}>{{ 'كل فترة زمنية' if not is_en else 'Interval' }}</option>
+    <option value="specific" {% if value in ['specific', 'specific_hours'] %}selected{% endif %}>{{ 'ساعات محددة' if not is_en else 'Specific times' }}</option>
+    <option value="threshold" {% if value == 'threshold' %}selected{% endif %}>{{ 'حسب العتبة مع فترة تهدئة' if not is_en else 'Threshold' }}</option>
+  </select>
+  <small>{{ 'يدوي = إيقاف الإرسال؛ فاصل = حسب الفاصل؛ ساعات محددة = حسب القائمة الموقتة.' if not is_en else 'Manual = off; Interval = uses cadence; Specific = uses time list.' }}</small>
+</label>
+{% endmacro %}
+
+{% macro interval_fields(value_name, unit_name) %}
+<label class="ns-field">
+  <span>{{ 'الفاصل الزمني' if not is_en else 'Cadence' }}</span>
+  <input type="number" min="1" step="1" name="{{ value_name }}" value="{{ settings.get(value_name, '1') }}" inputmode="numeric">
+  <small>{{ 'مثلاً: 2 + ساعات = رسالة كل ساعتين داخل نافذة التشغيل.' if not is_en else 'E.g. 2 + Hours = a message every two hours inside the window.' }}</small>
+</label>
+<label class="ns-field">
+  <span>{{ 'وحدة الفاصل' if not is_en else 'Cadence unit' }}</span>
+  {% set value = settings.get(unit_name, 'hours') %}
+  <select name="{{ unit_name }}">
+    <option value="minutes" {% if value == 'minutes' %}selected{% endif %}>{{ 'دقائق' if not is_en else 'Minutes' }}</option>
+    <option value="hours" {% if value == 'hours' %}selected{% endif %}>{{ 'ساعات' if not is_en else 'Hours' }}</option>
+  </select>
+  <small>{{ 'الدقائق للتنبيهات السريعة والساعات للتحديثات الهادئة.' if not is_en else 'Minutes for sensitive alerts; Hours for calm updates.' }}</small>
+</label>
+{% endmacro %}
+
+{% macro window_field(name, label, placeholder='08:00') %}
+<label class="ns-field ns-window-field">
+  <span>{{ label }}</span>
+  <input type="hidden" name="{{ name }}" value="{{ settings.get(name, '') or placeholder }}" data-window-value>
+  <div class="ns-window-helper" data-window-helper>
+    {% set current = settings.get(name, '') or placeholder %}
+    <select data-window-mode aria-label="{{ label }}">
+      <option value="fixed" {% if current not in ['sunrise', 'sunset'] %}selected{% endif %}>{{ 'وقت ثابت' if not is_en else 'Fixed time' }}</option>
+      <option value="sunrise" {% if current == 'sunrise' %}selected{% endif %}>{{ 'الشروق' if not is_en else 'Sunrise' }}</option>
+      <option value="sunset" {% if current == 'sunset' %}selected{% endif %}>{{ 'الغروب' if not is_en else 'Sunset' }}</option>
+    </select>
+    <input type="time" value="{{ current if current not in ['sunrise', 'sunset'] else placeholder }}" data-window-time>
+  </div>
+  <small>{{ 'وقت ثابت لساعة محدّدة، أو الشروق/الغروب حسب منطقتك الزمنية.' if not is_en else 'Fixed time for an exact hour, or sunrise/sunset based on your timezone.' }}</small>
+</label>
+{% endmacro %}
+
+{% macro specific_hours_field(name, label, presets) %}
+<label class="ns-field ns-hours-field">
+  <span>{{ label }}</span>
+  <input type="text" name="{{ name }}" value="{{ settings.get(name, '') }}" placeholder="08:00,10:00,12:00" dir="ltr" data-hours-value>
+  <div class="ns-hour-chips" data-hours-helper>
+    {% for hour in presets %}
+      <button type="button" data-hour="{{ hour }}">{{ hour }}</button>
+    {% endfor %}
+  </div>
+  <small>{{ 'اضغط الساعات أو اكتب قائمة مفصولة بفواصل، مثل 08:00,12:00,16:00.' if not is_en else 'Tap times or enter a comma-separated list, e.g. 08:00,12:00,16:00.' }}</small>
+</label>
+{% endmacro %}
+
+{% macro text_field(name, label, type='text', placeholder='', helper='') %}
+<label class="ns-field">
+  <span>{{ label }}</span>
+  <input type="{{ type }}" name="{{ name }}" value="{{ settings.get(name, '') }}" placeholder="{{ placeholder }}" {% if type != 'number' %}dir="ltr"{% endif %}>
+  {% if helper %}<small>{{ helper }}</small>{% endif %}
+</label>
+{% endmacro %}
+
+{% macro critical_number_field(name, label, unit='', example='', helper='') %}
+<label class="ns-field ns-critical-field">
+  <span>{{ label }}</span>
+  <div class="ns-input-unit">
+    <input type="number" name="{{ name }}" value="{{ settings.get(name, '') }}" inputmode="decimal">
+    {% if unit %}<em>{{ unit }}</em>{% endif %}
+  </div>
+  {# v33-guidance-dedup: merge helper + example into ONE <small>. #}
+  {% if helper and example %}<small>{{ helper }} — {{ example }}</small>
+  {% elif helper %}<small>{{ helper }}</small>
+  {% elif example %}<small class="ns-example">{{ example }}</small>{% endif %}
+</label>
+{% endmacro %}
+
+{% macro toggle_field(name, label, hint='') %}
+<label class="ns-toggle">
+  <input type="checkbox" name="{{ name }}" {% if ((settings.get(name) or '')|lower) in ['true', '1', 'on', 'yes'] %}checked{% endif %}>
+  <span class="ns-toggle-track"><span></span></span>
+  <span>
+    <strong>{{ label }}</strong>
+    {% if hint %}<small>{{ hint }}</small>{% endif %}
+  </span>
+</label>
+{% endmacro %}
+
+{% macro save_open(section) %}
+<form method="post" action="{{ url_for('main.notifications_settings', lang=ui_lang, tab=section) }}" class="ns-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+  <input type="hidden" name="settings_section" value="{{ section }}">
+{% endmacro %}
+
+{% macro save_close(section) %}
+  <div class="ns-actions">
+    <button type="submit" class="ns-btn primary" data-help-title="{{ 'حفظ مستقل' if not is_en else 'Independent save' }}" data-help-text="{{ 'يحفظ إعدادات هذا القسم فقط بفضل settings_section، ولا يغيّر إعدادات الأقسام الأخرى.' if not is_en else 'Saves only this section through settings_section and does not change other sections.' }}">{{ 'حفظ هذا القسم' if not is_en else 'Save section' }}</button>
+  </div>
+</form>
+{% endmacro %}
+
+{% macro test_form(section, label='اختبار') %}
+<form method="post" action="{{ url_for('main.notifications_test_section', lang=ui_lang) }}" class="ns-test-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+  <input type="hidden" name="section" value="{{ section }}">
+  <button type="submit" class="ns-btn ghost" data-help-title="{{ 'اختبار القسم' if not is_en else 'Test section' }}" data-help-text="{{ 'يرسل رسالة اختبار لهذا القسم حسب backend الحالي، ولا يحفظ تغييرات النموذج غير المحفوظة.' if not is_en else 'Sends a backend test for this section and does not save unsaved form changes.' }}">{{ label if not is_en else 'Test' }}</button>
+</form>
+{% endmacro %}
+
+{% macro channel_badge(channel_key) %}
+{% if channel_key %}
+  {% set channel_value = settings.get(channel_key, 'telegram') %}
+  <span class="ns-channel-badge">{{ 'قناة' if not is_en else 'Channel' }}: {% if channel_value == 'both' %}{{ 'كلاهما' if not is_en else 'Both' }}{% elif channel_value == 'sms' %}SMS{% elif channel_value == 'none' %}{{ 'معطل' if not is_en else 'Disabled' }}{% else %}Telegram{% endif %}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro group_title(title, desc='') %}
+<div class="ns-group-title">
+  <h3>{{ title }}</h3>
+  {% if desc %}<p>{{ desc }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro preview_panel(kind, title) %}
+<aside class="ns-live-preview" data-preview-panel data-help-title="{{ 'معاينة الرسالة' if not is_en else 'Message preview' }}" data-help-text="{{ 'المعاينة تساعدك على رؤية أثر خيارات المحتوى قبل الحفظ. تغيير المعاينة وحده لا يرسل ولا يحفظ أي رسالة.' if not is_en else 'Preview shows how content choices affect the message before saving. Preview changes do not send or save.' }}">
+  <div class="ns-live-preview-head">
+    <span>{{ 'معاينة الرسالة' if not is_en else 'Message preview' }}</span>
+    <strong>{{ title }}</strong>
+  </div>
+  <div class="ns-live-preview-device">
+    <span data-preview-channel>Telegram</span>
+    <small>{{ 'تتحدث المعاينة مباشرة حسب الخيارات الحالية' if not is_en else 'Updates instantly from the current options' }}</small>
+  </div>
+  <div class="ns-live-preview-body" data-preview-output data-preview-kind="{{ kind }}"></div>
+</aside>
+{% endmacro %}
+
+{% macro card_open(id, number, title, desc, enabled_key='', channel_key='', summary='', tone='', default_open=False) %}
+<details class="ns-card {{ tone }}" id="{{ id }}" {% if default_open or active_tab == id|replace('-', '_') %}open{% endif %}>
+  <summary class="ns-card-head">
+    <div class="ns-card-title">
+      <span class="ns-card-icon">{{ number }}</span>
+      <div>
+        <small>{{ 'قسم' if not is_en else 'Section' }}</small>
+        <h2>{{ title }}</h2>
+        <p>{{ desc }}</p>
+        {% if summary %}<span class="ns-summary-line">{{ summary }}</span>{% endif %}
+      </div>
+    </div>
+    <span class="ns-card-meta">
+      {% if enabled_key %}
+        <span class="ns-status {% if ((settings.get(enabled_key) or '')|lower) in ['true', '1', 'on', 'yes'] %}on{% else %}off{% endif %}">
+          {% if ((settings.get(enabled_key) or '')|lower) in ['true', '1', 'on', 'yes'] %}{{ 'مفعّل' if not is_en else 'On' }}{% else %}{{ 'معطّل' if not is_en else 'Off' }}{% endif %}
+        </span>
+      {% endif %}
+      {{ channel_badge(channel_key) }}
+      <span class="ns-chevron" aria-hidden="true"></span>
+    </span>
+  </summary>
+  <div class="ns-card-body">
+{% endmacro %}
+
+{% macro card_close() %}
+  </div>
+</details>
+{% endmacro %}
+
+{% macro channel_option_select(name, value) %}
+{% set normalized = (value or 'none')|lower %}
+{% if normalized in ['', 'disabled', 'off', 'false'] %}
+  {% set normalized = 'none' %}
+{% endif %}
+{% if normalized not in ['telegram', 'sms', 'both', 'none'] %}
+  {% set normalized = 'none' %}
+{% endif %}
+<div class="ns-channel-router" data-channel-router>
+  <input type="hidden" name="{{ name }}" value="{{ normalized }}" data-channel-router-value>
+  <label class="ns-channel-chip telegram" title="{{ 'Telegram' if is_en else 'تفعيل Telegram لهذا المستوى' }}" aria-label="{{ 'Telegram' if is_en else 'تفعيل Telegram لهذا المستوى' }}">
+    <input type="checkbox" data-channel-choice="telegram" {% if normalized in ['telegram', 'both'] %}checked{% endif %}>
+    <span><i aria-hidden="true">✈</i></span>
+  </label>
+  <label class="ns-channel-chip sms" title="{{ 'SMS' if is_en else 'تفعيل رسائل SMS لهذا المستوى' }}" aria-label="{{ 'SMS' if is_en else 'تفعيل رسائل SMS لهذا المستوى' }}">
+    <input type="checkbox" data-channel-choice="sms" {% if normalized in ['sms', 'both'] %}checked{% endif %}>
+    <span><i aria-hidden="true">✉</i></span>
+  </label>
+</div>
+{% endmacro %}
+
 {% block body %}
-{% set tg_on = (settings.telegram_enabled or '').lower() in ['true','1','on','yes'] %}
-{% set sms_on = (settings.sms_enabled or '').lower() in ['true','1','on','yes'] %}
+{% set tg_configured = (settings.get('telegram_bot_token') or '') and (settings.get('telegram_chat_id') or '') %}
+{% set sms_configured = (settings.get('sms_api_url') or '') and (settings.get('sms_api_key') or '') and (settings.get('sms_recipients') or '') %}
+{% set notifications_on = ((settings.get('notifications_enabled') or '')|lower) in ['true', '1', 'on', 'yes'] %}
+{% set critical_sms_on = ((settings.get('sms_critical_enabled') or '')|lower) in ['true', '1', 'on', 'yes'] %}
+{% set active_counter = namespace(count=0) %}
+{% for enabled_key in ['notifications_enabled', 'periodic_day_enabled', 'periodic_night_enabled', 'pre_sunset_enabled', 'weather_test_enabled', 'battery_test_enabled', 'load_alert_enabled', 'daily_report_enabled', 'night_discharge_enabled', 'sms_critical_enabled'] %}
+  {% if ((settings.get(enabled_key) or '')|lower) in ['true', '1', 'on', 'yes'] %}
+    {% set active_counter.count = active_counter.count + 1 %}
+  {% endif %}
+{% endfor %}
+{% set recent_count = log_total if log_total is defined else (recent_notifications|length if recent_notifications else 0) %}
+
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area nt-page sub-page">
-
+  <main class="app-main content-area ns-page sub-page">
     {% include '_device_switcher.html' %}
 
-    <header class="hu-hero">
-      <div class="hu-hero-grid">
-        <div class="hu-hero-text">
-          <span class="hu-eyebrow">{{ 'Account · Notifications' if is_en else 'الحساب · التنبيهات' }}</span>
-          <h1 class="hu-h1">{{ 'Notification rules & history' if is_en else 'قواعد التنبيهات والسجل' }}</h1>
-          <p class="hu-tagline">{{ 'Decide what events trigger a notification, where to send them, and review your recent alert history.' if is_en else 'حدّد الأحداث التي تُطلِق تنبيهاً، إلى أين تُرسَل، وراجع سجل التنبيهات الأخير.' }}</p>
-          <div class="hu-hero-meta">
-            <span class="hu-meta-pill {% if tg_on %}ok{% endif %}">📱 Telegram {{ '✓' if tg_on else '○' }}</span>
-            <span class="hu-meta-pill {% if sms_on %}ok{% endif %}">✉ SMS {{ '✓' if sms_on else '○' }}</span>
-            <span class="hu-meta-pill"><b>{{ rules|length if rules else 0 }}</b> {{ 'rules' if is_en else 'قاعدة' }}</span>
-          </div>
-        </div>
-        <div class="hu-hero-cta">
-          <a class="hu-btn hu-btn-ghost" href="{{ url_for('main.channels', lang=ui_lang) }}">⚙ {{ 'Manage channels' if is_en else 'إدارة القنوات' }}</a>
-        </div>
+    <header class="ns-hero sd-hero-bg">
+      <div>
+        <span class="ns-eyebrow">{{ 'الحساب · الإشعارات' if not is_en else 'Account · Notifications' }}</span>
+        <h1>{{ 'إعدادات الإشعارات' if not is_en else 'Notification Settings' }}</h1>
+        <p>{{ 'تحكم بتنبيهات الطاقة التي ترسل عبر Telegram و SMS، وحدد متى ترسل وما الذي يظهر داخل الرسالة.' if not is_en else 'Control Telegram and SMS energy alerts, when they send, and what each message includes.' }}</p>
       </div>
+      <a class="ns-btn ghost" href="{{ url_for('main.channels', lang=ui_lang) }}">{{ 'إدارة القنوات' if not is_en else 'Manage channels' }}</a>
     </header>
 
-    <div class="nt-shell">
-      <aside class="nt-aside">
-        <div class="nt-as-card explainer">
-          <h4>📘 {{ 'How notifications work' if is_en else 'كيف تعمل التنبيهات' }}</h4>
-          <p>{{ 'A notification rule says: "When event X happens, send an alert via channel Y." Examples: low battery → Telegram; grid down → SMS.' if is_en else 'قاعدة التنبيه تقول: "عند وقوع الحدث X، أرسل إنذاراً عبر القناة Y." أمثلة: بطارية منخفضة → Telegram؛ انقطاع الشبكة → SMS.' }}</p>
-          <p>{{ 'You must enable channels in /channels first before notifications can be sent.' if is_en else 'يجب تفعيل القنوات من /channels أولاً قبل إرسال التنبيهات.' }}</p>
-        </div>
-        <div class="nt-as-card">
-          <h4>🔑 {{ 'Severity levels' if is_en else 'مستويات الأهمية' }}</h4>
-          <ul class="nt-legend-list">
-            <li><span class="nt-legend-dot" style="background:#3b82f6"></span><strong>{{ 'Info' if is_en else 'معلومة' }}</strong><small>{{ 'just FYI' if is_en else 'للعلم فقط' }}</small></li>
-            <li><span class="nt-legend-dot" style="background:#f59e0b"></span><strong>{{ 'Warning' if is_en else 'تنبيه' }}</strong><small>{{ 'attention needed' if is_en else 'يحتاج انتباه' }}</small></li>
-            <li><span class="nt-legend-dot" style="background:#ef4444"></span><strong>{{ 'Critical' if is_en else 'حرج' }}</strong><small>{{ 'act now' if is_en else 'تصرّف الآن' }}</small></li>
-          </ul>
-        </div>
-        <div class="nt-as-card tips">
-          <h4>💡 {{ 'Tips' if is_en else 'نصائح' }}</h4>
-          <ul>
-            <li>{{ 'Test channels before relying on them — send a test message.' if is_en else 'اختبر القنوات قبل الاعتماد عليها — أرسل رسالة تجريبية.' }}</li>
-            <li>{{ 'Use SMS only for critical events to save cost.' if is_en else 'استخدم SMS فقط للأحداث الحرجة لتوفير التكلفة.' }}</li>
-            <li>{{ 'You can mute notifications during night hours.' if is_en else 'يمكنك كتم التنبيهات خلال ساعات الليل.' }}</li>
-          </ul>
-        </div>
-      </aside>
+    <section class="ns-summary">
+      <div class="ns-summary-card {% if tg_configured %}ok{% endif %}">
+        <span>Telegram</span>
+        <strong>{{ 'معد' if tg_configured and not is_en else ('Configured' if tg_configured else ('غير معد' if not is_en else 'Not configured')) }}</strong>
+      </div>
+      <div class="ns-summary-card {% if sms_configured %}ok{% endif %}">
+        <span>SMS</span>
+        <strong>{{ 'معد' if sms_configured and not is_en else ('Configured' if sms_configured else ('غير معد' if not is_en else 'Not configured')) }}</strong>
+      </div>
+      <div class="ns-summary-card {% if notifications_on %}ok{% endif %}">
+        <span>{{ 'الأقسام المفعلة' if not is_en else 'Active sections' }}</span>
+        <strong>{{ active_counter.count }}</strong>
+      </div>
+      <div class="ns-summary-card critical {% if critical_sms_on %}ok{% endif %}">
+        <span>{{ 'SMS الحرجة' if not is_en else 'Critical SMS' }}</span>
+        <strong>{{ 'مفعلة' if critical_sms_on and not is_en else ('On' if critical_sms_on else ('معطلة' if not is_en else 'Off')) }}</strong>
+      </div>
+    </section>
 
-      <div class="nt-main">
+    {% if notification_preview %}
+    <section class="ns-preview">
+      <strong>{{ notification_preview.title }}</strong>
+      <p>{{ notification_preview.message }}</p>
+      <small>{{ 'القناة' if not is_en else 'Channel' }}: {{ notification_preview.channel }}</small>
+    </section>
+    {% endif %}
 
-        {# Section 1: Channel quick-status #}
-        <section class="nt-section" data-help="{{ 'Quick view of which channels are active. To configure them, go to the Channels page.' if is_en else 'نظرة سريعة على القنوات النشطة. لإعدادها، اذهب لصفحة القنوات.' }}">
-          <div class="nt-sec-head">
+    <div class="ns-device-note ns-device-note-v33iota">
+      <span class="ns-device-note-icon" aria-hidden="true">ⓘ</span>
+      <p>{{ 'هذه الإعدادات تطبق حالياً على جميع أجهزتك. تخصيص الإشعارات لكل جهاز سيتم في مرحلة لاحقة.' if not is_en else 'These settings currently apply to all of your devices. Per-device notification rules are planned for a later phase.' }}</p>
+    </div>
+
+    <nav class="ns-nav" aria-label="{{ 'أقسام إعدادات الإشعارات' if not is_en else 'Notification settings sections' }}">
+      <a href="#general">{{ 'عام' if not is_en else 'General' }}</a>
+      <a href="#periodic-day">{{ 'النهار' if not is_en else 'Day' }}</a>
+      <a href="#periodic-night">{{ 'الليل' if not is_en else 'Night' }}</a>
+      <a href="#sunset">{{ 'قبل الغروب' if not is_en else 'Pre-sunset' }}</a>
+      <a href="#weather">{{ 'الطقس' if not is_en else 'Weather' }}</a>
+      <a href="#battery">{{ 'البطارية' if not is_en else 'Battery' }}</a>
+      <a href="#load">{{ 'الأحمال' if not is_en else 'Loads' }}</a>
+      <a href="#daily-report">{{ 'التقرير اليومي' if not is_en else 'Daily report' }}</a>
+      <a href="#sms-critical">{{ 'SMS الحرجة' if not is_en else 'Critical SMS' }}</a>
+      <a href="#message-content">{{ 'محتوى الرسائل' if not is_en else 'Message content' }}</a>
+      <a href="#rules">{{ 'القواعد' if not is_en else 'Rules' }}</a>
+    </nav>
+
+    <div class="ns-layout">
+      <div class="ns-main">
+        {{ card_open('general', '01', 'عام', 'التحكم الرئيسي بتشغيل أو إيقاف الإشعارات التلقائية.', 'notifications_enabled', '', 'تشغيل عام للإشعارات التلقائية', 'tone-general', true) }}
+          {{ save_open('general') }}
+          {{ toggle_field('notifications_enabled', 'تفعيل الإشعارات التلقائية', 'عند إيقافه تتوقف التنبيهات المجدولة، مع بقاء SMS الحرج حسب إعداداته.') }}
+          <p class="ns-muted">{{ 'لا يوجد خيار قناة افتراضية عام في backend الحالي. القناة تحدد داخل كل قسم أو قاعدة.' if not is_en else 'The current backend has no global default channel; each section/rule stores its own channel.' }}</p>
+          {{ save_close('general') }}
+        {{ card_close() }}
+
+        {{ card_open('periodic-day', '02', 'التحديث الدوري النهاري', 'رسالة حالة أثناء النهار تشمل التقدم والملخص والطقس والأحمال حسب اختيارك.', 'periodic_day_enabled', 'periodic_day_channel', 'كل ' ~ settings.get('periodic_day_interval_value', '1') ~ ' ' ~ settings.get('periodic_day_interval_unit', 'hours') ~ ' · ' ~ settings.get('periodic_day_time_start', '08:00') ~ ' - ' ~ settings.get('periodic_day_time_end', 'sunset'), 'tone-day') }}
+          <div class="ns-section-shell" data-preview-section="periodic_day">
+          <div class="ns-settings-pane">
+          {{ save_open('periodic_day') }}
+          {{ toggle_field('periodic_day_enabled', 'تفعيل التحديث النهاري', 'يرسل ملخصًا أثناء ساعات الشمس حتى تعرف هل الإنتاج والشحن يسيران كما هو متوقع.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط متى يصل ملخص النهار. مثال: كل ساعتين من 08:00 حتى الغروب.') }}
+          <div class="ns-grid">
+            {{ channel_select('periodic_day_channel', 'القناة') }}
+            {{ schedule_mode_select('periodic_day_schedule_mode') }}
+            {{ interval_fields('periodic_day_interval_value', 'periodic_day_interval_unit') }}
+            {{ window_field('periodic_day_time_start', 'بداية النافذة', '08:00') }}
+            {{ window_field('periodic_day_time_end', 'نهاية النافذة', '18:00') }}
+            {{ specific_hours_field('periodic_day_specific_hours', 'ساعات محددة', ['08:00','10:00','12:00','14:00','16:00']) }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'اختر ما يحتاجه المستخدم فعلاً داخل الرسالة. كل خيار يظهر أو يخفي سطرًا في المعاينة.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('periodic_day_include_progress', 'تضمين تقدم اليوم', 'يعرض كم مرّ من النهار وكم بقي للاستفادة من الشمس.') }}
+            {{ toggle_field('periodic_day_include_summary', 'تضمين الملخص', 'يضيف قراءة مختصرة للإنتاج والحمل وحالة النظام.') }}
+            {{ toggle_field('periodic_day_include_device', 'تضمين الجهاز', 'مفيد إذا لديك أكثر من جهاز حتى تعرف مصدر القراءة.') }}
+            {{ toggle_field('periodic_day_include_weather', 'تضمين الطقس', 'يشرح هل الغيوم أو الحرارة قد تؤثر على الإنتاج الحالي.') }}
+            {{ toggle_field('periodic_day_include_loads', 'تضمين الأحمال', 'يعرض اقتراحات تشغيل الأحمال حسب الفائض المتاح.') }}
+            {{ toggle_field('periodic_day_include_sunset', 'تضمين تحليل الغروب', 'يضيف تقدير ما إذا كان الوقت يكفي لشحن البطارية قبل الغروب.') }}
+          </div>
+          {{ save_close('periodic_day') }}
+          <div class="ns-test-row">{{ test_form('periodic_day') }}</div>
+          </div>
+          {{ preview_panel('periodic_day', 'تحديث نهاري') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('periodic-night', '03', 'التحديث الدوري الليلي', 'رسالة حالة خلال الليل تركز على التفريغ والوقت المتبقي والأحمال.', 'periodic_night_enabled', 'periodic_night_channel', 'كل ' ~ settings.get('periodic_night_interval_value', '1') ~ ' ' ~ settings.get('periodic_night_interval_unit', 'hours') ~ ' · ' ~ settings.get('periodic_night_time_start', 'sunset') ~ ' - ' ~ settings.get('periodic_night_time_end', '08:00'), 'tone-night') }}
+          <div class="ns-section-shell" data-preview-section="periodic_night">
+          <div class="ns-settings-pane">
+          {{ save_open('periodic_night') }}
+          {{ toggle_field('periodic_night_enabled', 'تفعيل التحديث الليلي', 'يركز على البطارية والأحمال بعد غياب الشمس حتى تتجنب نفاد الشحن أثناء النوم.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط نافذة الليل والفاصل بين الرسائل. مثال: كل ساعة من الغروب حتى 08:00.') }}
+          <div class="ns-grid">
+            {{ channel_select('periodic_night_channel', 'القناة') }}
+            {{ schedule_mode_select('periodic_night_schedule_mode') }}
+            {{ interval_fields('periodic_night_interval_value', 'periodic_night_interval_unit') }}
+            {{ window_field('periodic_night_time_start', 'بداية النافذة', '18:00') }}
+            {{ window_field('periodic_night_time_end', 'نهاية النافذة', '08:00') }}
+            {{ specific_hours_field('periodic_night_specific_hours', 'ساعات محددة', ['20:00','22:00','00:00','02:00','04:00','06:00']) }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'اختر التفاصيل التي تساعدك ليلًا: نسبة البطارية، الأحمال، والوقت المتوقع قبل النفاد.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('periodic_night_include_progress', 'تضمين تقدم الليل', 'يوضح كم مرّ من نافذة الليل وكم تبقى حتى الشروق أو نهاية النافذة.') }}
+            {{ toggle_field('periodic_night_include_summary', 'تضمين الملخص', 'يضيف قراءة سريعة لحالة البطارية والحمل الحالي.') }}
+            {{ toggle_field('periodic_night_include_device', 'تضمين الجهاز', 'مفيد عندما تستقبل رسائل من أكثر من منظومة.') }}
+            {{ toggle_field('periodic_night_include_loads', 'تضمين الأحمال', 'يعرض الأحمال التي قد تسحب البطارية بسرعة أثناء الليل.') }}
+            {{ toggle_field('periodic_night_include_eta', 'تضمين الوقت المتبقي', 'يضيف تقديرًا للمدة قبل انخفاض البطارية حسب الحمل الحالي.') }}
+          </div>
+          {{ save_close('periodic_night') }}
+          <div class="ns-test-row">{{ test_form('periodic_night') }}</div>
+          </div>
+          {{ preview_panel('periodic_night', 'تحديث ليلي') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('sunset', '04', 'ما قبل الغروب', 'تحليل قرب الغروب لحالة الشحن واحتمال الوصول إلى الامتلاء قبل نهاية الشمس.', 'pre_sunset_enabled', 'pre_sunset_channel', settings.get('pre_sunset_interval_minutes', '30') ~ ' دقيقة · ' ~ settings.get('pre_sunset_time_start', '13:00') ~ ' - ' ~ settings.get('pre_sunset_time_end', 'sunset'), 'tone-sunset') }}
+          <div class="ns-section-shell" data-preview-section="sunset">
+          <div class="ns-settings-pane">
+          {{ save_open('sunset') }}
+          {{ toggle_field('pre_sunset_enabled', 'تفعيل تنبيه ما قبل الغروب', 'ينبهك قبل انتهاء الشمس إذا كانت البطارية قد لا تمتلئ أو تحتاج تقليل الأحمال.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط متى يبدأ تحليل آخر النهار. مثال: من 13:00 حتى الغروب كل 30 دقيقة.') }}
+          <div class="ns-grid">
+            {{ channel_select('pre_sunset_channel', 'القناة') }}
+            {{ schedule_mode_select('pre_sunset_schedule_mode') }}
+            {{ text_field('pre_sunset_interval_minutes', 'الفاصل بالدقائق', 'number', '', 'مثال: 30 تعني فحص حالة الشحن كل نصف ساعة قبل الغروب.') }}
+            {{ window_field('pre_sunset_time_start', 'بداية النافذة', '13:00') }}
+            {{ window_field('pre_sunset_time_end', 'نهاية النافذة', '18:00') }}
+            {{ specific_hours_field('pre_sunset_specific_hours', 'ساعات محددة', ['13:00','14:00','15:00','16:00']) }}
+            {{ text_field('charge_step_percent', 'خطوة الشحن %', 'number', '', 'تحدد مستويات الشحن التي تُستخدم في القواعد. مثال: 10 تعني 10%، 20%، 30%...') }}
+          </div>
+          {{ group_title('محتوى الرسالة والشروط', 'هذه الخيارات تجعل الرسالة عملية: هل البطارية ستكمل؟ كم الوقت؟ وما النصيحة الآن؟') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('pre_sunset_include_soc', 'تضمين نسبة البطارية', 'يعرض نسبة الشحن الحالية مثل 72%.') }}
+            {{ toggle_field('pre_sunset_include_charge_power', 'تضمين قدرة الشحن', 'يوضح كم واط يدخل إلى البطارية الآن.') }}
+            {{ toggle_field('pre_sunset_include_eta', 'تضمين الوقت المتوقع', 'يضيف تقديرًا للوقت اللازم للوصول إلى الامتلاء.') }}
+            {{ toggle_field('pre_sunset_include_advice', 'تضمين النصيحة', 'يضيف إجراءً بسيطًا مثل تقليل الأحمال أو الانتظار.') }}
+            {{ toggle_field('pre_sunset_subtract_hour', 'احتساب احتياطي ساعة قبل الغروب', 'يعامل آخر ساعة قبل الغروب كاحتياط حتى لا تكون التوقعات متفائلة جدًا.') }}
+            {{ toggle_field('pre_sunset_only_if_not_full', 'إرسال فقط إذا لن تمتلئ البطارية', 'يمنع الرسائل غير الضرورية عندما يبدو أن البطارية ستصل إلى 100%.') }}
+          </div>
+          {{ save_close('sunset') }}
+          <div class="ns-test-row">{{ test_form('sunset') }}</div>
+          </div>
+          {{ preview_panel('sunset', 'تنبيه ما قبل الغروب') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('weather', '05', 'تنبيهات الطقس', 'اختبار ومراقبة الغيوم والطقس القريب وتأثيره على الإنتاج.', 'weather_test_enabled', 'weather_test_channel', 'عتبة الغيوم ' ~ settings.get('weather_cloud_threshold', '60') ~ '% · ' ~ settings.get('weather_test_time_start', '06:00') ~ ' - ' ~ settings.get('weather_test_time_end', 'sunset'), 'tone-weather') }}
+          <div class="ns-section-shell" data-preview-section="weather">
+          <div class="ns-settings-pane">
+          {{ save_open('weather') }}
+          {{ toggle_field('weather_test_enabled', 'تفعيل تنبيه الطقس', 'يرسل تنبيهًا عندما تكون حالة الطقس مؤثرة على إنتاج الشمس أو قرار تشغيل الأحمال.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط متى يفحص النظام الغيوم والطقس. مثال: أثناء النهار فقط من الشروق حتى الغروب.') }}
+          <div class="ns-grid">
+            {{ channel_select('weather_test_channel', 'القناة') }}
+            {{ schedule_mode_select('weather_test_schedule_mode') }}
+            {{ interval_fields('weather_test_interval_value', 'weather_test_interval_unit') }}
+            {{ window_field('weather_test_time_start', 'بداية النافذة', '06:00') }}
+            {{ window_field('weather_test_time_end', 'نهاية النافذة', '18:00') }}
+            {{ text_field('weather_cloud_threshold', 'حد الغيوم للتنبيه %', 'number', '', 'مثال: 60 تعني التنبيه عندما تغطي الغيوم 60% أو أكثر من السماء.') }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'اجعل الرسالة تشرح السبب: ماذا سيحدث في الساعة القادمة وما التصرف المناسب؟') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('weather_test_include_next_hour', 'تضمين توقع الساعة القادمة', 'يعرض هل الإنتاج المتوقع سيرتفع أو ينخفض قريبًا.') }}
+            {{ toggle_field('weather_test_include_smart_tip', 'تضمين نصيحة ذكية', 'يضيف اقتراحًا مثل تأجيل حمل كبير إذا كانت الغيوم عالية.') }}
+          </div>
+          {{ save_close('weather') }}
+          <div class="ns-test-row">{{ test_form('weather') }}</div>
+          </div>
+          {{ preview_panel('weather', 'تنبيه الطقس') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('battery', '06', 'اختبار البطارية', 'رسالة فحص لحالة البطارية والتوقعات المرتبطة بالشحن والأحمال.', 'battery_test_enabled', 'battery_test_channel', settings.get('battery_test_schedule_mode', 'manual') ~ ' · ' ~ settings.get('battery_test_time_start', '00:00') ~ ' - ' ~ settings.get('battery_test_time_end', '23:59'), 'tone-battery') }}
+          <div class="ns-section-shell" data-preview-section="battery">
+          <div class="ns-settings-pane">
+          {{ save_open('battery') }}
+          {{ toggle_field('battery_test_enabled', 'تفعيل فحص البطارية', 'يرسل قراءة مركزة عن نسبة البطارية واتجاه الشحن/التفريغ عندما تحتاج متابعة أقرب.') }}
+          {{ group_title('الإعدادات الأساسية', 'حدد متى يعمل فحص البطارية. اجعله أقل تكرارًا من SMS الحرجة حتى يبقى للتحديثات العادية.') }}
+          <div class="ns-grid">
+            {{ channel_select('battery_test_channel', 'القناة') }}
+            {{ schedule_mode_select('battery_test_schedule_mode') }}
+            {{ interval_fields('battery_test_interval_value', 'battery_test_interval_unit') }}
+            {{ window_field('battery_test_time_start', 'بداية النافذة', '00:00') }}
+            {{ window_field('battery_test_time_end', 'نهاية النافذة', '23:59') }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'اختر السياق الذي يجعل قراءة البطارية مفهومة: ماذا حدث اليوم؟ ما علاقة الغروب والأحمال؟') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('battery_test_include_day_summary', 'تضمين ملخص اليوم', 'يعرض إنتاج اليوم والاستهلاك لفهم سبب ارتفاع أو انخفاض البطارية.') }}
+            {{ toggle_field('battery_test_include_sunset', 'تضمين الغروب', 'يفيد لمعرفة هل الوقت المتبقي للشمس يكفي لتعويض النقص.') }}
+            {{ toggle_field('battery_test_include_loads', 'تضمين الأحمال', 'يعرض الأحمال المؤثرة إذا كانت البطارية تنخفض بسرعة.') }}
+          </div>
+          {{ save_close('battery') }}
+          <div class="ns-test-row">{{ test_form('battery') }}</div>
+          </div>
+          {{ preview_panel('battery', 'تنبيه البطارية') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('load', '07', 'تنبيهات الأحمال', 'اقتراح الأحمال المسموحة والممنوعة حسب الطاقة المتاحة والحدود المحددة.', 'load_alert_enabled', 'load_alert_channel', 'حد ليلي ' ~ settings.get('night_max_load_w', '500') ~ 'W · حتى ' ~ settings.get('load_alert_max_items', '4') ~ ' عناصر', 'tone-load') }}
+          <div class="ns-section-shell" data-preview-section="load">
+          <div class="ns-settings-pane">
+          {{ save_open('load') }}
+          {{ toggle_field('load_alert_enabled', 'تفعيل تنبيهات الأحمال', 'يرسل اقتراحات حول ما يمكن تشغيله الآن وما الأفضل تأجيله حسب الفائض والبطارية.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط متى تُرسل اقتراحات الأحمال حتى تصل في أوقات القرار، لا في كل لحظة.') }}
+          <div class="ns-grid">
+            {{ channel_select('load_alert_channel', 'القناة') }}
+            {{ schedule_mode_select('load_alert_schedule_mode') }}
+            {{ interval_fields('load_alert_interval_value', 'load_alert_interval_unit') }}
+            {{ window_field('load_alert_time_start', 'بداية النافذة', '08:00') }}
+            {{ window_field('load_alert_time_end', 'نهاية النافذة', '18:00') }}
+            {{ specific_hours_field('load_alert_specific_hours', 'ساعات محددة', ['09:00','11:00','13:00','15:00']) }}
+            {{ text_field('night_max_load_w', 'حد الحمل الليلي W', 'number', '', 'مثال: 500 واط يعني أن الاقتراحات الليلية تتجنب تشغيل أحمال ترفع السحب فوق هذا الحد.') }}
+            {{ text_field('load_alert_max_items', 'عدد العناصر المعروضة', 'number', '', 'مثال: 4 تعني عرض أهم أربعة أحمال فقط حتى لا تصبح الرسالة طويلة.') }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'حدد هل تريد معرفة الأحمال المناسبة الآن فقط، أم أيضًا الأحمال التي يجب تأجيلها وسبب ذلك.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('load_alert_include_allowed', 'تضمين الأحمال المسموحة', 'يعرض الأجهزة التي يمكن تشغيلها ضمن الفائض أو حدود البطارية الحالية.') }}
+            {{ toggle_field('load_alert_include_blocked', 'تضمين الأحمال المؤجلة', 'يعرض الأحمال غير المناسبة الآن، مثل السخان إذا كان الفائض قليلًا.') }}
+          </div>
+          {{ save_close('load') }}
+          <div class="ns-test-row">{{ test_form('load') }}</div>
+          </div>
+          {{ preview_panel('load', 'تنبيه الأحمال') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('daily-report', '08', 'التقرير اليومي', 'تقرير صباحي مختصر يلخص حالة النظام والطاقة مقارنة بالأمس.', 'daily_report_enabled', 'daily_report_channel', 'وقت الإرسال ' ~ settings.get('daily_report_time', '07:00'), 'tone-report') }}
+          <div class="ns-section-shell" data-preview-section="daily_report">
+          <div class="ns-settings-pane">
+          {{ save_open('daily_report') }}
+          {{ toggle_field('daily_report_enabled', 'تفعيل التقرير اليومي', 'يرسل ملخصًا ثابتًا مرة يوميًا حتى تبدأ يومك بصورة واضحة عن الطاقة.') }}
+          {{ group_title('الإعدادات الأساسية', 'اختر وقتًا صباحيًا مناسبًا قبل تشغيل الأحمال الكبيرة أو قبل مغادرة المنزل.') }}
+          <div class="ns-grid">
+            {{ channel_select('daily_report_channel', 'القناة') }}
+            {{ text_field('daily_report_time', 'وقت الإرسال', 'time', '', 'مثال: 07:00 تعني وصول التقرير صباحًا قبل بداية الاستخدام اليومي.') }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'اختر هل يكفيك ملخص اليوم، أم تريد مقارنة سريعة مع أداء أمس والجهاز المصدر.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('daily_report_include_totals', 'تضمين الإجماليات', 'يضيف إنتاج الشمس واستهلاك المنزل وأرقام البطارية الأساسية.') }}
+            {{ toggle_field('daily_report_include_yesterday', 'تضمين مقارنة أمس', 'يفيد لمعرفة هل اليوم أفضل أو أضعف من اليوم السابق.') }}
+            {{ toggle_field('daily_report_include_device', 'تضمين الجهاز', 'مفيد عند وجود أكثر من منظومة حتى لا تختلط التقارير.') }}
+          </div>
+          {{ save_close('daily_report') }}
+          <div class="ns-test-row">{{ test_form('daily_report') }}</div>
+          </div>
+          {{ preview_panel('daily_report', 'التقرير اليومي') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('discharge', '09', 'التفريغ الليلي', 'تنبيهات مرتبطة بانخفاض البطارية أثناء الليل وخطوات التفريغ.', 'night_discharge_enabled', 'night_discharge_channel', 'خطوة ' ~ settings.get('night_discharge_percent_step', '5') ~ '% · ' ~ settings.get('night_discharge_time_start', 'sunset') ~ ' - ' ~ settings.get('night_discharge_time_end', '08:00'), 'tone-discharge') }}
+          <div class="ns-section-shell" data-preview-section="discharge">
+          <div class="ns-settings-pane">
+          {{ save_open('discharge') }}
+          {{ toggle_field('night_discharge_enabled', 'تفعيل تنبيهات التفريغ الليلي', 'يراقب هبوط البطارية أثناء الليل ويرسل عند نزولها بخطوات واضحة بدل رسائل عشوائية.') }}
+          {{ group_title('الإعدادات الأساسية', 'اضبط متابعة البطارية بعد الغروب. استخدم نافذة الليل حتى لا تصلك رسائل تفريغ أثناء النهار.') }}
+          <div class="ns-grid">
+            {{ channel_select('night_discharge_channel', 'القناة') }}
+            {{ schedule_mode_select('night_discharge_schedule_mode') }}
+            {{ interval_fields('night_discharge_interval_value', 'night_discharge_interval_unit') }}
+            {{ window_field('night_discharge_time_start', 'بداية النافذة', '18:00') }}
+            {{ window_field('night_discharge_time_end', 'نهاية النافذة', '08:00') }}
+            {{ text_field('night_discharge_percent_step', 'خطوة التفريغ %', 'number', '', 'مثال: 5 تعني تنبيهًا عند 95% ثم 90% ثم 85% حسب القواعد المحفوظة.') }}
+          </div>
+          {{ group_title('محتوى الرسالة', 'أضف ما يساعدك على معرفة أي جهاز يفرغ البطارية وكم طاقة سُحبت.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('night_discharge_include_device', 'تضمين الجهاز', 'يضيف اسم الجهاز أو المنظومة داخل الرسالة.') }}
+            {{ toggle_field('night_discharge_include_energy', 'تضمين الطاقة', 'يضيف أرقام الطاقة المرتبطة بالتفريغ لفهم حجم الاستهلاك.') }}
+          </div>
+          {{ save_close('discharge') }}
+          <div class="ns-test-row">{{ test_form('discharge') }}</div>
+          </div>
+          {{ preview_panel('discharge', 'تنبيه التفريغ الليلي') }}
+          </div>
+        {{ card_close() }}
+
+        <details class="ns-card tone-content" id="message-content">
+          <summary class="ns-card-head">
+            <div class="ns-card-title">
+              <span class="ns-card-icon">MC</span>
+              <div>
+                <small>{{ 'قسم' if not is_en else 'Section' }}</small>
+                <h2>{{ 'محتوى الرسائل' if not is_en else 'Message content' }}</h2>
+                <p>{{ 'هذا القسم يوضح معنى كتل الرسالة، لكن التفعيل والحفظ يتمان من بطاقة كل تنبيه حتى لا تتأثر الأقسام ببعضها.' if not is_en else 'This explains message blocks; editing/saving stays in each alert card so sections remain isolated.' }}</p>
+                <span class="ns-summary-line">{{ 'التقدم · الملخص · الجهاز · الطقس · الأحمال · النصيحة · الوقت المتوقع' if not is_en else 'Progress · Summary · Device · Weather · Loads · Advice · ETA' }}</span>
+              </div>
+            </div>
+            <span class="ns-card-meta"><span class="ns-channel-badge">{{ 'مرجعي' if not is_en else 'Reference' }}</span><span class="ns-chevron" aria-hidden="true"></span></span>
+          </summary>
+          <div class="ns-card-body">
+            <div class="ns-content-map">
+              <div>
+                <h3>{{ 'النهار' if not is_en else 'Day' }}</h3>
+                <span>{{ 'تقدم اليوم' if not is_en else 'progress' }}</span><span>{{ 'ملخص الطاقة' if not is_en else 'summary' }}</span><span>{{ 'اسم الجهاز' if not is_en else 'device' }}</span><span>{{ 'الطقس' if not is_en else 'weather' }}</span><span>{{ 'الأحمال' if not is_en else 'loads' }}</span><span>{{ 'تحليل الغروب' if not is_en else 'sunset' }}</span>
+              </div>
+              <div>
+                <h3>{{ 'الليل' if not is_en else 'Night' }}</h3>
+                <span>{{ 'تقدم الليل' if not is_en else 'progress' }}</span><span>{{ 'ملخص البطارية' if not is_en else 'summary' }}</span><span>{{ 'اسم الجهاز' if not is_en else 'device' }}</span><span>{{ 'الأحمال' if not is_en else 'loads' }}</span><span>{{ 'وقت النفاد المتوقع' if not is_en else 'ETA' }}</span>
+              </div>
+              <div>
+                <h3>{{ 'قبل الغروب' if not is_en else 'Pre-sunset' }}</h3>
+                <span>{{ 'نسبة البطارية SOC' if not is_en else 'SOC' }}</span><span>{{ 'قدرة الشحن' if not is_en else 'charge power' }}</span><span>{{ 'وقت الامتلاء المتوقع' if not is_en else 'ETA' }}</span><span>{{ 'نصيحة عملية' if not is_en else 'advice' }}</span>
+              </div>
+              <div>
+                <h3>{{ 'الطقس والبطارية والتقرير' if not is_en else 'Weather, battery, report' }}</h3>
+                <span>{{ 'الساعة القادمة' if not is_en else 'next hour' }}</span><span>{{ 'نصيحة ذكية' if not is_en else 'smart tip' }}</span><span>{{ 'ملخص اليوم' if not is_en else 'day summary' }}</span><span>{{ 'الإجماليات' if not is_en else 'totals' }}</span><span>{{ 'مقارنة أمس' if not is_en else 'yesterday' }}</span><span>{{ 'اسم الجهاز' if not is_en else 'device' }}</span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {{ card_open('sms-critical', '10', 'رسائل SMS الحرجة', 'هذا القسم مخصص للرسائل المهمة جدًا التي تُرسل عبر SMS عند وجود خطر أو حالة تحتاج انتباهًا سريعًا، مثل انخفاض البطارية أو ارتفاع الحمل الليلي.', 'sms_critical_enabled', '', 'SMS فقط للحالات الحرجة · الحد الأدنى بين الرسائل ' ~ settings.get('sms_critical_cooldown_minutes', '120') ~ ' دقيقة · البطارية ' ~ settings.get('sms_critical_battery_threshold_percent', '20') ~ '%', 'tone-critical') }}
+          <div class="ns-section-shell" data-preview-section="sms_critical">
+          <div class="ns-settings-pane">
+          {{ save_open('sms_critical') }}
+
+          <div class="ns-critical-explainer">
             <div>
-              <small>{{ 'Section 01' if is_en else 'القسم 1' }}</small>
-              <h2><span class="nt-sec-icon">📡</span> {{ 'Channel status' if is_en else 'حالة القنوات' }}</h2>
+              <strong>متى تصلني رسالة SMS؟</strong>
+              <p>ستصلك رسالة SMS فقط عند تحقق شرط خطر فعلي، مثل انخفاض البطارية أو ارتفاع الحمل الليلي. أما التحديثات العادية فيُفضّل إرسالها عبر Telegram لتقليل التكلفة.</p>
             </div>
-            <span class="nt-sec-meta">{{ 'connected channels' if is_en else 'القنوات المتّصلة' }}</span>
+            <span>SMS فقط للحالات الحرجة</span>
           </div>
-          <div class="nt-sec-body">
-            <div class="nt-channel-row">
-              <a class="nt-channel-card {% if tg_on %}is-on{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">
-                <span class="nt-channel-icon">📱</span>
-                <div>
-                  <strong>Telegram</strong>
-                  <small>{{ 'Real-time bot alerts' if is_en else 'تنبيهات لحظية عبر بوت' }}</small>
-                </div>
-                <span class="nt-channel-status">{{ '✓ ON' if tg_on else '○ OFF' }}</span>
-              </a>
-              <a class="nt-channel-card {% if sms_on %}is-on{% endif %}" href="{{ url_for('main.channels', lang=ui_lang) }}">
-                <span class="nt-channel-icon">✉</span>
-                <div>
-                  <strong>SMS</strong>
-                  <small>{{ 'Text messages to your phone' if is_en else 'رسائل نصية إلى هاتفك' }}</small>
-                </div>
-                <span class="nt-channel-status">{{ '✓ ON' if sms_on else '○ OFF' }}</span>
-              </a>
-            </div>
-          </div>
-        </section>
 
-        {# Section 2: Rules table #}
-        <section class="nt-section" data-help="{{ 'Each rule defines an event (e.g. battery below 20%) and which channels to notify. Toggle rules on/off as needed.' if is_en else 'كل قاعدة تحدد حدثاً (مثلاً البطارية دون 20%) والقنوات التي ستُنبَّه. يمكنك تشغيل/إيقاف كل قاعدة.' }}">
-          <div class="nt-sec-head">
-            <div>
-              <small>{{ 'Section 02' if is_en else 'القسم 2' }}</small>
-              <h2><span class="nt-sec-icon">⚙</span> {{ 'Notification rules' if is_en else 'قواعد التنبيهات' }}</h2>
-            </div>
-            <span class="nt-sec-meta">{{ rules|length if rules else 0 }} {{ 'rules' if is_en else 'قاعدة' }}</span>
+          <div class="ns-critical-note">
+            تنبيه: رسائل SMS قد تكون مدفوعة التكلفة، لذلك يُفضّل استخدامها للحالات الحرجة فقط.
           </div>
-          <div class="nt-sec-body">
-            {% if rules %}
-            <form method="post" class="nt-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="form" value="rules">
-              <div class="nt-rules-list">
-                {% for rule in rules %}
-                <article class="nt-rule">
-                  <header class="nt-rule-head">
-                    <strong>{{ rule.label_en if is_en else (rule.label_ar or rule.key) }}</strong>
-                    <small>{{ rule.help_en if is_en else (rule.help_ar or '') }}</small>
-                  </header>
-                  <div class="nt-rule-toggles">
-                    <label class="nt-rule-toggle">
-                      <input type="checkbox" name="rule_{{ rule.key }}_enabled" {% if rule.enabled %}checked{% endif %}>
-                      <span><strong>{{ '✓ Enabled' if is_en else '✓ مفعّلة' }}</strong></span>
-                    </label>
-                    <label class="nt-rule-toggle compact">
-                      <input type="checkbox" name="rule_{{ rule.key }}_telegram" {% if rule.telegram %}checked{% endif %}>
-                      <span>📱 Telegram</span>
-                    </label>
-                    <label class="nt-rule-toggle compact">
-                      <input type="checkbox" name="rule_{{ rule.key }}_sms" {% if rule.sms %}checked{% endif %}>
-                      <span>✉ SMS</span>
-                    </label>
-                  </div>
-                </article>
+
+          <div class="ns-critical-mini">
+            {{ group_title('تشغيل الرسائل الحرجة', 'عند التفعيل، سيتم إرسال SMS فقط عند تحقق أحد شروط الخطر أدناه.') }}
+            <div class="ns-critical-card-grid">
+              {{ toggle_field('sms_critical_enabled', 'تفعيل رسائل SMS الحرجة', 'استخدم هذا الخيار للحالات التي تحتاج انتباهًا سريعًا ولا تنتظر فتح Telegram.') }}
+              {{ critical_number_field('sms_critical_cooldown_minutes', 'الحد الأدنى بين رسالتين متشابهتين', 'دقيقة', 'مثال: 30 دقيقة تعني عدم تكرار نفس التنبيه قبل مرور نصف ساعة.', 'هذا يمنع تكرار نفس رسالة SMS خلال فترة قصيرة.') }}
+            </div>
+          </div>
+
+          <div class="ns-critical-mini">
+            {{ group_title('انخفاض البطارية', 'اضبط متى تعتبر البطارية منخفضة أو في حالة طوارئ.') }}
+            <div class="ns-grid">
+              {{ critical_number_field('sms_critical_battery_threshold_percent', 'إرسال SMS عند انخفاض البطارية إلى', '%', 'مثال: 20 تعني إرسال تنبيه عند 20% أو أقل.', 'هذا هو حد التنبيه الأساسي لانخفاض البطارية.') }}
+              {{ critical_number_field('sms_critical_emergency_battery_percent', 'إرسال SMS طارئ عند انخفاض البطارية إلى', '%', 'مثال: 10 تعني أن الرسالة تعتبر طارئة جدًا.', 'استخدم قيمة أقل من حد البطارية العادي.') }}
+            </div>
+          </div>
+
+          <div class="ns-critical-mini">
+            {{ group_title('قرب نفاد البطارية', 'يُستخدم هذا التنبيه عندما تشير الحسابات إلى أن البطارية قد تنفد قريبًا.') }}
+            <div class="ns-grid">
+              {{ critical_number_field('sms_critical_runtime_threshold_hours', 'إرسال SMS إذا كان الوقت المتوقع لنفاد البطارية أقل من', 'ساعة', 'مثال: 2 تعني إرسال تنبيه إذا كان المتبقي أقل من ساعتين.', 'يعتمد على الحسابات الحالية للاستهلاك والطاقة المتبقية.') }}
+              {{ critical_number_field('sms_critical_sync_stale_minutes', 'إرسال SMS إذا توقفت المزامنة لأكثر من', 'دقيقة', 'مثال: 30 تعني التنبيه إذا لم تصل بيانات جديدة خلال 30 دقيقة.', 'يساعدك على معرفة أن الجهاز أو الاتصال لا يرسل بيانات حديثة.') }}
+            </div>
+          </div>
+
+          <div class="ns-critical-mini">
+            {{ group_title('الحمل الليلي المرتفع', 'يساعد هذا التنبيه في اكتشاف تشغيل أحمال عالية أثناء الليل قد تستهلك البطارية بسرعة.') }}
+            <div class="ns-grid">
+              {{ critical_number_field('sms_critical_evening_load_threshold_w', 'إرسال SMS عند ارتفاع الحمل الليلي فوق', 'واط', 'مثال: 800 واط تعني تنبيه عند استمرار الحمل فوق 800 واط.', 'هذا هو حد التنبيه للحمل الليلي المرتفع.') }}
+              {{ critical_number_field('sms_critical_evening_load_duration_minutes', 'مدة استمرار الحمل المرتفع قبل التنبيه', 'دقيقة', 'مثال: 15 تعني انتظار 15 دقيقة قبل إرسال SMS.', 'هذا يمنع التنبيه بسبب ارتفاع لحظي قصير.') }}
+              {{ window_field('sms_critical_evening_start', 'بداية نافذة الحمل الليلي', '18:00') }}
+              {{ window_field('sms_critical_evening_end', 'نهاية نافذة الحمل الليلي', '23:59') }}
+            </div>
+          </div>
+
+          <details class="ns-advanced">
+            <summary>{{ 'إعدادات متقدمة للحالات الحرجة الأخرى' if not is_en else 'Other critical advanced settings' }}</summary>
+            <div class="ns-grid">
+            {{ critical_number_field('sms_critical_day_zero_threshold_w', 'إرسال SMS عند انخفاض إنتاج النهار تحت', 'واط', 'مثال: 50 واط تعني أن الإنتاج شبه متوقف.', 'يفيد عند وجود شمس متوقعة لكن الإنتاج ضعيف جدًا.') }}
+            {{ critical_number_field('sms_critical_day_zero_duration_minutes', 'مدة استمرار الإنتاج المنخفض قبل التنبيه', 'دقيقة', 'مثال: 20 دقيقة تقلل التنبيهات العابرة.', 'لا تُرسل الرسالة إلا إذا استمرت الحالة هذه المدة.') }}
+            {{ critical_number_field('sms_critical_day_zero_min_home_w', 'أدنى حمل منزلي لاعتماد تنبيه الإنتاج المنخفض', 'واط', 'مثال: 150 واط تعني تجاهل الحالات التي لا يوجد فيها استهلاك فعلي.', 'يساعد على تجنب تنبيهات غير مهمة.') }}
+            {{ critical_number_field('sms_critical_no_load_duration_minutes', 'مدة عدم توفر أحمال آمنة قبل التنبيه', 'دقيقة', 'مثال: 15 دقيقة تعني إرسال التنبيه بعد استمرار الحالة.', 'يُستخدم عندما لا توجد أحمال مناسبة للتشغيل بأمان.') }}
+            {{ critical_number_field('sms_critical_morning_deficit_threshold_w', 'إرسال SMS عند عجز صباحي أعلى من', 'واط', 'مثال: 300 واط تعني أن الحمل أعلى من الإنتاج بهذا المقدار.', 'يساعد في اكتشاف بداية يوم غير مريحة للطاقة.') }}
+            {{ critical_number_field('sms_critical_morning_deficit_duration_minutes', 'مدة استمرار العجز الصباحي قبل التنبيه', 'دقيقة', 'مثال: 30 دقيقة تعني انتظار استمرار العجز قبل الرسالة.', 'هذا يمنع الرسائل بسبب تغيرات قصيرة.') }}
+            {{ window_field('sms_critical_morning_start', 'بداية نافذة العجز الصباحي', '06:00') }}
+            {{ window_field('sms_critical_morning_end', 'نهاية نافذة العجز الصباحي', '10:00') }}
+            </div>
+          </details>
+
+          {{ group_title('ما هي الحالات التي تُرسل SMS؟', 'فعّل فقط الحالات التي تعتبرها حرجة ومناسبة لتكلفة SMS.') }}
+          <div class="ns-toggle-grid">
+            {{ toggle_field('sms_critical_battery_enabled', 'انخفاض البطارية', 'يرسل عند وصول البطارية إلى حد التنبيه أو أقل.') }}
+            {{ toggle_field('sms_critical_runtime_enabled', 'قرب نفاد البطارية', 'يرسل عندما يكون الوقت المتوقع لنفاد البطارية قصيرًا.') }}
+            {{ toggle_field('sms_critical_sync_enabled', 'توقف وصول البيانات', 'يرسل إذا لم تصل قراءة حديثة من الجهاز لفترة محددة.') }}
+            {{ toggle_field('sms_critical_day_zero_enabled', 'إنتاج نهاري منخفض جدًا', 'يرسل إذا بقي إنتاج الشمس شبه متوقف أثناء النهار.') }}
+            {{ toggle_field('sms_critical_no_load_enabled', 'لا توجد أحمال آمنة', 'يرسل عندما لا توجد أحمال مناسبة للتشغيل بأمان.') }}
+            {{ toggle_field('sms_critical_evening_load_enabled', 'الحمل الليلي المرتفع', 'يرسل إذا بقي الحمل الليلي فوق الحد المحدد.') }}
+            {{ toggle_field('sms_critical_morning_deficit_enabled', 'عجز صباحي في الطاقة', 'يرسل إذا كان الحمل أعلى من الإنتاج في الصباح لمدة كافية.') }}
+            {{ toggle_field('sms_critical_emergency_enabled', 'بطارية طوارئ', 'يرسل عند وصول البطارية إلى حد طارئ منخفض جدًا.') }}
+          </div>
+          <div class="ns-critical-test-note">
+            <strong>الاختبار</strong>
+            <p>لا يوجد زر اختبار مستقل لهذا القسم في backend الحالي. لاختبار إعدادات SMS العامة استخدم صفحة القنوات، وقد تُحتسب تكلفة الرسالة حسب مزود الخدمة.</p>
+            <a class="ns-btn ghost" href="{{ url_for('main.channels', lang=ui_lang) }}">فتح إعدادات SMS</a>
+          </div>
+          {{ save_close('sms_critical') }}
+          </div>
+          {{ preview_panel('sms_critical', 'تنبيه SMS حرج') }}
+          </div>
+        {{ card_close() }}
+
+        {{ card_open('rules', '11', 'قواعد العتبات', 'تحديد القناة لكل مستوى شحن أو تفريغ، مع عتبات الحمل الليلي والعجز النهاري.', '', '', 'خطوة الشحن ' ~ settings.get('charge_step_percent', '10') ~ '% · خطوة التفريغ ' ~ settings.get('night_discharge_percent_step', '5') ~ '%', 'tone-rules') }}
+          {% set charge_step = settings.get('charge_step_percent', '10')|int %}
+          {% if charge_step < 1 %}{% set charge_step = 10 %}{% endif %}
+          {% set discharge_step = settings.get('night_discharge_percent_step', '5')|int %}
+          {% if discharge_step < 1 %}{% set discharge_step = 5 %}{% endif %}
+          {{ save_open('rules') }}
+          {{ group_title('الخطوات العامة', 'هذه القيم تقسّم البطارية إلى مستويات. مثال: 10% يجعل القواعد تظهر عند 10، 20، 30...') }}
+          <div class="ns-grid">
+            {{ text_field('charge_step_percent', 'خطوة الشحن %', 'number', '', 'مثال: 10 تعني إنشاء مستويات شحن كل 10%.') }}
+            {{ text_field('night_discharge_percent_step', 'خطوة التفريغ %', 'number', '', 'مثال: 5 تعني متابعة التفريغ كل 5% أثناء الليل.') }}
+            <div class="ns-field">
+              <span>قناة عجز النهار</span>
+              {{ channel_option_select('day_deficit_channel', settings.get('day_deficit_channel') or rules.get('day_deficit', {}).get('channel', 'telegram')) }}
+              <small>تُستخدم عندما يكون الحمل أعلى من إنتاج الشمس في النهار لمدة كافية.</small>
+            </div>
+          </div>
+          {{ toggle_field('day_deficit_enabled', 'تفعيل عجز النهار', 'ينبه عندما لا يغطي الإنتاج الشمسي الحمل الحالي، وهو مؤشر مبكر على الاعتماد على البطارية أو الشبكة.') }}
+          {{ group_title('قنوات المستويات', 'حدّد لكل مستوى هل يرسل عبر Telegram أو SMS أو لا يرسل. لا تستخدم SMS إلا للمستويات المهمة.') }}
+          {# v33-threshold-compact-icon-cards-final: small icon-only cards in a
+             responsive grid. One legend at the top, three subsections, no
+             repeated channel labels per card. Hidden input names and the four
+             canonical values (none / telegram / sms / both) are unchanged. #}
+          <div class="ns-threshold-grid">
+            <div class="ns-tg-legend" aria-label="{{ 'مفتاح الرموز' if not is_en else 'Icon legend' }}">
+              <span><i aria-hidden="true">✈</i> = Telegram</span>
+              <span><i aria-hidden="true">✉</i> = SMS</span>
+            </div>
+
+            <section class="ns-tg-block">
+              <h4 class="ns-tg-title">{{ 'قنوات الشحن' if not is_en else 'Charge channels' }}</h4>
+              <div class="ns-tg-cards">
+                {% for level in range(charge_step, 101, charge_step) %}
+                <div class="ns-tg-card">
+                  <span class="ns-tg-level">{{ level }}%</span>
+                  {{ channel_option_select('charge_' ~ level, rules.get('charge', {}).get(level|string, 'none')) }}
+                </div>
                 {% endfor %}
               </div>
-              <div style="margin-top:18px">
-                <button type="submit" class="nt-btn primary">💾 {{ 'Save all rules' if is_en else 'حفظ كل القواعد' }}</button>
-              </div>
-            </form>
-            {% else %}
-            <div class="nt-empty">
-              <span>📭</span>
-              <strong>{{ 'No rules configured' if is_en else 'لم يتم إعداد قواعد بعد' }}</strong>
-              <p>{{ 'Default rules will be activated automatically.' if is_en else 'سيتم تفعيل القواعد الافتراضية تلقائياً.' }}</p>
-            </div>
-            {% endif %}
-          </div>
-        </section>
+            </section>
 
-        {# Section 3: Recent notifications history #}
-        {% if recent_notifications %}
-        <section class="nt-section" data-help="{{ 'Last 50 notifications sent to you. Use this to verify alerts are reaching you and to review past events.' if is_en else 'آخر 50 تنبيه أُرسل إليك. استخدمها للتحقق من وصول التنبيهات ومراجعة الأحداث الماضية.' }}">
-          <div class="nt-sec-head">
-            <div>
-              <small>{{ 'Section 03' if is_en else 'القسم 3' }}</small>
-              <h2><span class="nt-sec-icon">📜</span> {{ 'Recent notifications' if is_en else 'سجل التنبيهات' }}</h2>
-            </div>
-            <span class="nt-sec-meta">{{ recent_notifications|length }} {{ 'recent' if is_en else 'حديث' }}</span>
-          </div>
-          <div class="nt-sec-body">
-            <ul class="nt-history-list">
-              {% for n in recent_notifications[:50] %}
-              <li class="nt-history-item severity-{{ n.severity or 'info' }}">
-                <span class="nt-history-icon">{% if n.severity == 'critical' %}🔴{% elif n.severity == 'warning' %}⚠{% else %}ℹ{% endif %}</span>
-                <div class="nt-history-info">
-                  <strong>{{ n.title or '—' }}</strong>
-                  <p>{{ n.message or '' }}</p>
-                  <small><time>{{ format_local(n.created_at) if n.created_at else '' }}</time></small>
+            <section class="ns-tg-block">
+              <h4 class="ns-tg-title">{{ 'قنوات التفريغ' if not is_en else 'Discharge channels' }}</h4>
+              <div class="ns-tg-cards">
+                {% for level in range(100 - discharge_step, 0, -discharge_step) %}
+                <div class="ns-tg-card">
+                  <span class="ns-tg-level">{{ level }}%</span>
+                  {{ channel_option_select('discharge_' ~ level, rules.get('discharge', {}).get(level|string, 'none')) }}
                 </div>
-              </li>
-              {% endfor %}
-            </ul>
+                {% endfor %}
+              </div>
+            </section>
+
+            <section class="ns-tg-block">
+              <h4 class="ns-tg-title">{{ 'قنوات الحمل الليلي' if not is_en else 'Night load channels' }}</h4>
+              <p class="ns-tg-note">{{ 'حدود الحمل الليلي الحالية ثابتة حسب النظام، وسيتم دعم الحدود المخصصة لاحقًا.' if not is_en else 'Current night-load limits are fixed by the system; custom limits are planned for a later phase.' }}</p>
+              <div class="ns-tg-cards">
+                {% for level in [300, 400, 500] %}
+                <div class="ns-tg-card">
+                  <span class="ns-tg-level">{{ level }}W</span>
+                  {{ channel_option_select('night_' ~ level, rules.get('night_thresholds', {}).get(level|string, 'none')) }}
+                </div>
+                {% endfor %}
+              </div>
+            </section>
+          </div>
+          {{ save_close('rules') }}
+        {{ card_close() }}
+
+        <section class="ns-card" id="history" data-help-title="{{ 'سجل الإشعارات' if not is_en else 'Notification log' }}" data-help-text="{{ 'راجع هنا آخر محاولات الإرسال والتنبيهات المرتبطة بحسابك دون إعادة تحميل الصفحة كلها.' if not is_en else 'Review recent sends and account notification attempts without reloading the whole page.' }}">
+          <div class="ns-card-head">
+            <div>
+              <small>12</small>
+              <h2>{{ 'سجل الإشعارات الأخير' if not is_en else 'Recent notification log' }}</h2>
+              <p>{{ 'آخر الرسائل التي تم تسجيلها بعد الإرسال أو الاختبار، مع تحديث الصفحات داخل صندوق السجل فقط.' if not is_en else 'Recent messages logged after sends or tests, with paging inside the log box only.' }}</p>
+            </div>
+            <span class="ns-status">{{ recent_count }}</span>
+          </div>
+          <div class="ns-card-body">
+            <p class="ns-log-scope-note">{{ 'يعرض هذا السجل آخر محاولات الإرسال والتنبيهات المرتبطة بحسابك.' if not is_en else 'This log shows the latest send attempts and alerts associated with your account.' }}</p>
+            <div class="ns-log-box" data-log-container data-log-url="{{ url_for('notifications_routes.notifications_log_fragment', lang=ui_lang) }}">
+              {% include '_notifications_log_fragment.html' %}
+            </div>
           </div>
         </section>
-        {% endif %}
-
       </div>
     </div>
   </main>
 </div>
-
-<style>
-  .nt-channel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 720px) { .nt-channel-row { grid-template-columns: 1fr; } }
-  .nt-channel-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px;
-    background: #fafbff; border: 1px solid #e5e7eb;
-    border-radius: 12px; text-decoration: none; color: inherit;
-    transition: border-color .15s, transform .15s;
-  }
-  .nt-channel-card:hover { border-color: #6366f1; transform: translateY(-2px); }
-  .nt-channel-card.is-on { border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #fff); }
-  .nt-channel-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: #eef2ff; color: #4338ca;
-    display: grid; place-items: center; font-size: 1.4rem; flex-shrink: 0;
-  }
-  .nt-channel-card div { flex: 1; }
-  .nt-channel-card strong { display: block; font-size: .95rem; color: #0f172a; font-weight: 800; }
-  .nt-channel-card small { display: block; font-size: .76rem; color: #64748b; }
-  .nt-channel-status {
-    font-size: .82rem; font-weight: 800;
-    padding: 5px 12px; border-radius: 999px;
-    background: #f1f5f9; color: #475569;
-  }
-  .nt-channel-card.is-on .nt-channel-status { background: #f0fdf4; color: #15803d; }
-
-  .nt-rules-list { display: grid; gap: 12px; }
-  .nt-rule {
-    padding: 14px 16px;
-    background: #fafbff; border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    display: grid; gap: 10px;
-  }
-  .nt-rule-head strong { display: block; font-size: .95rem; font-weight: 800; color: #0f172a; }
-  .nt-rule-head small { display: block; font-size: .78rem; color: #64748b; margin-top: 4px; }
-  .nt-rule-toggles { display: flex; gap: 14px; flex-wrap: wrap; }
-  .nt-rule-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .nt-rule-toggle input { width: 18px; height: 18px; accent-color: #6366f1; cursor: pointer; }
-  .nt-rule-toggle span { font-size: .85rem; font-weight: 600; color: #475569; }
-  .nt-rule-toggle.compact span { font-size: .82rem; }
-
-  .nt-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .nt-history-item {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 12px 14px;
-    background: #fafbff; border: 1px solid #f1f5f9;
-    border-radius: 11px;
-    border-inline-start: 4px solid #cbd5e1;
-  }
-  .nt-history-item.severity-warning { border-inline-start-color: #f59e0b; }
-  .nt-history-item.severity-critical { border-inline-start-color: #ef4444; }
-  .nt-history-icon { font-size: 1.15rem; flex-shrink: 0; }
-  .nt-history-info strong { display: block; font-size: .88rem; font-weight: 800; color: #0f172a; }
-  .nt-history-info p { margin: 4px 0 0; font-size: .82rem; color: #475569; line-height: 1.5; }
-  .nt-history-info small { font-size: .72rem; color: #94a3b8; display: block; margin-top: 4px; }
-</style>
 {% endblock %}

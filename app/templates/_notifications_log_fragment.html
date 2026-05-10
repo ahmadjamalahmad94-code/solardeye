@@ -1,0 +1,47 @@
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set page = log_page|default(1) %}
+{% set total_pages = log_total_pages|default(1) %}
+{% set total = log_total|default(recent_notifications|length if recent_notifications else 0) %}
+
+<div class="ns-log-fragment" data-log-page="{{ page }}" data-log-total-pages="{{ total_pages }}">
+  {% if recent_notifications %}
+  <ul class="ns-history">
+    {% for item in recent_notifications %}
+    <li>
+      <strong>{{ item.title or item.rule_name or '-' }}</strong>
+      <span>{{ item.channel or '-' }} · {{ item.level or item.status or '-' }}</span>
+      <small>{{ format_local(item.created_at) if item.created_at else '' }}</small>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="ns-muted">{{ 'لا توجد إشعارات مسجلة بعد.' if not is_en else 'No notification logs yet.' }}</p>
+  {% endif %}
+
+  <div class="ns-log-pager" aria-label="{{ 'صفحات سجل الإشعارات' if not is_en else 'Notification log pages' }}">
+    <button type="button" class="ns-log-page-btn" data-log-page="{{ page - 1 }}" {% if page <= 1 %}disabled{% endif %}>
+      {{ 'السابق' if not is_en else 'Previous' }}
+    </button>
+    <div class="ns-log-page-list">
+      {% set start_page = page - 2 if page - 2 > 1 else 1 %}
+      {% set end_page = page + 2 if page + 2 < total_pages else total_pages %}
+      {% if start_page > 1 %}
+        <button type="button" class="ns-log-page-btn" data-log-page="1">1</button>
+        {% if start_page > 2 %}<span>…</span>{% endif %}
+      {% endif %}
+      {% for p in range(start_page, end_page + 1) %}
+        <button type="button" class="ns-log-page-btn {% if p == page %}active{% endif %}" data-log-page="{{ p }}" {% if p == page %}aria-current="page"{% endif %}>{{ p }}</button>
+      {% endfor %}
+      {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}<span>…</span>{% endif %}
+        <button type="button" class="ns-log-page-btn" data-log-page="{{ total_pages }}">{{ total_pages }}</button>
+      {% endif %}
+    </div>
+    <span class="ns-log-page-count">
+      {{ 'صفحة' if not is_en else 'Page' }} {{ page }} / {{ total_pages }} · {{ total }}
+    </span>
+    <button type="button" class="ns-log-page-btn" data-log-page="{{ page + 1 }}" {% if page >= total_pages %}disabled{% endif %}>
+      {{ 'التالي' if not is_en else 'Next' }}
+    </button>
+  </div>
+</div>
