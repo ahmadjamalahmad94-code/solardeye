@@ -25,12 +25,16 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
     '/device-providers': {'GET'},
+    '/devices': {'GET', 'POST'},
     '/dashboard': {'GET'},
     '/dashboard/feed': {'GET'},
     '/live': {'GET'},
     '/bootstrap': {'GET'},
     '/health': {'GET'},
 }
+
+_MOBILE_DEVICE_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
+_SAFE_DEVICE_SETTING_KEYS = {'battery_capacity_kwh', 'battery_reserve_percent'}
 
 
 def _lang() -> str:
@@ -221,6 +225,100 @@ def _mobile_device_payload(dev):
         'plant_name': dev.plant_name,
         'timezone': dev.timezone,
     })
+
+
+def _mobile_device_detail_payload(dev):
+    payload = _mobile_device_payload(dev) or {}
+    payload.update({
+        'created_at': dev.created_at.isoformat() if dev.created_at else None,
+        'updated_at': dev.updated_at.isoformat() if dev.updated_at else None,
+        'auth_mode': dev.auth_mode,
+        'safe_settings': {
+            key: value
+            for key, value in _safe_json_loads(dev.settings_json).items()
+            if key in _SAFE_DEVICE_SETTING_KEYS
+        },
+    })
+    return sanitize_response_payload(payload)
+
+
+def _mobile_device_for_user(user, device_id: int):
+    return AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
+
+
+def _mobile_provider_spec(value: str | None):
+    provider_code = (value or 'deye').strip().lower() or 'deye'
+    specs = provider_catalog()
+    return next((spec for spec in specs if spec.code == provider_code), None)
+
+
+def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = False):
+    if 'name' in data or creating:
+        name = (data.get('name') or '').strip()
+        if not name:
+            return _json_error('Device name is required.', code='missing_device_name', field='name')
+        if len(name) > 120:
+            return _json_error('Device name is too long.', code='device_name_too_long', field='name')
+        device.name = name
+
+    provider_requested = any(key in data for key in ('device_type', 'provider_code', 'provider', 'api_provider'))
+    if provider_requested or creating:
+        provider_code = data.get('device_type') or data.get('provider_code') or data.get('provider') or data.get('api_provider') or device.device_type or 'deye'
+        spec = _mobile_provider_spec(provider_code)
+        if not spec:
+            return _json_error('Device provider is not supported.', code='invalid_provider', field='provider_code')
+        device.device_type = spec.code
+        device.api_provider = (spec.provider or spec.code).strip().lower()
+        device.api_base_url = spec.base_url or device.api_base_url or None
+        device.auth_mode = (spec.auth_mode or device.auth_mode or 'wizard').strip().lower()
+
+    if 'timezone' in data:
+        timezone = (data.get('timezone') or '').strip()
+        if timezone and timezone not in timezones_for_template():
+            return _json_error('Timezone is not supported.', code='invalid_timezone', field='timezone')
+        device.timezone = timezone or user.timezone or 'Asia/Hebron'
+    elif creating:
+        device.timezone = device.timezone or user.timezone or 'Asia/Hebron'
+
+    if 'plant_name' in data:
+        plant_name = (data.get('plant_name') or '').strip()
+        device.plant_name = plant_name[:120] or None
+    elif creating:
+        device.plant_name = device.plant_name or device.name
+
+    if 'is_active' in data:
+        return _json_error(
+            'Device active status can only be changed through the device deactivate endpoint.',
+            code='unsupported_field',
+            field='is_active',
+        )
+    if creating:
+        device.is_active = True
+
+    settings_input = data.get('safe_settings') if isinstance(data.get('safe_settings'), dict) else {}
+    settings = _safe_json_loads(device.settings_json)
+    for key in _SAFE_DEVICE_SETTING_KEYS:
+        if key in data and key not in settings_input:
+            settings_input[key] = data.get(key)
+    for key, value in settings_input.items():
+        if key not in _SAFE_DEVICE_SETTING_KEYS:
+            continue
+        if value in (None, ''):
+            settings.pop(key, None)
+        else:
+            if key == 'battery_capacity_kwh':
+                number, error = _float_or_error(value, key, minimum=0.1, maximum=1000)
+            else:
+                number, error = _float_or_error(value, key, minimum=0, maximum=100)
+            if error:
+                return error
+            settings[key] = str(number).rstrip('0').rstrip('.') if number % 1 else str(int(number))
+    if settings_input:
+        device.settings_json = json.dumps(settings, ensure_ascii=False)
+
+    device.owner_user_id = user.id
+    device.updated_at = datetime.utcnow()
+    return None
 
 
 def _selected_device_for_user(user):
@@ -540,6 +638,135 @@ def mobile_device_providers():
     if err:
         return err
     return api_ok({'items': _provider_payloads()}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/devices')
+def mobile_devices_list():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    devices = _mobile_owned_devices(user)
+    return api_ok({
+        'items': [_mobile_device_payload(device) for device in devices],
+        'total': len(devices),
+        'active': len([device for device in devices if device.is_active]),
+        'selected_device_id': user.preferred_device_id,
+        'max_devices': allowed_device_limit(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/devices')
+def mobile_device_create():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    active_count = AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).count()
+    max_devices = allowed_device_limit(user)
+    if max_devices <= 0 or active_count >= max_devices:
+        return api_error(
+            'Device limit has been reached for this account.',
+            code='device_limit_reached',
+            status=403,
+            max_devices=max_devices,
+            active_devices=active_count,
+        )
+
+    device = AppDevice(
+        owner_user_id=user.id,
+        tenant_id=getattr(user, 'tenant_id', None),
+        connection_status='setup_required',
+    )
+    error = _mobile_apply_device_fields(device, user, data, creating=True)
+    if error:
+        return error
+    db.session.add(device)
+    db.session.flush()
+    if not user.preferred_device_id:
+        user.preferred_device_id = device.id
+        user.preferred_device_type = device.device_type or user.preferred_device_type
+    db.session.commit()
+    return api_ok({
+        'device': _mobile_device_detail_payload(device),
+        'devices': _device_summary_payload(user),
+    }, status=201, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/devices/<int:device_id>')
+def mobile_device_detail(device_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    device = _mobile_device_for_user(user, device_id)
+    if not device:
+        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+    latest = (
+        Reading.query
+        .filter_by(device_id=device.id)
+        .order_by(Reading.created_at.desc(), Reading.id.desc())
+        .first()
+    )
+    return api_ok({
+        'device': _mobile_device_detail_payload(device),
+        'latest': _mobile_reading_payload(latest),
+        'cards': _mobile_reading_cards(latest),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/devices/<int:device_id>')
+def mobile_device_update(device_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    device = _mobile_device_for_user(user, device_id)
+    if not device:
+        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+    error = _mobile_apply_device_fields(device, user, data)
+    if error:
+        return error
+    if device.is_active and not user.preferred_device_id:
+        user.preferred_device_id = device.id
+        user.preferred_device_type = device.device_type or user.preferred_device_type
+    db.session.commit()
+    return api_ok({
+        'device': _mobile_device_detail_payload(device),
+        'devices': _device_summary_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.delete('/devices/<int:device_id>')
+def mobile_device_delete(device_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    device = _mobile_device_for_user(user, device_id)
+    if not device:
+        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+
+    device.is_active = False
+    device.updated_at = datetime.utcnow()
+    if user.preferred_device_id == device.id:
+        replacement = (
+            AppDevice.query
+            .filter(AppDevice.owner_user_id == user.id, AppDevice.id != device.id, AppDevice.is_active.is_(True))
+            .order_by(AppDevice.id.asc())
+            .first()
+        )
+        user.preferred_device_id = replacement.id if replacement else None
+        user.preferred_device_type = replacement.device_type if replacement else user.preferred_device_type
+    db.session.commit()
+    return api_ok({
+        'deleted': False,
+        'deactivated': True,
+        'device': _mobile_device_detail_payload(device),
+        'devices': _device_summary_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
 def _reading_payload(row):
@@ -878,10 +1105,24 @@ def mobile_health():
     return api_ok({'version': '10.1', 'message': 'SolarDeye mobile API is ready'}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
+def _mobile_allowed_methods_for(normalized_path: str):
+    allowed_methods = _MOBILE_CORE_ALLOWED_METHODS.get(normalized_path)
+    if allowed_methods:
+        return allowed_methods
+    parts = normalized_path.strip('/').split('/')
+    if len(parts) == 2 and parts[0] == 'devices':
+        try:
+            int(parts[1])
+            return _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 @mobile_core_api_bp.route('/<path:mobile_path>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 def mobile_core_missing_or_method_not_allowed(mobile_path):
     normalized_path = '/' + (mobile_path or '').strip('/')
-    allowed_methods = _MOBILE_CORE_ALLOWED_METHODS.get(normalized_path)
+    allowed_methods = _mobile_allowed_methods_for(normalized_path)
     if allowed_methods:
         return api_error(
             'Method is not allowed for this mobile API endpoint.',
