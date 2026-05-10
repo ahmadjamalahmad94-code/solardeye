@@ -16,6 +16,8 @@ from ..services.security import csrf_token, sanitize_response_payload
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
 from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
 from ..services.api_responses import api_error, api_ok, page_meta, pagination_args
+from .helpers import _upsert_setting, load_settings
+from .notifications import NOTIFICATION_SECTION_FIELDS, load_notification_rules
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 mobile_core_api_bp = Blueprint('mobile_core_api', __name__, url_prefix='/api/mobile')
@@ -26,6 +28,9 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/location-catalog': {'GET'},
     '/device-providers': {'GET'},
     '/devices': {'GET', 'POST'},
+    '/notifications': {'GET'},
+    '/notifications/settings': {'GET', 'PATCH'},
+    '/notifications/read-all': {'POST'},
     '/dashboard': {'GET'},
     '/dashboard/feed': {'GET'},
     '/live': {'GET'},
@@ -34,7 +39,9 @@ _MOBILE_CORE_ALLOWED_METHODS = {
 }
 
 _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
+_MOBILE_NOTIFICATION_READ_ALLOWED_METHODS = {'POST'}
 _SAFE_DEVICE_SETTING_KEYS = {'battery_capacity_kwh', 'battery_reserve_percent'}
+_MOBILE_NOTIFICATION_CHANNEL_VALUES = {'telegram', 'sms', 'both', 'none', 'disabled', ''}
 
 
 def _lang() -> str:
@@ -83,6 +90,10 @@ def _boolean_or_error(value, field: str):
         if normalized in {'false', '0', 'no'}:
             return False, None
     return None, _json_error('Boolean value is invalid.', code='invalid_boolean', field=field)
+
+
+def _setting_bool(value) -> bool:
+    return str(value if value is not None else '').strip().lower() in {'true', '1', 'yes', 'on'}
 
 
 def _safe_json_loads(raw_value):
@@ -319,6 +330,180 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
     device.owner_user_id = user.id
     device.updated_at = datetime.utcnow()
     return None
+
+
+def _mobile_notification_allowed_setting_keys() -> dict[str, str]:
+    keys: dict[str, str] = {}
+    for section, config in NOTIFICATION_SECTION_FIELDS.items():
+        for key in config.get('text', []):
+            keys[key] = 'text'
+        for key in config.get('checkbox', []):
+            keys[key] = 'checkbox'
+    return keys
+
+
+def _mobile_notification_sections_payload(settings: dict) -> dict:
+    allowed = _mobile_notification_allowed_setting_keys()
+    sections: dict[str, dict] = {}
+    for section, config in NOTIFICATION_SECTION_FIELDS.items():
+        section_keys = list(config.get('text', [])) + list(config.get('checkbox', []))
+        sections[section] = {
+            'settings': {
+                key: _setting_bool(settings.get(key)) if allowed.get(key) == 'checkbox' else (settings.get(key) or '')
+                for key in section_keys
+            },
+            'editable': True,
+        }
+    return sections
+
+
+def _mobile_channels_status(settings: dict) -> dict:
+    telegram_token = bool((settings.get('telegram_bot_token') or '').strip())
+    telegram_chat = bool((settings.get('telegram_chat_id') or '').strip())
+    sms_url = bool((settings.get('sms_api_url') or '').strip())
+    sms_key = bool((settings.get('sms_api_key') or '').strip())
+    sms_recipients = bool((settings.get('sms_recipients') or '').strip())
+    return {
+        'telegram': {
+            'enabled': _setting_bool(settings.get('telegram_enabled')),
+            'configured': telegram_token and telegram_chat,
+            'has_bot_token': telegram_token,
+            'has_chat_id': telegram_chat,
+            'api_url_configured': bool((settings.get('telegram_api_url') or '').strip()),
+        },
+        'sms': {
+            'enabled': _setting_bool(settings.get('sms_enabled')),
+            'configured': sms_url and sms_key and sms_recipients,
+            'has_api_url': sms_url,
+            'has_api_key': sms_key,
+            'has_recipients': sms_recipients,
+            'sender_configured': bool((settings.get('sms_sender') or '').strip()),
+        },
+    }
+
+
+def _mobile_notification_settings_payload() -> dict:
+    settings = load_settings()
+    return sanitize_response_payload({
+        'scope': 'global',
+        'scope_note': 'Notification settings are currently global for the account/platform. Per-device notification rules are not enabled by the current database schema.',
+        'channels': _mobile_channels_status(settings),
+        'sections': _mobile_notification_sections_payload(settings),
+        'rules': _mobile_notification_rules_payload(settings),
+        'supported_channel_values': ['telegram', 'sms', 'both', 'none'],
+        'read_only': False,
+    })
+
+
+def _mobile_notification_rules_payload(settings: dict) -> dict:
+    rules = load_notification_rules(settings)
+    cleaned = {'charge': {}, 'discharge': {}, 'night_thresholds': {}, 'day_deficit': {}}
+    for group in ('charge', 'discharge', 'night_thresholds'):
+        values = rules.get(group) if isinstance(rules.get(group), dict) else {}
+        for level, channel in values.items():
+            normalized, _error = _mobile_normalize_channel(channel, f'rules.{group}.{level}')
+            if normalized:
+                cleaned[group][str(level)] = normalized
+    day_deficit = rules.get('day_deficit') if isinstance(rules.get('day_deficit'), dict) else {}
+    enabled_raw = day_deficit.get('enabled', True)
+    cleaned['day_deficit'] = {
+        'enabled': enabled_raw if isinstance(enabled_raw, bool) else _setting_bool(enabled_raw),
+        'channel': _mobile_normalize_channel(day_deficit.get('channel', 'telegram'), 'rules.day_deficit.channel')[0] or 'telegram',
+    }
+    return cleaned
+
+
+def _mobile_normalize_channel(value, field: str):
+    normalized = str(value or '').strip().lower()
+    if normalized == 'disabled':
+        normalized = 'none'
+    if normalized not in _MOBILE_NOTIFICATION_CHANNEL_VALUES:
+        return None, _json_error('Notification channel value is not supported.', code='invalid_channel', field=field)
+    return normalized or 'none', None
+
+
+def _mobile_normalize_threshold_key(group: str, raw_key):
+    field = f'rules.{group}.{raw_key}'
+    if isinstance(raw_key, bool):
+        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+    raw_text = str(raw_key).strip()
+    if not raw_text:
+        return None, _json_error('Notification threshold is required.', code='invalid_threshold', field=f'rules.{group}')
+    try:
+        threshold = int(raw_text)
+    except (TypeError, ValueError):
+        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+    if str(threshold) != raw_text:
+        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+    if group in {'charge', 'discharge'} and not (0 <= threshold <= 100):
+        return None, _json_error('Notification percentage threshold must be between 0 and 100.', code='invalid_threshold', field=field)
+    if group == 'night_thresholds' and threshold < 0:
+        return None, _json_error('Night load threshold must be zero or higher.', code='invalid_threshold', field=field)
+    return str(threshold), None
+
+
+def _mobile_validate_notification_rules(raw_rules):
+    if raw_rules is None:
+        return None, None
+    if not isinstance(raw_rules, dict):
+        return None, _json_error('Notification rules must be a JSON object.', code='invalid_rules', field='rules')
+    current = load_notification_rules(load_settings())
+    allowed_groups = {'charge', 'discharge', 'night_thresholds', 'day_deficit'}
+    for group, value in raw_rules.items():
+        if group not in allowed_groups:
+            return None, _json_error('Notification rule group is not supported.', code='unsupported_field', field=f'rules.{group}')
+        if not isinstance(value, dict):
+            return None, _json_error('Notification rule group must be a JSON object.', code='invalid_rules', field=f'rules.{group}')
+        if group in {'charge', 'discharge', 'night_thresholds'}:
+            target = dict(current.get(group) or {})
+            for level, channel in value.items():
+                level_key, error = _mobile_normalize_threshold_key(group, level)
+                if error:
+                    return None, error
+                normalized, error = _mobile_normalize_channel(channel, f'rules.{group}.{level_key}')
+                if error:
+                    return None, error
+                target[level_key] = normalized
+            current[group] = target
+        else:
+            target = dict(current.get('day_deficit') or {})
+            for key, incoming in value.items():
+                if key == 'enabled':
+                    parsed, error = _boolean_or_error(incoming, 'rules.day_deficit.enabled')
+                    if error:
+                        return None, error
+                    target['enabled'] = parsed
+                elif key == 'channel':
+                    normalized, error = _mobile_normalize_channel(incoming, 'rules.day_deficit.channel')
+                    if error:
+                        return None, error
+                    target['channel'] = normalized
+                else:
+                    return None, _json_error('Notification rule field is not supported.', code='unsupported_field', field=f'rules.day_deficit.{key}')
+            current['day_deficit'] = target
+    return current, None
+
+
+def _mobile_notification_event_query(user):
+    return NotificationEvent.query.filter_by(target_user_id=user.id)
+
+
+def _mobile_notification_event_payload(event: NotificationEvent) -> dict:
+    return sanitize_response_payload({
+        'id': event.id,
+        'event_type': event.event_type,
+        'source_type': event.source_type,
+        'source_id': event.source_id,
+        'title': event.title,
+        'message': event.message,
+        'url': event.direct_url,
+        'status': event.status,
+        'is_read': bool(event.is_read),
+        'appeared_in_bell': bool(event.appeared_in_bell),
+        'delivered_to_user': bool(event.delivered_to_user),
+        'created_at': event.created_at.isoformat() if event.created_at else None,
+        'read_at': event.read_at.isoformat() if event.read_at else None,
+    })
 
 
 def _selected_device_for_user(user):
@@ -769,6 +954,127 @@ def mobile_device_delete(device_id: int):
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
+@mobile_core_api_bp.get('/notifications/settings')
+def mobile_notification_settings_get():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok(_mobile_notification_settings_payload(), meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/notifications/settings')
+def mobile_notification_settings_update():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    allowed_settings = _mobile_notification_allowed_setting_keys()
+    payload_settings = {}
+    if 'settings' in data:
+        if not isinstance(data.get('settings'), dict):
+            return _json_error('Notification settings must be a JSON object.', code='invalid_settings', field='settings')
+        payload_settings.update(data.get('settings') or {})
+
+    supported_top_level = {'settings', 'rules'}
+    for key, value in data.items():
+        if key in supported_top_level:
+            continue
+        if key not in allowed_settings:
+            return _json_error('Notification setting is not supported by the mobile API.', code='unsupported_field', field=key)
+        payload_settings[key] = value
+
+    for key in payload_settings:
+        if key not in allowed_settings:
+            return _json_error('Notification setting is not supported by the mobile API.', code='unsupported_field', field=f'settings.{key}')
+
+    for key, value in payload_settings.items():
+        kind = allowed_settings.get(key)
+        if kind == 'checkbox':
+            parsed, error = _boolean_or_error(value, key)
+            if error:
+                return error
+            _upsert_setting(key, 'true' if parsed else 'false')
+        else:
+            if key.endswith('_channel') or key in {'day_deficit_channel'}:
+                normalized, error = _mobile_normalize_channel(value, key)
+                if error:
+                    return error
+                _upsert_setting(key, normalized)
+            else:
+                _upsert_setting(key, str(value if value is not None else '').strip())
+
+    if 'rules' in data:
+        rules, error = _mobile_validate_notification_rules(data.get('rules'))
+        if error:
+            return error
+        _upsert_setting('notification_rules_json', json.dumps(rules or {}, ensure_ascii=False))
+
+    db.session.commit()
+    return api_ok(_mobile_notification_settings_payload(), meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/notifications')
+def mobile_notifications_list():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    page, page_size = pagination_args(default_size=20, max_size=100)
+    query = _mobile_notification_event_query(user).order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc())
+    total = query.count()
+    rows = query.offset((page - 1) * page_size).limit(page_size).all()
+    unread = _mobile_notification_event_query(user).filter_by(is_read=False).count()
+    return api_ok({
+        'items': [_mobile_notification_event_payload(row) for row in rows],
+        'unread_count': unread,
+        'order': 'newest_first',
+    }, meta={**page_meta(page, page_size, total), 'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/notifications/<int:notification_id>/read')
+def mobile_notification_mark_read(notification_id: int):
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    event = _mobile_notification_event_query(user).filter_by(id=notification_id).first()
+    if not event:
+        return api_error('Notification was not found for this account.', code='notification_not_found', status=404)
+    changed = 0
+    if not event.is_read:
+        event.is_read = True
+        event.read_at = datetime.utcnow()
+        event.status = 'read'
+        changed = 1
+        db.session.commit()
+    unread = _mobile_notification_event_query(user).filter_by(is_read=False).count()
+    return api_ok({
+        'changed': changed,
+        'notification': _mobile_notification_event_payload(event),
+        'unread_count': unread,
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/notifications/read-all')
+def mobile_notifications_read_all():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    rows = _mobile_notification_event_query(user).filter_by(is_read=False).all()
+    now = datetime.utcnow()
+    for event in rows:
+        event.is_read = True
+        event.read_at = now
+        event.status = 'read'
+    if rows:
+        db.session.commit()
+    return api_ok({
+        'changed': len(rows),
+        'unread_count': 0,
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
 def _reading_payload(row):
     if not row:
         return None
@@ -1114,6 +1420,12 @@ def _mobile_allowed_methods_for(normalized_path: str):
         try:
             int(parts[1])
             return _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    if len(parts) == 3 and parts[0] == 'notifications' and parts[2] == 'read':
+        try:
+            int(parts[1])
+            return _MOBILE_NOTIFICATION_READ_ALLOWED_METHODS
         except (TypeError, ValueError):
             return None
     return None
