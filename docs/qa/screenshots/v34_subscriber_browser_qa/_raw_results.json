@@ -1,0 +1,715 @@
+{
+  "method": "Codex Browser plugin / in-app browser (Playwright API) against Flask localhost",
+  "serverCommand": "$env:DATABASE_URL=\"sqlite:///solar_local.db\"; python -m flask --app app run",
+  "account": {
+    "username": "qa.subscriber.v34",
+    "email": "qa.subscriber.v34@example.test",
+    "password": "Test12345!"
+  },
+  "screenshots": [
+    {
+      "name": "auth_login_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png",
+      "url": "http://127.0.0.1:5000/login?lang=ar",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_invalid_after",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_invalid_after.png",
+      "url": "http://127.0.0.1:5000/login",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_dashboard_after_login",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_login.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_logout_not_available",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_logout_not_available.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_dashboard_before_logout_retry",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_before_logout_retry.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_after_logout",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_after_logout.png",
+      "url": "http://127.0.0.1:5000/login",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "auth_dashboard_after_relogin",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_relogin.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "nav_dashboard",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_dashboard.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "nav_notifications_center",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_notifications_center.png",
+      "url": "http://127.0.0.1:5000/dashboard",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "nav_devices_manage",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_devices_manage.png",
+      "url": "http://127.0.0.1:5000/devices/manage?lang=ar",
+      "title": "أجهزتي"
+    },
+    {
+      "name": "nav_account_profile",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_account_profile.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "nav_account_subscription",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_account_subscription.png",
+      "url": "http://127.0.0.1:5000/account/subscription?lang=ar",
+      "title": "اشتراكي"
+    },
+    {
+      "name": "nav_statistics",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_statistics.png",
+      "url": "http://127.0.0.1:5000/statistics?lang=ar",
+      "title": "الإحصاءات"
+    },
+    {
+      "name": "nav_reports",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_reports.png",
+      "url": "http://127.0.0.1:5000/reports?lang=ar",
+      "title": "التقارير"
+    },
+    {
+      "name": "nav_live_data",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_live_data.png",
+      "url": "http://127.0.0.1:5000/live-data?lang=ar",
+      "title": "البيانات الحيّة"
+    },
+    {
+      "name": "nav_loads",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_loads.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    },
+    {
+      "name": "nav_notifications",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_notifications.png",
+      "url": "http://127.0.0.1:5000/notifications?lang=ar",
+      "title": "إعدادات الإشعارات"
+    },
+    {
+      "name": "nav_channels",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_channels.png",
+      "url": "http://127.0.0.1:5000/channels?lang=ar",
+      "title": "قنوات التنبيهات"
+    },
+    {
+      "name": "nav_portal_support",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_portal_support.png",
+      "url": "http://127.0.0.1:5000/portal/support?lang=ar",
+      "title": "مركز الدعم الشخصي"
+    },
+    {
+      "name": "dashboard_before_controls",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_before_controls.png",
+      "url": "http://127.0.0.1:5000/dashboard?lang=ar",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "dashboard_after_device_shortcut",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_after_device_shortcut.png",
+      "url": "http://127.0.0.1:5000/devices/manage?lang=ar",
+      "title": "أجهزتي"
+    },
+    {
+      "name": "dashboard_after_loads_shortcut",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_after_loads_shortcut.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    },
+    {
+      "name": "dashboard_after_controls_return",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_after_controls_return.png",
+      "url": "http://127.0.0.1:5000/dashboard?lang=ar",
+      "title": "SolarDeye Platform"
+    },
+    {
+      "name": "profile_before_interaction",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_before_interaction.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_error_state",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_error_state.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_retry_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_retry_before.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_retry_error_state",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_retry_error_state.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_no_email_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_before.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_no_email_edited_before_save",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_edited_before_save.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_no_email_after_save",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_after_save.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_no_email_after_reload",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_after_reload.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "devices_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_before.png",
+      "url": "http://127.0.0.1:5000/devices/manage?lang=ar",
+      "title": "أجهزتي"
+    },
+    {
+      "name": "devices_add_form_visible",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_add_form_visible.png",
+      "url": "http://127.0.0.1:5000/devices/manage?lang=ar#dm-add-device",
+      "title": "أجهزتي"
+    },
+    {
+      "name": "devices_inputs_review",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_inputs_review.png",
+      "url": "http://127.0.0.1:5000/devices/manage?lang=ar#dm-add-device",
+      "title": "أجهزتي"
+    },
+    {
+      "name": "loads_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_before.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    },
+    {
+      "name": "loads_error_state",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_error_state.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    },
+    {
+      "name": "profile_focused_save_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_focused_save_before.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_focused_save_after_click",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_focused_save_after_click.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_focused_save_after_reload",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_focused_save_after_reload.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_direct_save_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_direct_save_before.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_direct_save_after_click",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_direct_save_after_click.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_direct_save_after_reload",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_direct_save_after_reload.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_after_guidance_fix_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_before.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_after_guidance_fix_edited",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_edited.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_after_guidance_fix_saved",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_saved.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "profile_after_guidance_fix_reloaded",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_reloaded.png",
+      "url": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "title": "ملفي الشخصي"
+    },
+    {
+      "name": "loads_after_guidance_fix_before",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_after_guidance_fix_before.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    },
+    {
+      "name": "loads_after_guidance_fix_error",
+      "path": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_after_guidance_fix_error.png",
+      "url": "http://127.0.0.1:5000/loads?lang=ar",
+      "title": "الأحمال الذكية"
+    }
+  ],
+  "results": [
+    {
+      "page": "Authentication",
+      "control": "Login page",
+      "action": "Opened /login?lang=ar",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png",
+      "result": "Login page rendered in Arabic RTL.",
+      "status": "PASS",
+      "notes": "Real browser navigation and screenshot captured."
+    },
+    {
+      "page": "Authentication",
+      "control": "Invalid login",
+      "action": "Typed qa.subscriber.v34 + wrong password and submitted",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_login_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_invalid_after.png",
+      "result": "Stayed on login page with invalid credential feedback area visible.",
+      "status": "PASS",
+      "notes": "No account state changed."
+    },
+    {
+      "page": "Authentication",
+      "control": "Valid login",
+      "action": "Typed qa.subscriber.v34 + Test12345! and submitted",
+      "before": "auth_invalid_after",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_login.png",
+      "result": "Redirected to dashboard.",
+      "status": "PASS",
+      "notes": "Real subscriber session established."
+    },
+    {
+      "page": "Authentication",
+      "control": "Logout",
+      "action": "Looked for logout control after login",
+      "before": "auth_dashboard_after_login",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_logout_not_available.png",
+      "result": "logout control not found: a[href*=\"/logout\"] | button[name=\"logout\"]",
+      "status": "NEEDS_VISUAL_REVIEW",
+      "notes": "Logout control was not uniquely found/clickable through browser automation."
+    },
+    {
+      "page": "Authentication",
+      "control": "Logout",
+      "action": "Clicked sidebar POST logout button",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_before_logout_retry.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_after_logout.png",
+      "result": "POST logout completed and returned to a public/auth page.",
+      "status": "PASS",
+      "notes": "Initial lookup missed form-based logout; direct form selector worked."
+    },
+    {
+      "page": "Authentication",
+      "control": "Re-login after logout",
+      "action": "Logged in again after POST logout",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_after_logout.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/auth_dashboard_after_relogin.png",
+      "result": "Dashboard restored after re-login.",
+      "status": "PASS",
+      "notes": ""
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "لوحة التحكم",
+      "action": "Clicked sidebar link /dashboard?lang=ar",
+      "before": "http://127.0.0.1:5000/dashboard",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_dashboard.png",
+      "result": "Navigated to http://127.0.0.1:5000/dashboard",
+      "status": "PASS",
+      "notes": "Multiple matching anchors (2); used first after count check."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "مركز الإشعارات",
+      "action": "Clicked sidebar link /notifications/center?lang=ar",
+      "before": "http://127.0.0.1:5000/dashboard",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_notifications_center.png",
+      "result": "Unexpected URL http://127.0.0.1:5000/dashboard",
+      "status": "FAIL",
+      "notes": "Multiple matching anchors (3); used first after count check."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الأجهزة",
+      "action": "Clicked sidebar link /devices/manage?lang=ar",
+      "before": "http://127.0.0.1:5000/dashboard",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_devices_manage.png",
+      "result": "Navigated to http://127.0.0.1:5000/devices/manage?lang=ar",
+      "status": "PASS",
+      "notes": "Multiple matching anchors (3); used first after count check."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الملف الشخصي",
+      "action": "Clicked sidebar link /account/profile?lang=ar",
+      "before": "http://127.0.0.1:5000/devices/manage?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_account_profile.png",
+      "result": "Navigated to http://127.0.0.1:5000/account/profile?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الاشتراك",
+      "action": "Clicked sidebar link /account/subscription?lang=ar",
+      "before": "http://127.0.0.1:5000/account/profile?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_account_subscription.png",
+      "result": "Navigated to http://127.0.0.1:5000/account/subscription?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الإحصائيات",
+      "action": "Clicked sidebar link /statistics?lang=ar",
+      "before": "http://127.0.0.1:5000/account/subscription?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_statistics.png",
+      "result": "Navigated to http://127.0.0.1:5000/statistics?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "التقارير",
+      "action": "Clicked sidebar link /reports?lang=ar",
+      "before": "http://127.0.0.1:5000/statistics?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_reports.png",
+      "result": "Navigated to http://127.0.0.1:5000/reports?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "البيانات الحية",
+      "action": "Clicked sidebar link /live-data?lang=ar",
+      "before": "http://127.0.0.1:5000/reports?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_live_data.png",
+      "result": "Navigated to http://127.0.0.1:5000/live-data?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الأحمال",
+      "action": "Clicked sidebar link /loads?lang=ar",
+      "before": "http://127.0.0.1:5000/live-data?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_loads.png",
+      "result": "Navigated to http://127.0.0.1:5000/loads?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الإشعارات",
+      "action": "Clicked sidebar link /notifications?lang=ar",
+      "before": "http://127.0.0.1:5000/loads?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_notifications.png",
+      "result": "Navigated to http://127.0.0.1:5000/notifications?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "القنوات",
+      "action": "Clicked sidebar link /channels?lang=ar",
+      "before": "http://127.0.0.1:5000/notifications?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_channels.png",
+      "result": "Navigated to http://127.0.0.1:5000/channels?lang=ar",
+      "status": "PASS",
+      "notes": "Multiple matching anchors (3); used first after count check."
+    },
+    {
+      "page": "Sidebar/navigation",
+      "control": "الدعم",
+      "action": "Clicked sidebar link /portal/support?lang=ar",
+      "before": "http://127.0.0.1:5000/channels?lang=ar",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/nav_portal_support.png",
+      "result": "Navigated to http://127.0.0.1:5000/portal/support?lang=ar",
+      "status": "PASS",
+      "notes": "No admin-only URL exposed."
+    },
+    {
+      "page": "Dashboard",
+      "control": "Dashboard render",
+      "action": "Opened /dashboard?lang=ar",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_before_controls.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_before_controls.png",
+      "result": "Dashboard rendered for subscriber session.",
+      "status": "PASS",
+      "notes": "Flow Graph area was inspected visually only, not modified."
+    },
+    {
+      "page": "Dashboard",
+      "control": "Device management shortcut",
+      "action": "Clicked safe dashboard shortcut a[href*=\"/devices/manage\"]",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_before_controls.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_after_device_shortcut.png",
+      "result": "Navigated to http://127.0.0.1:5000/devices/manage?lang=ar",
+      "status": "PASS",
+      "notes": "Multiple matches (3); used first after count check."
+    },
+    {
+      "page": "Dashboard",
+      "control": "Loads shortcut",
+      "action": "Clicked safe dashboard shortcut a[href*=\"/loads\"]",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_before_controls.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/dashboard_after_loads_shortcut.png",
+      "result": "Navigated to http://127.0.0.1:5000/loads?lang=ar",
+      "status": "PASS",
+      "notes": "Multiple matches (2); used first after count check."
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile render",
+      "action": "Opened /account/profile?lang=ar",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_before_interaction.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_before_interaction.png",
+      "result": "Profile page rendered; timezone and phone prefix options visible in real browser.",
+      "status": "PASS",
+      "notes": "Country/city options are populated from the shared location catalog."
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile form",
+      "action": "Attempted safe profile edit/save/reload flow",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_before_interaction.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_error_state.png",
+      "result": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('email') does not support selection.\nlocator.fill failed for selector input[name=\"email\"]",
+      "status": "FAIL",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile retry",
+      "action": "Retried safe profile edit/save/reload flow",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_retry_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_retry_error_state.png",
+      "result": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('email') does not support selection.\nlocator.type failed for selector input[name=\"email\"]",
+      "status": "FAIL",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile safe fields excluding email",
+      "action": "Changed full name, language, country, city, timezone, phone prefix, phone number",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_edited_before_save.png",
+      "result": "All non-email safe profile fields accepted browser interactions.",
+      "status": "PASS",
+      "notes": "Email was skipped after two browser automation input failures on input[type=email]."
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile save without email edit",
+      "action": "Clicked profile save button after non-email changes",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_edited_before_save.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_after_save.png",
+      "result": "Profile form submitted without browser error.",
+      "status": "PASS",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile persistence without email edit",
+      "action": "Reloaded after save and verified visible values",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_after_save.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_no_email_after_reload.png",
+      "result": "Some saved values were not visible after reload.",
+      "status": "FAIL",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Email field",
+      "action": "Attempted editing email twice with browser fill/type, then skipped to avoid blocking rest of QA",
+      "before": "profile_before_interaction",
+      "after": "profile_retry_error_state",
+      "result": "Browser automation cannot set input[type=email] in this environment; field remained visible and existing value was preserved.",
+      "status": "NEEDS_VISUAL_REVIEW",
+      "notes": "This is an automation limitation, not confirmed app bug."
+    },
+    {
+      "page": "Devices",
+      "control": "Devices page render",
+      "action": "Opened /devices/manage?lang=ar",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_before.png",
+      "result": "Devices management page rendered for subscriber.",
+      "status": "PASS",
+      "notes": "External provider sync/API calls were not triggered."
+    },
+    {
+      "page": "Devices",
+      "control": "Add device anchor",
+      "action": "Clicked add-device anchor to reveal/reach form",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_add_form_visible.png",
+      "result": "Add-device form/area reached without external API call.",
+      "status": "PASS",
+      "notes": "Multiple add links (2); used first after count check."
+    },
+    {
+      "page": "Devices",
+      "control": "Device form inputs",
+      "action": "Inspected visible device inputs/selects in browser",
+      "before": "devices_add_form_visible",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/devices_inputs_review.png",
+      "result": "9 input/select/textarea controls visible on page.",
+      "status": "NEEDS_VISUAL_REVIEW",
+      "notes": "Creating/editing/deleting a device was skipped: provider credentials/API semantics were not clearly local-only and could create persistent non-cleanup state."
+    },
+    {
+      "page": "Loads",
+      "control": "Loads page render",
+      "action": "Opened /loads?lang=ar",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_before.png",
+      "result": "Loads page rendered with saved loads and add form.",
+      "status": "PASS",
+      "notes": "Real browser screenshot captured."
+    },
+    {
+      "page": "Loads",
+      "control": "Loads interactions",
+      "action": "Add/toggle/delete QA load flow",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_error_state.png",
+      "result": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.\nlocator.fill failed for selector form.lds-form input[name=\"power_w\"]",
+      "status": "FAIL",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Focused save button test",
+      "action": "Filled full name and clicked save by exact role name",
+      "before": "profile_focused_save_before",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_focused_save_after_reload.png",
+      "result": "Full name did not persist; current value is مشترك QA v34",
+      "status": "FAIL",
+      "notes": "save button role count 0"
+    },
+    {
+      "page": "Profile/account",
+      "control": "Direct CSS save click",
+      "action": "Filled full name and clicked button.prof-btn-save directly",
+      "before": "profile_direct_save_before",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_direct_save_after_reload.png",
+      "result": "Full name did not persist; current value is مشترك QA v34",
+      "status": "FAIL",
+      "notes": ""
+    },
+    {
+      "page": "Profile/account",
+      "control": "Profile save after guidance fix",
+      "action": "Reloaded patched guidance JS, edited full name/city/phone, clicked save, reloaded",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_edited.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_after_guidance_fix_reloaded.png",
+      "result": "Profile values persisted after the tooltip click-prevention fix.",
+      "status": "FIXED",
+      "notes": "Root cause was guidance click handler preventing action-button default behavior."
+    },
+    {
+      "page": "Loads",
+      "control": "Loads retest after guidance fix",
+      "action": "Retested add/toggle/delete QA load after JS fix",
+      "before": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_after_guidance_fix_before.png",
+      "after": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_after_guidance_fix_error.png",
+      "result": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.",
+      "status": "FAIL",
+      "notes": ""
+    }
+  ],
+  "notes": [],
+  "issues": [
+    {
+      "page": "Profile/account",
+      "issue": "Profile save flow failed in browser automation",
+      "detail": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('email') does not support selection.\nlocator.fill failed for selector input[name=\"email\"]",
+      "screenshot": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_error_state.png"
+    },
+    {
+      "page": "Profile/account",
+      "issue": "Profile retry failed",
+      "detail": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('email') does not support selection.\nlocator.type failed for selector input[name=\"email\"]",
+      "screenshot": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/profile_retry_error_state.png"
+    },
+    {
+      "page": "Loads",
+      "issue": "Loads browser flow failed",
+      "detail": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.\nlocator.fill failed for selector form.lds-form input[name=\"power_w\"]",
+      "screenshot": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_error_state.png"
+    },
+    {
+      "page": "Loads",
+      "issue": "Loads retest failed after JS fix",
+      "detail": "Browser Use encountered an error interacting with this webpage's clipboard: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.",
+      "screenshot": "C:/Users/Ahmad J Ahmad/Desktop/solardeya/docs/qa/screenshots/v34_subscriber_browser_qa/loads_after_guidance_fix_error.png"
+    }
+  ],
+  "fixes": [
+    {
+      "page": "Profile/account",
+      "issue": "Guidance tooltip click handler blocked profile save button",
+      "fix": "Action elements with data-help-text now keep default click behavior while showing help on focus/hover.",
+      "file": "app/static/js/ui_guidance_v33.js"
+    }
+  ],
+  "deferred": [
+    {
+      "page": "Devices",
+      "reason": "Device create/edit/delete skipped",
+      "detail": "The subscriber device form is tied to provider/integration credentials and no safe browser-only delete/reset flow was confirmed. Avoided real Deye/provider calls."
+    }
+  ],
+  "changedFiles": [],
+  "finishedAt": "2026-05-09T20:33:41.939Z"
+}
