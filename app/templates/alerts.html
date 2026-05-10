@@ -1,28 +1,187 @@
 {% extends 'base.html' %}
+{# v35-alerts-page-redesign — replaces legacy `/alerts` template with the
+   v33 design system. The page renders SyncLog rows (device sync /
+   connection events). Honest title to avoid overlap with
+   /notifications/center (NotificationLog inbox). #}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'Sync & connection log' if is_en else 'سجل المزامنة والاتصال' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts_v35.css', v='v35-alerts-page-redesign') }}">
+{% endblock %}
+
 {% block body %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
+{% set _today_local = (logs[0].created_at if logs else None) %}
+{# pre-compute counts so the hero counters reflect what the user sees,
+   not a separate query. #}
+{% set _ns = namespace(total=0, err=0, warn=0, info=0, today=0) %}
+{% for log in logs %}
+  {% set _ns.total = _ns.total + 1 %}
+  {% set _lvl = (log.level or 'info')|lower %}
+  {% if _lvl in ['error','danger','critical','fatal'] %}
+    {% set _ns.err = _ns.err + 1 %}
+  {% elif _lvl in ['warning','warn'] %}
+    {% set _ns.warn = _ns.warn + 1 %}
+  {% else %}
+    {% set _ns.info = _ns.info + 1 %}
+  {% endif %}
+{% endfor %}
+{# tag rows whose created_at falls on the local today date, server-side. #}
+{% set _today_str = (logs[0].created_at.strftime('%Y-%m-%d') if logs and logs[0].created_at else '') %}
+
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area">
-    <header class="topbar">
-      <div class="topbar-main"><button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button><div><h1>السجل والتنبيهات</h1><p class="mb-0">كل رسائل الاتصال والمزامنة</p></div></div>
-    </header>
-    <div class="panel-card">
-      <div class="log-list">
-        {% for log in logs %}
-          <div class="log-item {{ log.level }}">
-            <div class="w-100">
-              <strong>{{ log.message }}</strong>
-              <div class="small text-muted mt-1">{{ format_local(log.created_at) }}</div>
-              {% if log.raw_json and log.raw_json != '{}' %}
-                <details class="mt-2"><summary>عرض الرد الخام</summary><pre class="json-box">{{ log.raw_json }}</pre></details>
-              {% endif %}
-            </div>
-          </div>
-        {% else %}
-          <div class="empty-state">لا يوجد سجل بعد.</div>
-        {% endfor %}
+  <main class="app-main content-area alrt-page sub-page">
+
+    {# ─── Hero ─── #}
+    <header class="hu-hero alrt-hero">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">{{ 'Account · Sync log' if is_en else 'الحساب · سجل المزامنة' }}</span>
+          <h1 class="hu-h1">{{ 'Sync & connection log' if is_en else 'سجل المزامنة والاتصال' }}</h1>
+          <p class="hu-tagline">{{ 'Recent device communication events: provider polling, integration errors, and connection state. This is the technical log — user-facing notifications live in the Notification center.' if is_en else 'أحدث أحداث الاتصال بالأجهزة: استدعاءات المزود، أخطاء التكاملات، وحالة الاتصال. هذا هو السجل التقني — رسائل المستخدم النهائية تظهر في مركز الإشعارات.' }}</p>
+        </div>
       </div>
-    </div>
+    </header>
+
+    {# ─── Counter strip ─── #}
+    <section class="alrt-counters" aria-label="{{ 'Sync log summary' if is_en else 'ملخص السجل' }}">
+      <article class="alrt-counter alrt-counter-total" data-counter="all">
+        <span class="alrt-counter-icon" aria-hidden="true">📋</span>
+        <small>{{ 'All' if is_en else 'الكل' }}</small>
+        <strong>{{ _ns.total }}</strong>
+      </article>
+      <article class="alrt-counter alrt-counter-err" data-counter="error">
+        <span class="alrt-counter-icon" aria-hidden="true">⛔</span>
+        <small>{{ 'Errors' if is_en else 'أخطاء' }}</small>
+        <strong>{{ _ns.err }}</strong>
+      </article>
+      <article class="alrt-counter alrt-counter-warn" data-counter="warning">
+        <span class="alrt-counter-icon" aria-hidden="true">⚠️</span>
+        <small>{{ 'Warnings' if is_en else 'تحذيرات' }}</small>
+        <strong>{{ _ns.warn }}</strong>
+      </article>
+      <article class="alrt-counter alrt-counter-info" data-counter="info">
+        <span class="alrt-counter-icon" aria-hidden="true">ℹ️</span>
+        <small>{{ 'Informational' if is_en else 'معلومات' }}</small>
+        <strong>{{ _ns.info }}</strong>
+      </article>
+    </section>
+
+    {# ─── Honest scope notice ─── #}
+    <p class="alrt-scope-note">{{ 'The log is filtered to the selected device when device data is present; entries without a device_id appear within your account scope.' if is_en else 'يُعرض السجل ضمن نطاق الجهاز المحدد عند توفر بيانات الجهاز؛ السجلات بدون device_id تظهر ضمن نطاق حسابك.' }}</p>
+
+    {# ─── Filter chips (client-side hide, no backend change) ─── #}
+    <nav class="alrt-filters" role="tablist" aria-label="{{ 'Filter sync log' if is_en else 'تصفية السجل' }}">
+      <button type="button" class="alrt-chip is-active" data-alrt-filter="all" role="tab" aria-selected="true">{{ 'All' if is_en else 'الكل' }}</button>
+      <button type="button" class="alrt-chip alrt-chip-err" data-alrt-filter="error" role="tab" aria-selected="false">⛔ {{ 'Errors' if is_en else 'الأخطاء' }}</button>
+      <button type="button" class="alrt-chip alrt-chip-warn" data-alrt-filter="warning" role="tab" aria-selected="false">⚠️ {{ 'Warnings' if is_en else 'التحذيرات' }}</button>
+      <button type="button" class="alrt-chip alrt-chip-info" data-alrt-filter="info" role="tab" aria-selected="false">ℹ️ {{ 'Info' if is_en else 'المعلومات' }}</button>
+      <button type="button" class="alrt-chip alrt-chip-today" data-alrt-filter="today" role="tab" aria-selected="false">📅 {{ 'Today' if is_en else 'اليوم' }}</button>
+    </nav>
+
+    {# ─── Log list ─── #}
+    <section class="alrt-list" data-alrt-list>
+      {% for log in logs %}
+        {% set _lvl = (log.level or 'info')|lower %}
+        {% if _lvl in ['error','danger','critical','fatal'] %}
+          {% set _sev = 'error' %}
+          {% set _sev_icon = '⛔' %}
+          {% set _sev_label_ar = 'خطأ' %}
+          {% set _sev_label_en = 'Error' %}
+        {% elif _lvl in ['warning','warn'] %}
+          {% set _sev = 'warning' %}
+          {% set _sev_icon = '⚠️' %}
+          {% set _sev_label_ar = 'تحذير' %}
+          {% set _sev_label_en = 'Warning' %}
+        {% elif _lvl in ['success','ok'] %}
+          {% set _sev = 'success' %}
+          {% set _sev_icon = '✅' %}
+          {% set _sev_label_ar = 'نجاح' %}
+          {% set _sev_label_en = 'Success' %}
+        {% else %}
+          {% set _sev = 'info' %}
+          {% set _sev_icon = 'ℹ️' %}
+          {% set _sev_label_ar = 'معلومة' %}
+          {% set _sev_label_en = 'Info' %}
+        {% endif %}
+        {% set _date_str = (log.created_at.strftime('%Y-%m-%d') if log.created_at else '') %}
+        <article class="alrt-row alrt-row-{{ _sev }}" data-alrt-level="{{ _sev }}" data-alrt-today="{{ '1' if (_today_str and _date_str == _today_str) else '0' }}">
+          <span class="alrt-sev" title="{{ _sev_label_en if is_en else _sev_label_ar }}" aria-label="{{ _sev_label_en if is_en else _sev_label_ar }}">{{ _sev_icon }}</span>
+          <div class="alrt-row-body">
+            <p class="alrt-msg">{{ log.message }}</p>
+            <div class="alrt-meta">
+              <span class="alrt-sev-tag alrt-sev-tag-{{ _sev }}">{{ _sev_label_en if is_en else _sev_label_ar }}</span>
+              {% if log.device_id %}
+              <span class="alrt-device-tag" dir="ltr" title="device_id">🔌 device #{{ log.device_id }}</span>
+              {% endif %}
+              <span class="alrt-time" dir="ltr">{{ format_local(log.created_at) if log.created_at else '—' }}</span>
+            </div>
+            {% if log.raw_json and log.raw_json != '{}' %}
+            <details class="alrt-raw">
+              <summary>{{ 'Raw response' if is_en else 'الرد الخام' }}</summary>
+              <pre dir="ltr">{{ log.raw_json }}</pre>
+            </details>
+            {% endif %}
+          </div>
+        </article>
+      {% else %}
+        <div class="alrt-empty" role="status">
+          <span class="alrt-empty-icon" aria-hidden="true">🟢</span>
+          <strong>{{ 'No sync events yet' if is_en else 'لا توجد أحداث مزامنة بعد' }}</strong>
+          <small>{{ 'Provider calls and connection events will appear here as they happen.' if is_en else 'تظهر هنا استدعاءات المزود وأحداث الاتصال فور حدوثها.' }}</small>
+        </div>
+      {% endfor %}
+      <div class="alrt-empty alrt-empty-filtered" role="status" hidden>
+        <span class="alrt-empty-icon" aria-hidden="true">🔍</span>
+        <strong>{{ 'No entries match this filter' if is_en else 'لا توجد سجلات مطابقة لهذه التصفية' }}</strong>
+        <small>{{ 'Pick a different chip above to broaden the view.' if is_en else 'اختر تصفية أخرى من الأعلى لتوسيع العرض.' }}</small>
+      </div>
+    </section>
+
   </main>
 </div>
+
+<script>
+(function(){
+  // v35-alerts-page-redesign — pure client-side filter. No backend change.
+  var list = document.querySelector('[data-alrt-list]');
+  var chips = document.querySelectorAll('[data-alrt-filter]');
+  var emptyFilteredState = document.querySelector('.alrt-empty-filtered');
+  if (!list || !chips.length) return;
+
+  function applyFilter(filter){
+    var rows = list.querySelectorAll('.alrt-row');
+    var visible = 0;
+    rows.forEach(function(row){
+      var level = row.getAttribute('data-alrt-level') || '';
+      var isToday = row.getAttribute('data-alrt-today') === '1';
+      var show;
+      if (filter === 'all') show = true;
+      else if (filter === 'today') show = isToday;
+      else show = (level === filter);
+      row.hidden = !show;
+      if (show) visible++;
+    });
+    if (emptyFilteredState){
+      // Show the "no matches" hint only when there are rows but the filter
+      // hides them all. The original "no sync events" empty-state already
+      // covers the truly-empty case.
+      var totalRows = rows.length;
+      emptyFilteredState.hidden = !(totalRows > 0 && visible === 0);
+    }
+  }
+
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      chips.forEach(function(c){
+        c.classList.remove('is-active');
+        c.setAttribute('aria-selected', 'false');
+      });
+      chip.classList.add('is-active');
+      chip.setAttribute('aria-selected', 'true');
+      applyFilter(chip.getAttribute('data-alrt-filter') || 'all');
+    });
+  });
+})();
+</script>
 {% endblock %}

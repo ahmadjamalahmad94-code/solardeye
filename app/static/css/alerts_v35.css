@@ -1,0 +1,355 @@
+/* ════════════════════════════════════════════════════════════════════════
+   alerts_v35.css — v35 redesign of legacy /alerts page
+   Scoped under .alrt-page so legacy `topbar / panel-card / log-list /
+   log-item / json-box / empty-state` styles from the old templates do not
+   leak in. Uses the design tokens from
+   docs/design/v35_solardeye_ui_ux_consistency_system.md.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.alrt-page {
+  padding-bottom: 64px;
+}
+
+/* ─── Hero (uses .hu-hero base; only needs a tiny tone hook) ──────────── */
+.alrt-hero {
+  margin-bottom: 18px;
+}
+
+/* ─── Counter strip (4 chips, mirrors .ns-summary rhythm) ─────────────── */
+.alrt-counters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.alrt-counter {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 1px 2px rgba(15, 23, 42, .04);
+}
+.alrt-counter-icon {
+  grid-row: 1 / span 2;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #f1f5f9;
+  font-size: .95rem;
+  border: 1px solid rgba(15, 23, 42, .07);
+}
+.alrt-counter small {
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+.alrt-counter strong {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.alrt-counter-err {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(254, 226, 226, .55) 100%);
+  border-color: rgba(220, 38, 38, .22);
+}
+.alrt-counter-err .alrt-counter-icon {
+  background: rgba(254, 226, 226, .85);
+  border-color: rgba(220, 38, 38, .25);
+}
+.alrt-counter-warn {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(254, 243, 199, .55) 100%);
+  border-color: rgba(245, 158, 11, .25);
+}
+.alrt-counter-warn .alrt-counter-icon {
+  background: rgba(254, 243, 199, .85);
+  border-color: rgba(245, 158, 11, .28);
+}
+.alrt-counter-info {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(219, 234, 254, .55) 100%);
+  border-color: rgba(56, 132, 220, .22);
+}
+.alrt-counter-info .alrt-counter-icon {
+  background: rgba(219, 234, 254, .85);
+  border-color: rgba(56, 132, 220, .26);
+}
+.alrt-counter-total {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(238, 242, 255, .55) 100%);
+  border-color: rgba(99, 102, 241, .22);
+}
+.alrt-counter-total .alrt-counter-icon {
+  background: rgba(238, 242, 255, .85);
+  border-color: rgba(99, 102, 241, .25);
+}
+
+/* ─── Honest scope notice ────────────────────────────────────────────── */
+.alrt-scope-note {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  font-size: .78rem;
+  line-height: 1.6;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+/* ─── Filter chips ───────────────────────────────────────────────────── */
+.alrt-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  background: rgba(248, 250, 252, .85);
+  border: 1px solid rgba(15, 23, 42, .07);
+  border-radius: 12px;
+}
+.alrt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: .76rem;
+  font-weight: 800;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.alrt-chip:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.alrt-chip.is-active {
+  background: #4338ca;
+  border-color: #3730a3;
+  color: #ffffff;
+}
+.alrt-chip.alrt-chip-err.is-active   { background: #b91c1c; border-color: #991b1b; }
+.alrt-chip.alrt-chip-warn.is-active  { background: #b45309; border-color: #92400e; }
+.alrt-chip.alrt-chip-info.is-active  { background: #1d4ed8; border-color: #1e40af; }
+.alrt-chip.alrt-chip-today.is-active { background: #0f766e; border-color: #115e59; }
+
+/* ─── Log list ───────────────────────────────────────────────────────── */
+.alrt-list {
+  display: grid;
+  gap: 8px;
+}
+.alrt-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, .07);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+  transition: background .12s ease, border-color .12s ease;
+}
+.alrt-row:hover {
+  background: #f8fafc;
+  border-color: rgba(99, 102, 241, .25);
+}
+.alrt-row[hidden] {
+  display: none;
+}
+
+/* Severity tone strip — left edge of each row */
+.alrt-row {
+  position: relative;
+  overflow: hidden;
+}
+.alrt-row::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #cbd5e1;
+}
+.alrt-row-error::before   { background: #dc2626; }
+.alrt-row-warning::before { background: #f59e0b; }
+.alrt-row-info::before    { background: #3b82f6; }
+.alrt-row-success::before { background: #16a34a; }
+
+.alrt-sev {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  background: #f1f5f9;
+  border: 1px solid rgba(15, 23, 42, .07);
+  flex-shrink: 0;
+}
+.alrt-row-error   .alrt-sev { background: rgba(254, 226, 226, .85); border-color: rgba(220, 38, 38, .26); }
+.alrt-row-warning .alrt-sev { background: rgba(254, 243, 199, .85); border-color: rgba(245, 158, 11, .28); }
+.alrt-row-info    .alrt-sev { background: rgba(219, 234, 254, .85); border-color: rgba(56, 132, 220, .26); }
+.alrt-row-success .alrt-sev { background: rgba(220, 252, 231, .85); border-color: rgba(34, 197, 94, .28); }
+
+.alrt-row-body {
+  min-width: 0;
+}
+.alrt-msg {
+  margin: 0;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.alrt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.alrt-sev-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  border: 1px solid transparent;
+}
+.alrt-sev-tag-error   { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.alrt-sev-tag-warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.alrt-sev-tag-info    { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.alrt-sev-tag-success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+
+.alrt-device-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.alrt-time {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  margin-inline-start: auto;
+}
+
+/* Raw JSON disclosure */
+.alrt-raw {
+  margin-top: 8px;
+}
+.alrt-raw > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: .72rem;
+  font-weight: 800;
+  color: #4338ca;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.alrt-raw > summary::-webkit-details-marker { display: none; }
+.alrt-raw[open] > summary {
+  background: #4338ca;
+  color: #ffffff;
+  border-color: #3730a3;
+}
+.alrt-raw pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  font-size: .72rem;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ─── Empty states ───────────────────────────────────────────────────── */
+.alrt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 24px;
+  background: #ffffff;
+  border: 1px dashed rgba(15, 23, 42, .12);
+  border-radius: 14px;
+  text-align: center;
+}
+.alrt-empty-icon {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+.alrt-empty strong {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+.alrt-empty small {
+  font-size: .82rem;
+  color: #64748b;
+  font-weight: 600;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .alrt-counters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .alrt-counter strong {
+    font-size: 1.1rem;
+  }
+  .alrt-row {
+    padding: 10px 12px;
+    gap: 10px;
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .alrt-sev {
+    width: 32px;
+    height: 32px;
+    font-size: .95rem;
+  }
+  .alrt-time {
+    margin-inline-start: 0;
+  }
+}
