@@ -86,6 +86,10 @@
       {% if has_permission('can_view_logs') %}{{ nav_item('activity','سجل العمليات','Activity Log',['users_routes.admin_activity_log','main.admin_activity_log'],url_for('main.admin_activity_log', lang=ui_lang),'clock') }}{% endif %}
       {% if has_permission('can_manage_roles') or has_permission('can_manage_users') %}{{ nav_item('roles','الأدوار والصلاحيات','Roles & Permissions',['access_control.admin_roles_v10','main.admin_roles'],url_for('access_control.admin_roles_v10', lang=ui_lang),'lock') }}{% endif %}
       {% if has_permission('can_view_logs') %}{{ nav_item('logs','لوح النظام والخدمات','System Logs',['users_routes.admin_system_logs','main.admin_system_logs'],url_for('main.admin_system_logs', lang=ui_lang),'panel') }}{% endif %}
+      {# v33-ε-3: admin self-profile sidebar item. Visible only to admins/staff
+         (sits inside g.is_admin branch). The /admin/me route is registered in
+         users_routes.py so this item is safe to render unconditionally. #}
+      {{ nav_item('admin_me','ملفي الشخصي','My Profile',['users_routes.admin_me'],url_for('users_routes.admin_me', lang=ui_lang),'user') }}
     {% else %}
       <div class="sd-group-title-v11"><span>{{ 'Portal' if is_en else 'البوابة' }}</span></div>
       {% if portal_page_visible('dashboard') %}{{ nav_item('overview','النظرة العامة','Overview',['energy.dashboard','main.dashboard'],url_for('main.dashboard', lang=ui_lang),'grid') }}{% endif %}
