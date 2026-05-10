@@ -98,7 +98,7 @@
     {% set active_roles = (roles|selectattr('is_active')|list|length) if roles else 0 %}
     {% set system_roles = (roles|selectattr('is_system')|list|length) if roles else 0 %}
     {% set total_perms = permission_rows|length if permission_rows else 0 %}
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">

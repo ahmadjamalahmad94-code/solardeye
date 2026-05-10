@@ -1,0 +1,63 @@
+/* ════════════════════════════════════════════════════════════════════════
+   hero_unified_v35.css — unified solar hero background
+   Per docs/design/v35_solardeye_ui_ux_consistency_system.md.
+
+   Single class `.sd-hero-bg` paints the shared
+   /static/img/hero/solar_hero_bg_v1.webp asset across admin and subscriber
+   hero strips. Neutralizes the legacy `::after` wave decoration when this
+   class is on, so the hero feels consistent — no random wave differences.
+
+   Designed to overlay on top of `.hu-hero` and `.ns-hero` without
+   redesigning any of their text/badge layout.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.sd-hero-bg {
+  /* Two-layer background:
+     1. Soft white-to-transparent overlay for text readability (top-down).
+     2. The solar hero image, covering the card.
+     The overlay sits on top of the image because background layers in CSS
+     are painted from the LAST listed (bottom) up to the FIRST (top). */
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, .80) 0%,
+      rgba(255, 255, 255, .55) 35%,
+      rgba(255, 255, 255, .25) 75%,
+      rgba(255, 255, 255, .15) 100%
+    ),
+    url("/static/img/hero/solar_hero_bg_v1.webp") !important;
+  background-size: 100% 100%, cover !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-color: #f8fafc !important;
+}
+
+/* Neutralize the legacy wave on `.hu-hero` when the unified class is on.
+   The dot pattern from `::before` stays because it's a calm texture. */
+.hu-hero.sd-hero-bg::after {
+  display: none !important;
+}
+
+/* `.ns-hero` (notifications page) doesn't have a wave but applies its own
+   gradient/background. Force-stacking the unified image keeps the page
+   visually consistent with the rest of the system. */
+.ns-hero.sd-hero-bg {
+  /* `.ns-hero` already has padding/border/radius; the unified rule above
+     replaces the background. No additional overrides needed. */
+}
+
+/* Ensure the hero text stays crisp on the lighter portions of the image.
+   Existing `.hu-hero h1`, `.hu-tagline`, `.ns-hero h1` color rules win
+   because they're more specific; this is a defensive hint only. */
+.sd-hero-bg .hu-h1,
+.sd-hero-bg .ns-hero h1,
+.sd-hero-bg h1 {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+/* Mobile — keep the image, don't crop awkwardly. */
+@media (max-width: 720px) {
+  .sd-hero-bg {
+    background-position: center top, center top !important;
+  }
+}
