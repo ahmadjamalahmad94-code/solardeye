@@ -28,13 +28,13 @@
   isolation:isolate;
   box-shadow:0 22px 60px rgba(15,23,42,.10);
   border:1px solid rgba(255,255,255,.6);
-  background:
+  background: var(--sd-hero-background,
     linear-gradient(135deg,
       #7fb1e6 0%,
       #a9c8ec 22%,
       #d6dfee 50%,
       #f1e6d6 78%,
-      #f8d7b6 100%);
+      #f8d7b6 100%));
 }
 
 /* Top-start dotted pattern (decorative) */
@@ -185,13 +185,13 @@ html body .hu-hero{
   padding:32px clamp(28px,3.2vw,44px) 36px !important;
   margin:0 !important;
   color:inherit !important;
-  background:
+  background: var(--sd-hero-background,
     linear-gradient(135deg,
       #7fb1e6 0%,
       #a9c8ec 22%,
       #d6dfee 50%,
       #f1e6d6 78%,
-      #f8d7b6 100%) !important;
+      #f8d7b6 100%)) !important;
   box-shadow:0 22px 60px rgba(15,23,42,.10) !important;
   border:1px solid rgba(255,255,255,.6) !important;
   display:block !important;
@@ -252,9 +252,9 @@ body.heavy-v100 .content-area > .hu-hero.hu-hero.hu-hero,
   padding:32px clamp(28px,3.2vw,44px) 36px !important;
   margin:0 !important;
   border-radius:30px !important;
-  background:
+  background: var(--sd-hero-background,
     linear-gradient(135deg,
-      #7fb1e6 0%, #a9c8ec 22%, #d6dfee 50%, #f1e6d6 78%, #f8d7b6 100%) !important;
+      #7fb1e6 0%, #a9c8ec 22%, #d6dfee 50%, #f1e6d6 78%, #f8d7b6 100%)) !important;
   color:inherit !important;
   display:block !important;
 }
