@@ -2,174 +2,242 @@
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% block title %}{{ 'Notification Channels' if is_en else 'قنوات التنبيهات' }}{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/channels_v3.css', v='v211-channels-rebuild-20260506') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/channels_v3.css', v='v33-zeta-channels-telegram-sms-polish') }}">
 {% endblock %}
 {% block body %}
-{% set tg_enabled = (settings.telegram_enabled or '').lower() in ['true','1','on','yes'] %}
-{% set sms_enabled = (settings.sms_enabled or '').lower() in ['true','1','on','yes'] %}
-{% set tg_token_set = (settings.telegram_bot_token or '').strip()|length > 0 %}
-{% set sms_recipients = (settings.sms_recipients or '').split(',')|select|list %}
+{% set tg_enabled = ((settings.get('telegram_enabled') or '')|lower) in ['true', '1', 'on', 'yes'] %}
+{% set sms_enabled = ((settings.get('sms_enabled') or '')|lower) in ['true', '1', 'on', 'yes'] %}
+{% set tg_token_set = (settings.get('telegram_bot_token') or '')|length > 0 %}
+{% set tg_chat_set = (settings.get('telegram_chat_id') or '')|length > 0 %}
+{% set sms_key_set = (settings.get('sms_api_key') or '')|length > 0 %}
+{% set sms_recipients_set = (settings.get('sms_recipients') or '')|length > 0 %}
+{% set webhook_ok = webhook_info and webhook_info.get('ok') %}
 
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
   <main class="app-main content-area chn-page">
-
-    {# ════════ HERO ════════ #}
-    <header class="hu-hero">
+    <header class="hu-hero sd-hero-bg">
       <div class="hu-hero-grid">
         <div class="hu-hero-text">
           <span class="hu-eyebrow">{{ 'Notifications · Channels' if is_en else 'التنبيهات · القنوات' }}</span>
-          <h1 class="hu-h1">{{ 'Connect your alert channels' if is_en else 'اربط قنوات تلقّي التنبيهات' }}</h1>
-          <p class="hu-tagline">{{ 'Choose where and how you want to receive notifications: Telegram bot, SMS, or both. You can always test before activating.' if is_en else 'اختر أين وكيف تريد استقبال التنبيهات: عبر Telegram، رسائل SMS، أو كليهما. يمكنك دائماً اختبار القناة قبل التفعيل.' }}</p>
+          <h1 class="hu-h1">{{ 'Telegram and SMS channels' if is_en else 'قنوات Telegram و SMS' }}</h1>
+          <p class="hu-tagline">{{ 'Manage the delivery channels used by notification rules, then send a test before relying on them.' if is_en else 'أدر قنوات إرسال التنبيهات التي تستخدمها قواعد الإشعارات، ثم أرسل اختبارا قبل الاعتماد عليها.' }}</p>
           <div class="hu-hero-meta">
-            <span class="hu-meta-pill {% if tg_enabled %}ok{% endif %}">{{ '📱 Telegram' if is_en else '📱 تلغرام' }} {{ '✓' if tg_enabled else '○' }}</span>
-            <span class="hu-meta-pill {% if sms_enabled %}ok{% endif %}">{{ '✉ SMS' if is_en else '✉ رسائل SMS' }} {{ '✓' if sms_enabled else '○' }}</span>
+            <span class="hu-meta-pill {% if tg_enabled and tg_token_set and tg_chat_set %}ok{% endif %}">Telegram {{ 'ready' if is_en and tg_enabled and tg_token_set and tg_chat_set else ('not complete' if is_en else ('جاهز' if tg_enabled and tg_token_set and tg_chat_set else 'غير مكتمل')) }}</span>
+            <span class="hu-meta-pill {% if sms_enabled and sms_key_set and sms_recipients_set %}ok{% endif %}">SMS {{ 'ready' if is_en and sms_enabled and sms_key_set and sms_recipients_set else ('not complete' if is_en else ('جاهز' if sms_enabled and sms_key_set and sms_recipients_set else 'غير مكتمل')) }}</span>
           </div>
         </div>
       </div>
     </header>
 
-    {# ════════ 2-column layout: aside (left) + main ════════ #}
     <div class="chn-shell">
-
-      {# ─── ASIDE (LEFT) — Help / legend ─── #}
       <aside class="chn-aside">
         <div class="chn-as-card explainer">
-          <h4>📘 {{ 'How channels work' if is_en else 'كيف تعمل القنوات' }}</h4>
-          <p>{{ 'A channel is a way for SolarDeye to reach you when something important happens (e.g. battery low, grid down).' if is_en else 'القناة هي الوسيلة التي يستخدمها SolarDeye لإبلاغك عند وقوع حدث مهم (مثلاً بطارية منخفضة أو انقطاع الشبكة).' }}</p>
-          <p>{{ 'You can enable multiple channels at once. Each notification rule decides which channels it will use.' if is_en else 'يمكنك تفعيل أكثر من قناة في نفس الوقت. كل قاعدة تنبيه تحدد القنوات التي ستستخدمها.' }}</p>
-          <p>{{ 'After enabling a channel, always send a test message to make sure it works before relying on it.' if is_en else 'بعد تفعيل أي قناة، أرسل دائماً رسالة اختبار للتأكد من عملها قبل الاعتماد عليها.' }}</p>
+          <h4>{{ 'How this page works' if is_en else 'كيف تعمل هذه الصفحة' }}</h4>
+          <p>{{ 'Save each channel independently. Tests use the saved values, so save first when you change tokens, URLs, senders, or recipients.' if is_en else 'احفظ كل قناة بشكل مستقل. تستخدم الاختبارات القيم المحفوظة، لذلك احفظ أولا عند تغيير المفاتيح أو الروابط أو المرسل أو المستلمين.' }}</p>
+          <p>{{ 'Notification rules still decide whether a live alert uses Telegram, SMS, or both.' if is_en else 'ما زالت قواعد التنبيهات هي التي تحدد هل يستخدم التنبيه الفعلي Telegram أو SMS أو القناتين معا.' }}</p>
         </div>
 
         <div class="chn-as-card">
-          <h4>🔑 {{ 'Status meanings' if is_en else 'معاني الحالات' }}</h4>
+          <h4>{{ 'Connection status' if is_en else 'حالة الربط' }}</h4>
           <ul class="chn-legend-list">
-            <li><span class="chn-legend-dot ok"></span><strong>{{ 'Active' if is_en else 'مفعّلة' }}</strong><small>{{ 'Channel is on and tested' if is_en else 'القناة مفعّلة ومختبرة' }}</small></li>
-            <li><span class="chn-legend-dot warn"></span><strong>{{ 'Configured' if is_en else 'مُعدّة' }}</strong><small>{{ 'Token/API set but not enabled' if is_en else 'تم إدخال البيانات لكن غير مفعّلة' }}</small></li>
-            <li><span class="chn-legend-dot off"></span><strong>{{ 'Off' if is_en else 'متوقفة' }}</strong><small>{{ 'No configuration yet' if is_en else 'لم يتم إعدادها بعد' }}</small></li>
+            <li><span class="chn-legend-dot {% if tg_enabled and tg_token_set and tg_chat_set %}ok{% else %}warn{% endif %}"></span><strong>Telegram</strong><small>{{ 'Active' if is_en and tg_enabled and tg_token_set and tg_chat_set else ('Needs setup' if is_en else ('مفعل' if tg_enabled and tg_token_set and tg_chat_set else 'يحتاج إعدادا')) }}</small></li>
+            <li><span class="chn-legend-dot {% if sms_enabled and sms_key_set and sms_recipients_set %}ok{% else %}warn{% endif %}"></span><strong>SMS</strong><small>{{ 'Active' if is_en and sms_enabled and sms_key_set and sms_recipients_set else ('Needs setup' if is_en else ('مفعل' if sms_enabled and sms_key_set and sms_recipients_set else 'يحتاج إعدادا')) }}</small></li>
+            <li><span class="chn-legend-dot {% if webhook_ok %}ok{% else %}warn{% endif %}"></span><strong>Webhook</strong><small>{{ 'Connected' if is_en and webhook_ok else ('Not confirmed' if is_en else ('متصل' if webhook_ok else 'غير مؤكد')) }}</small></li>
           </ul>
         </div>
 
         <div class="chn-as-card tips">
-          <h4>💡 {{ 'Quick tips' if is_en else 'نصائح سريعة' }}</h4>
+          <h4>{{ 'Helpful notes' if is_en else 'ملاحظات مفيدة' }}</h4>
           <ul>
-            <li>{{ 'Telegram is fastest and free — recommended for real-time alerts.' if is_en else 'Telegram أسرع وأرخص — يُنصح به للتنبيهات الفورية.' }}</li>
-            <li>{{ 'SMS is best for offline phones (no internet needed).' if is_en else 'SMS هو الأفضل للهواتف بدون إنترنت.' }}</li>
-            <li>{{ 'Combine both for important alerts (e.g. urgent battery warnings).' if is_en else 'اجمع الاثنين للتنبيهات الحرجة (مثل تحذيرات البطارية).' }}</li>
+            <li>{{ 'Use @BotFather to create a Telegram bot token.' if is_en else 'استخدم @BotFather لإنشاء مفتاح بوت Telegram.' }}</li>
+            <li>{{ 'Chat ID is the Telegram conversation that will receive alerts.' if is_en else 'معرف المحادثة هو وجهة Telegram التي ستستقبل التنبيهات.' }}</li>
+            <li>{{ 'Separate multiple SMS recipients with commas.' if is_en else 'افصل أرقام مستلمي SMS بفواصل.' }}</li>
           </ul>
         </div>
       </aside>
 
-      {# ─── MAIN CONTENT ─── #}
       <div class="chn-main">
-
-        {# Section 1: Telegram channel #}
-        <section class="chn-channel-section" data-help="{{ 'Telegram channel: get instant notifications via a bot. Free, fast, and supports rich messages with charts.' if is_en else 'قناة Telegram: استقبال تنبيهات فورية عبر بوت. مجانية وسريعة وتدعم الرسائل المنسّقة والرسوم.' }}">
+        <section class="chn-channel-section">
           <div class="chn-section-head">
             <div>
               <small>{{ 'Channel 01' if is_en else 'القناة 1' }}</small>
-              <h2><span class="chn-sec-icon" style="background:#dbeafe;color:#1d4ed8">📱</span> {{ 'Telegram bot' if is_en else 'بوت Telegram' }}</h2>
+              <h2><span class="chn-sec-icon">TG</span> {{ 'Telegram bot' if is_en else 'بوت Telegram' }}</h2>
             </div>
-            <span class="chn-status-badge {% if tg_enabled %}ok{% elif tg_token_set %}warn{% else %}off{% endif %}">
-              {% if tg_enabled %}✓ {{ 'Active' if is_en else 'مفعّلة' }}
-              {% elif tg_token_set %}⚙ {{ 'Configured' if is_en else 'مُعدّة' }}
-              {% else %}○ {{ 'Off' if is_en else 'متوقفة' }}{% endif %}
+            <span class="chn-status-badge {% if tg_enabled and tg_token_set and tg_chat_set %}ok{% elif tg_token_set or tg_chat_set %}warn{% else %}off{% endif %}">
+              {% if tg_enabled and tg_token_set and tg_chat_set %}{{ 'Active' if is_en else 'مفعلة' }}
+              {% elif tg_token_set or tg_chat_set %}{{ 'Configured' if is_en else 'بحاجة إلى تفعيل أو إكمال' }}
+              {% else %}{{ 'Off' if is_en else 'غير معدة' }}{% endif %}
             </span>
           </div>
           <div class="chn-section-body">
             <form method="post" class="chn-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="form" value="telegram">
+              <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+              <input type="hidden" name="channel_section" value="telegram">
+              <input type="hidden" name="channel_action" value="save_telegram">
+
               <label class="chn-toggle-row">
                 <input type="checkbox" name="telegram_enabled" {% if tg_enabled %}checked{% endif %}>
                 <span class="chn-toggle-track"><span class="chn-toggle-thumb"></span></span>
                 <span class="chn-toggle-label">
-                  <strong>{{ 'Enable Telegram alerts' if is_en else 'تفعيل تنبيهات Telegram' }}</strong>
-                  <small>{{ 'Send notifications to your bot' if is_en else 'إرسال التنبيهات إلى البوت' }}</small>
+                  <strong>{{ 'Enable Telegram channel' if is_en else 'تفعيل قناة Telegram' }}</strong>
+                  <small>{{ 'Use this channel when notification rules select Telegram.' if is_en else 'عند التفعيل ستُرسل الأقسام التي تختار Telegram إلى المحادثة المحفوظة هنا.' }}</small>
                 </span>
               </label>
+
               <div class="chn-grid-2">
-                <label class="chn-field">
-                  <span>{{ 'Bot token' if is_en else 'مفتاح البوت' }} <em class="chn-help-inline">{{ '(from @BotFather)' if is_en else '(من @BotFather)' }}</em></span>
-                  <input type="text" name="telegram_bot_token" value="{{ settings.telegram_bot_token or '' }}" placeholder="123456:ABC-DEF..." dir="ltr">
+                <label class="chn-field" data-help-title="{{ 'مفتاح بوت Telegram' if not is_en else 'Telegram bot token' }}" data-help-text="{{ 'ضع توكن البوت من BotFather ولا تشاركه مع أحد. إذا ظهر بنجوم فهذا يعني أن القيمة القديمة محفوظة ولن تتغير إلا عند إدخال توكن جديد.' if not is_en else 'Use the token from BotFather and do not share it. A masked saved token remains unless you enter a new one.' }}">
+                  <span>{{ 'Bot token' if is_en else 'مفتاح البوت' }} <em class="chn-help-inline">{{ 'from @BotFather' if is_en else 'من @BotFather' }}</em></span>
+                  <input type="password" name="telegram_bot_token" value="{{ '********' if tg_token_set else '' }}" placeholder="123456:ABC-DEF..." dir="ltr" autocomplete="new-password">
                 </label>
-                <label class="chn-field">
-                  <span>{{ 'Chat ID' if is_en else 'معرّف المحادثة' }} <em class="chn-help-inline">{{ '(your numeric Telegram ID)' if is_en else '(الرقم الخاص بك في Telegram)' }}</em></span>
-                  <input type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}" placeholder="123456789" dir="ltr">
+                <label class="chn-field" data-help-title="{{ 'معرّف محادثة Telegram' if not is_en else 'Telegram chat ID' }}" data-help-text="{{ 'هو المكان الذي ستصل إليه الرسائل: محادثتك الشخصية أو مجموعة أو قناة. تأكد أن البوت موجود في هذه المحادثة.' if not is_en else 'The destination chat, group, or channel for messages. Make sure the bot is present there.' }}">
+                  <span>{{ 'Chat ID' if is_en else 'معرف المحادثة' }} <em class="chn-help-inline">{{ 'numeric ID or channel id' if is_en else 'رقم المحادثة أو القناة' }}</em></span>
+                  <input type="text" name="telegram_chat_id" value="{{ settings.get('telegram_chat_id') or '' }}" placeholder="123456789" dir="ltr">
+                </label>
+                <label class="chn-field full" data-help-title="{{ 'رابط Telegram API' if not is_en else 'Telegram API URL' }}" data-help-text="{{ 'اتركه كما هو لمعظم الحالات. غيّره فقط إذا كان لديك وسيط أو بوابة خاصة للوصول إلى Telegram.' if not is_en else 'Keep the default for most setups. Change only when using a proxy or private Telegram gateway.' }}">
+                  <span>{{ 'Telegram API URL' if is_en else 'رابط Telegram API' }} <em class="chn-help-inline">{{ 'keep default unless using a proxy' if is_en else 'اتركه افتراضيا إلا عند استخدام وسيط' }}</em></span>
+                  <input type="url" name="telegram_api_url" value="{{ settings.get('telegram_api_url') or 'https://api.telegram.org' }}" placeholder="https://api.telegram.org" dir="ltr">
                 </label>
               </div>
+
               <div class="chn-form-actions">
-                <button type="submit" class="chn-btn primary">💾 {{ 'Save Telegram settings' if is_en else 'حفظ إعدادات Telegram' }}</button>
-                <button type="submit" name="action" value="test_telegram" class="chn-btn ghost">🧪 {{ 'Send test message' if is_en else 'إرسال رسالة اختبار' }}</button>
+                <button type="submit" class="chn-btn primary" data-help-title="{{ 'حفظ Telegram' if not is_en else 'Save Telegram' }}" data-help-text="{{ 'يحفظ التوكن والمحادثة والرابط لاستخدامها في الإشعارات اللاحقة. لا يرسل رسالة اختبار.' if not is_en else 'Saves token, chat, and API URL for future notifications. It does not send a test.' }}">{{ 'Save Telegram settings' if is_en else 'حفظ إعدادات Telegram' }}</button>
               </div>
             </form>
-            <details class="chn-howto">
-              <summary>📖 {{ 'How do I get a Telegram bot token?' if is_en else 'كيف أحصل على مفتاح بوت Telegram؟' }}</summary>
-              <ol>
-                <li>{{ 'Open Telegram and search for' if is_en else 'افتح Telegram وابحث عن' }} <code>@BotFather</code></li>
-                <li>{{ 'Send' if is_en else 'أرسل' }} <code>/newbot</code> {{ 'and follow the steps' if is_en else 'واتبع الخطوات' }}</li>
-                <li>{{ 'BotFather will give you a token — paste it above' if is_en else 'سيعطيك BotFather مفتاحاً — انسخه هنا' }}</li>
-                <li>{{ 'Send any message to your new bot, then visit' if is_en else 'أرسل أي رسالة لبوتك، ثم افتح' }} <code dir="ltr">api.telegram.org/bot[token]/getUpdates</code> {{ 'to get your chat ID' if is_en else 'للحصول على Chat ID' }}</li>
-              </ol>
-            </details>
           </div>
         </section>
 
-        {# Section 2: SMS channel #}
-        <section class="chn-channel-section" data-help="{{ 'SMS channel: receive text-message alerts. Best for offline phones or when internet is down. May incur cost depending on your provider.' if is_en else 'قناة SMS: استقبال التنبيهات كرسائل نصية. الأفضل للهواتف بدون إنترنت أو حين انقطاع الشبكة. قد تترتب عليها رسوم حسب مزودك.' }}">
+        <section class="chn-channel-section">
           <div class="chn-section-head">
             <div>
               <small>{{ 'Channel 02' if is_en else 'القناة 2' }}</small>
-              <h2><span class="chn-sec-icon" style="background:#fef3c7;color:#b45309">✉</span> {{ 'SMS messages' if is_en else 'الرسائل النصية SMS' }}</h2>
+              <h2><span class="chn-sec-icon sms">SMS</span> {{ 'SMS messages' if is_en else 'رسائل SMS' }}</h2>
             </div>
-            <span class="chn-status-badge {% if sms_enabled %}ok{% elif sms_recipients %}warn{% else %}off{% endif %}">
-              {% if sms_enabled %}✓ {{ 'Active' if is_en else 'مفعّلة' }}
-              {% elif sms_recipients %}⚙ {{ 'Configured' if is_en else 'مُعدّة' }}
-              {% else %}○ {{ 'Off' if is_en else 'متوقفة' }}{% endif %}
+            <span class="chn-status-badge {% if sms_enabled and sms_key_set and sms_recipients_set %}ok{% elif sms_key_set or sms_recipients_set %}warn{% else %}off{% endif %}">
+              {% if sms_enabled and sms_key_set and sms_recipients_set %}{{ 'Active' if is_en else 'مفعلة' }}
+              {% elif sms_key_set or sms_recipients_set %}{{ 'Configured' if is_en else 'بحاجة إلى تفعيل أو إكمال' }}
+              {% else %}{{ 'Off' if is_en else 'غير معدة' }}{% endif %}
             </span>
           </div>
           <div class="chn-section-body">
             <form method="post" class="chn-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="form" value="sms">
+              <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+              <input type="hidden" name="channel_section" value="sms">
+              <input type="hidden" name="channel_action" value="save_sms">
+
               <label class="chn-toggle-row">
                 <input type="checkbox" name="sms_enabled" {% if sms_enabled %}checked{% endif %}>
                 <span class="chn-toggle-track"><span class="chn-toggle-thumb"></span></span>
                 <span class="chn-toggle-label">
-                  <strong>{{ 'Enable SMS alerts' if is_en else 'تفعيل تنبيهات SMS' }}</strong>
-                  <small>{{ 'Send notifications as text messages' if is_en else 'إرسال التنبيهات كرسائل نصية' }}</small>
+                  <strong>{{ 'Enable SMS channel' if is_en else 'تفعيل قناة SMS' }}</strong>
+                  <small>{{ 'Use SMS for critical alerts and phones without internet.' if is_en else 'فعّلها للتنبيهات الحرجة أو عندما تحتاج وصول الرسالة حتى بدون إنترنت. قد تكون الرسائل مدفوعة التكلفة.' }}</small>
                 </span>
               </label>
+
               <div class="chn-grid-2">
-                <label class="chn-field">
-                  <span>{{ 'SMS provider' if is_en else 'مزوّد الـ SMS' }}</span>
-                  <select name="sms_provider">
-                    <option value="">{{ '— None —' if is_en else '— بدون —' }}</option>
-                    <option value="twilio" {% if settings.sms_provider == 'twilio' %}selected{% endif %}>Twilio</option>
-                    <option value="vonage" {% if settings.sms_provider == 'vonage' %}selected{% endif %}>Vonage</option>
-                    <option value="local"  {% if settings.sms_provider == 'local'  %}selected{% endif %}>{{ 'Local provider' if is_en else 'مزوّد محلي' }}</option>
-                  </select>
+                <label class="chn-field" data-help-title="{{ 'رابط مزود SMS' if not is_en else 'SMS provider URL' }}" data-help-text="{{ 'ضع رابط الإرسال من مزود SMS، وليس رابط لوحة التحكم. غالبًا يكون endpoint يحتوي مسارًا مثل /send أو /messages.' if not is_en else 'Use the SMS provider sending endpoint, not the dashboard URL. Often it includes /send or /messages.' }}">
+                  <span>{{ 'SMS API URL' if is_en else 'رابط SMS API' }}</span>
+                  <input type="url" name="sms_api_url" value="{{ settings.get('sms_api_url') or '' }}" placeholder="https://provider.example/send" dir="ltr">
                 </label>
-                <label class="chn-field">
+                <label class="chn-field" data-help-title="{{ 'مفتاح SMS API' if not is_en else 'SMS API key' }}" data-help-text="{{ 'هذا مفتاح سري يسمح بالإرسال من رصيدك لدى مزود SMS. لا تشاركه، والقيمة المقنّعة لا تتغير إلا عند كتابة مفتاح جديد.' if not is_en else 'Secret key that sends from your SMS provider balance. Do not share it; masked value stays unless replaced.' }}">
                   <span>{{ 'API key' if is_en else 'مفتاح API' }}</span>
-                  <input type="text" name="sms_api_key" value="{{ settings.sms_api_key or '' }}" placeholder="AC123…" dir="ltr">
+                  <input type="password" name="sms_api_key" value="{{ '********' if sms_key_set else '' }}" placeholder="{{ 'saved' if sms_key_set else 'API key' }}" dir="ltr" autocomplete="new-password">
                 </label>
-                <label class="chn-field full">
-                  <span>{{ 'Recipients (phone numbers, comma-separated)' if is_en else 'المستلمون (أرقام، مفصولة بفواصل)' }}</span>
-                  <input type="text" name="sms_recipients" value="{{ settings.sms_recipients or '' }}" placeholder="+970599..., +962799..." dir="ltr">
+                <label class="chn-field" data-help-title="{{ 'اسم المرسل' if not is_en else 'Sender name' }}" data-help-text="{{ 'الاسم أو الرقم الذي يظهر عند المستلم، مثل SolarDeye. بعض المزودين لا يقبلون إلا أسماء مسجلة مسبقًا.' if not is_en else 'Name or number shown to recipients, such as SolarDeye. Some providers allow only pre-registered senders.' }}">
+                  <span>{{ 'Sender' if is_en else 'اسم المرسل' }}</span>
+                  <input type="text" name="sms_sender" value="{{ settings.get('sms_sender') or '' }}" placeholder="SolarDeye" dir="ltr">
+                </label>
+                <label class="chn-field" data-help-title="{{ 'مستلمو SMS' if not is_en else 'SMS recipients' }}" data-help-text="{{ 'اكتب الأرقام بصيغة دولية مثل +970599000000. إذا كان هناك أكثر من رقم فافصل بينها بفواصل.' if not is_en else 'Use international format such as +970599000000. Separate multiple numbers with commas.' }}">
+                  <span>{{ 'Recipients' if is_en else 'المستلمون' }} <em class="chn-help-inline">{{ 'comma-separated' if is_en else 'مفصولة بفواصل' }}</em></span>
+                  <input type="text" name="sms_recipients" value="{{ settings.get('sms_recipients') or '' }}" placeholder="+970599000000, +970599111111" dir="ltr">
                 </label>
               </div>
+
               <div class="chn-form-actions">
-                <button type="submit" class="chn-btn primary">💾 {{ 'Save SMS settings' if is_en else 'حفظ إعدادات SMS' }}</button>
-                <button type="submit" name="action" value="test_sms" class="chn-btn ghost">🧪 {{ 'Send test SMS' if is_en else 'إرسال SMS تجريبية' }}</button>
+                <button type="submit" class="chn-btn primary" data-help-title="{{ 'حفظ SMS' if not is_en else 'Save SMS' }}" data-help-text="{{ 'يحفظ مزود SMS والمفتاح والمستلمين لاستخدامها عند اختيار SMS في التنبيهات. لا يرسل رسالة.' if not is_en else 'Saves SMS provider, key, and recipients for SMS alerts. It does not send a message.' }}">{{ 'Save SMS settings' if is_en else 'حفظ إعدادات SMS' }}</button>
               </div>
             </form>
           </div>
         </section>
 
-      </div>{# /chn-main #}
-    </div>{# /chn-shell #}
+        <section class="chn-channel-section">
+          <div class="chn-section-head">
+            <div>
+              <small>{{ 'Tests' if is_en else 'الاختبارات' }}</small>
+              <h2><span class="chn-sec-icon test">OK</span> {{ 'Test center' if is_en else 'مركز الاختبار' }}</h2>
+            </div>
+          </div>
+          <div class="chn-section-body">
+            <p class="chn-section-note">{{ 'Send a real test message using the saved channel settings. Save changes before testing.' if is_en else 'أزرار الاختبار ترسل رسائل فعلية باستخدام الإعدادات المحفوظة. احفظ التغييرات أولًا، وانتبه أن SMS قد تُحتسب من رصيد المزود.' }}</p>
+            <div class="chn-form-actions">
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="telegram_test" class="chn-btn ghost" data-help-title="{{ 'اختبار Telegram' if not is_en else 'Telegram test' }}" data-help-text="{{ 'يرسل رسالة قصيرة فعلية إلى Chat ID المحفوظ للتأكد أن التوكن والمحادثة صحيحان.' if not is_en else 'Sends a real short message to the saved Chat ID to verify token and chat.' }}">Telegram {{ 'test' if is_en else 'اختبار' }}</button>
+              </form>
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="sms_test" class="chn-btn ghost" data-help-title="{{ 'اختبار SMS' if not is_en else 'SMS test' }}" data-help-text="{{ 'يرسل SMS فعلية إلى الأرقام المحفوظة، وقد تُحتسب تكلفتها حتى لو كانت رسالة اختبار.' if not is_en else 'Sends a real SMS to saved recipients and may incur charges even as a test.' }}">SMS {{ 'test' if is_en else 'اختبار' }}</button>
+              </form>
+            </div>
+          </div>
+        </section>
 
+        <section class="chn-channel-section">
+          <div class="chn-section-head">
+            <div>
+              <small>{{ 'Telegram tools' if is_en else 'أدوات Telegram' }}</small>
+              <h2><span class="chn-sec-icon tools">WH</span> {{ 'Webhook and interactive menu' if is_en else 'Webhook والقائمة التفاعلية' }}</h2>
+            </div>
+            <span class="chn-status-badge {% if webhook_ok %}ok{% else %}warn{% endif %}">
+              {{ 'Webhook connected' if is_en and webhook_ok else ('Webhook not confirmed' if is_en else ('Webhook متصل' if webhook_ok else 'Webhook غير مؤكد')) }}
+            </span>
+          </div>
+          <div class="chn-section-body">
+            <div class="chn-status-grid">
+              <div>
+                <strong>{{ 'Webhook URL' if is_en else 'رابط Webhook' }}</strong>
+                <code dir="ltr">{{ telegram_webhook_url or '-' }}</code>
+              </div>
+              <div>
+                <strong>{{ 'Current Telegram URL' if is_en else 'الرابط الحالي في Telegram' }}</strong>
+                <code dir="ltr">{{ webhook_info.get('url') if webhook_info else '-' }}</code>
+              </div>
+              <div>
+                <strong>{{ 'Pending updates' if is_en else 'التحديثات المعلقة' }}</strong>
+                <span>{{ webhook_info.get('pending_update_count', 0) if webhook_info else 0 }}</span>
+              </div>
+            </div>
+
+            <div class="chn-form-actions">
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="set_webhook" class="chn-btn primary" data-help-title="Webhook" data-help-text="{{ 'يربط بوت Telegram بهذا التطبيق حتى تصل أوامر القائمة التفاعلية والردود مباشرة إلى النظام.' if not is_en else 'Connects the Telegram bot to this app so interactive menu commands and replies reach the system.' }}">{{ 'Set webhook' if is_en else 'تفعيل Webhook' }}</button>
+              </form>
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="check_webhook" class="chn-btn ghost" data-help-title="{{ 'فحص Webhook' if not is_en else 'Check webhook' }}" data-help-text="{{ 'يعرض حالة الربط الحالية في Telegram بدون تعديلها، وهذا آمن قبل حذف أو إعادة التفعيل.' if not is_en else 'Checks the current Telegram webhook without changing it, useful before delete or reset.' }}">{{ 'Check webhook' if is_en else 'فحص Webhook' }}</button>
+              </form>
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="delete_webhook" class="chn-btn danger" data-help-title="{{ 'إلغاء Webhook' if not is_en else 'Delete webhook' }}" data-help-text="{{ 'يوقف وصول أوامر Telegram إلى التطبيق، لكنه لا يحذف البوت ولا يوقف إرسال الرسائل العادية.' if not is_en else 'Stops Telegram commands reaching the app, but does not delete the bot or stop normal sends.' }}">{{ 'Delete webhook' if is_en else 'إلغاء Webhook' }}</button>
+              </form>
+              <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="lang" value="{{ ui_lang or 'ar' }}">
+                <button type="submit" name="channel_action" value="telegram_menu" class="chn-btn ghost" data-help-title="{{ 'القائمة التفاعلية' if not is_en else 'Interactive menu' }}" data-help-text="{{ 'يرسل أزرارًا داخل Telegram لطلب الحالة أو تشغيل إجراءات سريعة. يحتاج Chat ID صحيحًا، وقد يحتاج Webhook للردود.' if not is_en else 'Sends Telegram buttons for status and quick actions. Requires a valid Chat ID and may need webhook for replies.' }}">{{ 'Send interactive menu' if is_en else 'إرسال القائمة التفاعلية' }}</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   </main>
 </div>
 {% endblock %}

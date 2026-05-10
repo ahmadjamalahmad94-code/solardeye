@@ -111,9 +111,13 @@
   width: 36px; height: 36px;
   border-radius: 10px;
   display: grid; place-items: center;
-  font-size: 1rem; flex-shrink: 0;
+  font-size: .78rem; font-weight: 900; flex-shrink: 0;
+  background: #dbeafe; color: #1d4ed8;
   box-shadow: 0 2px 6px rgba(99,102,241,.15);
 }
+.chn-sec-icon.sms { background: #fef3c7; color: #b45309; }
+.chn-sec-icon.test { background: #dcfce7; color: #15803d; }
+.chn-sec-icon.tools { background: #eef2ff; color: #4338ca; }
 .chn-status-badge {
   font-size: .78rem; font-weight: 800;
   padding: 6px 14px;
@@ -190,6 +194,7 @@
   box-shadow: 0 0 0 3px rgba(99,102,241,.14);
 }
 .chn-form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.chn-form-actions form { margin: 0; }
 .chn-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 10px 18px;
@@ -212,6 +217,47 @@
 }
 .chn-btn.ghost:hover {
   border-color: #6366f1; background: #eef2ff; color: #4338ca;
+}
+.chn-btn.danger {
+  background: #fff;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.chn-btn.danger:hover {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+.chn-section-note {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: .86rem;
+  line-height: 1.7;
+}
+.chn-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 860px) { .chn-status-grid { grid-template-columns: 1fr; } }
+.chn-status-grid > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  min-width: 0;
+}
+.chn-status-grid strong {
+  color: #475569;
+  font-size: .78rem;
+}
+.chn-status-grid code,
+.chn-status-grid span {
+  color: #0f172a;
+  font-size: .82rem;
+  overflow-wrap: anywhere;
 }
 
 /* How-to details */

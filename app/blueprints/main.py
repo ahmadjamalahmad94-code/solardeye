@@ -1160,7 +1160,7 @@ def _upsert_channel_setting(key: str, value: str):
 CHANNEL_FORM_FIELDS = {
     'telegram': {
         'text': ['telegram_bot_token', 'telegram_chat_id', 'telegram_api_url'],
-        'checkbox': [],
+        'checkbox': ['telegram_enabled'],
     },
     'telegram_buttons': {
         'text': [],
@@ -1172,7 +1172,7 @@ CHANNEL_FORM_FIELDS = {
     },
     'sms': {
         'text': ['sms_api_url', 'sms_api_key', 'sms_sender', 'sms_recipients'],
-        'checkbox': [],
+        'checkbox': ['sms_enabled'],
     },
 }
 
