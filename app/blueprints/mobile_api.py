@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import json
+
 from flask import Blueprint, request, session
 
-from ..models import AppDevice, NotificationEvent, Reading, SubscriptionPlan, TenantAccount
+from ..extensions import db
+from ..models import AppDevice, AppUser, NotificationEvent, Reading, SubscriptionPlan, TenantAccount
 from ..services.energy_integrations import provider_catalog
-from ..services.location_catalog import countries_for_template, phone_prefixes_for_template, timezones_grouped_for_template, timezones_for_template
+from ..services.location_catalog import countries_for_template, find_country, phone_prefixes_for_template, timezones_grouped_for_template, timezones_for_template
 from ..services.rbac import portal_pages, portal_page_visible, role_label
 from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
-from ..services.mobile_auth import user_from_bearer_or_session
+from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
 from ..services.api_responses import api_error, api_ok
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
@@ -26,6 +29,92 @@ def _require_login():
     if not user:
         return None, api_error('Authentication required.', code='auth_required', status=401), 401
     return user, None, None
+
+
+def _require_bearer_user():
+    auth = request.headers.get('Authorization', '')
+    if not auth.lower().startswith('bearer '):
+        return None, api_error('Bearer token is required.', code='auth_required', status=401)
+    user = verify_access_token(auth.split(' ', 1)[1])
+    if not user:
+        return None, api_error('Authentication token is invalid or expired.', code='invalid_token', status=401)
+    return user, None
+
+
+def _json():
+    return request.get_json(silent=True) or {}
+
+
+def _safe_json_loads(raw_value):
+    if isinstance(raw_value, dict):
+        return dict(raw_value)
+    if not raw_value:
+        return {}
+    try:
+        parsed = json.loads(raw_value)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def _json_error(message: str, *, code: str, status: int = 400, field: str | None = None):
+    errors = [{'field': field, 'message': message}] if field else []
+    return api_error(message, code=code, status=status, errors=errors)
+
+
+def _normalize_language(value: str | None):
+    if value is None:
+        return None
+    lang = str(value or '').strip().lower()
+    if lang not in {'ar', 'en'}:
+        return None
+    return lang
+
+
+def _clean_phone(value: str | None) -> str:
+    allowed = set('+ -()')
+    return ''.join(ch for ch in (value or '') if ch.isdigit() or ch in allowed).strip()
+
+
+def _float_or_error(value, field: str, *, minimum: float | None = None, maximum: float | None = None):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None, _json_error(f'{field} must be a number.', code='invalid_number', field=field)
+    if minimum is not None and number < minimum:
+        return None, _json_error(f'{field} is below the allowed range.', code='number_too_low', field=field)
+    if maximum is not None and number > maximum:
+        return None, _json_error(f'{field} is above the allowed range.', code='number_too_high', field=field)
+    return number, None
+
+
+def _is_secret_field(name: str) -> bool:
+    lowered = (name or '').lower()
+    return any(word in lowered for word in ('password', 'secret', 'token', 'key', 'credential'))
+
+
+def _field_label(name: str) -> dict:
+    labels = {
+        'deye_app_id': ('Deye App ID', 'Deye App ID'),
+        'deye_app_secret': ('Deye App Secret', 'Deye App Secret'),
+        'deye_email': ('بريد Deye', 'Deye email'),
+        'deye_password_or_hash': ('كلمة مرور Deye أو SHA-256', 'Deye password or SHA-256'),
+        'deye_plant_id': ('Plant ID', 'Plant ID'),
+        'deye_device_sn': ('Device SN', 'Device SN'),
+        'deye_logger_sn': ('Logger SN', 'Logger SN'),
+        'battery_capacity_kwh': ('سعة البطارية kWh', 'Battery capacity kWh'),
+        'battery_reserve_percent': ('احتياطي البطارية %', 'Battery reserve %'),
+        'local_base_url': ('رابط الجهاز المحلي', 'Local device URL'),
+        'api_key': ('API Key', 'API key'),
+        'api_secret': ('API Secret', 'API secret'),
+        'access_token': ('Access Token', 'Access token'),
+        'oauth_access_token': ('OAuth Access Token', 'OAuth access token'),
+        'refresh_token': ('Refresh Token', 'Refresh token'),
+        'username': ('اسم المستخدم', 'Username'),
+        'password': ('كلمة المرور', 'Password'),
+    }
+    ar, en = labels.get(name, (name.replace('_', ' ').title(), name.replace('_', ' ').title()))
+    return {'ar': ar, 'en': en}
 
 
 def _profile_payload(user):
@@ -73,6 +162,46 @@ def _device_summary_payload(user):
     }
 
 
+def _selected_device_for_user(user):
+    q = AppDevice.query.filter_by(owner_user_id=user.id)
+    device = None
+    if getattr(user, 'preferred_device_id', None):
+        device = q.filter_by(id=user.preferred_device_id).first()
+    if device is None:
+        device = AppDevice.query.filter_by(owner_user_id=user.id, is_active=True).order_by(AppDevice.id.asc()).first()
+    if device is None:
+        device = AppDevice.query.filter_by(owner_user_id=user.id).order_by(AppDevice.id.asc()).first()
+    return device
+
+
+def _device_state_payload(user):
+    device = _selected_device_for_user(user)
+    return {
+        'selected_device_id': getattr(device, 'id', None),
+        'current_device': {
+            'id': device.id,
+            'name': device.name,
+            'device_type': device.device_type,
+            'api_provider': device.api_provider,
+            'connection_status': device.connection_status,
+            'is_active': bool(device.is_active),
+            'timezone': device.timezone,
+        } if device else None,
+        'devices': _device_summary_payload(user),
+    }
+
+
+def _system_basics_payload(user):
+    device = _selected_device_for_user(user)
+    settings = _safe_json_loads(getattr(device, 'settings_json', None)) if device else {}
+    return {
+        'selected_device_id': getattr(device, 'id', None),
+        'preferred_device_type': user.preferred_device_type or '',
+        'battery_capacity_kwh': settings.get('battery_capacity_kwh') or '',
+        'battery_reserve_percent': settings.get('battery_reserve_percent') or '',
+    }
+
+
 def _subscription_payload(user):
     tenant = TenantAccount.query.get(user.tenant_id) if getattr(user, 'tenant_id', None) else None
     sub = current_subscription_for_user(user)
@@ -107,14 +236,26 @@ def _onboarding_payload(user):
         'step': user.onboarding_step or ('done' if user.onboarding_completed else 'welcome'),
         'needs_profile_location': not has_location,
         'needs_device_link': not has_device,
+        'system_basics': _system_basics_payload(user),
+        'device_state': _device_state_payload(user),
     }
 
 
 def _provider_payloads():
     rows = []
     for spec in provider_catalog():
+        fields = []
+        for field in list(spec.required_fields or ()) + list(spec.optional_fields or ()):
+            fields.append({
+                'name': field,
+                'label': _field_label(field),
+                'required': field in (spec.required_fields or ()),
+                'secret': _is_secret_field(field),
+            })
         rows.append({
+            'key': spec.code,
             'code': spec.code,
+            'display_name': spec.name,
             'name': spec.name,
             'provider': spec.provider,
             'auth_mode': spec.auth_mode,
@@ -123,6 +264,7 @@ def _provider_payloads():
             'base_url': spec.base_url or '',
             'required_fields': list(spec.required_fields or ()),
             'optional_fields': list(spec.optional_fields or ()),
+            'fields': fields,
             'notes_ar': spec.notes_ar,
             'notes_en': spec.notes_en,
         })
@@ -130,12 +272,208 @@ def _provider_payloads():
 
 
 def _location_payload():
+    countries = countries_for_template()
     return {
-        'countries': countries_for_template(),
+        'countries': countries,
         'phone_prefixes': phone_prefixes_for_template(),
+        'cities': {
+            (country.get('code') or '').strip().upper(): {
+                'ar': country.get('cities_ar') or [],
+                'en': country.get('cities_en') or [],
+                'timezone': country.get('timezone') or '',
+                'dial': country.get('dial') or '',
+            }
+            for country in countries
+            if country.get('code')
+        },
         'timezones': timezones_for_template(),
         'timezone_groups': timezones_grouped_for_template(),
     }
+
+
+@mobile_core_api_bp.get('/profile')
+def mobile_profile_get():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok({
+        'user': _profile_payload(user),
+        'onboarding': _onboarding_payload(user),
+        'subscription': _subscription_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.patch('/profile')
+def mobile_profile_update():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data = _json()
+    if not isinstance(data, dict):
+        return _json_error('JSON object is required.', code='invalid_json')
+
+    if 'full_name' in data:
+        user.full_name = (data.get('full_name') or '').strip() or None
+
+    if 'email' in data:
+        email = (data.get('email') or '').strip().lower()
+        if email and '@' not in email:
+            return _json_error('Email address is invalid.', code='invalid_email', field='email')
+        if email:
+            other = AppUser.query.filter(db.func.lower(AppUser.email) == email, AppUser.id != user.id).first()
+            if other:
+                return _json_error('Email is already in use.', code='email_taken', status=409, field='email')
+        user.email = email or None
+
+    if 'phone_country_code' in data:
+        prefix = (data.get('phone_country_code') or '').strip()
+        valid_prefixes = {row.get('dial') for row in phone_prefixes_for_template()}
+        if prefix and prefix not in valid_prefixes:
+            return _json_error('Phone country code is not supported.', code='invalid_phone_country_code', field='phone_country_code')
+        user.phone_country_code = prefix or None
+
+    if 'phone_number' in data:
+        phone = _clean_phone(data.get('phone_number'))
+        digits = ''.join(ch for ch in phone if ch.isdigit())
+        if phone and len(digits) < 6:
+            return _json_error('Phone number is too short.', code='invalid_phone_number', field='phone_number')
+        user.phone_number = phone or None
+
+    country_changed = any(key in data for key in ('country', 'country_code'))
+    if country_changed:
+        lang = _normalize_language(data.get('preferred_language')) or user.preferred_language or _lang()
+        selected_country = find_country(data.get('country_code') or data.get('country'))
+        if not selected_country and (data.get('country') or data.get('country_code')):
+            return _json_error('Country is not supported.', code='invalid_country', field='country')
+        if selected_country:
+            user.country = selected_country.get('name_en') if lang == 'en' else selected_country.get('name_ar')
+            if not user.phone_country_code:
+                user.phone_country_code = selected_country.get('dial') or None
+            if not data.get('timezone'):
+                user.timezone = selected_country.get('timezone') or user.timezone or 'Asia/Hebron'
+        else:
+            user.country = None
+
+    if 'city' in data:
+        user.city = (data.get('city') or '').strip() or None
+
+    if 'timezone' in data:
+        timezone = (data.get('timezone') or '').strip()
+        if timezone and timezone not in timezones_for_template():
+            return _json_error('Timezone is not supported.', code='invalid_timezone', field='timezone')
+        user.timezone = timezone or None
+
+    if 'preferred_language' in data:
+        lang = _normalize_language(data.get('preferred_language'))
+        if not lang:
+            return _json_error('Preferred language must be ar or en.', code='invalid_language', field='preferred_language')
+        user.preferred_language = lang
+
+    db.session.commit()
+    return api_ok({
+        'user': _profile_payload(user),
+        'onboarding': _onboarding_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/onboarding')
+def mobile_onboarding_get():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok({
+        'onboarding': _onboarding_payload(user),
+        'user': _profile_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/onboarding')
+@mobile_core_api_bp.patch('/onboarding')
+def mobile_onboarding_update():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data = _json()
+    if not isinstance(data, dict):
+        return _json_error('JSON object is required.', code='invalid_json')
+
+    allowed_steps = {'welcome', 'profile', 'device', 'notifications', 'finish', 'done', 'explore_services'}
+    if 'onboarding_step' in data or 'step' in data:
+        step = (data.get('onboarding_step') or data.get('step') or '').strip().lower()
+        if step not in allowed_steps:
+            return _json_error('Onboarding step is not supported.', code='invalid_onboarding_step', field='onboarding_step')
+        user.onboarding_step = step
+
+    if 'onboarding_completed' in data or 'completed' in data:
+        completed = data.get('onboarding_completed') if 'onboarding_completed' in data else data.get('completed')
+        user.onboarding_completed = bool(completed)
+        if user.onboarding_completed and not user.onboarding_step:
+            user.onboarding_step = 'done'
+
+    if 'selected_device_id' in data or 'current_device_id' in data:
+        raw_id = data.get('selected_device_id') if 'selected_device_id' in data else data.get('current_device_id')
+        try:
+            device_id = int(raw_id)
+        except (TypeError, ValueError):
+            return _json_error('Selected device id is invalid.', code='invalid_device_id', field='selected_device_id')
+        device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
+        if not device:
+            return _json_error('Device was not found for this account.', code='device_not_found', status=404, field='selected_device_id')
+        if not device.is_active:
+            return _json_error('Selected device is not active.', code='device_inactive', field='selected_device_id')
+        user.preferred_device_id = device.id
+        user.preferred_device_type = device.device_type or user.preferred_device_type
+
+    if 'preferred_device_type' in data:
+        provider_codes = {spec.code for spec in provider_catalog()}
+        provider_code = (data.get('preferred_device_type') or '').strip().lower()
+        if provider_code and provider_code not in provider_codes:
+            return _json_error('Device provider is not supported.', code='invalid_provider', field='preferred_device_type')
+        if provider_code:
+            user.preferred_device_type = provider_code
+
+    basics = data.get('system_basics') if isinstance(data.get('system_basics'), dict) else {}
+    for key in ('battery_capacity_kwh', 'battery_reserve_percent'):
+        if key in data and key not in basics:
+            basics[key] = data.get(key)
+    if basics:
+        device = _selected_device_for_user(user)
+        if not device:
+            return _json_error('A device is required before saving system basics.', code='device_required', status=409)
+        settings = _safe_json_loads(device.settings_json)
+        if 'battery_capacity_kwh' in basics:
+            capacity, error = _float_or_error(basics.get('battery_capacity_kwh'), 'battery_capacity_kwh', minimum=0.1, maximum=1000)
+            if error:
+                return error
+            settings['battery_capacity_kwh'] = str(capacity).rstrip('0').rstrip('.') if capacity % 1 else str(int(capacity))
+        if 'battery_reserve_percent' in basics:
+            reserve, error = _float_or_error(basics.get('battery_reserve_percent'), 'battery_reserve_percent', minimum=0, maximum=100)
+            if error:
+                return error
+            settings['battery_reserve_percent'] = str(reserve).rstrip('0').rstrip('.') if reserve % 1 else str(int(reserve))
+        device.settings_json = json.dumps(settings, ensure_ascii=False)
+
+    db.session.commit()
+    return api_ok({
+        'onboarding': _onboarding_payload(user),
+        'user': _profile_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/location-catalog')
+def mobile_location_catalog():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok(_location_payload(), meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/device-providers')
+def mobile_device_providers():
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    return api_ok({'items': _provider_payloads()}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
 def _reading_payload(row):
