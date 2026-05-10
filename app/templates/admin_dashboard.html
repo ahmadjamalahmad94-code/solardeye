@@ -263,6 +263,9 @@
   <main class="app-main content-area">
     <div class="ad-page" dir="{{ page_dir }}">
 
+      {# v33-μ: profile clock + weather bar (saved-profile only, no GPS/IP) #}
+      {% include '_clock_weather_bar.html' %}
+
       {# ═══════════ HERO (compact, glass KPIs inline) ═══════════ #}
       <section class="hu-hero ad-hero">
         <div class="hu-hero-grid">

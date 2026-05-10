@@ -1,0 +1,79 @@
+{# ════════════════════════════════════════════════════════════════════════
+   v33-μ: profile clock + weather bar (reusable partial)
+
+   Renders an elegant inline bar that shows live local time + current weather
+   based ENTIRELY on the user's saved profile (country / city / timezone).
+
+   Reads (from the v33-μ context processor):
+     · g.cwx_user_country      — saved AppUser.country  (or '')
+     · g.cwx_user_city         — saved AppUser.city     (or '')
+     · g.cwx_user_timezone     — saved AppUser.timezone (or '')
+     · g.cwx_profile_url       — '/admin/me' or '/account/profile' depending
+                                  on the active user's role.
+     · ui_lang                 — already in scope from base.html
+
+   Behavior:
+     · If the user has BOTH a city AND a timezone saved → render the live
+       chip (data-cwx) plus a small "حسب مدينتك في الملف الشخصي" footnote.
+     · Otherwise → render a friendly empty state with a button that points
+       at the appropriate profile page (admin_me for admins, account_profile
+       for subscribers).
+
+   Usage:
+     {% include '_clock_weather_bar.html' %}
+
+   The partial is safe to include on any authenticated page. On public
+   pages (no current_user), the context processor will set everything to
+   empty strings and the empty state will simply nudge the user to log in
+   and configure their profile.
+   ════════════════════════════════════════════════════════════════════════ #}
+{% set _is_en = (ui_lang or 'ar') == 'en' %}
+{% set _city = (cwx_user_city or '')|trim %}
+{% set _country = (cwx_user_country or '')|trim %}
+{% set _tz = (cwx_user_timezone or '')|trim %}
+{% set _profile_url = cwx_profile_url or '#' %}
+{% set _has_location = _city and _tz %}
+{% set _missing_city = not _city %}
+{% set _missing_tz = not _tz %}
+
+{% if _has_location %}
+<div class="pcwx-bar" role="region" aria-label="{{ 'Local time and weather' if _is_en else 'الوقت المحلي والطقس' }}">
+  <span class="pcwx-eyebrow">{{ 'Now' if _is_en else 'الآن' }}</span>
+  <span data-cwx aria-live="polite"></span>
+  <span class="pcwx-spacer"></span>
+  <small class="pcwx-source">
+    {% if _is_en %}
+      Based on <a href="{{ _profile_url }}">your profile city</a> ({{ _city }}{% if _country %} · {{ _country }}{% endif %}).
+    {% else %}
+      حسب <a href="{{ _profile_url }}">مدينتك في الملف الشخصي</a> ({{ _city }}{% if _country %} · {{ _country }}{% endif %}).
+    {% endif %}
+  </small>
+</div>
+{% else %}
+<div class="pcwx-bar pcwx-empty" role="status" aria-live="polite">
+  <span class="pcwx-empty-icon" aria-hidden="true">📍</span>
+  <div class="pcwx-empty-text">
+    <span class="pcwx-empty-title">
+      {% if _missing_city and _missing_tz %}
+        {{ 'City and timezone are not set yet' if _is_en else 'لم يتم تحديد المدينة والمنطقة الزمنية بعد' }}
+      {% elif _missing_city %}
+        {{ 'No city set yet' if _is_en else 'لم يتم تحديد المدينة بعد' }}
+      {% else %}
+        {{ 'No timezone set yet' if _is_en else 'لم يتم تحديد المنطقة الزمنية بعد' }}
+      {% endif %}
+    </span>
+    <span class="pcwx-empty-hint">
+      {% if _missing_city and _missing_tz %}
+        {{ 'Add your city and timezone from your profile to see local time and weather.' if _is_en else 'أضف المدينة والمنطقة الزمنية من الملف الشخصي لعرض الوقت المحلي والطقس.' }}
+      {% elif _missing_city %}
+        {{ 'Add your city from your profile so weather can be looked up from your saved location.' if _is_en else 'أضف المدينة من الملف الشخصي حتى يتم جلب الطقس حسب موقعك المحفوظ.' }}
+      {% else %}
+        {{ 'Choose your timezone from your profile so the local clock is accurate.' if _is_en else 'اختر المنطقة الزمنية من الملف الشخصي حتى يظهر الوقت المحلي بدقة.' }}
+      {% endif %}
+    </span>
+  </div>
+  <a class="pcwx-empty-cta" href="{{ _profile_url }}">
+    {{ 'Open profile' if _is_en else 'فتح الملف الشخصي' }}
+  </a>
+</div>
+{% endif %}

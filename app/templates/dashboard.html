@@ -8,6 +8,9 @@
   {% include '_sidebar.html' %}
   <main class="app-main content-area dashboard-v40" data-live-url="{{ url_for('energy.api_live', lang=ui_lang) }}">
 
+    {# v33-μ: profile clock + weather bar (saved-profile only, no GPS/IP) #}
+    {% include '_clock_weather_bar.html' %}
+
     {# v33-β: Live Device Rail / Fleet Switcher.
        Renders only when user has 2+ devices. Single-device users keep
        the v32 experience unchanged. The Flow Graph below is LOCKED. #}
