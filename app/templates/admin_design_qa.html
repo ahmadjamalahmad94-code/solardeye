@@ -1,258 +1,321 @@
 {% extends 'base.html' %}
-{% block extra_head %}
-<style>
-/* Local-only QA helpers — not for production use */
-.dq-section{margin-top:24px}
-.dq-label{display:flex;align-items:center;gap:10px;font-weight:900;color:#0b1220;font-size:.95rem;margin:0 0 12px;letter-spacing:.3px}
-.dq-label::before{content:"";width:18px;height:3px;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:999px}
-.dq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-.dq-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.dq-swatch{display:flex;flex-direction:column;gap:6px;align-items:center;font-size:.78rem;color:#5e6f8c;font-weight:700}
-.dq-chip{width:64px;height:64px;border-radius:14px;box-shadow:0 6px 18px rgba(15,23,42,.10)}
-.dq-note{padding:10px 14px;border-radius:14px;background:#fff8dd;color:#8b6a00;border:1px solid #f1de8a;font-weight:700;font-size:.85rem}
-.dq-mock-table{width:100%}
-.dq-mock-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-@media (max-width:768px){.dq-mock-form .form-row{grid-template-columns:1fr}}
-</style>
-{% endblock %}
-{% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% block title %}{{ 'Web Design QA' if is_en else 'مختبر جودة واجهات الويب' }}{% endblock %}
+
+{# v37-web-design-qa-ui-polish: load the shared polish stylesheet + the
+   progressive JS. The new file pair is additive — `admin-card-v2`,
+   `.admin-table-v2`, `.status-pill`, `.empty-box-v2`, etc. continue to
+   render their existing styles; the polish layer just adds the dqv37-*
+   wrappers, collapsible section behavior, sticky nav, and copy-to-clip
+   on code pills. Codex's audit data variables (qa.summary, qa.issues,
+   qa.source_rows, qa.route_rows, qa.duplicate_web_routes, qa.deferred)
+   are read identically below. #}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design_qa_web_polish.css', v='v37-web-design-qa-ui-polish') }}">
+<script defer src="{{ url_for('static', filename='js/design_qa_web_polish.js', v='v37-web-design-qa-ui-polish') }}"></script>
+{% endblock %}
+
+{% macro severity_badge(value) -%}
+  {% if value == 'high' %}
+    <span class="status-pill danger">{{ 'High' if is_en else 'عالٍ' }}</span>
+  {% elif value == 'medium' %}
+    <span class="status-pill warning">{{ 'Medium' if is_en else 'متوسط' }}</span>
+  {% elif value == 'low' %}
+    <span class="status-pill warning">{{ 'Low' if is_en else 'منخفض' }}</span>
+  {% else %}
+    <span class="status-pill success">{{ 'OK' if is_en else 'سليم' }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{# v37 polish: detail "View" button rendered as the dqv37 pill style.
+   The <details>/<summary> behavior is preserved — only the visual class
+   changes. Falls back gracefully if the polish CSS doesn't load. #}
+{% macro detail_block(row) -%}
+  {% if row.detail_payload %}
+    <details>
+      <summary class="dqv37-view-btn">{{ 'View' if is_en else 'عرض' }}</summary>
+      <pre dir="ltr">{{ row.detail_payload|tojson(indent=2) }}</pre>
+    </details>
+  {% else %}
+    <span class="dqv37-no-detail">{{ 'No extra details' if is_en else 'لا توجد تفاصيل إضافية.' }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{% block body %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area admin-shell-v2">
 
-    <!-- 1. HERO HEADER (.admin-page-head) -->
     <header class="admin-page-head">
       <div>
-        <span class="eyebrow">{{ 'Design QA' if is_en else 'مختبر التصميم' }}</span>
-        <h1>{{ 'Design system showcase' if is_en else 'معرض نظام التصميم' }}</h1>
-        <p>{{ 'Every reusable component on one page. Use this as a regression-detection canvas after any unified_theme_v1.css change.' if is_en else 'كل المكوّنات القابلة لإعادة الاستخدام في صفحة واحدة. استخدمها كمختبر للكشف عن أي تراجع بعد أي تعديل على unified_theme_v1.css.' }}</p>
+        <span class="eyebrow">{{ 'Web-only audit' if is_en else 'فحص ويب فقط' }}</span>
+        <h1>{{ 'Design QA Playground' if is_en else 'مختبر جودة التصميم' }}</h1>
+        <p>
+          {{ 'Checks server-rendered web routes, their templates, and source evidence without grading mobile or background systems.' if is_en else 'يفحص مسارات الويب المعروضة من الخادم، والقوالب المرتبطة بها، ودليل المصدر الحقيقي بدون تقييم أنظمة الخلفية أو عملاء الأجهزة.' }}
+        </p>
       </div>
       <div class="admin-head-actions">
-        <span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span>
-        <span class="status-pill warning">{{ 'Pending' if is_en else 'قيد الانتظار' }}</span>
-        <span class="status-pill danger">{{ 'Disabled' if is_en else 'معطّل' }}</span>
-        <a class="btn btn-outline-primary" href="#">{{ 'Sample action' if is_en else 'إجراء تجريبي' }}</a>
+        <span class="status-pill success">{{ qa.summary.ok_sources }} {{ 'verified' if is_en else 'موثق' }}</span>
+        {% if qa.summary.high %}
+          <span class="status-pill danger">{{ qa.summary.high }} {{ 'high' if is_en else 'عالٍ' }}</span>
+        {% endif %}
+        {% if qa.summary.medium %}
+          <span class="status-pill warning">{{ qa.summary.medium }} {{ 'medium' if is_en else 'متوسط' }}</span>
+        {% endif %}
       </div>
     </header>
 
-    <!-- 2. COLOR PALETTE -->
-    <section class="admin-card-v2 dq-section">
-      <h3 class="dq-label">{{ '01 · Color Palette' if is_en else '01 · لوحة الألوان' }}</h3>
-      <div class="dq-row">
-        <div class="dq-swatch"><div class="dq-chip" style="background:#f59e0b"></div>amber 500</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:#fbbf24"></div>amber 400</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:#10b981"></div>emerald</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:#2563eb"></div>sky</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:#f43f5e"></div>rose</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:#6d3aff"></div>violet</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:linear-gradient(135deg,#0e3b86 0%,#3aa7ff 50%,#ffd66e 100%)"></div>hero gradient</div>
-        <div class="dq-swatch"><div class="dq-chip" style="background:linear-gradient(135deg,#ffcf4d,#f59e0b)"></div>cta gradient</div>
-      </div>
-    </section>
-
-    <!-- 3. KPI GRID -->
-    <section class="dq-section">
-      <h3 class="dq-label">{{ '02 · KPI cards (.admin-kpi-grid-v2 + .admin-kpi-card)' if is_en else '02 · بطاقات KPI' }}</h3>
-      <div class="admin-kpi-grid-v2">
-        <article class="admin-kpi-card">
-          <small>{{ 'Total subscribers' if is_en else 'إجمالي المشتركين' }}</small>
-          <strong>1,245</strong>
-          <span>{{ 'Across all plans' if is_en else 'عبر جميع الباقات' }}</span>
-        </article>
-        <article class="admin-kpi-card">
-          <small>{{ 'Active devices' if is_en else 'الأجهزة النشطة' }}</small>
-          <strong>892</strong>
-          <span>{{ 'Connected and reporting' if is_en else 'متصلة وترسل بيانات' }}</span>
-        </article>
-        <article class="admin-kpi-card">
-          <small>{{ 'Open tickets' if is_en else 'تذاكر مفتوحة' }}</small>
-          <strong>14</strong>
-          <span>{{ 'Pending support response' if is_en else 'بانتظار رد الدعم' }}</span>
-        </article>
-        <article class="admin-kpi-card">
-          <small>{{ 'Revenue (MTD)' if is_en else 'الإيرادات' }}</small>
-          <strong>$42,850</strong>
-          <span>{{ 'Month-to-date' if is_en else 'منذ بداية الشهر' }}</span>
-        </article>
-      </div>
-    </section>
-
-    <!-- 4. TWO-COLUMN LAYOUT -->
-    <section class="admin-layout-v2 dq-section">
-      <article class="admin-card-v2">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Card type A' if is_en else 'نوع البطاقة A' }}</small>
-            <h3>{{ 'Primary content card' if is_en else 'بطاقة محتوى رئيسية' }}</h3>
-          </div>
-          <a class="btn btn-primary" href="#">{{ 'Action' if is_en else 'إجراء' }}</a>
-        </div>
-        <p style="color:#5e6f8c;line-height:1.7">{{ 'This is a description paragraph showing standard prose typography inside an admin-card-v2 container. Color is muted blue-gray, line-height is 1.7 for comfortable reading.' if is_en else 'هذه فقرة وصفية تعرض الطباعة النصّية القياسية داخل حاوية admin-card-v2. اللون رمادي مزرق ناعم، وارتفاع السطر 1.7 لقراءة مريحة.' }}</p>
-        <div class="dq-row">
-          <a class="btn btn-primary">{{ 'Primary' if is_en else 'رئيسي' }}</a>
-          <a class="btn btn-outline-primary">{{ 'Outline' if is_en else 'محايد' }}</a>
-          <a class="btn btn-danger">{{ 'Danger' if is_en else 'حذف' }}</a>
-        </div>
+    {# v37 polish: summary cards keep `admin-kpi-card` for legacy fallback
+       AND adopt `dqv37-summary-card` so the polish layer's severity-tinted
+       glass + tabular-nums + equal-height rules apply. The is-*
+       modifier is computed from the same qa.summary fields. #}
+    <section class="dqv37-summary admin-kpi-grid-v2" aria-label="{{ 'Audit summary' if is_en else 'ملخص الفحص' }}">
+      <article class="dqv37-summary-card admin-kpi-card is-success">
+        <span class="dqv37-summary-card-icon" aria-hidden="true">🛠️</span>
+        <small>{{ 'Systems checked' if is_en else 'الأنظمة المفحوصة' }}</small>
+        <strong>{{ qa.summary.systems }}</strong>
+        <span>{{ 'Curated web pages only' if is_en else 'صفحات ويب محددة فقط' }}</span>
       </article>
-
-      <article class="admin-card-v2">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Sidebar' if is_en else 'العمود الجانبي' }}</small>
-            <h3>{{ 'Quick links' if is_en else 'روابط سريعة' }}</h3>
-          </div>
-        </div>
-        <div class="quick-links-v2">
-          <a href="#"><span>{{ '⚡ Manage devices' if is_en else '⚡ إدارة الأجهزة' }}</span><span>›</span></a>
-          <a href="#"><span>{{ '💎 Plans' if is_en else '💎 الباقات' }}</span><span>›</span></a>
-          <a href="#"><span>{{ '🎫 Tickets' if is_en else '🎫 التذاكر' }}</span><span>›</span></a>
-          <a href="#"><span>{{ '💰 Finance' if is_en else '💰 المالية' }}</span><span>›</span></a>
-        </div>
+      <article class="dqv37-summary-card admin-kpi-card is-success">
+        <span class="dqv37-summary-card-icon" aria-hidden="true">🔍</span>
+        <small>{{ 'Routes checked' if is_en else 'المسارات المفحوصة' }}</small>
+        <strong>{{ qa.summary.routes_checked }}</strong>
+        <span>{{ 'No machine-client routes' if is_en else 'بدون مسارات عملاء الأجهزة' }}</span>
+      </article>
+      <article class="dqv37-summary-card admin-kpi-card {{ 'is-error' if qa.summary.high else ('is-warning' if qa.summary.medium else 'is-success') }}">
+        <span class="dqv37-summary-card-icon" aria-hidden="true">⚠️</span>
+        <small>{{ 'Open issues' if is_en else 'الملاحظات المفتوحة' }}</small>
+        <strong>{{ qa.summary.issues }}</strong>
+        <span>{{ 'Only real source gaps are listed' if is_en else 'تُعرض فجوات المصدر الحقيقية فقط' }}</span>
+      </article>
+      <article class="dqv37-summary-card admin-kpi-card">
+        <span class="dqv37-summary-card-icon" aria-hidden="true">🔗</span>
+        <small>{{ 'Route aliases' if is_en else 'مسارات لها أكثر من مصدر' }}</small>
+        <strong>{{ qa.summary.duplicate_web_routes }}</strong>
+        <span>{{ 'Informational, not auto-fail' if is_en else 'معلومة فقط وليست فشلًا تلقائيًا' }}</span>
       </article>
     </section>
 
-    <!-- 5. TABLE -->
-    <section class="admin-card-v2 dq-section">
-      <div class="section-heading-inline">
-        <div>
-          <small>{{ 'Data display' if is_en else 'عرض البيانات' }}</small>
-          <h3>{{ 'Admin table (.admin-table-v2)' if is_en else 'جدول الإدارة' }}</h3>
+    {# v37 polish: sticky in-page nav. Counts come from the row arrays
+       Codex already populates — pure presentation, no data mutation. #}
+    <nav class="dqv37-nav" aria-label="{{ 'Jump to section' if is_en else 'الانتقال إلى قسم' }}">
+      <a href="#smart-review" class="is-active">
+        {{ 'Smart review' if is_en else 'المراجعة الذكية' }}
+        <span class="dqv37-nav-count">{{ qa.issues|length }}</span>
+      </a>
+      <a href="#source-verification">
+        {{ 'Source verification' if is_en else 'تحقق المصدر' }}
+        <span class="dqv37-nav-count">{{ qa.source_rows|length }}</span>
+      </a>
+      <a href="#route-existence">
+        {{ 'Route existence' if is_en else 'وجود المسارات' }}
+        <span class="dqv37-nav-count">{{ qa.route_rows|length }}</span>
+      </a>
+      {% if qa.duplicate_web_routes %}
+      <a href="#duplicate-routes">
+        {{ 'Duplicate routes' if is_en else 'مسارات مكررة' }}
+        <span class="dqv37-nav-count">{{ qa.duplicate_web_routes|length }}</span>
+      </a>
+      {% endif %}
+      <a href="#deferred">
+        {{ 'Deferred' if is_en else 'مؤجل' }}
+        <span class="dqv37-nav-count">{{ qa.deferred|length }}</span>
+      </a>
+    </nav>
+
+    {# Section 1 — Smart review (issues) #}
+    <section class="dqv37-section admin-card-v2" id="smart-review">
+      <header class="dqv37-section-head">
+        <span class="dqv37-section-icon" aria-hidden="true">🧠</span>
+        <div class="dqv37-section-title-block">
+          <h3 class="dqv37-section-title">{{ 'Detected web QA issues' if is_en else 'الملاحظات المكتشفة في فحص الويب' }}</h3>
+          <p class="dqv37-section-helper">{{ 'Smart review' if is_en else 'المراجعة الذكية' }}</p>
         </div>
+        <span class="dqv37-section-count">{{ qa.issues|length }}</span>
+        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
+      </header>
+      <div class="dqv37-section-body">
+        {% if qa.issues %}
+          <table class="admin-table-v2">
+            <thead>
+              <tr>
+                <th>{{ 'Issue type' if is_en else 'نوع الملاحظة' }}</th>
+                <th>{{ 'Severity' if is_en else 'الخطورة' }}</th>
+                <th>{{ 'System' if is_en else 'النظام / القسم' }}</th>
+                <th>{{ 'Template' if is_en else 'القالب' }}</th>
+                <th>{{ 'Evidence' if is_en else 'الدليل' }}</th>
+                <th>{{ 'Recommendation' if is_en else 'التوصية' }}</th>
+                <th>{{ 'Details' if is_en else 'التفاصيل' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in qa.issues %}
+                <tr>
+                  <td><strong>{{ row.issue_type }}</strong></td>
+                  <td>{{ severity_badge(row.severity) }}</td>
+                  <td><strong>{{ row.system }}</strong><span class="table-sub">{{ row.section }}</span></td>
+                  <td dir="ltr">{{ row.template }}</td>
+                  <td>{{ row.evidence }}</td>
+                  <td>{{ row.recommendation }}</td>
+                  <td>{{ detail_block(row) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="dqv37-empty">
+            <span class="dqv37-empty-icon" aria-hidden="true">🟢</span>
+            <strong>{{ 'No web QA issues were detected.' if is_en else 'لم يتم اكتشاف ملاحظات ويب مفتوحة.' }}</strong>
+            <small>{{ 'Re-run the audit after any UI change to keep this clean.' if is_en else 'أعد تشغيل الفحص بعد أي تعديل بصري للحفاظ على هذه النتيجة.' }}</small>
+          </div>
+        {% endif %}
       </div>
-      <table class="admin-table-v2 dq-mock-table">
-        <thead>
-          <tr>
-            <th>{{ 'User' if is_en else 'المستخدم' }}</th>
-            <th>{{ 'Plan' if is_en else 'الباقة' }}</th>
-            <th>{{ 'Status' if is_en else 'الحالة' }}</th>
-            <th>{{ 'Last seen' if is_en else 'آخر ظهور' }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Ahmad Q.</strong><span class="table-sub">ahmad@example.com</span></td>
-            <td>{{ 'Pro Annual' if is_en else 'محترف سنوي' }}</td>
-            <td><span class="status-pill success">{{ 'Active' if is_en else 'نشط' }}</span></td>
-            <td>{{ '2 minutes ago' if is_en else 'قبل دقيقتين' }}</td>
-          </tr>
-          <tr>
-            <td><strong>Layla H.</strong><span class="table-sub">layla@example.com</span></td>
-            <td>{{ 'Standard' if is_en else 'قياسي' }}</td>
-            <td><span class="status-pill warning">{{ 'Trial' if is_en else 'تجريبي' }}</span></td>
-            <td>{{ '14 hours ago' if is_en else 'قبل 14 ساعة' }}</td>
-          </tr>
-          <tr>
-            <td><strong>Omar K.</strong><span class="table-sub">omar@example.com</span></td>
-            <td>{{ 'Free' if is_en else 'مجاني' }}</td>
-            <td><span class="status-pill danger">{{ 'Suspended' if is_en else 'موقوف' }}</span></td>
-            <td>{{ '3 days ago' if is_en else 'قبل 3 أيام' }}</td>
-          </tr>
-        </tbody>
-      </table>
     </section>
 
-    <!-- 6. USER 360 (admin_user_profile equivalent) -->
-    <section class="dq-section">
-      <h3 class="dq-label">{{ '03 · User 360 hero + tabs' if is_en else '03 · صفحة المستخدم الكاملة' }}</h3>
-      <section class="user360-hero">
-        <div class="user360-kpi"><small>{{ 'Plan' if is_en else 'الباقة' }}</small><strong>Pro Annual</strong></div>
-        <div class="user360-kpi"><small>{{ 'Status' if is_en else 'الحالة' }}</small><strong>{{ 'Active' if is_en else 'نشط' }}</strong></div>
-        <div class="user360-kpi"><small>{{ 'Wallet' if is_en else 'المحفظة' }}</small><strong>$120.50</strong></div>
-        <div class="user360-kpi"><small>{{ 'Devices' if is_en else 'الأجهزة' }}</small><strong>3</strong></div>
-        <div class="user360-kpi"><small>{{ 'Open tickets' if is_en else 'تذاكر مفتوحة' }}</small><strong>1</strong></div>
-      </section>
-      <div class="user360-tabs" style="margin-top:14px">
-        <a class="user360-tab active" href="#">{{ 'Profile' if is_en else 'الملف' }}</a>
-        <a class="user360-tab" href="#">{{ 'Subscription' if is_en else 'الاشتراك' }}</a>
-        <a class="user360-tab" href="#">{{ 'Support' if is_en else 'الدعم' }}</a>
-        <a class="user360-tab" href="#">{{ 'Finance' if is_en else 'المالية' }}</a>
-        <a class="user360-tab" href="#">{{ 'Devices' if is_en else 'الأجهزة' }}</a>
+    {# Section 2 — Source verification #}
+    <section class="dqv37-section admin-card-v2" id="source-verification">
+      <header class="dqv37-section-head">
+        <span class="dqv37-section-icon" aria-hidden="true">🧾</span>
+        <div class="dqv37-section-title-block">
+          <h3 class="dqv37-section-title">{{ 'Route, template, and render source evidence' if is_en else 'دليل المسار والقالب ومصدر render_template' }}</h3>
+          <p class="dqv37-section-helper">{{ 'Source verification' if is_en else 'تحقق المصدر' }}</p>
+        </div>
+        <span class="dqv37-section-count">{{ qa.source_rows|length }}</span>
+        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
+      </header>
+      <div class="dqv37-section-body">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'System' if is_en else 'النظام' }}</th>
+              <th>{{ 'Section' if is_en else 'القسم' }}</th>
+              <th>{{ 'Route' if is_en else 'المسار' }}</th>
+              <th>{{ 'Template' if is_en else 'القالب' }}</th>
+              <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+              <th>{{ 'Evidence' if is_en else 'الدليل' }}</th>
+              <th>{{ 'Details' if is_en else 'التفاصيل' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in qa.source_rows %}
+              <tr>
+                <td><strong>{{ row.system }}</strong></td>
+                <td>{{ row.section }}</td>
+                <td dir="ltr">{{ row.route }}</td>
+                <td dir="ltr">{{ row.template }}</td>
+                <td>{{ severity_badge(row.severity) }}</td>
+                <td>{{ row.evidence }}</td>
+                <td>{{ detail_block(row) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- 7. ACTIVITY LIST + EMPTY STATE -->
-    <section class="admin-layout-v2 dq-section">
-      <article class="admin-card-v2">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Recent' if is_en else 'الأحدث' }}</small>
-            <h3>{{ 'Activity feed' if is_en else 'سجل النشاط' }}</h3>
-          </div>
+    {# Section 3 — Route existence #}
+    <section class="dqv37-section admin-card-v2" id="route-existence">
+      <header class="dqv37-section-head">
+        <span class="dqv37-section-icon" aria-hidden="true">🛣️</span>
+        <div class="dqv37-section-title-block">
+          <h3 class="dqv37-section-title">{{ 'Web route and template mappings' if is_en else 'ربط مسارات الويب بالقوالب' }}</h3>
+          <p class="dqv37-section-helper">{{ 'Route existence' if is_en else 'وجود المسارات' }}</p>
         </div>
-        <div class="activity-list-v2">
-          <div class="activity-item-v2">
-            <div><strong>{{ 'Plan upgraded' if is_en else 'ترقية الباقة' }}</strong><small>{{ 'Ahmad Q. → Pro Annual' if is_en else 'أحمد ق. → محترف سنوي' }}</small></div>
-            <span class="status-pill success">+$120</span>
-          </div>
-          <div class="activity-item-v2">
-            <div><strong>{{ 'Device added' if is_en else 'تمت إضافة جهاز' }}</strong><small>{{ 'Deye 5kW · Layla H.' if is_en else 'دييه 5 ك.و · ليلى ه.' }}</small></div>
-            <span class="status-pill warning">{{ 'Pending sync' if is_en else 'قيد المزامنة' }}</span>
-          </div>
-          <div class="activity-item-v2">
-            <div><strong>{{ 'Ticket closed' if is_en else 'إغلاق تذكرة' }}</strong><small>{{ '#4129 · Omar K.' if is_en else '#4129 · عمر ك.' }}</small></div>
-            <span class="status-pill danger">{{ 'Resolved' if is_en else 'مغلق' }}</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="admin-card-v2">
-        <div class="section-heading-inline">
-          <div>
-            <small>{{ 'Empty' if is_en else 'فارغ' }}</small>
-            <h3>{{ 'Empty state' if is_en else 'حالة فارغة' }}</h3>
-          </div>
-        </div>
-        <div class="empty-box-v2">
-          {{ 'Nothing to display yet. Once data flows in, this area will populate automatically.' if is_en else 'لا يوجد ما يُعرض بعد. حالما تتوفّر بيانات سيمتلئ هذا المكان تلقائياً.' }}
-        </div>
-      </article>
-    </section>
-
-    <!-- 8. FORM ELEMENTS -->
-    <section class="admin-card-v2 dq-section">
-      <div class="section-heading-inline">
-        <div>
-          <small>{{ 'Inputs' if is_en else 'الحقول' }}</small>
-          <h3>{{ 'Form controls' if is_en else 'عناصر النماذج' }}</h3>
-        </div>
+        <span class="dqv37-section-count">{{ qa.route_rows|length }}</span>
+        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
+      </header>
+      <div class="dqv37-section-body">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'System' if is_en else 'النظام' }}</th>
+              <th>{{ 'Route' if is_en else 'المسار' }}</th>
+              <th>{{ 'Template' if is_en else 'القالب' }}</th>
+              <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+              <th>{{ 'Evidence' if is_en else 'الدليل' }}</th>
+              <th>{{ 'Details' if is_en else 'التفاصيل' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in qa.route_rows %}
+              <tr>
+                <td><strong>{{ row.system }}</strong><span class="table-sub">{{ row.section }}</span></td>
+                <td dir="ltr">{{ row.route }}</td>
+                <td dir="ltr">{{ row.template }}</td>
+                <td>{{ severity_badge(row.severity) }}</td>
+                <td>{{ row.evidence }}</td>
+                <td>{{ detail_block(row) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      <form class="dq-mock-form" onsubmit="return false">
-        <div class="form-row">
-          <label>
-            <span style="display:block;font-weight:800;color:#1f2a44;margin-bottom:6px">{{ 'Name' if is_en else 'الاسم' }}</span>
-            <input class="form-control" type="text" placeholder="{{ 'Type your name' if is_en else 'اكتب اسمك' }}">
-          </label>
-          <label>
-            <span style="display:block;font-weight:800;color:#1f2a44;margin-bottom:6px">{{ 'Email' if is_en else 'البريد' }}</span>
-            <input class="form-control" type="email" placeholder="user@example.com">
-          </label>
-        </div>
-        <div class="form-row">
-          <label>
-            <span style="display:block;font-weight:800;color:#1f2a44;margin-bottom:6px">{{ 'Plan' if is_en else 'الباقة' }}</span>
-            <select class="form-select">
-              <option>{{ 'Free' if is_en else 'مجاني' }}</option>
-              <option>{{ 'Standard' if is_en else 'قياسي' }}</option>
-              <option>{{ 'Pro Annual' if is_en else 'محترف سنوي' }}</option>
-            </select>
-          </label>
-          <label>
-            <span style="display:block;font-weight:800;color:#1f2a44;margin-bottom:6px">{{ 'Notes' if is_en else 'ملاحظات' }}</span>
-            <textarea class="form-control" rows="2" placeholder="{{ 'Optional' if is_en else 'اختياري' }}"></textarea>
-          </label>
-        </div>
-        <div class="dq-row" style="margin-top:8px">
-          <button class="btn btn-primary" type="button">{{ 'Save changes' if is_en else 'حفظ التعديلات' }}</button>
-          <button class="btn btn-outline-primary" type="button">{{ 'Cancel' if is_en else 'إلغاء' }}</button>
-        </div>
-      </form>
     </section>
 
-    <!-- 9. NOTES / WARNINGS -->
-    <section class="dq-section">
-      <h3 class="dq-label">{{ '04 · QA notes' if is_en else '04 · ملاحظات الفحص' }}</h3>
-      <div class="dq-note">{{ 'If any component below renders without expected styling, check unified_theme_v1.css cascade order in base.html. Last-loaded stylesheet wins.' if is_en else 'إذا ظهر أي مكوّن بلا تنسيق متوقّع، تحقّق من ترتيب التحميل في base.html. آخر ملف CSS يُحمّل يفوز.' }}</div>
+    {# Section 4 — Duplicate web routes (conditional, same data binding) #}
+    {% if qa.duplicate_web_routes %}
+    <section class="dqv37-section admin-card-v2" id="duplicate-routes">
+      <header class="dqv37-section-head">
+        <span class="dqv37-section-icon" aria-hidden="true">🔗</span>
+        <div class="dqv37-section-title-block">
+          <h3 class="dqv37-section-title">{{ 'Routes with multiple web endpoints' if is_en else 'مسارات ويب لها أكثر من endpoint' }}</h3>
+          <p class="dqv37-section-helper">{{ 'Informational only' if is_en else 'معلومات فقط' }}</p>
+        </div>
+        <span class="dqv37-section-count">{{ qa.duplicate_web_routes|length }}</span>
+        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
+      </header>
+      <div class="dqv37-section-body">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'Route' if is_en else 'المسار' }}</th>
+              <th>{{ 'Methods' if is_en else 'الطرق' }}</th>
+              <th>{{ 'Endpoints' if is_en else 'المصادر' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in qa.duplicate_web_routes %}
+              <tr>
+                <td dir="ltr">{{ row.route }}</td>
+                <td dir="ltr">{{ row.methods|join(', ') }}</td>
+                <td dir="ltr">{{ row.endpoints|join(', ') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {# Section 5 — Deferred / not audited here #}
+    <section class="dqv37-section admin-card-v2 is-recommendations" id="deferred">
+      <header class="dqv37-section-head">
+        <span class="dqv37-section-icon" aria-hidden="true">⏱️</span>
+        <div class="dqv37-section-title-block">
+          <h3 class="dqv37-section-title">{{ 'Checks intentionally not performed here' if is_en else 'فحوصات لا ينفذها هذا المركز' }}</h3>
+          <p class="dqv37-section-helper">{{ 'Deferred — outside web-only scope' if is_en else 'مؤجل بوضوح — خارج نطاق فحص الويب' }}</p>
+        </div>
+        <span class="dqv37-section-count">{{ qa.deferred|length }}</span>
+        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
+      </header>
+      <div class="dqv37-section-body">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'Area' if is_en else 'النطاق' }}</th>
+              <th>{{ 'Reason' if is_en else 'السبب' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in qa.deferred %}
+              <tr>
+                <td><strong>{{ row.system }}</strong></td>
+                <td>{{ row.reason }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </section>
 
   </main>

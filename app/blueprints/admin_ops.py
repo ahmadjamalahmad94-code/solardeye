@@ -14,6 +14,7 @@ from ..services.rbac import admin_landing_url
 from ..services.service_monitor import service_display_name, service_message, service_source_label
 from ..services.subscriptions import ensure_user_tenant_and_subscription
 from ..services.utils import format_local_datetime
+from ..services.web_design_qa import build_web_design_qa
 
 admin_ops_bp = Blueprint('admin_ops', __name__)
 
@@ -254,12 +255,13 @@ def admin_devices_center_v9():
 
 @admin_ops_bp.route('/admin/design-qa')
 def admin_design_qa():
-    """Design system showcase + regression-detection canvas.
+    """Web-only Design QA audit center.
 
-    Renders every reusable component from unified_theme_v1.css side-by-side.
-    Hidden from the sidebar; reach via direct URL only.
+    Keeps this page focused on server-rendered web routes/templates. It does
+    not grade machine-client endpoints or background systems.
     """
     guard = _admin_guard('can_manage_users')
     if guard:
         return guard
-    return render_template('admin_design_qa.html', ui_lang=_lang())
+    qa = build_web_design_qa(current_app)
+    return render_template('admin_design_qa.html', ui_lang=_lang(), qa=qa)
