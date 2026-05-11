@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set v40_build = 'v40-web-design-qa-original-polish' %}
+{% set v40_build = 'v41-web-design-qa-hero-summary-fix' %}
 {% block title %}{{ 'Smart Platform Review' if is_en else 'مراجعة المنصة الذكية' }}{% endblock %}
 
 {% block extra_head %}
@@ -165,7 +165,12 @@
     </nav>
 
     {# ════════════════════════ A) SUMMARY & STATE ════════════════════════ #}
-    <section class="dqv40-section dqv39-summary-grid dqv37-summary" id="summary" aria-label="{{ 'Summary' if is_en else 'الملخص والحالة العامة' }}">
+    {# v41 fix: dropped `dqv39-summary-grid` from the outer <section> — that
+       class declared a 4-col CSS grid which placed the inner card grid into
+       a single column, forcing the cards to stack. The outer is now a plain
+       flow wrapper; the inner `.dqv40-summary-grid` does the responsive
+       4 / 2 / 1 grid that the user expects. #}
+    <section class="dqv40-section dqv40-summary-section dqv37-summary" id="summary" aria-label="{{ 'Summary' if is_en else 'الملخص والحالة العامة' }}">
       <h2 class="dqv40-section-title-floating">{{ 'A · Summary & general state' if is_en else 'أ) الملخص والحالة العامة' }}</h2>
       <div class="dqv40-summary-grid">
         <article class="dqv39-summary-card success">

@@ -879,6 +879,39 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
+  align-items: stretch;          /* equal-height cards */
+}
+.dqv40-summary-grid > .dqv39-summary-card {
+  height: 100%;                  /* fill the grid track for equal height */
+}
+
+/* v41 — outer summary <section> is a plain flow container, not a grid.
+   This drops the prior 4-col CSS grid that was inadvertently shrinking
+   the inner grid into a single column. Top/bottom rhythm is preserved
+   for the section card stack. */
+.dqv40-summary-section {
+  display: block;
+  margin: 0 0 24px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* v41 — hero now actually paints the approved solar/sky background.
+   `.sd-hero-bg` defines --sd-hero-background but its `background:` rule
+   in hero_unified_v35.css is scoped to .hu-hero/.ns-hero only, so the
+   dqv40 hero was falling back to plain white. We re-apply the same
+   variable here (no new image, no new gradient — same approved feel). */
+.dqv40-hero.sd-hero-bg {
+  background: var(--sd-hero-background) !important;
+  background-color: #eaf3ff !important;   /* calm light-blue fallback */
+}
+/* Soft inner panel behind the hero copy so text contrast stays high
+   when the image's brighter regions show through the overlay. */
+.dqv40-hero.sd-hero-bg .dqv40-hero-copy {
+  position: relative;
+  isolation: isolate;
 }
 
 /* ─── Sub-heading inside a section (used in code-quality) ────────────── */
