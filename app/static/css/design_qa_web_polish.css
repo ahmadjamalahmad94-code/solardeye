@@ -607,3 +607,495 @@
     width: 100%;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   v40 — Original "مراجعة المنصة الذكية" identity restore
+   Layered on top of v39 (pagination + nav handlers stay byte-identical).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Hero with score circle + identity ─────────────────────────────── */
+.dqv40-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+  margin: 0 0 18px;
+  padding: 22px 26px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, .08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 1px 2px rgba(15, 23, 42, .04),
+    0 8px 28px rgba(15, 23, 42, .06);
+  overflow: hidden;
+  position: relative;
+}
+/* `.sd-hero-bg` (already loaded via base.html) paints the solar background
+   image. The hero text sits on the white overlay layer, so contrast stays
+   high without darkening the whole card. */
+
+.dqv40-hero-score {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dqv40-score-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.dqv40-score-ring-bg {
+  fill: none;
+  stroke: rgba(15, 23, 42, .08);
+  stroke-width: 3;
+}
+.dqv40-score-ring-fg {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray .35s ease;
+}
+.dqv40-score-ring-success .dqv40-score-ring-fg { stroke: #16a34a; }
+.dqv40-score-ring-warning .dqv40-score-ring-fg { stroke: #f59e0b; }
+.dqv40-score-ring-danger  .dqv40-score-ring-fg { stroke: #dc2626; }
+.dqv40-score-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dqv40-score-value strong {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -.02em;
+}
+.dqv40-score-value small {
+  margin-top: 4px;
+  font-size: .74rem;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: .04em;
+}
+
+.dqv40-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.dqv40-eyebrow {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, .12);
+  color: #4338ca;
+  border: 1px solid rgba(99, 102, 241, .25);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.dqv40-hero-title {
+  margin: 4px 0 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #0b1220;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.dqv40-hero-tagline {
+  margin: 0;
+  max-width: 720px;
+  color: #475569;
+  line-height: 1.65;
+  font-size: .92rem;
+}
+.dqv40-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dqv40-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(15, 23, 42, .08);
+  color: #0f172a;
+  font-size: .78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dqv40-hero-chip b {
+  font-weight: 900;
+  color: #1e293b;
+}
+.dqv40-hero-chip.is-success {
+  background: rgba(220, 252, 231, .85);
+  border-color: rgba(34, 197, 94, .28);
+  color: #166534;
+}
+.dqv40-hero-chip.is-warning {
+  background: rgba(254, 243, 199, .85);
+  border-color: rgba(245, 158, 11, .30);
+  color: #92400e;
+}
+.dqv40-build-chip {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 4px 10px;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #475569;
+  background: rgba(241, 245, 249, .85);
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ─── Insight cards row (best state / first priority / warning / tip) ── */
+.dqv40-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.dqv40-insight-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 1px 2px rgba(15, 23, 42, .04),
+    0 4px 18px rgba(15, 23, 42, .04);
+  position: relative;
+  overflow: hidden;
+}
+.dqv40-insight-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #cbd5e1;
+}
+.dqv40-insight-card.is-success::before { background: #16a34a; }
+.dqv40-insight-card.is-warning::before { background: #f59e0b; }
+.dqv40-insight-card.is-danger::before  { background: #dc2626; }
+.dqv40-insight-card.is-info::before    { background: #4338ca; }
+.dqv40-insight-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid rgba(15, 23, 42, .07);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.dqv40-insight-card.is-success .dqv40-insight-icon { background: rgba(220, 252, 231, .85); border-color: rgba(34, 197, 94, .28); color: #166534; }
+.dqv40-insight-card.is-warning .dqv40-insight-icon { background: rgba(254, 243, 199, .85); border-color: rgba(245, 158, 11, .30); color: #92400e; }
+.dqv40-insight-card.is-danger  .dqv40-insight-icon { background: rgba(254, 226, 226, .85); border-color: rgba(220, 38, 38, .28); color: #991b1b; }
+.dqv40-insight-card.is-info    .dqv40-insight-icon { background: rgba(238, 242, 255, .85); border-color: rgba(99, 102, 241, .28); color: #4338ca; }
+.dqv40-insight-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dqv40-insight-body small {
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+.dqv40-insight-body strong {
+  font-size: .95rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.35;
+}
+.dqv40-insight-body span {
+  font-size: .78rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.55;
+}
+.dqv40-insight-meta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #475569 !important;
+}
+
+/* ─── Section group (C) "Routes & Templates" wrapper title ─────────── */
+.dqv40-section-group {
+  margin: 0 0 14px;
+}
+.dqv40-section-group-title {
+  margin: 18px 4px 10px;
+  font-size: .82rem;
+  font-weight: 900;
+  color: #334155;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* The floating title sits over the summary section that uses the dqv39 grid
+   layout — we add a small label without breaking the existing grid. */
+.dqv40-section-title-floating {
+  margin: 18px 4px 10px;
+  font-size: .82rem;
+  font-weight: 900;
+  color: #334155;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  grid-column: 1 / -1;
+}
+.dqv40-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* ─── Sub-heading inside a section (used in code-quality) ────────────── */
+.dqv40-subhead {
+  margin: 6px 0 2px;
+  font-size: .92rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+.dqv40-subhead-helper {
+  margin: 0 0 10px;
+  font-size: .78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Flush variant for nested sections so they don't double-card */
+.dqv40-section-flush {
+  margin: 0;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.dqv40-section-flush > .dqv39-section-body {
+  padding: 0;
+}
+
+/* ─── Honest "this needs an external source" card (D, E) ─────────────── */
+.dqv40-honest-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(254, 252, 232, .85) 0%, rgba(255, 255, 255, .92) 100%);
+  border: 1px solid rgba(245, 158, 11, .22);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+.dqv40-honest-card.dqv40-honest-card-soft {
+  margin-top: 12px;
+  background: linear-gradient(135deg, rgba(238, 242, 255, .55) 0%, rgba(255, 255, 255, .92) 100%);
+  border-color: rgba(99, 102, 241, .18);
+}
+.dqv40-honest-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(254, 243, 199, .85);
+  border: 1px solid rgba(245, 158, 11, .28);
+  font-size: 1rem;
+  color: #92400e;
+}
+.dqv40-honest-card.dqv40-honest-card-soft .dqv40-honest-icon {
+  background: rgba(238, 242, 255, .85);
+  border-color: rgba(99, 102, 241, .28);
+  color: #4338ca;
+}
+.dqv40-honest-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dqv40-honest-body strong {
+  font-size: .9rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.45;
+}
+.dqv40-honest-body small {
+  font-size: .78rem;
+  color: #475569;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* ─── Beautiful green empty state (F & B no-issues) ──────────────────── */
+.dqv40-empty-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 28px 22px;
+  background: linear-gradient(135deg, rgba(220, 252, 231, .55) 0%, rgba(255, 255, 255, .92) 100%);
+  border: 1px dashed rgba(34, 197, 94, .35);
+  border-radius: 14px;
+  text-align: center;
+}
+.dqv40-empty-success > span {
+  font-size: 1.6rem;
+  margin-bottom: 2px;
+}
+.dqv40-empty-success strong {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+.dqv40-empty-success small {
+  font-size: .82rem;
+  color: #475569;
+  font-weight: 600;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+/* ─── Recommendations list (F) ──────────────────────────────────────── */
+.dqv40-recommend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.dqv40-recommend-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, .07);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+.dqv40-recommend-item-deferred {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(238, 242, 255, .35) 100%);
+}
+.dqv40-recommend-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eef2ff;
+  border: 1px solid rgba(99, 102, 241, .22);
+  color: #4338ca;
+  font-size: 1.02rem;
+  flex-shrink: 0;
+}
+.dqv40-recommend-item-deferred .dqv40-recommend-icon {
+  background: rgba(238, 242, 255, .85);
+}
+.dqv40-recommend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.dqv40-recommend-body strong {
+  font-size: .9rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+.dqv40-recommend-body span {
+  font-size: .82rem;
+  color: #475569;
+  font-weight: 600;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.dqv40-recommend-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+.dqv40-recommend-tag-derived {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* ─── Mobile responsiveness ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .dqv40-hero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    padding: 18px 18px;
+  }
+  .dqv40-hero-score {
+    width: 110px;
+    height: 110px;
+  }
+  .dqv40-score-value strong {
+    font-size: 1.95rem;
+  }
+  .dqv40-hero-title {
+    font-size: 1.35rem;
+  }
+}
+@media (max-width: 720px) {
+  .dqv40-insight-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dqv40-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dqv40-recommend-item {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .dqv40-recommend-item .dqv40-recommend-tag {
+    grid-column: 2 / span 1;
+    justify-self: start;
+    margin-top: 2px;
+  }
+}
