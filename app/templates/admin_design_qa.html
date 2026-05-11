@@ -11,8 +11,8 @@
    qa.source_rows, qa.route_rows, qa.duplicate_web_routes, qa.deferred)
    are read identically below. #}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/design_qa_web_polish.css', v='v37-web-design-qa-ui-polish') }}">
-<script defer src="{{ url_for('static', filename='js/design_qa_web_polish.js', v='v37-web-design-qa-ui-polish') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design_qa_web_polish.css', v='v38-web-design-qa-sidebar-ui') }}">
+<script defer src="{{ url_for('static', filename='js/design_qa_web_polish.js', v='v38-web-design-qa-sidebar-ui') }}"></script>
 {% endblock %}
 
 {% macro severity_badge(value) -%}
@@ -62,8 +62,25 @@
         {% if qa.summary.medium %}
           <span class="status-pill warning">{{ qa.summary.medium }} {{ 'medium' if is_en else 'متوسط' }}</span>
         {% endif %}
+        {# v38 build marker — calm chip, confirms the deployed bundle. #}
+        <span class="dqv37-build-chip" title="Deployed build">Build v38-web-design-qa-sidebar-ui</span>
       </div>
     </header>
+
+    {# v38 polish: short intro card explaining what this page audits.
+       Pure presentation — no Codex variable touched. #}
+    <section class="dqv37-intro-card" aria-label="{{ 'What this page checks' if is_en else 'ما الذي يفحصه هذا المركز' }}">
+      <span class="dqv37-intro-card-icon" aria-hidden="true">🧭</span>
+      <div class="dqv37-intro-card-body">
+        <h2 class="dqv37-intro-card-title">{{ 'What this page audits' if is_en else 'ما الذي يفحصه هذا المركز' }}</h2>
+        <ul class="dqv37-intro-card-list">
+          <li>{{ 'Web routes and the templates they actually render.' if is_en else 'مسارات الويب والقوالب التي تُعرض فعليًا منها.' }}</li>
+          <li>{{ 'Real source evidence — file paths, render_template calls, endpoint registration.' if is_en else 'الدليل الحقيقي من المصدر — مسارات الملفات، استدعاءات render_template، تسجيل المسارات.' }}</li>
+          <li>{{ 'Per-section severity (High / Medium / Low / OK) with reproducible evidence.' if is_en else 'خطورة لكل قسم (عالٍ / متوسط / منخفض / سليم) مع دليل قابل لإعادة الإنتاج.' }}</li>
+          <li>{{ 'Web-only — Mobile API, scheduler, dispatch, schema and reports are intentionally out of scope.' if is_en else 'الويب فقط — Mobile API، المجدول، الإرسال، المخطط، والتقارير مستثناة عمدًا.' }}</li>
+        </ul>
+      </div>
+    </section>
 
     {# v37 polish: summary cards keep `admin-kpi-card` for legacy fallback
        AND adopt `dqv37-summary-card` so the polish layer's severity-tinted

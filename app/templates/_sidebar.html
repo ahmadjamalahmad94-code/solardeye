@@ -86,6 +86,7 @@
       {% if has_permission('can_view_logs') %}{{ nav_item('activity','سجل العمليات','Activity Log',['users_routes.admin_activity_log','main.admin_activity_log'],url_for('main.admin_activity_log', lang=ui_lang),'clock') }}{% endif %}
       {% if has_permission('can_manage_roles') or has_permission('can_manage_users') %}{{ nav_item('roles','الأدوار والصلاحيات','Roles & Permissions',['access_control.admin_roles_v10','main.admin_roles'],url_for('access_control.admin_roles_v10', lang=ui_lang),'lock') }}{% endif %}
       {% if has_permission('can_view_logs') %}{{ nav_item('logs','لوح النظام والخدمات','System Logs',['users_routes.admin_system_logs','main.admin_system_logs'],url_for('main.admin_system_logs', lang=ui_lang),'panel') }}{% endif %}
+      {% if has_permission('can_view_logs') %}{{ nav_item('design_qa','فحص التصميم','Design QA',['admin_ops.admin_design_qa'],url_for('admin_ops.admin_design_qa', lang=ui_lang),'gauge') }}{% endif %}
       {# v33-ε-3: admin self-profile sidebar item. Visible only to admins/staff
          (sits inside g.is_admin branch). The /admin/me route is registered in
          users_routes.py so this item is safe to render unconditionally. #}

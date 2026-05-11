@@ -705,6 +705,91 @@ section.dqv37-summary {
   box-shadow: none;
 }
 
+/* ─── v38 additions — build chip + intro card ───────────────────────── */
+
+/* Small, calm build marker chip — sits in the hero action row. */
+.dqv37-build-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Intro card — explains the page's scope under the hero. */
+.dqv37-intro-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 14px 0 18px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(238, 242, 255, .55) 0%, rgba(255, 255, 255, .88) 100%);
+  border: 1px solid rgba(99, 102, 241, .18);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .60),
+    0 1px 2px rgba(15, 23, 42, .04),
+    0 4px 14px rgba(67, 56, 202, .055);
+}
+.dqv37-intro-card-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 1.05rem;
+  border: 1px solid rgba(99, 102, 241, .22);
+}
+.dqv37-intro-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.dqv37-intro-card-title {
+  margin: 0 0 6px;
+  font-size: .95rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -.01em;
+}
+.dqv37-intro-card-list {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 4px;
+}
+.dqv37-intro-card-list li {
+  font-size: .82rem;
+  line-height: 1.6;
+  color: #475569;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .dqv37-intro-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .dqv37-intro-card-icon {
+    width: 32px;
+    height: 32px;
+    font-size: .95rem;
+  }
+  .dqv37-intro-card-title {
+    font-size: .9rem;
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    CLASS CONTRACT FOR CODEX
 
