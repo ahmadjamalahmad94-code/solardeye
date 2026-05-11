@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-{% set v40_build = 'v41-web-design-qa-hero-summary-fix' %}
+{% set v40_build = 'v42-web-design-qa-table-row-polish' %}
 {% block title %}{{ 'Smart Platform Review' if is_en else 'مراجعة المنصة الذكية' }}{% endblock %}
 
 {% block extra_head %}
@@ -66,8 +66,13 @@
       <div class="dqv40-hero-score" aria-label="{{ 'Audit score' if is_en else 'مؤشر الفحص الكلي' }}">
         <svg class="dqv40-score-ring dqv40-score-ring-{{ _score_tone }}" viewBox="0 0 36 36" aria-hidden="true">
           <circle class="dqv40-score-ring-bg" cx="18" cy="18" r="15.9155" />
+          {# v43 fix: drop the +25 dashoffset. Earlier we double-counted the
+             starting offset (the SVG already gets `transform: rotate(-90deg)`
+             to start at 12 o'clock), so dashoffset=25 was *consuming* 25 of
+             the 100 stroke units — that's why score=100 painted only 75% of
+             the ring. With dashoffset=0 the full ring renders at score=100. #}
           <circle class="dqv40-score-ring-fg" cx="18" cy="18" r="15.9155"
-                  stroke-dasharray="{{ _score }} 100" stroke-dashoffset="25" />
+                  stroke-dasharray="{{ _score }} 100" stroke-dashoffset="0" />
         </svg>
         <div class="dqv40-score-value">
           <strong>{{ _score }}</strong>

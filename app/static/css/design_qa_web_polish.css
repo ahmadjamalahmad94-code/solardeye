@@ -885,6 +885,92 @@
   height: 100%;                  /* fill the grid track for equal height */
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   v42 — duplicate-routes table: let the المصادر / Endpoints column
+   actually use the empty cell width instead of leaving a narrow inline
+   pill floating with dead space around it.
+   ══════════════════════════════════════════════════════════════════════ */
+#duplicate-routes .dqv39-table {
+  table-layout: fixed;
+  width: 100% !important;
+  /* v46: kill the legacy `min-width: 860px` (from .dqv39-table at line 329)
+     so the table actually fills its wrap. That min-width is what was
+     reserving ~860 px and leaving everything to the start side blank. */
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+#duplicate-routes .dqv39-table th,
+#duplicate-routes .dqv39-table td {
+  vertical-align: top;
+}
+/* Column rhythm: short route + tight methods + wide endpoints. */
+#duplicate-routes .dqv39-table th:first-child,
+#duplicate-routes .dqv39-table td:first-child  { width: 22%; }
+#duplicate-routes .dqv39-table th:nth-child(2),
+#duplicate-routes .dqv39-table td:nth-child(2) { width: 15%; }
+#duplicate-routes .dqv39-table th:last-child,
+#duplicate-routes .dqv39-table td:last-child   { width: 63%; }
+
+/* v45: kill the leftover horizontal scroll inside the endpoint pill.
+   Root cause was that `.dqv39-table-wrap` (legacy v39 CSS) carries
+   `overflow-x: auto`, which collapsed our fixed-layout table to its
+   min-content width — so the td was narrower than expected, and the
+   pill (width:100%) was therefore narrower than the visible cell, and
+   the legacy overflow-x:auto on the pill kicked in.
+   Fix: on this section only, free the wrap so the fixed-layout table
+   actually claims its 100% slot, and have the pill clip + ellipsis
+   instead of scroll. Single line, full-cell-width, no scrollbar. */
+#duplicate-routes .dqv39-table-wrap {
+  overflow: visible !important;
+  width: 100%;
+  min-width: 0;
+}
+/* v47: the legacy `.dqv39-table code` rule (line ~366) sets
+   `display: inline-flex` + `max-width: 320px`. Our selector
+   has higher specificity, but `max-width` was never reset here,
+   so even with `width: 100%` the pill stayed capped at 320 px,
+   leaving empty space inside the cell. Force all three.
+   `min-width: 0` is required so the cell's intrinsic content
+   can shrink/expand to the column width instead of pinning a
+   minimum. */
+#duplicate-routes .dqv39-table td > code,
+#duplicate-routes .dqv39-table td code {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .76rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+#duplicate-routes .dqv39-table td {
+  min-width: 0;       /* allow the cell to shrink and let the
+                         child <code> drive width via 100%      */
+}
+/* Tablet/mobile: ditch fixed widths and let the row breathe; pills wrap. */
+@media (max-width: 900px) {
+  #duplicate-routes .dqv39-table {
+    table-layout: auto;
+  }
+  #duplicate-routes .dqv39-table th:first-child,
+  #duplicate-routes .dqv39-table td:first-child,
+  #duplicate-routes .dqv39-table th:nth-child(2),
+  #duplicate-routes .dqv39-table td:nth-child(2),
+  #duplicate-routes .dqv39-table th:last-child,
+  #duplicate-routes .dqv39-table td:last-child {
+    width: auto;
+  }
+}
+
 /* v41 — outer summary <section> is a plain flow container, not a grid.
    This drops the prior 4-col CSS grid that was inadvertently shrinking
    the inner grid into a single column. Top/bottom rhythm is preserved
@@ -1130,5 +1216,175 @@
     grid-column: 2 / span 1;
     justify-self: start;
     margin-top: 2px;
+  }
+}
+
+/* v42 - final table-row polish. Scoped to the Design QA page only. */
+.dqv40-page .dqv39-table-wrap {
+  border-color: rgba(148, 163, 184, .24);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .045);
+}
+
+.dqv40-page .dqv39-table {
+  table-layout: auto;
+}
+
+.dqv40-page .dqv39-table thead th {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef5fd 100%);
+  color: #334155;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.dqv40-page .dqv39-table tbody td {
+  padding: 15px 16px;
+  color: #172033;
+  line-height: 1.7;
+  vertical-align: middle;
+}
+
+.dqv40-page .dqv39-table tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, .72);
+}
+
+.dqv40-page .dqv39-table tbody tr:hover td {
+  background: #f2f7ff;
+}
+
+.dqv40-page .dqv39-table tbody tr[data-dqv39-row] td:first-child {
+  font-weight: 760;
+}
+
+.dqv40-page .dqv39-table td > strong {
+  color: #0f172a;
+}
+
+.dqv40-page .dqv39-table code {
+  display: inline-block;
+  max-width: min(360px, 100%);
+  padding: 5px 9px;
+  border-color: #d6e1ef;
+  background: #f7fafc;
+  color: #1e293b;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.dqv40-page .dqv39-sub {
+  margin-top: 5px;
+  color: #52637a;
+  line-height: 1.55;
+}
+
+.dqv40-page .dqv39-status {
+  min-height: 28px;
+  min-width: 68px;
+  padding: 4px 11px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .58);
+}
+
+.dqv40-page .dqv39-status-success {
+  background: #eefdf4;
+  color: #14532d;
+}
+
+.dqv40-page .dqv39-status-warning {
+  background: #fff8e6;
+  color: #7c3f0b;
+}
+
+.dqv40-page .dqv39-status-danger {
+  background: #fff1f2;
+  color: #881337;
+}
+
+.dqv40-page .dqv39-view-btn {
+  justify-content: center;
+  min-width: 64px;
+  min-height: 32px;
+  padding: 6px 13px;
+  border-color: #cbd8ff;
+  background: #f4f7ff;
+  color: #3730a3;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.dqv40-page .dqv39-view-btn:hover,
+.dqv40-page .dqv39-detail[open] .dqv39-view-btn {
+  border-color: #aebcff;
+  background: #e8edff;
+  color: #312e81;
+}
+
+.dqv40-page .dqv39-detail pre {
+  margin-top: 12px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.dqv40-page .dqv39-no-detail {
+  color: #5f6f86;
+}
+
+.dqv40-page .dqv39-pager {
+  margin-top: 16px;
+  border-color: rgba(148, 163, 184, .28);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .035);
+}
+
+.dqv40-page .dqv39-pager-meta,
+.dqv40-page .dqv39-pager-page {
+  color: #334155;
+}
+
+.dqv40-page .dqv39-pager button,
+.dqv40-page .dqv39-pager select {
+  border-color: #cbd6e7;
+  background: #fff;
+  color: #24344f;
+}
+
+.dqv40-page .dqv39-pager button:not(:disabled):hover,
+.dqv40-page .dqv39-pager select:hover {
+  border-color: #aebcff;
+  background: #f4f7ff;
+}
+
+.dqv40-page .dqv40-recommend-item {
+  padding: 14px 16px;
+  border-color: rgba(148, 163, 184, .22);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .035);
+}
+
+@media (max-width: 720px) {
+  .dqv40-page .dqv39-table-wrap {
+    overflow-x: auto;
+  }
+
+  .dqv40-page .dqv39-table {
+    min-width: 760px;
+  }
+
+  .dqv40-page .dqv39-table thead th,
+  .dqv40-page .dqv39-table tbody td {
+    padding: 13px 14px;
+  }
+
+  .dqv40-page .dqv39-pager {
+    align-items: stretch;
+  }
+
+  .dqv40-page .dqv39-pager-actions {
+    width: 100%;
+  }
+
+  .dqv40-page .dqv39-pager button,
+  .dqv40-page .dqv39-pager select,
+  .dqv40-page .dqv39-pager-page {
+    flex: 1 1 auto;
   }
 }
