@@ -1,159 +1,128 @@
 {% extends 'base.html' %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set v39_build = 'v39-web-design-qa-visual-pagination' %}
 {% block title %}{{ 'Web Design QA' if is_en else 'مختبر جودة واجهات الويب' }}{% endblock %}
 
-{# v37-web-design-qa-ui-polish: load the shared polish stylesheet + the
-   progressive JS. The new file pair is additive — `admin-card-v2`,
-   `.admin-table-v2`, `.status-pill`, `.empty-box-v2`, etc. continue to
-   render their existing styles; the polish layer just adds the dqv37-*
-   wrappers, collapsible section behavior, sticky nav, and copy-to-clip
-   on code pills. Codex's audit data variables (qa.summary, qa.issues,
-   qa.source_rows, qa.route_rows, qa.duplicate_web_routes, qa.deferred)
-   are read identically below. #}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/design_qa_web_polish.css', v='v38-web-design-qa-sidebar-ui') }}">
-<script defer src="{{ url_for('static', filename='js/design_qa_web_polish.js', v='v38-web-design-qa-sidebar-ui') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design_qa_web_polish.css', v=v39_build) }}">
+<script defer src="{{ url_for('static', filename='js/design_qa_web_polish.js', v=v39_build) }}"></script>
 {% endblock %}
 
 {% macro severity_badge(value) -%}
   {% if value == 'high' %}
-    <span class="status-pill danger">{{ 'High' if is_en else 'عالٍ' }}</span>
+    <span class="dqv39-status dqv39-status-danger">{{ 'High' if is_en else 'عالٍ' }}</span>
   {% elif value == 'medium' %}
-    <span class="status-pill warning">{{ 'Medium' if is_en else 'متوسط' }}</span>
+    <span class="dqv39-status dqv39-status-warning">{{ 'Medium' if is_en else 'متوسط' }}</span>
   {% elif value == 'low' %}
-    <span class="status-pill warning">{{ 'Low' if is_en else 'منخفض' }}</span>
+    <span class="dqv39-status dqv39-status-warning">{{ 'Low' if is_en else 'منخفض' }}</span>
   {% else %}
-    <span class="status-pill success">{{ 'OK' if is_en else 'سليم' }}</span>
+    <span class="dqv39-status dqv39-status-success">{{ 'OK' if is_en else 'سليم' }}</span>
   {% endif %}
 {%- endmacro %}
 
-{# v37 polish: detail "View" button rendered as the dqv37 pill style.
-   The <details>/<summary> behavior is preserved — only the visual class
-   changes. Falls back gracefully if the polish CSS doesn't load. #}
 {% macro detail_block(row) -%}
   {% if row.detail_payload %}
-    <details>
-      <summary class="dqv37-view-btn">{{ 'View' if is_en else 'عرض' }}</summary>
+    <details class="dqv39-detail">
+      <summary class="dqv39-view-btn dqv37-view-btn">{{ 'View' if is_en else 'عرض' }}</summary>
       <pre dir="ltr">{{ row.detail_payload|tojson(indent=2) }}</pre>
     </details>
   {% else %}
-    <span class="dqv37-no-detail">{{ 'No extra details' if is_en else 'لا توجد تفاصيل إضافية.' }}</span>
+    <span class="dqv39-no-detail">{{ 'No extra details' if is_en else 'لا توجد تفاصيل إضافية.' }}</span>
   {% endif %}
+{%- endmacro %}
+
+{% macro section_shell(id, icon, title, helper, count, page_size=10) -%}
+  <section class="dqv39-section dqv37-section" id="{{ id }}" data-dqv39-paginated data-dqv39-page-size="{{ page_size }}">
+    <header class="dqv39-section-head">
+      <span class="dqv39-section-icon" aria-hidden="true">{{ icon }}</span>
+      <div class="dqv39-section-title-block">
+        <h2 class="dqv39-section-title">{{ title }}</h2>
+        <p class="dqv39-section-helper">{{ helper }}</p>
+      </div>
+      <span class="dqv39-section-count">{{ count }}</span>
+    </header>
+    <div class="dqv39-section-body">
+      {{ caller() }}
+    </div>
+  </section>
 {%- endmacro %}
 
 {% block body %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2">
+  <main class="app-main content-area admin-shell-v2 dqv39-page dqv37-page">
 
-    <header class="admin-page-head">
-      <div>
-        <span class="eyebrow">{{ 'Web-only audit' if is_en else 'فحص ويب فقط' }}</span>
-        <h1>{{ 'Design QA Playground' if is_en else 'مختبر جودة التصميم' }}</h1>
+    <header class="dqv39-hero">
+      <div class="dqv39-hero-copy">
+        <span class="dqv39-eyebrow">{{ 'Web-only command center' if is_en else 'مركز فحص الويب فقط' }}</span>
+        <h1>{{ 'SolarDeye Design QA Command Center' if is_en else 'مركز جودة تصميم SolarDeye' }}</h1>
         <p>
-          {{ 'Checks server-rendered web routes, their templates, and source evidence without grading mobile or background systems.' if is_en else 'يفحص مسارات الويب المعروضة من الخادم، والقوالب المرتبطة بها، ودليل المصدر الحقيقي بدون تقييم أنظمة الخلفية أو عملاء الأجهزة.' }}
+          {{ 'A focused audit workspace for server-rendered web pages, template evidence, and route mapping. Non-web systems are intentionally outside this page.' if is_en else 'مساحة فحص مركزة لصفحات الويب المعروضة من الخادم، ودليل القوالب، وربط المسارات. الأنظمة غير الويب خارج نطاق هذه الصفحة عمدًا.' }}
         </p>
       </div>
-      <div class="admin-head-actions">
-        <span class="status-pill success">{{ qa.summary.ok_sources }} {{ 'verified' if is_en else 'موثق' }}</span>
-        {% if qa.summary.high %}
-          <span class="status-pill danger">{{ qa.summary.high }} {{ 'high' if is_en else 'عالٍ' }}</span>
-        {% endif %}
-        {% if qa.summary.medium %}
-          <span class="status-pill warning">{{ qa.summary.medium }} {{ 'medium' if is_en else 'متوسط' }}</span>
-        {% endif %}
-        {# v38 build marker — calm chip, confirms the deployed bundle. #}
-        <span class="dqv37-build-chip" title="Deployed build">Build v38-web-design-qa-sidebar-ui</span>
+      <div class="dqv39-hero-panel">
+        <span class="dqv39-build-chip">{{ v39_build }}</span>
+        <div class="dqv39-hero-pills" aria-label="{{ 'Audit summary' if is_en else 'ملخص الفحص' }}">
+          <span class="dqv39-hero-pill success"><b>{{ qa.summary.ok_sources }}</b> {{ 'verified' if is_en else 'موثق' }}</span>
+          <span class="dqv39-hero-pill"><b>{{ qa.summary.systems }}</b> {{ 'systems' if is_en else 'نظام' }}</span>
+          {% if qa.summary.high %}
+            <span class="dqv39-hero-pill danger"><b>{{ qa.summary.high }}</b> {{ 'high' if is_en else 'عالٍ' }}</span>
+          {% endif %}
+          {% if qa.summary.medium %}
+            <span class="dqv39-hero-pill warning"><b>{{ qa.summary.medium }}</b> {{ 'medium' if is_en else 'متوسط' }}</span>
+          {% endif %}
+        </div>
       </div>
     </header>
 
-    {# v38 polish: short intro card explaining what this page audits.
-       Pure presentation — no Codex variable touched. #}
-    <section class="dqv37-intro-card" aria-label="{{ 'What this page checks' if is_en else 'ما الذي يفحصه هذا المركز' }}">
-      <span class="dqv37-intro-card-icon" aria-hidden="true">🧭</span>
-      <div class="dqv37-intro-card-body">
-        <h2 class="dqv37-intro-card-title">{{ 'What this page audits' if is_en else 'ما الذي يفحصه هذا المركز' }}</h2>
-        <ul class="dqv37-intro-card-list">
-          <li>{{ 'Web routes and the templates they actually render.' if is_en else 'مسارات الويب والقوالب التي تُعرض فعليًا منها.' }}</li>
-          <li>{{ 'Real source evidence — file paths, render_template calls, endpoint registration.' if is_en else 'الدليل الحقيقي من المصدر — مسارات الملفات، استدعاءات render_template، تسجيل المسارات.' }}</li>
-          <li>{{ 'Per-section severity (High / Medium / Low / OK) with reproducible evidence.' if is_en else 'خطورة لكل قسم (عالٍ / متوسط / منخفض / سليم) مع دليل قابل لإعادة الإنتاج.' }}</li>
-          <li>{{ 'Web-only — Mobile API, scheduler, dispatch, schema and reports are intentionally out of scope.' if is_en else 'الويب فقط — Mobile API، المجدول، الإرسال، المخطط، والتقارير مستثناة عمدًا.' }}</li>
-        </ul>
+    <section class="dqv39-intro" aria-label="{{ 'Scope' if is_en else 'نطاق الفحص' }}">
+      <div>
+        <strong>{{ 'Honest web QA, not fake pass/fail.' if is_en else 'فحص ويب صريح بدون نجاحات وهمية.' }}</strong>
+        <span>{{ 'Each row keeps the original audit evidence and details payload. Pagination is client-side only and all rows remain visible if JavaScript is unavailable.' if is_en else 'كل صف يحتفظ بدليل الفحص وتفاصيله الأصلية. التصفح داخل الجداول يتم من المتصفح فقط، وتبقى كل الصفوف ظاهرة إذا لم يعمل JavaScript.' }}</span>
       </div>
     </section>
 
-    {# v37 polish: summary cards keep `admin-kpi-card` for legacy fallback
-       AND adopt `dqv37-summary-card` so the polish layer's severity-tinted
-       glass + tabular-nums + equal-height rules apply. The is-*
-       modifier is computed from the same qa.summary fields. #}
-    <section class="dqv37-summary admin-kpi-grid-v2" aria-label="{{ 'Audit summary' if is_en else 'ملخص الفحص' }}">
-      <article class="dqv37-summary-card admin-kpi-card is-success">
-        <span class="dqv37-summary-card-icon" aria-hidden="true">🛠️</span>
+    <section class="dqv39-summary-grid dqv37-summary" aria-label="{{ 'Audit counters' if is_en else 'عدادات الفحص' }}">
+      <article class="dqv39-summary-card success">
+        <span class="dqv39-card-icon" aria-hidden="true">✓</span>
         <small>{{ 'Systems checked' if is_en else 'الأنظمة المفحوصة' }}</small>
         <strong>{{ qa.summary.systems }}</strong>
         <span>{{ 'Curated web pages only' if is_en else 'صفحات ويب محددة فقط' }}</span>
       </article>
-      <article class="dqv37-summary-card admin-kpi-card is-success">
-        <span class="dqv37-summary-card-icon" aria-hidden="true">🔍</span>
+      <article class="dqv39-summary-card info">
+        <span class="dqv39-card-icon" aria-hidden="true">↗</span>
         <small>{{ 'Routes checked' if is_en else 'المسارات المفحوصة' }}</small>
         <strong>{{ qa.summary.routes_checked }}</strong>
         <span>{{ 'No machine-client routes' if is_en else 'بدون مسارات عملاء الأجهزة' }}</span>
       </article>
-      <article class="dqv37-summary-card admin-kpi-card {{ 'is-error' if qa.summary.high else ('is-warning' if qa.summary.medium else 'is-success') }}">
-        <span class="dqv37-summary-card-icon" aria-hidden="true">⚠️</span>
+      <article class="dqv39-summary-card {{ 'danger' if qa.summary.high else ('warning' if qa.summary.medium else 'success') }}">
+        <span class="dqv39-card-icon" aria-hidden="true">!</span>
         <small>{{ 'Open issues' if is_en else 'الملاحظات المفتوحة' }}</small>
         <strong>{{ qa.summary.issues }}</strong>
         <span>{{ 'Only real source gaps are listed' if is_en else 'تُعرض فجوات المصدر الحقيقية فقط' }}</span>
       </article>
-      <article class="dqv37-summary-card admin-kpi-card">
-        <span class="dqv37-summary-card-icon" aria-hidden="true">🔗</span>
+      <article class="dqv39-summary-card neutral">
+        <span class="dqv39-card-icon" aria-hidden="true">#</span>
         <small>{{ 'Route aliases' if is_en else 'مسارات لها أكثر من مصدر' }}</small>
         <strong>{{ qa.summary.duplicate_web_routes }}</strong>
         <span>{{ 'Informational, not auto-fail' if is_en else 'معلومة فقط وليست فشلًا تلقائيًا' }}</span>
       </article>
     </section>
 
-    {# v37 polish: sticky in-page nav. Counts come from the row arrays
-       Codex already populates — pure presentation, no data mutation. #}
-    <nav class="dqv37-nav" aria-label="{{ 'Jump to section' if is_en else 'الانتقال إلى قسم' }}">
-      <a href="#smart-review" class="is-active">
-        {{ 'Smart review' if is_en else 'المراجعة الذكية' }}
-        <span class="dqv37-nav-count">{{ qa.issues|length }}</span>
-      </a>
-      <a href="#source-verification">
-        {{ 'Source verification' if is_en else 'تحقق المصدر' }}
-        <span class="dqv37-nav-count">{{ qa.source_rows|length }}</span>
-      </a>
-      <a href="#route-existence">
-        {{ 'Route existence' if is_en else 'وجود المسارات' }}
-        <span class="dqv37-nav-count">{{ qa.route_rows|length }}</span>
-      </a>
+    <nav class="dqv39-nav dqv37-nav" aria-label="{{ 'Design QA sections' if is_en else 'أقسام فحص التصميم' }}">
+      <a href="#smart-review">{{ 'Smart review' if is_en else 'المراجعة الذكية' }} <span>{{ qa.issues|length }}</span></a>
+      <a href="#source-verification">{{ 'Source verification' if is_en else 'تحقق المصدر' }} <span>{{ qa.source_rows|length }}</span></a>
+      <a href="#route-existence">{{ 'Route existence' if is_en else 'وجود المسارات' }} <span>{{ qa.route_rows|length }}</span></a>
       {% if qa.duplicate_web_routes %}
-      <a href="#duplicate-routes">
-        {{ 'Duplicate routes' if is_en else 'مسارات مكررة' }}
-        <span class="dqv37-nav-count">{{ qa.duplicate_web_routes|length }}</span>
-      </a>
+        <a href="#duplicate-routes">{{ 'Duplicate routes' if is_en else 'المسارات المتعددة' }} <span>{{ qa.duplicate_web_routes|length }}</span></a>
       {% endif %}
-      <a href="#deferred">
-        {{ 'Deferred' if is_en else 'مؤجل' }}
-        <span class="dqv37-nav-count">{{ qa.deferred|length }}</span>
-      </a>
+      <a href="#deferred">{{ 'Deferred' if is_en else 'المؤجل' }} <span>{{ qa.deferred|length }}</span></a>
     </nav>
 
-    {# Section 1 — Smart review (issues) #}
-    <section class="dqv37-section admin-card-v2" id="smart-review">
-      <header class="dqv37-section-head">
-        <span class="dqv37-section-icon" aria-hidden="true">🧠</span>
-        <div class="dqv37-section-title-block">
-          <h3 class="dqv37-section-title">{{ 'Detected web QA issues' if is_en else 'الملاحظات المكتشفة في فحص الويب' }}</h3>
-          <p class="dqv37-section-helper">{{ 'Smart review' if is_en else 'المراجعة الذكية' }}</p>
-        </div>
-        <span class="dqv37-section-count">{{ qa.issues|length }}</span>
-        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
-      </header>
-      <div class="dqv37-section-body">
-        {% if qa.issues %}
-          <table class="admin-table-v2">
+    {% call section_shell('smart-review', '◇', ('Detected web QA issues' if is_en else 'الملاحظات المكتشفة في فحص الويب'), ('Clear findings only. If the list is empty, no open web audit issues are currently reported.' if is_en else 'يعرض الملاحظات الواضحة فقط. إذا كان القسم فارغًا فلا توجد ملاحظات ويب مفتوحة حاليًا.'), qa.issues|length, 10) %}
+      {% if qa.issues %}
+        <div class="dqv39-table-wrap">
+          <table class="dqv39-table admin-table-v2">
             <thead>
               <tr>
                 <th>{{ 'Issue type' if is_en else 'نوع الملاحظة' }}</th>
@@ -167,11 +136,11 @@
             </thead>
             <tbody>
               {% for row in qa.issues %}
-                <tr>
+                <tr data-dqv39-row>
                   <td><strong>{{ row.issue_type }}</strong></td>
                   <td>{{ severity_badge(row.severity) }}</td>
-                  <td><strong>{{ row.system }}</strong><span class="table-sub">{{ row.section }}</span></td>
-                  <td dir="ltr">{{ row.template }}</td>
+                  <td><strong>{{ row.system }}</strong><span class="dqv39-sub">{{ row.section }}</span></td>
+                  <td><code>{{ row.template }}</code></td>
                   <td>{{ row.evidence }}</td>
                   <td>{{ row.recommendation }}</td>
                   <td>{{ detail_block(row) }}</td>
@@ -179,29 +148,20 @@
               {% endfor %}
             </tbody>
           </table>
-        {% else %}
-          <div class="dqv37-empty">
-            <span class="dqv37-empty-icon" aria-hidden="true">🟢</span>
-            <strong>{{ 'No web QA issues were detected.' if is_en else 'لم يتم اكتشاف ملاحظات ويب مفتوحة.' }}</strong>
-            <small>{{ 'Re-run the audit after any UI change to keep this clean.' if is_en else 'أعد تشغيل الفحص بعد أي تعديل بصري للحفاظ على هذه النتيجة.' }}</small>
-          </div>
-        {% endif %}
-      </div>
-    </section>
-
-    {# Section 2 — Source verification #}
-    <section class="dqv37-section admin-card-v2" id="source-verification">
-      <header class="dqv37-section-head">
-        <span class="dqv37-section-icon" aria-hidden="true">🧾</span>
-        <div class="dqv37-section-title-block">
-          <h3 class="dqv37-section-title">{{ 'Route, template, and render source evidence' if is_en else 'دليل المسار والقالب ومصدر render_template' }}</h3>
-          <p class="dqv37-section-helper">{{ 'Source verification' if is_en else 'تحقق المصدر' }}</p>
         </div>
-        <span class="dqv37-section-count">{{ qa.source_rows|length }}</span>
-        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
-      </header>
-      <div class="dqv37-section-body">
-        <table class="admin-table-v2">
+      {% else %}
+        <div class="dqv39-empty">
+          <span aria-hidden="true">✓</span>
+          <strong>{{ 'No open issues right now' if is_en else 'لا توجد ملاحظات مفتوحة حاليًا' }}</strong>
+          <small>{{ 'All checked items are documented.' if is_en else 'كل العناصر المفحوصة موثقة.' }}</small>
+        </div>
+      {% endif %}
+      <div class="dqv39-pager" data-dqv39-pager></div>
+    {% endcall %}
+
+    {% call section_shell('source-verification', '◈', ('Route, template, and render source evidence' if is_en else 'دليل المسار والقالب ومصدر render_template'), ('Confirms that each web page has a route, a template, and source evidence.' if is_en else 'يتأكد أن لكل صفحة ويب مسارًا وقالبًا ودليل مصدر واضحًا.'), qa.source_rows|length, 10) %}
+      <div class="dqv39-table-wrap">
+        <table class="dqv39-table admin-table-v2">
           <thead>
             <tr>
               <th>{{ 'System' if is_en else 'النظام' }}</th>
@@ -215,11 +175,11 @@
           </thead>
           <tbody>
             {% for row in qa.source_rows %}
-              <tr>
+              <tr data-dqv39-row>
                 <td><strong>{{ row.system }}</strong></td>
                 <td>{{ row.section }}</td>
-                <td dir="ltr">{{ row.route }}</td>
-                <td dir="ltr">{{ row.template }}</td>
+                <td><code>{{ row.route }}</code></td>
+                <td><code>{{ row.template }}</code></td>
                 <td>{{ severity_badge(row.severity) }}</td>
                 <td>{{ row.evidence }}</td>
                 <td>{{ detail_block(row) }}</td>
@@ -228,21 +188,12 @@
           </tbody>
         </table>
       </div>
-    </section>
+      <div class="dqv39-pager" data-dqv39-pager></div>
+    {% endcall %}
 
-    {# Section 3 — Route existence #}
-    <section class="dqv37-section admin-card-v2" id="route-existence">
-      <header class="dqv37-section-head">
-        <span class="dqv37-section-icon" aria-hidden="true">🛣️</span>
-        <div class="dqv37-section-title-block">
-          <h3 class="dqv37-section-title">{{ 'Web route and template mappings' if is_en else 'ربط مسارات الويب بالقوالب' }}</h3>
-          <p class="dqv37-section-helper">{{ 'Route existence' if is_en else 'وجود المسارات' }}</p>
-        </div>
-        <span class="dqv37-section-count">{{ qa.route_rows|length }}</span>
-        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
-      </header>
-      <div class="dqv37-section-body">
-        <table class="admin-table-v2">
+    {% call section_shell('route-existence', '⌁', ('Web route and template mappings' if is_en else 'ربط مسارات الويب بالقوالب'), ('Checks that expected web routes and templates still exist without inspecting non-web routes.' if is_en else 'يتأكد من وجود مسارات الويب والقوالب المتوقعة بدون فحص المسارات غير الويب.'), qa.route_rows|length, 10) %}
+      <div class="dqv39-table-wrap">
+        <table class="dqv39-table admin-table-v2">
           <thead>
             <tr>
               <th>{{ 'System' if is_en else 'النظام' }}</th>
@@ -255,10 +206,10 @@
           </thead>
           <tbody>
             {% for row in qa.route_rows %}
-              <tr>
-                <td><strong>{{ row.system }}</strong><span class="table-sub">{{ row.section }}</span></td>
-                <td dir="ltr">{{ row.route }}</td>
-                <td dir="ltr">{{ row.template }}</td>
+              <tr data-dqv39-row>
+                <td><strong>{{ row.system }}</strong><span class="dqv39-sub">{{ row.section }}</span></td>
+                <td><code>{{ row.route }}</code></td>
+                <td><code>{{ row.template }}</code></td>
                 <td>{{ severity_badge(row.severity) }}</td>
                 <td>{{ row.evidence }}</td>
                 <td>{{ detail_block(row) }}</td>
@@ -267,56 +218,38 @@
           </tbody>
         </table>
       </div>
-    </section>
+      <div class="dqv39-pager" data-dqv39-pager></div>
+    {% endcall %}
 
-    {# Section 4 — Duplicate web routes (conditional, same data binding) #}
     {% if qa.duplicate_web_routes %}
-    <section class="dqv37-section admin-card-v2" id="duplicate-routes">
-      <header class="dqv37-section-head">
-        <span class="dqv37-section-icon" aria-hidden="true">🔗</span>
-        <div class="dqv37-section-title-block">
-          <h3 class="dqv37-section-title">{{ 'Routes with multiple web endpoints' if is_en else 'مسارات ويب لها أكثر من endpoint' }}</h3>
-          <p class="dqv37-section-helper">{{ 'Informational only' if is_en else 'معلومات فقط' }}</p>
-        </div>
-        <span class="dqv37-section-count">{{ qa.duplicate_web_routes|length }}</span>
-        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
-      </header>
-      <div class="dqv37-section-body">
-        <table class="admin-table-v2">
-          <thead>
-            <tr>
-              <th>{{ 'Route' if is_en else 'المسار' }}</th>
-              <th>{{ 'Methods' if is_en else 'الطرق' }}</th>
-              <th>{{ 'Endpoints' if is_en else 'المصادر' }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in qa.duplicate_web_routes %}
+      {% call section_shell('duplicate-routes', '≋', ('Routes with multiple web endpoints' if is_en else 'مسارات ويب لها أكثر من endpoint'), ('Informational table. Duplicate web registrations are shown for review, not marked as automatic failures.' if is_en else 'جدول معلوماتي. تظهر التسجيلات المتعددة للمراجعة ولا تُعد فشلًا تلقائيًا.'), qa.duplicate_web_routes|length, 10) %}
+        <div class="dqv39-table-wrap">
+          <table class="dqv39-table admin-table-v2">
+            <thead>
               <tr>
-                <td dir="ltr">{{ row.route }}</td>
-                <td dir="ltr">{{ row.methods|join(', ') }}</td>
-                <td dir="ltr">{{ row.endpoints|join(', ') }}</td>
+                <th>{{ 'Route' if is_en else 'المسار' }}</th>
+                <th>{{ 'Methods' if is_en else 'الطرق' }}</th>
+                <th>{{ 'Endpoints' if is_en else 'المصادر' }}</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {% for row in qa.duplicate_web_routes %}
+                <tr data-dqv39-row>
+                  <td><code>{{ row.route }}</code></td>
+                  <td><code>{{ row.methods|join(', ') }}</code></td>
+                  <td><code>{{ row.endpoints|join(', ') }}</code></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="dqv39-pager" data-dqv39-pager></div>
+      {% endcall %}
     {% endif %}
 
-    {# Section 5 — Deferred / not audited here #}
-    <section class="dqv37-section admin-card-v2 is-recommendations" id="deferred">
-      <header class="dqv37-section-head">
-        <span class="dqv37-section-icon" aria-hidden="true">⏱️</span>
-        <div class="dqv37-section-title-block">
-          <h3 class="dqv37-section-title">{{ 'Checks intentionally not performed here' if is_en else 'فحوصات لا ينفذها هذا المركز' }}</h3>
-          <p class="dqv37-section-helper">{{ 'Deferred — outside web-only scope' if is_en else 'مؤجل بوضوح — خارج نطاق فحص الويب' }}</p>
-        </div>
-        <span class="dqv37-section-count">{{ qa.deferred|length }}</span>
-        <span class="dqv37-section-chevron" aria-hidden="true">▾</span>
-      </header>
-      <div class="dqv37-section-body">
-        <table class="admin-table-v2">
+    {% call section_shell('deferred', '□', ('Checks intentionally not performed here' if is_en else 'فحوصات لا ينفذها هذا المركز'), ('Clearly labeled deferred items so the page stays honest about scope.' if is_en else 'عناصر مؤجلة بوضوح حتى يبقى نطاق الصفحة صريحًا.'), qa.deferred|length, 10) %}
+      <div class="dqv39-table-wrap">
+        <table class="dqv39-table admin-table-v2">
           <thead>
             <tr>
               <th>{{ 'Area' if is_en else 'النطاق' }}</th>
@@ -325,7 +258,7 @@
           </thead>
           <tbody>
             {% for row in qa.deferred %}
-              <tr>
+              <tr data-dqv39-row>
                 <td><strong>{{ row.system }}</strong></td>
                 <td>{{ row.reason }}</td>
               </tr>
@@ -333,7 +266,8 @@
           </tbody>
         </table>
       </div>
-    </section>
+      <div class="dqv39-pager" data-dqv39-pager></div>
+    {% endcall %}
 
   </main>
 </div>

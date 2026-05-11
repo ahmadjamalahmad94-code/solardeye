@@ -1,860 +1,609 @@
-/* ════════════════════════════════════════════════════════════════════════
-   design_qa_web_polish.css — v37 web UI polish for /admin/design-qa
-   Web-only. No backend/API/mobile concerns. No template restructuring.
+/* v39-web-design-qa-visual-pagination
+   Scoped visual polish for /admin/design-qa only. */
 
-   Scope split:
-     1. Polish for the EXISTING `.dq-*` showcase rules already inline in
-        admin_design_qa.html. Layout-only refinements (spacing, max-width,
-        soft cards, mobile). Doesn't change which markup the template ships.
-     2. A forward-compatible `.dqv37-*` namespace for the AUDIT report layout
-        the screenshot describes (Smart Review / Source Verification / Route
-        Existence / Recommendations). These rules lie dormant until Codex
-        names the audit DOM with these classes. The contract is documented
-        at the bottom of this file.
-
-   Class contract for Codex (see bottom of file).
-   ════════════════════════════════════════════════════════════════════════ */
-
-/* ─── 1. Page shell polish — applied to the existing showcase ───────── */
-.admin-shell-v2 .dq-section,
-.admin-shell-v2 > section {
-  margin-top: 22px;
-}
-.admin-shell-v2 .dq-section:first-of-type,
-.admin-shell-v2 > section:first-of-type {
-  margin-top: 18px;
+.dqv39-page {
+  width: min(100%, 1360px);
+  margin-inline: auto;
+  padding-bottom: 40px;
+  color: #172033;
 }
 
-/* Constrain content to a comfortable reading width on ultra-wide screens. */
-.admin-shell-v2 {
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-/* Soft, calm card surface — applied additively to .admin-card-v2 without
-   replacing the system rule (no specificity escalation needed).          */
-.admin-shell-v2 .admin-card-v2 {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, .07);
-  border-radius: 16px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .55),
-    0 1px 2px rgba(15, 23, 42, .04),
-    0 4px 18px rgba(15, 23, 42, .045);
-  padding: 18px 22px;
-}
-
-/* ─── 2. Section labels — tighter rhythm, softer accent ─────────────── */
-.admin-shell-v2 .dq-label {
-  font-size: .92rem;
-  margin: 0 0 14px;
-  color: #0f172a;
-}
-.admin-shell-v2 .dq-label::before {
-  background: linear-gradient(90deg, #4338ca, #6366f1);
-  width: 16px;
-  height: 3px;
-}
-
-/* ─── 3. KPI strip — equal heights, readable spacing ────────────────── */
-.admin-shell-v2 .admin-kpi-grid-v2 {
+.dqv39-hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  gap: 24px;
   align-items: stretch;
+  margin: 8px 0 22px;
+  padding: 28px;
+  border: 1px solid rgba(93, 116, 220, .22);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(130, 164, 255, .28), transparent 34%),
+    linear-gradient(135deg, #eef5ff 0%, #f8fbff 46%, #eef2ff 100%);
+  box-shadow: 0 18px 45px rgba(33, 48, 99, .12);
 }
-.admin-shell-v2 .admin-kpi-card {
+
+.dqv39-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border: 1px solid rgba(67, 56, 202, .18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .68);
+  color: #4338ca;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.dqv39-hero h1 {
+  max-width: 760px;
+  margin: 0;
+  color: #10203f;
+  font-size: clamp(2rem, 3.2vw, 3.35rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+  font-weight: 950;
+}
+
+.dqv39-hero p {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: #465a7a;
+  font-size: 1rem;
+  line-height: 1.8;
+  font-weight: 650;
+}
+
+.dqv39-hero-panel {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 96px;
-}
-.admin-shell-v2 .admin-kpi-card small {
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #475569;
-}
-.admin-shell-v2 .admin-kpi-card strong {
-  font-size: 1.45rem;
-  font-weight: 900;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.admin-shell-v2 .admin-kpi-card span {
-  font-size: .76rem;
-  color: #64748b;
-  font-weight: 600;
-  margin-top: auto;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .84), 0 12px 28px rgba(40, 50, 100, .08);
 }
 
-/* ─── 4. Tables — softer zebra, comfortable row height ──────────────── */
-.admin-shell-v2 .admin-table-v2 {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
-}
-.admin-shell-v2 .admin-table-v2 thead th {
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #475569;
-  background: linear-gradient(180deg, rgba(241, 245, 249, .9) 0%, rgba(248, 250, 252, .85) 100%);
-  border-bottom: 1px solid rgba(15, 23, 42, .08);
-  padding: 10px 12px;
-  text-align: start;
-}
-.admin-shell-v2 .admin-table-v2 tbody td {
-  padding: 12px;
-  font-size: .86rem;
-  color: #0f172a;
-  border-bottom: 1px solid rgba(15, 23, 42, .05);
-}
-.admin-shell-v2 .admin-table-v2 tbody tr:nth-child(even) td {
-  background: rgba(248, 250, 252, .55);
-}
-.admin-shell-v2 .admin-table-v2 tbody tr:hover td {
-  background: rgba(238, 242, 255, .55);
-}
-.admin-shell-v2 .admin-table-v2 .table-sub {
-  display: block;
-  margin-top: 2px;
-  font-size: .72rem;
-  color: #64748b;
-  font-weight: 600;
+.dqv39-build-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  padding: 6px 10px;
+  border: 1px solid rgba(71, 85, 105, .15);
+  border-radius: 999px;
+  background: #fff;
+  color: #4b5f7e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .68rem;
+  font-weight: 850;
 }
 
-/* ─── 5. Status pills — consistent contrast & size ──────────────────── */
-.admin-shell-v2 .status-pill {
+.dqv39-hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.dqv39-hero-pill {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  gap: 6px;
+  padding: 8px 11px;
+  border: 1px solid #dbe5f6;
   border-radius: 999px;
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .02em;
-  border: 1px solid transparent;
+  background: #fff;
+  color: #40526f;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.dqv39-hero-pill b {
+  color: #10203f;
   font-variant-numeric: tabular-nums;
 }
-.admin-shell-v2 .status-pill.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.admin-shell-v2 .status-pill.warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.admin-shell-v2 .status-pill.danger  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
-/* ─── 6. Mobile — preserve horizontal scroll INSIDE tables only ─────── */
-@media (max-width: 720px) {
-  .admin-shell-v2 .admin-card-v2 {
-    padding: 14px 16px;
-  }
-  .admin-shell-v2 .admin-kpi-grid-v2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .admin-shell-v2 .admin-table-v2 {
-    font-size: .82rem;
-  }
+.dqv39-hero-pill.success { border-color: #bdeccc; background: #effdf4; color: #166534; }
+.dqv39-hero-pill.warning { border-color: #fde68a; background: #fff8df; color: #92400e; }
+.dqv39-hero-pill.danger { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+
+.dqv39-intro {
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  border: 1px solid rgba(82, 107, 187, .14);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   2. FORWARD-COMPATIBLE NAMESPACE — `.dqv37-*`
-   These rules are dormant until the audit markup is added by Codex.
-   See "Class contract" at the bottom of this file.
-   ══════════════════════════════════════════════════════════════════════ */
-
-/* ─── Top-level audit summary strip (mirrors .ns-summary rhythm) ────── */
-.dqv37-summary {
+.dqv39-intro div {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  margin: 0 0 18px;
+  gap: 5px;
 }
-.dqv37-summary-card {
+
+.dqv39-intro strong {
+  color: #13213a;
+  font-size: .98rem;
+  font-weight: 900;
+}
+
+.dqv39-intro span {
+  color: #586a85;
+  line-height: 1.7;
+  font-weight: 650;
+}
+
+.dqv39-summary-grid {
   display: grid;
-  grid-template-columns: 32px 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 10px;
-  align-items: center;
-  padding: 12px 14px;
-  background: #ffffff;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 24px;
+}
+
+.dqv39-summary-card {
+  min-height: 148px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto 1fr;
+  gap: 7px 12px;
+  align-items: start;
+  padding: 18px;
   border: 1px solid rgba(15, 23, 42, .08);
-  border-radius: 12px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .55),
-    0 1px 2px rgba(15, 23, 42, .04);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, .06);
 }
-.dqv37-summary-card-icon {
-  grid-row: 1 / span 2;
-  width: 32px;
-  height: 32px;
+
+.dqv39-card-icon {
+  grid-row: 1 / 4;
+  width: 42px;
+  height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: #f1f5f9;
-  border: 1px solid rgba(15, 23, 42, .07);
-  font-size: 1rem;
-}
-.dqv37-summary-card small {
-  font-size: .7rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #475569;
-}
-.dqv37-summary-card strong {
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.dqv37-summary-card.is-success {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(220, 252, 231, .55) 100%);
-  border-color: rgba(34, 197, 94, .22);
-}
-.dqv37-summary-card.is-success .dqv37-summary-card-icon {
-  background: rgba(220, 252, 231, .85);
-  border-color: rgba(34, 197, 94, .26);
-}
-.dqv37-summary-card.is-warning {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(254, 243, 199, .55) 100%);
-  border-color: rgba(245, 158, 11, .25);
-}
-.dqv37-summary-card.is-warning .dqv37-summary-card-icon {
-  background: rgba(254, 243, 199, .85);
-  border-color: rgba(245, 158, 11, .28);
-}
-.dqv37-summary-card.is-error {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(254, 226, 226, .55) 100%);
-  border-color: rgba(220, 38, 38, .22);
-}
-.dqv37-summary-card.is-error .dqv37-summary-card-icon {
-  background: rgba(254, 226, 226, .85);
-  border-color: rgba(220, 38, 38, .25);
+  border-radius: 14px;
+  border: 1px solid rgba(79, 70, 229, .18);
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 1.1rem;
+  font-weight: 950;
 }
 
-/* ─── Sticky section nav (scroll-to chips above the audit) ──────────── */
-.dqv37-nav {
+.dqv39-summary-card small {
+  color: #5e708d;
+  font-size: .74rem;
+  font-weight: 900;
+}
+
+.dqv39-summary-card strong {
+  color: #101f3c;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.dqv39-summary-card span:last-child {
+  color: #64748b;
+  line-height: 1.55;
+  font-size: .82rem;
+  font-weight: 650;
+}
+
+.dqv39-summary-card.success .dqv39-card-icon { background: #eafaf0; color: #15803d; border-color: #bbf7d0; }
+.dqv39-summary-card.warning .dqv39-card-icon { background: #fff7dc; color: #a16207; border-color: #fde68a; }
+.dqv39-summary-card.danger .dqv39-card-icon { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+.dqv39-summary-card.info .dqv39-card-icon { background: #eaf3ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+.dqv39-nav {
   position: sticky;
   top: 12px;
-  z-index: 10;
+  z-index: 8;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 14px;
-  padding: 8px 10px;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 18px;
   background: rgba(255, 255, 255, .88);
-  border: 1px solid rgba(15, 23, 42, .07);
-  border-radius: 12px;
-  -webkit-backdrop-filter: saturate(140%) blur(6px);
-  backdrop-filter: saturate(140%) blur(6px);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-}
-.dqv37-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: .76rem;
-  font-weight: 800;
-  color: #475569;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  text-decoration: none;
-  transition: background .12s ease, border-color .12s ease, color .12s ease;
-}
-.dqv37-nav a:hover,
-.dqv37-nav a.is-active {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #4338ca;
-}
-.dqv37-nav a .dqv37-nav-count {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  font-size: .68rem;
-  font-weight: 900;
-  color: #475569;
-  background: #f1f5f9;
-  border-radius: 999px;
-  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
 }
 
-/* ─── Audit section wrapper (one per "Smart Review" / "Source
-   Verification" / "Route Existence" / "Recommendations") ────────────── */
-.dqv37-section {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, .08);
-  border-radius: 16px;
-  margin: 0 0 14px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .55),
-    0 1px 2px rgba(15, 23, 42, .04),
-    0 4px 18px rgba(15, 23, 42, .045);
-  overflow: hidden;
-}
-.dqv37-section-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  cursor: pointer;
-  user-select: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 100%);
-}
-.dqv37-section-head:hover {
-  background: linear-gradient(180deg, rgba(238, 242, 255, .55) 0%, rgba(255, 255, 255, 0) 100%);
-}
-.dqv37-section-icon {
-  width: 38px;
-  height: 38px;
+.dqv39-nav a {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 10px;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 13px;
+  border: 1px solid #dbe4f2;
+  border-radius: 999px;
+  background: #fff;
+  color: #40536f;
+  text-decoration: none;
+  font-size: .82rem;
+  font-weight: 850;
+}
+
+.dqv39-nav a:hover,
+.dqv39-nav a.is-active {
+  border-color: #b9c6ff;
   background: #eef2ff;
-  color: #4338ca;
-  font-weight: 900;
-  font-size: .92rem;
-  border: 1px solid rgba(99, 102, 241, .22);
-  flex-shrink: 0;
+  color: #3730a3;
 }
-.dqv37-section-title-block {
-  flex: 1;
-  min-width: 0;
-}
-.dqv37-section-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 900;
-  color: #0f172a;
-  letter-spacing: -.01em;
-}
-.dqv37-section-helper {
-  margin: 2px 0 0;
-  font-size: .76rem;
-  color: #64748b;
-  font-weight: 600;
-  line-height: 1.55;
-}
-.dqv37-section-count {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
+
+.dqv39-nav a span {
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
   background: #f1f5f9;
   color: #334155;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  font-size: .76rem;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-.dqv37-section-chevron {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #94a3b8;
-  font-size: .9rem;
-  transition: transform .15s ease;
-  flex-shrink: 0;
-}
-.dqv37-section.is-collapsed .dqv37-section-chevron {
-  transform: rotate(-90deg);
-}
-.dqv37-section-body {
-  padding: 0 18px 16px;
-}
-.dqv37-section.is-collapsed .dqv37-section-body {
-  display: none;
-}
-
-/* ─── Severity filter chips (above each section's rows) ─────────────── */
-.dqv37-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 10px;
-}
-.dqv37-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
+  text-align: center;
   font-size: .72rem;
-  font-weight: 800;
-  color: #475569;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background .12s ease, border-color .12s ease, color .12s ease;
+  font-variant-numeric: tabular-nums;
 }
-.dqv37-filter-chip:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #4338ca;
-}
-.dqv37-filter-chip.is-active                       { background: #4338ca; border-color: #3730a3; color: #ffffff; }
-.dqv37-filter-chip.dqv37-filter-chip-error.is-active   { background: #b91c1c; border-color: #991b1b; }
-.dqv37-filter-chip.dqv37-filter-chip-warning.is-active { background: #b45309; border-color: #92400e; }
-.dqv37-filter-chip.dqv37-filter-chip-info.is-active    { background: #1d4ed8; border-color: #1e40af; }
-.dqv37-filter-chip.dqv37-filter-chip-success.is-active { background: #047857; border-color: #065f46; }
 
-/* ─── Audit row (one per issue / source / route / recommendation) ───── */
-.dqv37-rows {
-  display: grid;
-  gap: 6px;
+.dqv39-section {
+  margin: 0 0 28px;
+  border: 1px solid rgba(24, 42, 82, .09);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, .07);
+  overflow: clip;
 }
-.dqv37-row {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+
+.dqv39-section-head {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, .06);
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
-  position: relative;
-  transition: background .12s ease, border-color .12s ease;
+  gap: 14px;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(15, 23, 42, .07);
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
 }
-.dqv37-row:hover {
-  background: #f8fafc;
-  border-color: rgba(99, 102, 241, .25);
-}
-.dqv37-row::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-start-start-radius: 10px;
-  border-end-start-radius: 10px;
-  background: #cbd5e1;
-}
-.dqv37-row[data-severity="error"]::before   { background: #dc2626; }
-.dqv37-row[data-severity="warning"]::before { background: #f59e0b; }
-.dqv37-row[data-severity="info"]::before    { background: #3b82f6; }
-.dqv37-row[data-severity="success"]::before { background: #16a34a; }
-.dqv37-row[hidden] { display: none; }
 
-.dqv37-row-icon {
-  width: 32px;
-  height: 32px;
+.dqv39-section-icon {
+  width: 46px;
+  height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: #f1f5f9;
-  border: 1px solid rgba(15, 23, 42, .07);
-  font-size: 1rem;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  border: 1px solid #cbd8ff;
+  border-radius: 16px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 1.1rem;
+  font-weight: 950;
 }
-.dqv37-row[data-severity="error"]   .dqv37-row-icon { background: rgba(254, 226, 226, .85); border-color: rgba(220, 38, 38, .26); }
-.dqv37-row[data-severity="warning"] .dqv37-row-icon { background: rgba(254, 243, 199, .85); border-color: rgba(245, 158, 11, .28); }
-.dqv37-row[data-severity="info"]    .dqv37-row-icon { background: rgba(219, 234, 254, .85); border-color: rgba(56, 132, 220, .26); }
-.dqv37-row[data-severity="success"] .dqv37-row-icon { background: rgba(220, 252, 231, .85); border-color: rgba(34, 197, 94, .28); }
 
-.dqv37-row-body {
+.dqv39-section-title-block {
   min-width: 0;
+  flex: 1;
 }
-.dqv37-row-title {
+
+.dqv39-section-title {
   margin: 0;
-  font-size: .88rem;
-  line-height: 1.5;
-  color: #0f172a;
-  font-weight: 700;
+  color: #101f3c;
+  font-size: 1.08rem;
+  line-height: 1.35;
+  font-weight: 950;
+}
+
+.dqv39-section-helper {
+  margin: 5px 0 0;
+  color: #65758f;
+  line-height: 1.6;
+  font-size: .86rem;
+  font-weight: 650;
+}
+
+.dqv39-section-count {
+  min-width: 42px;
+  padding: 7px 11px;
+  border: 1px solid #dbe4f2;
+  border-radius: 999px;
+  background: #fff;
+  color: #253552;
+  text-align: center;
+  font-size: .82rem;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.dqv39-section-body {
+  padding: 18px 22px 22px;
+}
+
+.dqv39-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(15, 23, 42, .07);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.dqv39-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.dqv39-table thead th {
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, .08);
+  background: #f3f7fc;
+  color: #40536f;
+  font-size: .76rem;
+  font-weight: 950;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.dqv39-table tbody td {
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, .055);
+  color: #1c2a42;
+  font-size: .86rem;
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.dqv39-table tbody tr:nth-child(even) td {
+  background: #fbfdff;
+}
+
+.dqv39-table tbody tr:hover td {
+  background: #f6f8ff;
+}
+
+.dqv39-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dqv39-table code {
+  display: inline-flex;
+  max-width: 320px;
+  padding: 4px 8px;
+  border: 1px solid #dbe4f2;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #24344f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .78rem;
+  white-space: normal;
   word-break: break-word;
 }
-.dqv37-row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  margin-top: 4px;
-}
 
-.dqv37-sev-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .02em;
-  border: 1px solid transparent;
-  font-variant-numeric: tabular-nums;
-}
-.dqv37-sev-tag-error   { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
-.dqv37-sev-tag-warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.dqv37-sev-tag-info    { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-.dqv37-sev-tag-success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-
-/* Filename / route / selector — monospaced pill, copyable */
-.dqv37-code-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .72rem;
-  font-weight: 700;
-  color: #1e293b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background .12s ease, border-color .12s ease;
-}
-.dqv37-code-pill:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #4338ca;
-}
-.dqv37-code-pill.is-copied {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-/* "عرض" / View button — small, calm, consistent */
-.dqv37-view-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  font-size: .72rem;
-  font-weight: 800;
-  color: #3730a3;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  border-radius: 8px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background .12s ease, border-color .12s ease, transform .08s ease;
-  flex-shrink: 0;
-}
-.dqv37-view-btn:hover {
-  background: #e0e7ff;
-  border-color: #a5b4fc;
-}
-.dqv37-view-btn:active {
-  transform: translateY(1px);
-}
-.dqv37-view-btn[disabled],
-.dqv37-view-btn.is-disabled {
-  opacity: .45;
-  cursor: not-allowed;
-  pointer-events: none;
-  background: #f1f5f9;
-  color: #94a3b8;
-  border-color: #cbd5e1;
-}
-
-/* Empty state inside an audit section */
-.dqv37-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 24px 16px;
-  background: #ffffff;
-  border: 1px dashed rgba(15, 23, 42, .12);
-  border-radius: 12px;
-  text-align: center;
-}
-.dqv37-empty-icon {
-  font-size: 1.3rem;
-  margin-bottom: 2px;
-}
-.dqv37-empty strong {
-  font-size: .9rem;
-  font-weight: 900;
-  color: #0f172a;
-}
-.dqv37-empty small {
-  font-size: .78rem;
+.dqv39-sub {
+  display: block;
+  margin-top: 3px;
   color: #64748b;
-  font-weight: 600;
-  max-width: 380px;
-  line-height: 1.55;
-}
-
-/* Recommendations — softer card variant inside the same section system */
-.dqv37-section.is-recommendations .dqv37-row {
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-}
-.dqv37-section.is-recommendations .dqv37-row::before {
-  background: #16a34a;
-}
-.dqv37-section.is-recommendations .dqv37-row-icon {
-  background: rgba(220, 252, 231, .85);
-  border-color: rgba(34, 197, 94, .26);
-}
-
-/* ─── Mobile — responsive collapse ──────────────────────────────────── */
-@media (max-width: 720px) {
-  .dqv37-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .dqv37-nav {
-    position: static;
-  }
-  .dqv37-section-head {
-    padding: 12px 14px;
-    gap: 10px;
-  }
-  .dqv37-section-body {
-    padding: 0 14px 14px;
-  }
-  .dqv37-row {
-    grid-template-columns: 28px minmax(0, 1fr);
-    grid-auto-rows: auto;
-    padding: 9px 11px;
-  }
-  .dqv37-row-icon {
-    width: 28px;
-    height: 28px;
-    font-size: .9rem;
-  }
-  .dqv37-row > :nth-child(n+3) {
-    grid-column: 2 / span 1;
-    justify-self: start;
-  }
-  .dqv37-row .dqv37-view-btn {
-    margin-top: 4px;
-  }
-}
-
-/* ─── Adaptations for the table-based audit layout Codex ships ─────── */
-
-/* The detail "View" button is a <summary> inside <details>. Strip the
-   browser-default disclosure marker so the pill button looks clean. */
-summary.dqv37-view-btn {
-  list-style: none;
-}
-summary.dqv37-view-btn::-webkit-details-marker {
-  display: none;
-}
-summary.dqv37-view-btn::before {
-  content: '▸';
-  font-size: .68rem;
-  color: currentColor;
-  transition: transform .15s ease;
-  margin-inline-end: 2px;
-}
-details[open] > summary.dqv37-view-btn::before {
-  transform: rotate(90deg);
-}
-.dqv37-section details {
-  margin: 0;
-}
-.dqv37-section details > pre {
-  margin: 8px 0 0;
-  padding: 10px 12px;
-  background: #0f172a;
-  color: #e2e8f0;
-  border-radius: 8px;
-  font-size: .72rem;
-  line-height: 1.55;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 360px;
-}
-
-/* "No extra details" muted hint — replaces the legacy .table-sub usage. */
-.dqv37-no-detail {
   font-size: .76rem;
-  color: #64748b;
-  font-weight: 600;
+  font-weight: 650;
 }
 
-/* Section body that contains a wide audit table — make it horizontally
-   scrollable on narrow viewports without breaking desktop alignment. */
-.dqv37-section-body {
-  position: relative;
-}
-.dqv37-section-body > table.admin-table-v2 {
-  margin-top: 4px;
-}
-@media (max-width: 900px) {
-  .dqv37-section-body {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .dqv37-section-body > table.admin-table-v2 {
-    min-width: 760px;
-  }
-}
-
-/* When the section body is the inner KPI grid wrapper, drop the section's
-   default body padding so the grid items align to the section edges. */
-section.dqv37-summary {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-/* ─── v38 additions — build chip + intro card ───────────────────────── */
-
-/* Small, calm build marker chip — sits in the hero action row. */
-.dqv37-build-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #475569;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Intro card — explains the page's scope under the hero. */
-.dqv37-intro-card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  margin: 14px 0 18px;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, rgba(238, 242, 255, .55) 0%, rgba(255, 255, 255, .88) 100%);
-  border: 1px solid rgba(99, 102, 241, .18);
-  border-radius: 14px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .60),
-    0 1px 2px rgba(15, 23, 42, .04),
-    0 4px 14px rgba(67, 56, 202, .055);
-}
-.dqv37-intro-card-icon {
-  flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+.dqv39-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.dqv39-status-success { border-color: #bbf7d0; background: #ecfdf3; color: #166534; }
+.dqv39-status-warning { border-color: #fde68a; background: #fff7dc; color: #92400e; }
+.dqv39-status-danger { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+
+.dqv39-view-btn {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 6px 12px;
+  border: 1px solid #c7d2fe;
   border-radius: 10px;
   background: #eef2ff;
-  color: #4338ca;
-  font-size: 1.05rem;
-  border: 1px solid rgba(99, 102, 241, .22);
-}
-.dqv37-intro-card-body {
-  flex: 1;
-  min-width: 0;
-}
-.dqv37-intro-card-title {
-  margin: 0 0 6px;
-  font-size: .95rem;
+  color: #3730a3;
+  cursor: pointer;
+  font-size: .78rem;
   font-weight: 900;
-  color: #0f172a;
-  letter-spacing: -.01em;
 }
-.dqv37-intro-card-list {
-  margin: 0;
-  padding-inline-start: 18px;
+
+.dqv39-view-btn::-webkit-details-marker {
+  display: none;
+}
+
+.dqv39-view-btn::before {
+  content: "+";
+  font-weight: 950;
+}
+
+.dqv39-detail[open] .dqv39-view-btn::before {
+  content: "-";
+}
+
+.dqv39-detail pre {
+  max-height: 360px;
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: 12px;
+  background: #101827;
+  color: #e2e8f0;
+  font-size: .76rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dqv39-no-detail {
+  color: #64748b;
+  font-size: .8rem;
+  font-weight: 650;
+}
+
+.dqv39-empty {
   display: grid;
-  gap: 4px;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 20px;
+  border: 1px dashed #bbf7d0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfffd 0%, #f0fdf4 100%);
+  text-align: center;
 }
-.dqv37-intro-card-list li {
+
+.dqv39-empty span {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 950;
+}
+
+.dqv39-empty strong {
+  color: #14351f;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.dqv39-empty small {
+  color: #3f6b4d;
+  font-weight: 700;
+}
+
+.dqv39-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e1e8f3;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.dqv39-pager:empty {
+  display: none;
+}
+
+.dqv39-pager-meta {
+  color: #4e607c;
   font-size: .82rem;
-  line-height: 1.6;
-  color: #475569;
-  font-weight: 600;
+  font-weight: 800;
 }
+
+.dqv39-pager-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dqv39-pager button,
+.dqv39-pager select {
+  min-height: 34px;
+  border: 1px solid #cad6e8;
+  border-radius: 10px;
+  background: #fff;
+  color: #24344f;
+  font-size: .82rem;
+  font-weight: 850;
+}
+
+.dqv39-pager button {
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.dqv39-pager button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.dqv39-pager select {
+  padding: 7px 10px;
+}
+
+.dqv39-pager-page {
+  min-width: 92px;
+  color: #334155;
+  text-align: center;
+  font-size: .82rem;
+  font-weight: 900;
+}
+
+@media (max-width: 1100px) {
+  .dqv39-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .dqv39-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
-  .dqv37-intro-card {
-    padding: 12px 14px;
-    gap: 10px;
+  .dqv39-page {
+    width: 100%;
   }
-  .dqv37-intro-card-icon {
-    width: 32px;
-    height: 32px;
-    font-size: .95rem;
+
+  .dqv39-hero {
+    margin-top: 0;
+    padding: 20px;
+    border-radius: 20px;
   }
-  .dqv37-intro-card-title {
-    font-size: .9rem;
+
+  .dqv39-hero h1 {
+    font-size: 2rem;
+  }
+
+  .dqv39-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dqv39-nav {
+    position: static;
+  }
+
+  .dqv39-section-head {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .dqv39-section-body {
+    padding: 14px 16px 18px;
+  }
+
+  .dqv39-section-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dqv39-table {
+    min-width: 760px;
+  }
+
+  .dqv39-pager {
+    align-items: stretch;
+  }
+
+  .dqv39-pager-actions {
+    width: 100%;
   }
 }
-
-/* ════════════════════════════════════════════════════════════════════════
-   CLASS CONTRACT FOR CODEX
-
-   When Codex wires the audit data into admin_design_qa.html, use these
-   classes (no other selectors are styled by this stylesheet):
-
-     <div class="dqv37-summary">                              -- top KPI row
-       <article class="dqv37-summary-card is-success|is-warning|is-error">
-         <span class="dqv37-summary-card-icon">✓</span>
-         <small>Total checks</small>
-         <strong>123</strong>
-       </article>
-       ...
-     </div>
-
-     <nav class="dqv37-nav">
-       <a href="#smart-review" class="is-active">
-         Smart Review
-         <span class="dqv37-nav-count">12</span>
-       </a>
-       ...
-     </nav>
-
-     <section id="smart-review" class="dqv37-section" data-collapsible>
-       <header class="dqv37-section-head">
-         <span class="dqv37-section-icon">🧠</span>
-         <div class="dqv37-section-title-block">
-           <h2 class="dqv37-section-title">Smart Review</h2>
-           <p class="dqv37-section-helper">One short helper sentence.</p>
-         </div>
-         <span class="dqv37-section-count">12</span>
-         <span class="dqv37-section-chevron">▾</span>
-       </header>
-       <div class="dqv37-section-body">
-         <div class="dqv37-filter">
-           <button class="dqv37-filter-chip is-active" data-dqv37-filter="all">All</button>
-           <button class="dqv37-filter-chip dqv37-filter-chip-error"   data-dqv37-filter="error">Errors</button>
-           <button class="dqv37-filter-chip dqv37-filter-chip-warning" data-dqv37-filter="warning">Warnings</button>
-           <button class="dqv37-filter-chip dqv37-filter-chip-info"    data-dqv37-filter="info">Info</button>
-         </div>
-         <div class="dqv37-rows">
-           <article class="dqv37-row" data-severity="error">
-             <span class="dqv37-row-icon">⛔</span>
-             <div class="dqv37-row-body">
-               <p class="dqv37-row-title">…issue title…</p>
-               <div class="dqv37-row-meta">
-                 <span class="dqv37-sev-tag dqv37-sev-tag-error">خطأ</span>
-                 <span class="dqv37-code-pill" data-copy="app/blueprints/foo.py">app/blueprints/foo.py</span>
-               </div>
-             </div>
-             <a class="dqv37-view-btn" href="#…">عرض</a>
-           </article>
-           ...
-         </div>
-       </div>
-     </section>
-
-   For "Route Existence" rows, set `data-severity` to:
-     - "error"   = route expected but missing → red
-     - "warning" = route present but suspicious → amber
-     - "success" = route present and healthy → green
-
-   For "Recommendations", add `.is-recommendations` to the section wrapper.
-   For empty groups, render `<div class="dqv37-empty">…</div>` inside the body.
-   For "عرض" buttons that have no target, add `.is-disabled`.
-
-   No other class names are styled — keep this set tight.
-   ══════════════════════════════════════════════════════════════════════ */
