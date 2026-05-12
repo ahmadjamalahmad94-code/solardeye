@@ -18,6 +18,7 @@ from ..services.location_catalog import countries_for_template, find_country, ph
 from ..services.rbac import portal_pages, portal_page_visible, role_label
 from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
+from ..services.quota_engine import quota_summary_rows
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
 from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
 from ..services.api_responses import api_error, api_ok, page_meta, pagination_args
@@ -1052,6 +1053,74 @@ def _pending_plan_change_request_payload(user):
     }
 
 
+# v76: ── Subscriber quota visibility helpers ────────────────────────
+#
+# Read-only projection of `quota_summary_rows(tenant_id, lang)` into a
+# mobile-friendly shape. We never re-compute quota math on the mobile
+# side — the backend `quota_summary_rows` helper is the single source
+# of truth for limit / used / remaining / percent / unlimited.
+#
+# The raw helper returns the `TenantQuota` model row under the
+# `'quota'` key alongside the derived display fields. We strip that
+# model reference so internal columns (notes, source_plan_id,
+# created_at, etc.) never leak to the mobile client.
+
+
+def _mobile_quotas_payload(user):
+    """Return the subscriber-visible quota rows for the user's tenant.
+
+    Empty list when the user has no tenant (defensive — every active
+    subscriber should, but a fresh registration can land here briefly).
+    Empty list when the tenant carries no quota rows yet.
+
+    Field shape per row (mobile contract):
+      * `key`           — `quota_key`, stable machine code (e.g.
+                          `support_cases_limit`).
+      * `label`         — Arabic display label.
+      * `description`   — Arabic short description (may be empty).
+      * `limit`         — float; 0 when undefined.
+      * `used`          — float; 0 when none consumed.
+      * `remaining`     — float; `None` for unlimited quotas (the
+                          web helper uses `'∞'` for those — mobile
+                          gets the cleaner null/`is_unlimited` pair).
+      * `percent`       — float 0..100; 0 for unlimited.
+      * `is_unlimited`  — bool.
+      * `reset_period`  — string (`'monthly'` / `'manual'` / etc.).
+      * `status`        — string (`'active'` / `'inactive'` / etc.).
+      * `source_label`  — Arabic phrase (e.g. "من الخطة").
+    """
+    tenant_id = getattr(user, 'tenant_id', None)
+    if not tenant_id:
+        return []
+    lang = _lang()
+    items = []
+    for row in quota_summary_rows(tenant_id, lang):
+        q = row.get('quota')
+        if q is None:
+            continue
+        unlimited = bool(row.get('is_unlimited'))
+        raw_remaining = row.get('remaining')
+        # `quota_summary_rows` puts the literal '∞' string in
+        # `remaining` for unlimited quotas; mobile gets `null` +
+        # the bool flag instead so the parser never has to handle
+        # mixed types on one key.
+        remaining_value = None if unlimited else float(raw_remaining or 0)
+        items.append({
+            'key': (getattr(q, 'quota_key', '') or '').strip(),
+            'label': (row.get('label') or '').strip(),
+            'description': (row.get('description') or '').strip(),
+            'limit': float(row.get('limit', 0) or 0),
+            'used': float(row.get('used', 0) or 0),
+            'remaining': remaining_value,
+            'percent': float(row.get('percent', 0) or 0),
+            'is_unlimited': unlimited,
+            'reset_period': (getattr(q, 'reset_period', '') or '').strip(),
+            'status': (getattr(q, 'status', '') or '').strip(),
+            'source_label': (row.get('source_label') or '').strip(),
+        })
+    return items
+
+
 def _account_payload(user):
     devices = _device_summary_payload(user)
     return {
@@ -1073,6 +1142,10 @@ def _account_payload(user):
         # v65: additive — `None` when no `open` plan-change request.
         'pending_plan_change_request':
             _pending_plan_change_request_payload(user),
+        # v76: additive — subscriber quota visibility. Always a list
+        # (empty when no tenant or no rows). Backwards-compatible
+        # for older mobile clients that ignore unknown keys.
+        'quotas': _mobile_quotas_payload(user),
     }
 
 
