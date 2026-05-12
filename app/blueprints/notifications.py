@@ -30,6 +30,17 @@ from ..services.notifications.utils import (  # noqa: E402,F401
     crossed_down as crossed_down_v2,
 )
 
+# v43: mirror already-decided energy/load/solar/weather Telegram
+# notifications into the mobile Notification Center so the mobile app's
+# "متابعة الطاقة والأحمال" tab can read the same events the user
+# received on Telegram. The helper itself is failure-isolated — it
+# never blocks Telegram/SMS sending if the DB write hiccups.
+from ..services.notifications.mobile_mirror import (
+    event_type_for_dispatch_key,
+    event_type_for_scheduled,
+    mirror_energy_notification_to_center,
+)
+
 
 # ── Notification rules ────────────────────────────────────────────────────────
 
@@ -646,6 +657,22 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
         else:
             continue
         log_notification(event_key + ':' + channel, rule_name, title, message, channel, 'success' if ok else 'danger', resp, force=True)
+    # v43: mirror this already-decided energy/load/solar/weather event
+    # into the mobile Notification Center exactly once per logical event
+    # (after the channel loop, not per channel). The dispatch dedup gate
+    # above already guarantees we are not invoked again for the same
+    # event within the dedup window, so no extra mobile-side dedup is
+    # needed. The mirror call itself is failure-isolated: if the DB
+    # write fails it is logged and swallowed, so Telegram/SMS sending
+    # is never affected.
+    mirror_energy_notification_to_center(
+        event_type=event_type_for_dispatch_key(event_key),
+        title=title,
+        message=message,
+        user_id=_user_id,
+        device_id=_device_id,
+        level=level,
+    )
 
 
 # ── Threshold helpers ─────────────────────────────────────────────────────────
@@ -1393,6 +1420,22 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
         _upsert_setting(f'{prefix}_last_sent_at', now.isoformat())
         db.session.commit()
         _diag('scheduled notification marked sent: %s result=%s', prefix, ','.join(responses) or '-')
+        # v43: mirror the scheduled energy notification into the mobile
+        # Notification Center exactly once per scheduled tick that
+        # actually sent at least one channel. Mirroring only on
+        # ``sent_any`` mirrors the same gate that protects the
+        # ``*_last_sent_at`` flag, so we never create rows for
+        # suppressed/failed scheduled events. The helper is
+        # failure-isolated.
+        _user_id, _device_id = current_scope_ids()
+        mirror_energy_notification_to_center(
+            event_type=event_type_for_scheduled(prefix),
+            title=clean_title,
+            message=clean_message,
+            user_id=_user_id,
+            device_id=_device_id,
+            level=level,
+        )
     else:
         _diag('scheduled notification NOT marked sent: %s result=%s', prefix, ','.join(responses) or '-')
 
