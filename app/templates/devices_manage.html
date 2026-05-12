@@ -272,7 +272,11 @@
                   <select name="provider_code" required>
                     <option value="">— {{ 'Select' if is_en else 'اختر' }} —</option>
                     {% for spec in provider_specs %}
-                      <option value="{{ spec.code }}">{{ spec.name }}</option>
+                      {# v45: append the provider readiness tier so users see
+                         at a glance whether the integration is live, beta,
+                         or still a blueprint. Label is already localised by
+                         _provider_specs_for_ui in the active language. #}
+                      <option value="{{ spec.code }}" data-support-tier="{{ spec.support_tier }}">{{ spec.name }} · {{ spec.support_tier_label }}</option>
                     {% endfor %}
                   </select>
                 </label>

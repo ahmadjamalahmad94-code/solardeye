@@ -9,7 +9,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
 from ..models import AppDevice, AppUser, MobileRefreshToken, NotificationEvent, Reading, SubscriptionPlan, TenantAccount, UserLoad
-from ..services.energy_integrations import provider_catalog
+from ..services.energy_integrations import (
+    provider_catalog,
+    resolve_support_tier,
+    support_tier_label,
+)
 from ..services.location_catalog import countries_for_template, find_country, phone_prefixes_for_template, timezones_grouped_for_template, timezones_for_template
 from ..services.rbac import portal_pages, portal_page_visible, role_label
 from ..services.scope import get_current_device, get_user_permissions
@@ -45,6 +49,8 @@ _MOBILE_CORE_ALLOWED_METHODS = {
 }
 
 _MOBILE_DEVICE_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
+_MOBILE_DEVICE_SETUP_ALLOWED_METHODS = {'POST'}  # v49
+_MOBILE_DEVICE_SYNC_NOW_ALLOWED_METHODS = {'POST'}  # v50
 _MOBILE_LOAD_DETAIL_ALLOWED_METHODS = {'GET', 'PATCH', 'DELETE'}
 _MOBILE_LOAD_TOGGLE_ALLOWED_METHODS = {'POST'}
 _MOBILE_NOTIFICATION_READ_ALLOWED_METHODS = {'POST'}
@@ -259,6 +265,13 @@ def _mobile_owned_devices(user):
 def _mobile_device_payload(dev):
     if not dev:
         return None
+    # v45: surface the provider's readiness tier alongside the device
+    # row so the mobile detail screen can render a small Arabic badge
+    # without an extra round-trip to ``/api/mobile/device-providers``.
+    # Resolution prefers ``device_type`` (the explicit provider code)
+    # then falls back to ``api_provider`` (the legacy column). Spec
+    # lookup is tolerant of unknown codes — see _resolve_device_tier.
+    tier, tier_label_ar, tier_label_en = _resolve_device_tier(dev)
     return sanitize_response_payload({
         'id': dev.id,
         'name': dev.name,
@@ -269,7 +282,35 @@ def _mobile_device_payload(dev):
         'is_active': bool(dev.is_active),
         'plant_name': dev.plant_name,
         'timezone': dev.timezone,
+        # v45 additive — see comment above.
+        'provider_support_tier': tier,
+        'provider_support_tier_label': tier_label_ar,
+        'provider_support_tier_label_en': tier_label_en,
     })
+
+
+def _resolve_device_tier(dev):
+    """Resolve a device's provider support tier for mobile payloads.
+    Returns a ``(tier, label_ar, label_en)`` tuple. Tier defaults to
+    ``beta-supported`` when the device's provider code is unknown
+    (e.g. a legacy row whose ``device_type`` does not match any
+    catalog entry). The labels never leak a raw code to the UI.
+    """
+    code = (getattr(dev, 'device_type', None)
+            or getattr(dev, 'api_provider', None) or '').strip().lower()
+    spec = next(
+        (s for s in provider_catalog() if s.code == code), None,
+    ) if code else None
+    if spec is None:
+        from ..services.energy_integrations import SUPPORT_TIER_BETA
+        tier = SUPPORT_TIER_BETA
+    else:
+        tier = resolve_support_tier(spec)
+    return (
+        tier,
+        support_tier_label(tier, lang='ar'),
+        support_tier_label(tier, lang='en'),
+    )
 
 
 def _mobile_device_detail_payload(dev):
@@ -364,6 +405,119 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
     device.owner_user_id = user.id
     device.updated_at = datetime.utcnow()
     return None
+
+
+# v49: provider setup field handling — kept parallel to the web flow
+# in `devices_routes.py:_save_device_fields` so a device whose
+# credentials were entered on either surface ends up in exactly the
+# same shape on disk (same JSON keys in `credentials_json` /
+# `settings_json`, same Deye compatibility mapping into `station_id` /
+# `device_uid`). This is the single source of truth for "what does
+# the sync engine read"; duplicating it would risk drift.
+
+# Field-name patterns that classify a value as a secret. Matches the
+# web flow at devices_routes.py:155.
+_SECRET_FIELD_SUBSTRINGS = ('password', 'secret', 'token', 'key')
+_SECRET_FIELD_NAMES = frozenset({'deye_email', 'username', 'account'})
+
+
+def _is_secret_setup_field(field_name: str) -> bool:
+    n = (field_name or '').strip().lower()
+    if not n:
+        return False
+    if n in _SECRET_FIELD_NAMES:
+        return True
+    return any(s in n for s in _SECRET_FIELD_SUBSTRINGS)
+
+
+def _mobile_apply_provider_setup(device, spec, fields_input: dict):
+    """v49: persist provider credential / setup fields submitted via
+    `POST /api/mobile/devices/<id>/setup` into the same backend storage
+    used by the web flow.
+
+    Mirrors `devices_routes.py:_save_device_fields` for the fields-only
+    portion:
+      * only keys declared in the provider spec's
+        ``required_fields + optional_fields`` whitelist are accepted;
+        unknown keys are silently dropped (defence against arbitrary
+        credentials_json injection).
+      * secret-classified keys (``password`` / ``secret`` / ``token`` /
+        ``key`` substrings, or the special names
+        ``deye_email`` / ``username`` / ``account``) are written into
+        ``credentials_json``; non-secret keys into ``settings_json``.
+      * empty / blank values are treated as "no change" — the previous
+        stored value is preserved, exactly like the web flow's
+        ``preserve_secret_form_value(... settings.get(field) or
+        creds.get(field) or '')``.
+      * Deye compatibility mappings are replicated:
+        ``deye_password_or_hash → deye_password`` and
+        ``deye_plant_id → station_id`` / ``deye_device_sn → device_uid``.
+      * Connection status is **not** changed here — it stays at
+        ``setup_required`` until a real sync flips it to ``ok`` (the
+        only place that happens is the sync engine in
+        ``main.py:685, 728``). This keeps the mobile UI honest.
+    """
+    creds = dict(_safe_json_loads(getattr(device, 'credentials_json', None)))
+    settings = dict(_safe_json_loads(getattr(device, 'settings_json', None)))
+
+    whitelist = list(spec.required_fields or ()) + list(spec.optional_fields or ())
+    for field in whitelist:
+        if field not in fields_input:
+            continue
+        raw = fields_input.get(field)
+        value = str(raw).strip() if raw is not None else ''
+        if not value:
+            # Blank input → keep existing stored value (mirrors web's
+            # preserve_secret_form_value behaviour).
+            continue
+        if _is_secret_setup_field(field):
+            creds[field] = value
+        else:
+            settings[field] = value
+
+    provider_code = (spec.code or '').strip().lower()
+
+    # Deye-specific compatibility for the existing sync client.
+    if provider_code == 'deye':
+        if creds.get('deye_password_or_hash') and not creds.get('deye_password') and not creds.get('deye_password_hash'):
+            creds['deye_password'] = creds['deye_password_or_hash']
+        if settings.get('deye_plant_id'):
+            device.station_id = settings['deye_plant_id']
+        if settings.get('deye_device_sn'):
+            device.device_uid = settings['deye_device_sn']
+    else:
+        # Generic provider compat: pull common station/device identifiers
+        # from whichever spec-defined alias is populated. Same precedence
+        # order as the web flow.
+        device.station_id = (
+            settings.get('station_id') or settings.get('site_id')
+            or settings.get('system_id') or settings.get('installation_id')
+            or settings.get('powerstation_id') or device.station_id
+        )
+        device.device_uid = (
+            settings.get('device_uid') or settings.get('device_sn')
+            or settings.get('inverter_sn') or settings.get('serial_number')
+            or settings.get('device_id') or device.device_uid
+        )
+        device.external_device_id = (
+            settings.get('external_device_id') or settings.get('entity_id')
+            or settings.get('energy_site_id') or device.external_device_id
+        )
+
+    # Keep provider metadata mirrored into settings_json the same way
+    # the web flow does. Useful for the sync engine and audit trails.
+    settings.update({
+        'provider_code': provider_code,
+        'provider_name': spec.name,
+        'api_provider': device.api_provider or provider_code,
+        'api_base_url': device.api_base_url or (spec.base_url or ''),
+        'auth_mode': device.auth_mode or spec.auth_mode,
+        'timezone': device.timezone or settings.get('timezone', ''),
+    })
+
+    device.credentials_json = json.dumps(creds, ensure_ascii=False)
+    device.settings_json = json.dumps(settings, ensure_ascii=False)
+    device.updated_at = datetime.utcnow()
 
 
 def _mobile_load_payload(load: UserLoad) -> dict:
@@ -806,6 +960,7 @@ def _provider_payloads():
                 'required': field in (spec.required_fields or ()),
                 'secret': _is_secret_field(field),
             })
+        tier = resolve_support_tier(spec)
         rows.append({
             'key': spec.code,
             'code': spec.code,
@@ -821,6 +976,12 @@ def _provider_payloads():
             'fields': fields,
             'notes_ar': spec.notes_ar,
             'notes_en': spec.notes_en,
+            # v45 additive: structured readiness tier + polished
+            # Arabic / English visible labels. Older mobile clients
+            # ignore unknown keys.
+            'support_tier': tier,
+            'support_tier_label': support_tier_label(tier, lang='ar'),
+            'support_tier_label_en': support_tier_label(tier, lang='en'),
         })
     return rows
 
@@ -1232,6 +1393,154 @@ def mobile_device_update(device_id: int):
     return api_ok({
         'device': _mobile_device_detail_payload(device),
         'devices': _device_summary_payload(user),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.post('/devices/<int:device_id>/setup')
+def mobile_device_setup(device_id: int):
+    """v49: subscriber-facing provider setup endpoint.
+
+    Request body:
+        {"fields": {"<provider_field_name>": "<value>", ...}}
+
+    Behaviour:
+      * Whitelisted against the device's provider spec — unknown keys
+        are silently dropped (no arbitrary credentials_json injection).
+      * Secret-classified keys go to ``credentials_json``, others to
+        ``settings_json`` — identical shape to what the web
+        ``/devices/manage/<id>/edit`` flow produces.
+      * Empty values are treated as "no change"; never null out an
+        existing stored credential by submitting a blank field.
+      * Connection status is **not** changed; only a real sync can
+        promote a device from ``setup_required`` to ``ok``.
+      * Returns the updated device detail payload so the mobile can
+        refresh in one round-trip.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    device = _mobile_device_for_user(user, device_id)
+    if not device:
+        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    spec = _mobile_provider_spec(device.device_type)
+    if not spec:
+        return api_error('Device provider is not supported.', code='invalid_provider', status=400)
+
+    raw_fields = data.get('fields')
+    if raw_fields is None:
+        # Tolerant fallback: callers may post the field values at the
+        # top level. Filter out the always-present envelope keys.
+        raw_fields = {k: v for k, v in data.items() if k != 'fields'}
+    if not isinstance(raw_fields, dict):
+        return _json_error('`fields` must be a JSON object.', code='invalid_fields', field='fields')
+
+    _mobile_apply_provider_setup(device, spec, raw_fields)
+    db.session.commit()
+
+    return api_ok({
+        'device': _mobile_device_detail_payload(device),
+    }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+def _mobile_sync_error_payload(exc: Exception) -> tuple[int, str, str]:
+    """v50: classify a `sync_now_internal` failure into a tuple of
+    `(http_status, error_code, user_message)` so the mobile UI can
+    surface honest copy without inspecting backend exception types.
+
+    Two distinct cases:
+      * ``ValueError`` is raised by ``_device_sync_ready`` when the
+        device is inactive or missing required credentials — that's a
+        "setup not complete yet" condition. Returns 400 +
+        ``setup_not_ready`` + the readiness message.
+      * Anything else (provider auth failure, network error, vendor
+        API outage, etc.) is a real sync attempt that failed. Returns
+        502 + ``sync_failed`` + the exception's string form, trimmed
+        so we never leak a stack trace into a notification banner.
+    """
+    if isinstance(exc, ValueError):
+        return 400, 'setup_not_ready', str(exc) or 'تعذّر التحقق من جاهزية الجهاز.'
+    raw = str(exc).strip() or 'فشلت محاولة المزامنة.'
+    # Cap the message length so a verbose third-party exception doesn't
+    # blow up the mobile snack-bar copy.
+    return 502, 'sync_failed', raw[:240]
+
+
+@mobile_core_api_bp.post('/devices/<int:device_id>/sync-now')
+def mobile_device_sync_now(device_id: int):
+    """v50: subscriber-facing "verify integration now" action.
+
+    Reuses ``main.sync_now_internal(trigger='manual')`` so:
+      * exactly the same readiness gating runs (`_device_sync_ready`
+        rejects inactive devices + missing credentials);
+      * exactly the same provider client runs (Deye client for `deye`,
+        `fetch_snapshot_for_device` for everything else);
+      * exactly the same persistence happens (a real `Reading` row,
+        `connection_status = 'ok'`, `last_connected_at = utcnow()`),
+        plus the existing notification / smart-event side-effects.
+
+    The endpoint temporarily binds the target device into Flask's
+    request ``g`` so the legacy ``get_current_device()`` /
+    ``get_current_user()`` helpers used by ``sync_now_internal`` pick
+    up the right scope — no scheduler or scope-overriding plumbing is
+    altered. On success we re-read the device from the session so the
+    returned payload reflects the freshly updated `connection_status`
+    and `last_connected_at` columns.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    device = _mobile_device_for_user(user, device_id)
+    if not device:
+        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+    if not bool(device.is_active):
+        return api_error(
+            'Device is not active. Re-enable it before syncing.',
+            code='device_inactive',
+            status=400,
+        )
+
+    # Bind the request-scoped helpers so sync_now_internal targets THIS
+    # device + user. Restore on the way out so an unrelated handler
+    # later in the request lifecycle doesn't pick up a stale scope.
+    from flask import g
+    from .main import sync_now_internal
+    prev_user = getattr(g, 'current_user', None)
+    prev_device = getattr(g, 'current_device', None)
+    g.current_user = user
+    g.current_device = device
+    try:
+        sync_now_internal(trigger='manual')
+    except Exception as exc:  # noqa: BLE001 — classified below
+        # Roll back any partial work the sync may have left in the
+        # session so this endpoint's response is honest.
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        status, code, message = _mobile_sync_error_payload(exc)
+        # Refresh the device payload so the mobile can show the
+        # current (unchanged) status alongside the failure message.
+        return api_error(
+            message,
+            code=code,
+            status=status,
+            device=_mobile_device_detail_payload(device),
+        )
+    finally:
+        g.current_user = prev_user
+        g.current_device = prev_device
+
+    # Sync committed inside sync_now_internal — refresh the row so the
+    # response reflects the updated `connection_status` / timestamps.
+    db.session.refresh(device)
+    return api_ok({
+        'device': _mobile_device_detail_payload(device),
+        'synced': True,
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
@@ -1879,6 +2188,20 @@ def _mobile_allowed_methods_for(normalized_path: str):
         try:
             int(parts[1])
             return _MOBILE_LOAD_TOGGLE_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    # v49: subscriber provider-setup endpoint.
+    if len(parts) == 3 and parts[0] == 'devices' and parts[2] == 'setup':
+        try:
+            int(parts[1])
+            return _MOBILE_DEVICE_SETUP_ALLOWED_METHODS
+        except (TypeError, ValueError):
+            return None
+    # v50: subscriber sync-now endpoint.
+    if len(parts) == 3 and parts[0] == 'devices' and parts[2] == 'sync-now':
+        try:
+            int(parts[1])
+            return _MOBILE_DEVICE_SYNC_NOW_ALLOWED_METHODS
         except (TypeError, ValueError):
             return None
     if len(parts) == 3 and parts[0] == 'notifications' and parts[2] == 'read':

@@ -8,7 +8,11 @@ from uuid import uuid4
 
 from flask import Blueprint
 from werkzeug.utils import secure_filename
-from ..services.energy_integrations import provider_catalog
+from ..services.energy_integrations import (
+    provider_catalog,
+    resolve_support_tier,
+    support_tier_label,
+)
 from ..services.location_catalog import countries_for_template, phone_prefixes_for_template, timezones_for_template, timezones_grouped_for_template
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
@@ -81,6 +85,7 @@ def _provider_specs_for_ui(lang=None):
                 'secret': any(word in name.lower() for word in ['password', 'secret', 'token', 'key']),
                 'hint': hints.get(name, ''),
             })
+        tier = resolve_support_tier(spec)
         items.append({
             'code': spec.code,
             'name': spec.name,
@@ -90,6 +95,10 @@ def _provider_specs_for_ui(lang=None):
             'category': spec.category,
             'notes': spec.notes_en if lang == 'en' else spec.notes_ar,
             'fields': fields,
+            # v45 additive: structured tier value + UI-friendly label
+            # in the active language. Templates can render either.
+            'support_tier': tier,
+            'support_tier_label': support_tier_label(tier, lang=lang),
         })
     return items
 

@@ -12,6 +12,22 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+# v45: provider support-tier values. Internal API value stays stable;
+# user-facing labels are resolved by ``support_tier_label`` below.
+SUPPORT_TIER_LIVE = 'live-supported'
+SUPPORT_TIER_BETA = 'beta-supported'
+SUPPORT_TIER_BLUEPRINT = 'blueprint-only'
+
+# Whitelist of recognised tiers. Anything outside falls back to
+# ``SUPPORT_TIER_BETA`` in [support_tier_label] so a future typo never
+# leaks a raw code to the UI.
+SUPPORT_TIER_VALUES = frozenset({
+    SUPPORT_TIER_LIVE,
+    SUPPORT_TIER_BETA,
+    SUPPORT_TIER_BLUEPRINT,
+})
+
+
 @dataclass(frozen=True)
 class ProviderSpec:
     code: str
@@ -29,6 +45,11 @@ class ProviderSpec:
     notes_ar: str = ''
     notes_en: str = ''
     mapping_schema: dict[str, Any] | None = None
+    # v45: structured readiness tier for UI surfacing only. Defaults
+    # to ``beta-supported`` so any future provider added without an
+    # explicit tag renders as the safe middle option rather than as a
+    # falsely promoted "live" or falsely demoted "blueprint" entry.
+    support_tier: str = SUPPORT_TIER_BETA
 
     def as_device_type_payload(self) -> dict[str, Any]:
         return {
@@ -42,7 +63,82 @@ class ProviderSpec:
             'required_fields_json': json.dumps(list(self.required_fields), ensure_ascii=False),
             'mapping_schema_json': json.dumps(self.mapping_schema or {}, ensure_ascii=False),
             'is_active': True,
+            # v45 additive: every consumer of this payload now sees the
+            # structured tier. Older consumers ignore unknown keys.
+            'support_tier': resolve_support_tier(self),
         }
+
+
+# v45: explicit per-provider tier mapping. Single source of truth for
+# every UI consumer — the dataclass default exists only as a safe
+# fallback for any future code that forgets to register the new spec
+# in this table. Codes here must match codes in PROVIDER_CATALOG.
+PROVIDER_SUPPORT_TIERS: dict[str, str] = {
+    # live-supported — production-grade integrations on shipped flows.
+    'deye':                       SUPPORT_TIER_LIVE,
+    'fronius_local':              SUPPORT_TIER_LIVE,
+    'shelly_gen2':                SUPPORT_TIER_LIVE,
+    'opendtu_local':              SUPPORT_TIER_LIVE,
+    # beta-supported — functional cloud integrations exercised in
+    # staging / by early adopters but not yet on the "default-on"
+    # production path.
+    'solaredge_cloud':            SUPPORT_TIER_BETA,
+    'victron_vrm':                SUPPORT_TIER_BETA,
+    'home_assistant_energy':      SUPPORT_TIER_BETA,
+    'growatt_v1':                 SUPPORT_TIER_BETA,
+    'kostal_plenticore_local':    SUPPORT_TIER_BETA,
+    'enphase_enlighten':          SUPPORT_TIER_BETA,
+    'tesla_energy':               SUPPORT_TIER_BETA,
+    'solarman_openapi':           SUPPORT_TIER_BETA,
+    'sungrow_isolarcloud':        SUPPORT_TIER_BETA,
+    'goodwe_sems':                SUPPORT_TIER_BETA,
+    'soliscloud_v2':              SUPPORT_TIER_BETA,
+    # blueprint-only — catalog entries that document intent but do not
+    # yet have a live sync implementation behind them.
+    'sma_cloud':                  SUPPORT_TIER_BLUEPRINT,
+    'huawei_fusionsolar':         SUPPORT_TIER_BLUEPRINT,
+    'modbus_tcp_energy':          SUPPORT_TIER_BLUEPRINT,
+    'mqtt_energy_gateway':        SUPPORT_TIER_BLUEPRINT,
+    'apsystems_ema':              SUPPORT_TIER_BLUEPRINT,
+    'tigo_energy_intelligence':   SUPPORT_TIER_BLUEPRINT,
+}
+
+
+def resolve_support_tier(spec: 'ProviderSpec') -> str:
+    """Resolve a provider's tier — explicit table first, then the
+    dataclass field default. The lookup is the single source of truth
+    surfaced by every UI consumer (web template + mobile API payload).
+    """
+    return PROVIDER_SUPPORT_TIERS.get(spec.code, spec.support_tier)
+
+
+# v45: visible labels per tier and per language. The internal API
+# value stays English (`live-supported` / `beta-supported` /
+# `blueprint-only`); the UI shows the localised string here.
+_SUPPORT_TIER_LABELS_AR = {
+    SUPPORT_TIER_LIVE:      'مدعوم',
+    SUPPORT_TIER_BETA:      'تجريبي',
+    SUPPORT_TIER_BLUEPRINT: 'قيد التهيئة',
+}
+_SUPPORT_TIER_LABELS_EN = {
+    SUPPORT_TIER_LIVE:      'Supported',
+    SUPPORT_TIER_BETA:      'Beta',
+    SUPPORT_TIER_BLUEPRINT: 'Coming soon',
+}
+
+
+def support_tier_label(tier: str | None, lang: str = 'ar') -> str:
+    """Localise a provider support-tier value for visible UI badges.
+
+    Falls back to the ``beta-supported`` label when the input is None
+    or an unknown value — never leaks a raw machine code to the user.
+    """
+    norm = (tier or '').strip().lower()
+    if norm not in SUPPORT_TIER_VALUES:
+        norm = SUPPORT_TIER_BETA
+    table = _SUPPORT_TIER_LABELS_EN if (lang or 'ar').lower() == 'en' \
+        else _SUPPORT_TIER_LABELS_AR
+    return table[norm]
 
 
 PROVIDER_CATALOG: tuple[ProviderSpec, ...] = (

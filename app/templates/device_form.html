@@ -49,7 +49,7 @@
         <div class="provider-picker-v10519">
           <label class="form-label">{{ 'Provider' if is_en else 'المزوّد' }}</label>
           <select class="form-select form-select-lg" name="device_type" data-provider-select>
-            {% for p in providers %}<option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            {% for p in providers %}{# v45: tier label is localised by _provider_specs_for_ui. Visible as " · مدعوم" / " · تجريبي" / " · قيد التهيئة" in Arabic UI. #}<option value="{{ p.code }}" data-provider="{{ p.provider }}" data-base-url="{{ p.base_url }}" data-support-tier="{{ p.support_tier }}" {% if p.code == current_provider %}selected{% endif %}>{{ p.name }} · {{ p.support_tier_label }}</option>{% endfor %}
           </select>
           <div class="provider-selected-note-v10519" data-provider-note></div>
         </div>
