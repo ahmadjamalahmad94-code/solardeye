@@ -8,7 +8,7 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
-from ..models import AppDevice, AppUser, MobileRefreshToken, NotificationEvent, Reading, SubscriptionPlan, TenantAccount, UserLoad
+from ..models import AppDevice, AppUser, MobileRefreshToken, NotificationEvent, Reading, SubscriptionPlan, SupportCase, TenantAccount, UserLoad
 from ..services.energy_integrations import (
     provider_catalog,
     resolve_support_tier,
@@ -31,6 +31,10 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/account': {'GET', 'PATCH', 'DELETE'},
     '/account/change-password': {'POST'},
     '/account/logout-all': {'POST'},
+    # v65: subscriber-initiated plan-change request. Persists as a
+    # `SupportCase(case_type='plan_change_request')` — does NOT switch
+    # plans immediately; the admin team triages the case.
+    '/account/subscription/request-change': {'POST'},
     '/profile': {'GET', 'PATCH'},
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
@@ -903,6 +907,10 @@ def _account_capabilities_payload():
         'password_change': True,
         'logout_all_refresh_tokens': True,
         'account_deletion': False,
+        # v65: subscriber can submit a plan-change request through the
+        # mobile API. The action is persisted as a SupportCase (admin
+        # triage required); it does NOT switch plans immediately.
+        'plan_change_request': True,
         'mobile_api_sections': [
             'auth',
             'profile',
@@ -914,6 +922,133 @@ def _account_capabilities_payload():
             'support',
             'account',
         ],
+    }
+
+
+# v65: ── Plan-change request helpers ─────────────────────────────────
+#
+# Two additive surfaces on top of the existing account payload:
+#   * `available_plans`            — every active plan the user could
+#                                    request, marked with `is_current`.
+#   * `pending_plan_change_request` — best-effort projection of the
+#                                    user's most recent `open`
+#                                    SupportCase(case_type=
+#                                    'plan_change_request').
+#
+# We mirror the exact subject convention used by the web flow in
+# `billing.account_subscription_request_change` so admins continue to
+# see a single, consistent triage queue regardless of submission
+# channel. The plan_id is recovered best-effort by matching the
+# extracted name against `name_ar` / `name_en` / `code`.
+
+# Subject prefix from `billing.py:401` — kept in sync verbatim.
+_PLAN_CHANGE_SUBJECT_PREFIX = 'طلب تغيير الخطة إلى '
+
+# Separators the web flow has used to glue the optional user message
+# onto the subject. The em-dash (U+2014) is the canonical one; we
+# also accept a plain hyphen for forward-compat if the convention
+# ever drifts.
+_PLAN_CHANGE_SUBJECT_SEPARATORS = (' — ', ' - ')
+
+
+def _parse_plan_change_subject(subject: str | None) -> tuple[str, str | None]:
+    """Return `(requested_plan_name, message)` parsed from a
+    SupportCase subject of the form
+
+        'طلب تغيير الخطة إلى <plan_name>' + (' — <message>')?
+
+    When the subject doesn't match the prefix the whole string is
+    surfaced as the requested name (never crashes on legacy data).
+    """
+    s = (subject or '').strip()
+    if not s:
+        return '', None
+    if not s.startswith(_PLAN_CHANGE_SUBJECT_PREFIX):
+        return s, None
+    rest = s[len(_PLAN_CHANGE_SUBJECT_PREFIX):].strip()
+    for sep in _PLAN_CHANGE_SUBJECT_SEPARATORS:
+        if sep in rest:
+            name, _, msg = rest.partition(sep)
+            cleaned_msg = msg.strip()
+            return name.strip(), (cleaned_msg or None)
+    return rest, None
+
+
+def _resolve_plan_id_by_name(name: str | None) -> int | None:
+    """Best-effort plan_id lookup. Matches `name_ar` first (the web
+    flow's preferred display name), then `name_en`, then `code`.
+    Returns `None` when no plan matches — the mobile UI then renders
+    only the textual `requested_plan_name`."""
+    if not name:
+        return None
+    target = (
+        SubscriptionPlan.query
+        .filter(
+            (SubscriptionPlan.name_ar == name)
+            | (SubscriptionPlan.name_en == name)
+            | (SubscriptionPlan.code == name)
+        )
+        .first()
+    )
+    return getattr(target, 'id', None)
+
+
+def _available_plans_payload(user):
+    """List every active plan the subscriber could pick. Adds an
+    `is_current` flag so the mobile screen can dim / mark the current
+    plan in place. Empty list when no active plans exist (defensive)."""
+    tenant = (
+        TenantAccount.query.get(user.tenant_id)
+        if getattr(user, 'tenant_id', None) else None
+    )
+    current_plan_id = getattr(tenant, 'plan_id', None)
+    rows = (
+        SubscriptionPlan.query
+        .filter_by(is_active=True)
+        .order_by(SubscriptionPlan.sort_order.asc(), SubscriptionPlan.id.asc())
+        .all()
+    )
+    items = []
+    for plan in rows:
+        items.append({
+            'id': plan.id,
+            'code': plan.code,
+            'name_ar': plan.name_ar,
+            'name_en': plan.name_en,
+            'price': plan.price,
+            'currency': plan.currency,
+            'max_devices': plan.max_devices,
+            'features': plan_features(plan),
+            'is_current': bool(current_plan_id) and plan.id == current_plan_id,
+        })
+    return items
+
+
+def _pending_plan_change_request_payload(user):
+    """Most recent `open` plan-change request for this user, or
+    `None` when nothing pending. Surface mirrors what the web
+    `account_subscription` template renders so admin + subscriber
+    both read the same case."""
+    case = (
+        SupportCase.query
+        .filter_by(
+            user_id=user.id,
+            case_type='plan_change_request',
+            status='open',
+        )
+        .order_by(SupportCase.created_at.desc())
+        .first()
+    )
+    if case is None:
+        return None
+    requested_name, message = _parse_plan_change_subject(getattr(case, 'subject', ''))
+    return {
+        'id': case.id,
+        'status': case.status,
+        'requested_plan_id': _resolve_plan_id_by_name(requested_name),
+        'requested_plan_name': requested_name,
+        'message': message,
+        'created_at': case.created_at.isoformat() if case.created_at else None,
     }
 
 
@@ -933,6 +1068,11 @@ def _account_payload(user):
             'selected_device_id': devices.get('selected_device_id'),
         },
         'capabilities': _account_capabilities_payload(),
+        # v65: additive — never `None` (empty list when no plans).
+        'available_plans': _available_plans_payload(user),
+        # v65: additive — `None` when no `open` plan-change request.
+        'pending_plan_change_request':
+            _pending_plan_change_request_payload(user),
     }
 
 
@@ -1189,6 +1329,106 @@ def mobile_account_delete():
         code='account_deletion_not_supported',
         status=501,
         supported=False,
+    )
+
+
+@mobile_core_api_bp.post('/account/subscription/request-change')
+def mobile_account_request_plan_change():
+    """v65 — subscriber-initiated plan-change request.
+
+    Mirrors the web `billing.account_subscription_request_change`
+    flow verbatim: persists the request as a `SupportCase` row
+    (`case_type='plan_change_request'`, `status='open'`) and cancels
+    any prior open request for the same user. **Does NOT switch
+    plans immediately** — admins triage the case through the
+    existing support workflow.
+
+    Request body:
+      * `plan_id`  (int, **required**) — target plan id; must be
+                                          active. Bad / missing →
+                                          `400 plan_id_required` /
+                                          `400 plan_id_invalid` /
+                                          `404 plan_not_found`.
+      * `message`  (str, **optional**)  — short user note. Capped
+                                          server-side at 240 chars
+                                          and appended to the case
+                                          subject behind ' — ' so
+                                          the existing admin queue
+                                          renders unchanged.
+
+    Returns the refreshed `_account_payload(user)` — the mobile
+    client updates the Account screen in-place, no second GET.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+
+    raw_plan_id = data.get('plan_id')
+    if raw_plan_id is None or (isinstance(raw_plan_id, str) and not raw_plan_id.strip()):
+        return _json_error(
+            'Plan id is required.',
+            code='plan_id_required',
+            field='plan_id',
+        )
+    try:
+        plan_id = int(raw_plan_id)
+    except (TypeError, ValueError):
+        return _json_error(
+            'Plan id must be an integer.',
+            code='plan_id_invalid',
+            field='plan_id',
+        )
+
+    target_plan = SubscriptionPlan.query.get(plan_id)
+    if target_plan is None or not target_plan.is_active:
+        return _json_error(
+            'Subscription plan was not found or is not active.',
+            code='plan_not_found',
+            status=404,
+            field='plan_id',
+        )
+
+    raw_message = data.get('message')
+    message = (raw_message or '').strip() if isinstance(raw_message, str) else ''
+    if len(message) > 240:
+        message = message[:240]
+
+    # Same cancel-then-create pattern as `billing.account_subscription_request_change`.
+    SupportCase.query.filter_by(
+        user_id=user.id,
+        case_type='plan_change_request',
+        status='open',
+    ).update({'status': 'cancelled'})
+
+    tenant, _ = ensure_user_tenant_and_subscription(
+        user, activated_by_user_id=user.id,
+    )
+    plan_name = target_plan.name_ar or target_plan.name_en or target_plan.code
+    # Exact subject convention from `billing.py:401` — admin queue
+    # must continue to read both submission paths identically.
+    subject = f'{_PLAN_CHANGE_SUBJECT_PREFIX}{plan_name}'
+    if message:
+        subject = f'{subject} — {message}'
+
+    case = SupportCase(
+        case_type='plan_change_request',
+        source_id=user.id,
+        tenant_id=getattr(tenant, 'id', None),
+        user_id=user.id,
+        subject=subject,
+        priority='normal',
+        status='open',
+    )
+    db.session.add(case)
+    db.session.commit()
+
+    return api_ok(
+        _account_payload(user),
+        meta={'api_version': 'v1', 'namespace': 'api/mobile'},
+        status=201,
     )
 
 
