@@ -10,10 +10,13 @@ from ..services.mobile_auth import user_from_bearer_or_session
 from ..services.security import sanitize_response_payload, mask_identifier
 from .helpers import (
     build_period_chart,
+    build_pre_sunset_prediction,
     compute_energy_stats,
     filter_rows_for_view,
+    load_settings,
     parse_selected_date,
 )
+from .smart_engine import build_smart_energy_advice
 # v62: weather endpoint reuses the existing web-side pipeline verbatim.
 # `fetch_weather` is the Open-Meteo client in
 # `services/weather_service.py` — light, safe to import eagerly.
@@ -724,6 +727,250 @@ def device_weather(device_id: int):
         ))
 
     return api_ok(_mobile_weather_payload(dev, snapshot, generated_at))
+
+
+# v74: ── Smart insights helpers ─────────────────────────────────────
+#
+# Tiny payload mappers that turn the rich dicts returned by the
+# existing smart/energy/weather helpers into the compact mobile
+# contract surfaced by `GET /<id>/insights`. The mapping is a pure
+# field-pick + level-translation; no smart logic is reproduced here.
+
+# Status-label → mobile-friendly level. `build_smart_energy_advice`
+# returns Arabic labels prefixed with a coloured circle emoji
+# (🟢/🟡/🟠/🔴/⚪) — the mobile screen wants a stable machine value.
+def _mobile_advice_level(status_label: str) -> str:
+    s = str(status_label or '')
+    if '🟢' in s:
+        return 'good'
+    if '🟡' in s:
+        return 'caution'
+    if '🟠' in s:
+        return 'warning'
+    if '🔴' in s:
+        return 'critical'
+    return 'unknown'
+
+
+def _mobile_energy_advice(raw: dict) -> dict:
+    """Flatten `build_smart_energy_advice(...)` into the mobile shape:
+    `{headline, detail, level}`. Picks the most actionable phrase
+    from the warning / recommendation / decision tree so the Home
+    card stays calm even when the advice dict is verbose."""
+    if not isinstance(raw, dict):
+        return {'headline': '', 'detail': '', 'level': 'unknown'}
+    headline = (raw.get('status_label') or '').strip()
+    # Prefer the explicit warning when one is present (means the
+    # advice actually has something to flag). Fall back to the
+    # recommendation, then to the "what now" sentence.
+    warning = (raw.get('smart_warning') or '').strip()
+    recommendation = (raw.get('smart_recommendation') or '').strip()
+    decision = (raw.get('decision_now') or '').strip()
+    detail_parts = []
+    if warning:
+        detail_parts.append(warning)
+    if recommendation:
+        detail_parts.append(recommendation)
+    elif decision:
+        detail_parts.append(decision)
+    detail = ' '.join(detail_parts).strip()
+    return {
+        'headline': headline,
+        'detail': detail,
+        'level': _mobile_advice_level(headline),
+    }
+
+
+def _mobile_solar_prediction(raw) -> dict | None:
+    """Compact subset of `build_pre_sunset_prediction(...)`. Returns
+    `None` when the helper itself returned `None` (no latest reading).
+    Otherwise picks exactly the five fields the mobile Home card
+    renders — drops admin-only / internal keys like `capacity_kwh`,
+    `reserve_percent`, `minutes_to_sunset`, `weather_level`, `is_day`."""
+    if not isinstance(raw, dict):
+        return None
+    time_to_full = raw.get('time_to_full_hours')
+    # Round to one decimal for stable display; mobile clients want a
+    # readable number, not full float precision.
+    if isinstance(time_to_full, (int, float)):
+        time_to_full = round(float(time_to_full), 2)
+    return {
+        'sunset_time': raw.get('sunset_time'),
+        'effective_sunset_time': raw.get('effective_sunset_time'),
+        'time_to_full_hours': time_to_full,
+        'will_full_before_sunset': bool(raw.get('will_full_before_sunset')),
+        'verdict': (raw.get('verdict') or '').strip() or None,
+        'advice': (raw.get('advice') or '').strip() or None,
+    }
+
+
+def _mobile_weather_context(snapshot) -> dict:
+    """Compact, self-contained weather subset for the insights card.
+    The full `WeatherSnapshot` shape lives on the v62 `/weather`
+    endpoint — here we only need three fields to give the card a
+    one-line header without forcing the mobile to fire a second
+    weather fetch."""
+    if snapshot is None:
+        return {
+            'condition_ar': '',
+            'icon': '',
+            'cloud_cover_percent': None,
+        }
+    return {
+        'condition_ar': getattr(snapshot, 'condition_ar', '') or '',
+        'icon': getattr(snapshot, 'icon', '') or '',
+        'cloud_cover_percent': getattr(snapshot, 'cloud_cover', None),
+    }
+
+
+def _mobile_insights_payload(device, snapshot, prediction_dict,
+                             advice_dict, generated_at) -> dict:
+    """Build the success payload from the three upstream dicts.
+    Every value passes through the small mappers above so no
+    oversized internal helper structures leak into the response."""
+    return {
+        'available': True,
+        'device': {
+            'id': device.id,
+            'name': getattr(device, 'name', '') or '',
+            'timezone': getattr(device, 'timezone', '') or '',
+        },
+        'weather_context': _mobile_weather_context(snapshot),
+        'solar_prediction': _mobile_solar_prediction(prediction_dict),
+        'energy_advice': _mobile_energy_advice(advice_dict),
+        'generated_at': generated_at,
+    }
+
+
+def _mobile_insights_unavailable(*, reason: str, message: str,
+                                 device, generated_at) -> dict:
+    """Honest empty payload. `reason` is the machine-readable stable
+    code; `message` is a calm English fallback (the mobile screen
+    maps the `reason` onto its own localised Arabic copy). Device
+    summary is still present so the header renders consistently."""
+    return {
+        'available': False,
+        'reason': reason,
+        'message': message,
+        'device': {
+            'id': device.id,
+            'name': getattr(device, 'name', '') or '',
+            'timezone': getattr(device, 'timezone', '') or '',
+        },
+        'generated_at': generated_at,
+    }
+
+
+@mobile_devices_api_bp.get('/<int:device_id>/insights')
+def device_insights(device_id: int):
+    """v74 — subscriber-scoped "what should I do right now?" card
+    inputs for one device.
+
+    Owner-scoped via `_device_allowed`, same pattern as the v52
+    `/history` + `/alerts`, v56 `/statistics`, v59 `/reports/summary`,
+    and v62 `/weather` endpoints. Reuses the existing web-side
+    helpers verbatim — `build_pre_sunset_prediction(latest, weather,
+    settings)` and `build_smart_energy_advice(latest, weather,
+    settings, context='periodic_day')` — and flattens their rich
+    output into a compact mobile contract.
+
+    The smart_engine + helpers chain consumes scope-bound `g`
+    state in a few places (e.g. `save_smart_snapshot_from_reading`
+    looks up the previous snapshot via `scoped_query`). We bind
+    `g.current_user` + `g.current_device` for the duration of this
+    request (same pattern as the v50 sync-now route) and restore
+    on the way out so a later handler in the request lifecycle
+    doesn't pick up a stale scope.
+
+    Honest unavailable paths:
+      * No latest reading for the device →
+        `available=false, reason='reading_unavailable'`.
+      * Latest reading exists but has no station coords →
+        `available=false, reason='station_coords_unavailable'`.
+      * Open-Meteo unreachable → `available=false,
+        reason='weather_unreachable'`. The smart engine *can* run
+        without weather, but the resulting advice + prediction are
+        materially less useful without the sunset time, so we
+        surface this honestly instead of producing degraded copy.
+    """
+    user, err = _require_user()
+    if err:
+        return err
+    dev = _device_allowed(user, device_id)
+    if not dev:
+        return api_error('Device not found.', code='device_not_found', status=404)
+
+    generated_at = datetime.utcnow().isoformat()
+
+    # Latest reading. The smart engine returns a `safe_empty` dict
+    # when `latest is None`, but the mobile contract wants an
+    # explicit `available=false` so the card can render a calm
+    # "no data yet" state instead of placeholder advice.
+    latest = (
+        Reading.query
+        .filter_by(device_id=dev.id)
+        .order_by(Reading.created_at.desc(), Reading.id.desc())
+        .first()
+    )
+    if latest is None:
+        return api_ok(_mobile_insights_unavailable(
+            reason='reading_unavailable',
+            message='No recent reading is available for this device yet.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    # Station coords drive the weather fetch + sunset times. Without
+    # them the smart engine produces vague advice without a sunset
+    # anchor — surface as `available=false` honestly.
+    lat, lng = _extract_station_coords(latest)
+    if lat is None or lng is None:
+        return api_ok(_mobile_insights_unavailable(
+            reason='station_coords_unavailable',
+            message='Weather-dependent insights are not available for this device yet.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    tz_name = (dev.timezone or current_app.config.get('LOCAL_TIMEZONE') or 'UTC')
+    try:
+        snapshot = fetch_weather(lat, lng, tz_name)
+    except Exception:
+        return api_ok(_mobile_insights_unavailable(
+            reason='weather_unreachable',
+            message='Weather service could not be reached right now.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    # Bind the request-scoped helpers so smart_engine's scope-aware
+    # snapshot save targets THIS device + user. Restore on the way
+    # out — same shape as the v50 sync-now route.
+    from flask import g
+    prev_user = getattr(g, 'current_user', None)
+    prev_device = getattr(g, 'current_device', None)
+    g.current_user = user
+    g.current_device = dev
+
+    try:
+        settings = load_settings()
+        prediction_dict = build_pre_sunset_prediction(
+            latest, weather=snapshot, settings=settings,
+        )
+        advice_dict = build_smart_energy_advice(
+            latest, weather=snapshot, settings=settings, context='periodic_day',
+        )
+    finally:
+        g.current_user = prev_user
+        g.current_device = prev_device
+
+    return api_ok(_mobile_insights_payload(
+        device=dev,
+        snapshot=snapshot,
+        prediction_dict=prediction_dict,
+        advice_dict=advice_dict,
+        generated_at=generated_at,
+    ))
 
 
 @mobile_devices_api_bp.get('/<int:device_id>/alerts')
