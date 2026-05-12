@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import datetime
 
 from flask import Blueprint, request
@@ -29,6 +30,27 @@ def _hash(raw: str) -> str:
     return hashlib.sha256((raw or '').encode('utf-8')).hexdigest()
 
 
+def _parse_event_structured_payload(raw):
+    """v44 phase 1a — parse the JSON string stored in
+    ``NotificationEvent.result`` into a plain ``dict``, or return
+    ``None`` when the column is empty or holds anything that is not a
+    JSON object. Mirror of the helper in ``mobile_api.py`` — duplicated
+    locally instead of cross-importing so the two blueprint files stay
+    independent of each other."""
+    if raw is None:
+        return None
+    text = raw if isinstance(raw, str) else str(raw)
+    if not text.strip():
+        return None
+    try:
+        parsed = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
 def _notification_payload(row):
     return sanitize_response_payload({
         'id': row.id,
@@ -42,6 +64,9 @@ def _notification_payload(row):
         'is_read': bool(row.is_read),
         'created_at': row.created_at.isoformat() if row.created_at else None,
         'read_at': row.read_at.isoformat() if row.read_at else None,
+        # v44 phase 1a: optional structured echo. ``None`` for legacy
+        # rows and live events that don't carry one yet.
+        'payload': _parse_event_structured_payload(row.result),
     })
 
 

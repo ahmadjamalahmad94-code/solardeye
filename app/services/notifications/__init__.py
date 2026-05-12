@@ -8,10 +8,15 @@ import X` patterns scattered across the codebase.
 v43 added :mod:`mobile_mirror` to persist already-decided energy /
 load / solar / weather Telegram dispatches into the mobile
 Notification Center (``NotificationEvent``).
+
+v44 phase 1a extended the mirror with optional structured ``payload``
+support for scheduled energy events (periodic_day, periodic_night,
+pre_sunset, daily_report).
 """
 from .mobile_mirror import (
     DEFAULT_EVENT_TYPE,
     ENERGY_SOURCE_TYPE,
+    MAX_PAYLOAD_BYTES,
     event_type_for_dispatch_key,
     event_type_for_scheduled,
     mirror_energy_notification_to_center,
@@ -43,6 +48,7 @@ __all__ = [
     # v43: mobile mirror surface
     'DEFAULT_EVENT_TYPE',
     'ENERGY_SOURCE_TYPE',
+    'MAX_PAYLOAD_BYTES',
     'event_type_for_dispatch_key',
     'event_type_for_scheduled',
     'mirror_energy_notification_to_center',

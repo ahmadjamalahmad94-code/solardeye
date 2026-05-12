@@ -49,8 +49,9 @@ brief's recommended whitelist (``battery_status``, ``load_alert``,
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Optional
+from typing import Any, Mapping, Optional
 
 from ...extensions import db
 from ...models import AppUser, NotificationEvent
@@ -65,6 +66,14 @@ ENERGY_SOURCE_TYPE = 'energy'
 #: Fallback ``event_type`` when the dispatch site doesn't carry enough
 #: structure to classify. Mobile renders this as a generic energy entry.
 DEFAULT_EVENT_TYPE = 'energy_status_change'
+
+#: v44 Phase 1a — maximum size (in UTF-8 bytes) of a structured payload
+#: written into ``NotificationEvent.result``. Larger payloads are dropped
+#: silently — the notification itself still mirrors, just without the
+#: structured echo. The cap exists to defend against unbounded growth
+#: (a runaway builder that accidentally embeds a whole reading dump);
+#: scheduled-event payloads built in v44 are well under 1 KB.
+MAX_PAYLOAD_BYTES = 8 * 1024
 
 # ── Classification helpers ────────────────────────────────────────────
 
@@ -119,7 +128,12 @@ def event_type_for_dispatch_key(event_key: str) -> str:
         return 'energy_status_change'
     if base.startswith('pre-sunset'):
         return 'pre_sunset'
-    if base.startswith('morning-report'):
+    # v44 phase 1a: the live morning report uses ``morning-report-`` as
+    # its event_key prefix, but ``send_daily_morning_report`` actually
+    # dispatches with ``daily-report-<YYYY-MM-DD>`` (see
+    # ``notifications.py``). Both forms must classify identically so
+    # mirrored rows land on the same mobile-side ``event_type``.
+    if base.startswith('morning-report') or base.startswith('daily-report'):
         return 'daily_report'
     if base.startswith('inv-temp-high'):
         return 'inverter_status'
@@ -147,6 +161,54 @@ def _status_for_level(level: Optional[str]) -> str:
     return 'new'
 
 
+# ── Payload serializer (v44 phase 1a) ─────────────────────────────────
+
+
+def _serialize_payload(payload: Optional[Mapping[str, Any]]) -> Optional[str]:
+    """Best-effort JSON serialisation of a structured payload dict, used
+    by the v44 phase 1a scheduled-event mirror. Returns ``None`` when:
+
+      * ``payload`` is ``None`` or not a mapping (no structured echo).
+      * ``json.dumps`` raises (non-JSON-serializable values) — the
+        notification still mirrors, just without the payload column.
+      * The serialised UTF-8 form exceeds :data:`MAX_PAYLOAD_BYTES`.
+
+    All failure modes log a warning and return ``None`` so the caller
+    can fall back to ``result=None`` cleanly.
+    """
+    if payload is None:
+        return None
+    if not isinstance(payload, Mapping):
+        log.warning(
+            'mirror_energy_notification_to_center: payload is not a mapping '
+            '(type=%s); dropping payload',
+            type(payload).__name__,
+        )
+        return None
+    try:
+        serialized = json.dumps(payload, ensure_ascii=False, default=str)
+    except Exception as exc:  # noqa: BLE001 - "fail safely" by contract
+        # Broad catch is deliberate per the v44 phase 1a contract:
+        # any serialisation failure (TypeError, ValueError, plus
+        # whatever ``default=str`` re-raises from a misbehaving
+        # ``__str__``) must drop the payload silently rather than
+        # propagating up and breaking Telegram/SMS dispatch.
+        log.warning(
+            'mirror_energy_notification_to_center: payload serialise '
+            'failed (%s); dropping payload',
+            exc,
+        )
+        return None
+    if len(serialized.encode('utf-8')) > MAX_PAYLOAD_BYTES:
+        log.warning(
+            'mirror_energy_notification_to_center: payload exceeds '
+            '%d bytes; dropping payload',
+            MAX_PAYLOAD_BYTES,
+        )
+        return None
+    return serialized
+
+
 # ── The actual mirror ─────────────────────────────────────────────────
 
 
@@ -159,6 +221,7 @@ def mirror_energy_notification_to_center(
     device_id: Optional[int] = None,
     level: Optional[str] = None,
     source_type: str = ENERGY_SOURCE_TYPE,
+    payload: Optional[Mapping[str, Any]] = None,
 ) -> bool:
     """Persist one ``NotificationEvent`` row mirroring an already-sent
     energy/load/solar/weather notification.
@@ -172,6 +235,14 @@ def mirror_energy_notification_to_center(
       * ``user_id`` is missing — the Notification Center is per-user;
         we cannot honestly attribute a row without an owner.
       * ``title`` AND ``message`` are both empty — nothing to render.
+
+    v44 phase 1a: an optional ``payload`` mapping is accepted. When
+    provided, it is JSON-serialised (UTF-8, capped at
+    :data:`MAX_PAYLOAD_BYTES`) and stored in ``NotificationEvent.result``.
+    Mobile clients read it back through the API payload builders. A
+    failed serialise / oversized payload is dropped silently — the
+    notification itself still mirrors with ``result=None`` so the
+    callers never have to branch on a payload-serialisation failure.
     """
     if not user_id:
         # Admin/global scope (no per-user context). The mobile app is
@@ -186,6 +257,11 @@ def mirror_energy_notification_to_center(
 
     safe_event_type = (event_type or DEFAULT_EVENT_TYPE).strip()[:40]
     safe_source_type = (source_type or ENERGY_SOURCE_TYPE).strip()[:40]
+
+    # v44 phase 1a: best-effort JSON for the optional structured echo.
+    # ``_serialize_payload`` returns ``None`` on missing/invalid/oversized
+    # input — that maps directly to ``result=None`` below.
+    serialized_payload = _serialize_payload(payload)
 
     # Tenant lookup is best-effort. If the user has no tenant (legacy
     # single-tenant install) we still mirror — ``tenant_id`` is nullable.
@@ -207,6 +283,7 @@ def mirror_energy_notification_to_center(
             title=safe_title[:220],
             message=safe_message,
             status=_status_for_level(level),
+            result=serialized_payload,
             is_read=False,
             appeared_in_bell=False,
             delivered_to_user=False,
@@ -232,6 +309,7 @@ def mirror_energy_notification_to_center(
 __all__ = [
     'ENERGY_SOURCE_TYPE',
     'DEFAULT_EVENT_TYPE',
+    'MAX_PAYLOAD_BYTES',
     'event_type_for_scheduled',
     'event_type_for_dispatch_key',
     'mirror_energy_notification_to_center',
