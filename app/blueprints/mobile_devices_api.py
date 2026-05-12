@@ -14,6 +14,27 @@ from .helpers import (
     filter_rows_for_view,
     parse_selected_date,
 )
+# v62: weather endpoint reuses the existing web-side pipeline verbatim.
+# `fetch_weather` is the Open-Meteo client in
+# `services/weather_service.py` — light, safe to import eagerly.
+# `extract_station_coords` lives in `main.py`, whose module-level
+# imports pull in heavy report-rendering deps (reportlab) that
+# don't belong in the mobile-endpoint critical path. We expose a
+# thin wrapper that lazy-imports the real helper at call time;
+# tests patch the wrapper to avoid touching `main.py` entirely.
+from ..services.weather_service import fetch_weather
+
+
+def _extract_station_coords(latest):
+    """Lazy proxy for `main.extract_station_coords`. Keeps the
+    mobile-endpoint module free of `main.py`'s eager imports so
+    the test suite never has to install report-rendering deps to
+    exercise this route. Behaviour matches the wrapped helper
+    exactly: returns `(lat, lng)` on success, `(None, None)` on
+    missing reading / missing `station_summary.locationLat|Lng` /
+    JSON parse failure."""
+    from .main import extract_station_coords as _impl
+    return _impl(latest)
 
 mobile_devices_api_bp = Blueprint('mobile_devices_api', __name__, url_prefix='/api/v1/devices')
 
@@ -333,6 +354,376 @@ def device_statistics(device_id: int):
         generated_at=datetime.utcnow().isoformat(),
     )
     return api_ok(payload)
+
+
+# v59: ── Reports summary helpers ──────────────────────────────────────
+#
+# Mirrors the derivations the web `/reports` route runs today (see
+# `web/app/blueprints/energy.py::reports`). The math here is a pure
+# function of the canonical `compute_energy_stats(rows)` output — no
+# new energy integration is performed; the helper just expresses the
+# same web-side derivations in a mobile-friendly shape.
+#
+# Phase-1 scope (matches v59 brief):
+#   * production_kwh / consumption_kwh / battery_in_kwh / grid_in_kwh
+#     — already in the canonical stats dict, renamed for the mobile
+#     contract.
+#   * solar_share / battery_share / grid_share / self_sufficiency
+#     — identical formulas to `energy.py::reports`.
+#   * average_load_w — identical formula to `energy.py::reports`.
+#   * solar_surplus_kwh — identical formula to `energy.py::reports`.
+#
+# Deliberately NOT in phase-1: smart-load suggestions (depend on
+# `_smart_load_suggestions(latest)` which is web-session coupled),
+# the CSV/PDF export paths, and the per-bucket chart series (already
+# served by the v56 `/statistics` endpoint — clients wanting the
+# chart side hit that one).
+
+def _mobile_reports_summary_payload(view, selected_date, title_hint, stats, generated_at):
+    """Build the mobile reports-summary payload.
+
+    `stats` is the canonical `compute_energy_stats(rows)` dict. The
+    `view` is `day` or `month`; the anchor format follows the same
+    convention as the v56 `/statistics` endpoint (`YYYY-MM-DD` for
+    day, `YYYY-MM` for month).
+
+    When `stats.samples == 0` the helper zeroes every derived metric
+    and sets `empty=true` — this avoids the misleading "100% self-
+    sufficiency" the raw formulas would produce on empty days (the
+    web page renders an empty-state instead and never surfaces those
+    derived values).
+    """
+    samples = int(stats.get('samples', 0) or 0)
+
+    if samples == 0:
+        summary = {
+            'production_kwh': 0.0,
+            'consumption_kwh': 0.0,
+            'battery_in_kwh': 0.0,
+            'grid_in_kwh': 0.0,
+            'solar_share_percent': 0.0,
+            'battery_share_percent': 0.0,
+            'grid_share_percent': 0.0,
+            'self_sufficiency_percent': 0.0,
+            'average_load_w': 0.0,
+            'solar_surplus_kwh': 0.0,
+        }
+        empty = True
+    else:
+        solar_generated = float(stats.get('solar_generated_kwh', 0.0) or 0.0)
+        home_consumed = float(stats.get('home_consumed_kwh', 0.0) or 0.0)
+        solar_to_home = float(stats.get('solar_to_home_kwh', 0.0) or 0.0)
+        solar_to_battery = float(stats.get('solar_to_battery_kwh', 0.0) or 0.0)
+        battery_to_home = float(stats.get('battery_to_home_kwh', 0.0) or 0.0)
+        grid_to_home = float(stats.get('grid_to_home_kwh', 0.0) or 0.0)
+
+        # Identical formula to `energy.py::reports`: shares are taken
+        # against what actually fed the home, with a 0.01 floor so an
+        # all-zero period never divides by zero.
+        total_supplied = max(solar_to_home + battery_to_home + grid_to_home, 0.01)
+        solar_share = round(min((solar_to_home / total_supplied) * 100.0, 100.0), 1)
+        battery_share = round(min((battery_to_home / total_supplied) * 100.0, 100.0), 1)
+        grid_share = round(min((grid_to_home / total_supplied) * 100.0, 100.0), 1)
+        self_sufficiency = round(max(0.0, 100.0 - grid_share), 1)
+
+        # Identical formula to `energy.py::reports`:
+        #   avg_load = (home_consumed_kwh / max(samples, 1)) * 1000
+        average_load_w = round((home_consumed / max(samples, 1)) * 1000.0, 1)
+
+        # Identical formula to `energy.py::reports`:
+        #   solar_surplus = max(solar_generated - solar_to_home, 0)
+        solar_surplus = round(max(solar_generated - solar_to_home, 0.0), 2)
+
+        summary = {
+            'production_kwh': solar_generated,
+            'consumption_kwh': home_consumed,
+            # battery_in_kwh mirrors the v56 statistics endpoint naming
+            # (energy *into* the battery from solar), not the inverse
+            # battery_to_home flow.
+            'battery_in_kwh': solar_to_battery,
+            'grid_in_kwh': grid_to_home,
+            'solar_share_percent': solar_share,
+            'battery_share_percent': battery_share,
+            'grid_share_percent': grid_share,
+            'self_sufficiency_percent': self_sufficiency,
+            'average_load_w': average_load_w,
+            'solar_surplus_kwh': solar_surplus,
+        }
+        empty = False
+
+    if view == 'day':
+        anchor = selected_date.strftime('%Y-%m-%d')
+    else:  # 'month'
+        anchor = selected_date.strftime('%Y-%m')
+
+    return {
+        'view': view,
+        'anchor': anchor,
+        'title_hint': title_hint,
+        'summary': summary,
+        'empty': empty,
+        'generated_at': generated_at,
+    }
+
+
+@mobile_devices_api_bp.get('/<int:device_id>/reports/summary')
+def device_reports_summary(device_id: int):
+    """v59 — subscriber-scoped reports summary for one device.
+
+    Owner-scoped via `_device_allowed`, same pattern as the v52
+    `/history` + `/alerts` and v56 `/statistics` endpoints. Reuses
+    the existing energy helpers (`parse_selected_date`,
+    `filter_rows_for_view`, `compute_energy_stats`) and the same
+    view/date validators as v56 so the two surfaces accept identical
+    `view=day|month&date=YYYY-MM-DD` inputs — the mobile client can
+    drive both with one selector.
+
+    No new energy integration is added. PDF / CSV export remains
+    web-only and is intentionally out of scope.
+    """
+    user, err = _require_user()
+    if err:
+        return err
+    dev = _device_allowed(user, device_id)
+    if not dev:
+        return api_error('Device not found.', code='device_not_found', status=404)
+
+    view = _validate_statistics_view(request.args.get('view'))
+    if view is None:
+        return api_error(
+            'Reports view must be one of: day, month.',
+            code='invalid_view',
+            status=400,
+            field='view',
+        )
+
+    raw_date = request.args.get('date')
+    if not _validate_statistics_date(raw_date):
+        return api_error(
+            'Reports date must be in YYYY-MM-DD format.',
+            code='invalid_date',
+            status=400,
+            field='date',
+        )
+
+    tz_name = (dev.timezone or current_app.config.get('LOCAL_TIMEZONE') or 'UTC')
+    selected_date = parse_selected_date(raw_date or None, tz_name)
+
+    if view == 'day':
+        start = selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+    else:  # 'month'
+        start = selected_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = (start + timedelta(days=32)).replace(day=1)
+    start_naive = start.replace(tzinfo=None) if start.tzinfo else start
+    end_naive = end.replace(tzinfo=None) if end.tzinfo else end
+
+    max_rows = current_app.config.get('MAX_READINGS_QUERY', 2000)
+    ordered = (
+        Reading.query
+        .filter_by(device_id=dev.id)
+        .filter(Reading.created_at >= start_naive, Reading.created_at < end_naive)
+        .order_by(Reading.created_at.asc())
+        .limit(max_rows)
+        .all()
+    )
+
+    filtered_rows, title_hint = filter_rows_for_view(ordered, view, selected_date, tz_name)
+    stats = compute_energy_stats(filtered_rows)
+
+    payload = _mobile_reports_summary_payload(
+        view=view,
+        selected_date=selected_date,
+        title_hint=title_hint,
+        stats=stats,
+        generated_at=datetime.utcnow().isoformat(),
+    )
+    return api_ok(payload)
+
+
+# v62: ── Weather helpers ────────────────────────────────────────────
+#
+# The web `weather_service.WeatherSnapshot` dataclass already carries
+# every field the phase-1 mobile Weather tab needs (current
+# conditions, sun times, next-hour slot, day-parts, six-entry
+# timeline). The helpers below do nothing except *re-shape* that
+# snapshot into a flat JSON contract the mobile client can parse
+# without learning dataclass internals — no values are recomputed,
+# no derivations are added, no fabricated fallbacks are inserted.
+#
+# Slot dicts inside `WeatherSnapshot` are already mobile-safe (plain
+# Python primitives produced by `_slot_from_hourly` /
+# `fetch_weather`), so passing them through verbatim is the honest
+# choice. We only filter the keys to the documented contract.
+
+# Keys the mobile contract surfaces from each slot dict. Anything
+# outside this set is dropped so a future backend field addition
+# doesn't silently leak into the mobile payload before the mobile
+# parser is updated.
+_MOBILE_WEATHER_SLOT_KEYS = (
+    'time', 'time_label',
+    'temperature', 'cloud_cover', 'precipitation_probability',
+    'condition_ar', 'category', 'icon',
+    'solar_rating', 'advice',
+)
+
+
+def _slot_for_mobile(slot):
+    """Filter a weather-pipeline slot dict to the mobile contract.
+
+    Returns `None` when the slot is missing or not a dict (matches
+    how `WeatherSnapshot.next_hour` / day-parts behave on cold
+    payloads). Day-part slots from `_slot_from_hourly` carry `time`
+    (ISO); `timeline[]` entries carry `time_label` (already-Arabic
+    `HH:MM ص/م`) — both keys are forwarded so the mobile client
+    can pick whichever is present without re-formatting.
+    """
+    if not isinstance(slot, dict):
+        return None
+    return {key: slot.get(key) for key in _MOBILE_WEATHER_SLOT_KEYS}
+
+
+def _mobile_weather_payload(device, snapshot, generated_at):
+    """Build the success payload from a `WeatherSnapshot`.
+
+    Every value is read straight off `snapshot` (no rounding, no
+    derivations). The shape mirrors the v62 contract documented
+    in the route handler docstring.
+    """
+    return {
+        'available': True,
+        'device': {
+            'id': device.id,
+            'name': device.name or '',
+            'timezone': device.timezone or '',
+        },
+        'current': {
+            'temperature_c': snapshot.temperature,
+            'wind_speed': snapshot.wind_speed,
+            'cloud_cover_percent': snapshot.cloud_cover,
+            'precipitation_probability_percent': snapshot.precipitation_probability,
+            'condition_ar': snapshot.condition_ar,
+            'category': snapshot.category,
+            'icon': snapshot.icon,
+            'code': snapshot.code,
+            'current_time': snapshot.current_time,
+        },
+        'sun': {
+            'sunrise_time': snapshot.sunrise_time,
+            'sunset_time': snapshot.sunset_time,
+            'effective_sunrise_time': snapshot.effective_sunrise_time,
+            'effective_sunset_time': snapshot.effective_sunset_time,
+        },
+        'next_hour': _slot_for_mobile(snapshot.next_hour),
+        'day_parts': {
+            'morning': _slot_for_mobile(snapshot.morning),
+            'noon': _slot_for_mobile(snapshot.noon),
+            'afternoon': _slot_for_mobile(snapshot.afternoon),
+        },
+        'timeline': [
+            slot for slot in (
+                _slot_for_mobile(entry) for entry in (snapshot.timeline or [])
+            )
+            if slot is not None
+        ],
+        'generated_at': generated_at,
+    }
+
+
+def _mobile_weather_unavailable(*, reason, message, device, generated_at):
+    """Build the honest empty payload. `reason` is the machine-
+    readable stable code; `message` is a calm Arabic-friendly hint.
+
+    Device summary is included even on the unavailable path so the
+    mobile client can render the screen header consistently. No
+    fabricated weather fields — the absence of `current` / `sun` /
+    `timeline` is the contract."""
+    return {
+        'available': False,
+        'reason': reason,
+        'message': message,
+        'device': {
+            'id': device.id,
+            'name': device.name or '',
+            'timezone': device.timezone or '',
+        },
+        'generated_at': generated_at,
+    }
+
+
+@mobile_devices_api_bp.get('/<int:device_id>/weather')
+def device_weather(device_id: int):
+    """v62 — subscriber-scoped current weather for one device.
+
+    Owner-scoped via `_device_allowed`, same pattern as the v52
+    `/history` + `/alerts`, v56 `/statistics`, and v59
+    `/reports/summary` endpoints. Reuses the existing web-side
+    weather pipeline verbatim: `extract_station_coords(latest)` and
+    `fetch_weather(lat, lng, tz)` — no derivations, no smart-engine
+    coupling, no notification side-effects.
+
+    Honest unavailability:
+      * Latest reading is missing OR carries no station coords →
+        `available=false, reason='station_coords_unavailable'`.
+        Common for newly-added devices that haven't synced yet, or
+        for providers whose vendor blob doesn't ship lat/lng.
+      * Open-Meteo call raises (network / vendor outage / timeout) →
+        `available=false, reason='weather_unreachable'`. The mobile
+        client renders a retry-friendly error; nothing is logged
+        about the inverter or its data.
+
+    Energy-coupled extras intentionally NOT in this contract:
+    pre-sunset prediction, weather-aware smart energy advice, sun
+    context phase classification. Those live on the dashboard /
+    reports surfaces today and stay there.
+    """
+    user, err = _require_user()
+    if err:
+        return err
+    dev = _device_allowed(user, device_id)
+    if not dev:
+        return api_error('Device not found.', code='device_not_found', status=404)
+
+    generated_at = datetime.utcnow().isoformat()
+
+    # Use the device's timezone when present; fall back to the app-
+    # level default. We never invent one — Open-Meteo accepts plain
+    # IANA names and the wrapper raises if they're unknown.
+    tz_name = (dev.timezone or current_app.config.get('LOCAL_TIMEZONE') or 'UTC')
+
+    # Resolve the latest reading for the device. Same query shape as
+    # `/history` / `/alerts` so the DB index path is identical.
+    latest = (
+        Reading.query
+        .filter_by(device_id=dev.id)
+        .order_by(Reading.created_at.desc(), Reading.id.desc())
+        .first()
+    )
+
+    lat, lng = _extract_station_coords(latest)
+    if lat is None or lng is None:
+        return api_ok(_mobile_weather_unavailable(
+            reason='station_coords_unavailable',
+            message='Weather data is not available for this device yet.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    try:
+        snapshot = fetch_weather(lat, lng, tz_name)
+    except Exception:
+        # Open-Meteo outage / network error / timeout. We swallow
+        # the underlying exception text on purpose: the mobile
+        # client doesn't need vendor stack traces. The stable
+        # `reason` code is the contract for retry behaviour.
+        return api_ok(_mobile_weather_unavailable(
+            reason='weather_unreachable',
+            message='Weather service could not be reached right now.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    return api_ok(_mobile_weather_payload(dev, snapshot, generated_at))
 
 
 @mobile_devices_api_bp.get('/<int:device_id>/alerts')
