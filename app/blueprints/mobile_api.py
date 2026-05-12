@@ -635,6 +635,27 @@ def _mobile_notification_event_query(user):
     return NotificationEvent.query.filter_by(target_user_id=user.id)
 
 
+def _parse_event_structured_payload(raw):
+    """v44 phase 1a — parse the JSON string stored in
+    ``NotificationEvent.result`` into a plain ``dict``, or return
+    ``None`` when the column is empty or holds anything that is not
+    a JSON object. Mobile clients that don't understand the payload
+    simply ignore it; older rows without a payload keep returning
+    ``None`` here so the API contract stays additive."""
+    if raw is None:
+        return None
+    text = raw if isinstance(raw, str) else str(raw)
+    if not text.strip():
+        return None
+    try:
+        parsed = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
 def _mobile_notification_event_payload(event: NotificationEvent) -> dict:
     return sanitize_response_payload({
         'id': event.id,
@@ -650,6 +671,9 @@ def _mobile_notification_event_payload(event: NotificationEvent) -> dict:
         'delivered_to_user': bool(event.delivered_to_user),
         'created_at': event.created_at.isoformat() if event.created_at else None,
         'read_at': event.read_at.isoformat() if event.read_at else None,
+        # v44 phase 1a: optional structured echo. ``None`` for legacy
+        # rows and live events that don't carry one yet.
+        'payload': _parse_event_structured_payload(event.result),
     })
 
 

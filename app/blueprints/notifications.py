@@ -1394,7 +1394,94 @@ def _schedule_matches(prefix, settings, now_local, weather=None):
     return False
 
 
-def _send_scheduled_notification(prefix, title, message, channel, level='info'):
+def _build_scheduled_event_payload(
+    prefix: str,
+    *,
+    latest=None,
+    weather=None,
+    prediction=None,
+):
+    """Build a small structured echo for a scheduled energy notification.
+
+    v44 phase 1a — supports four event families only:
+
+      * ``periodic_day`` / ``periodic_night`` — soc + solar_w + home_w
+        + optional weather summary already in ``weather``.
+      * ``pre_sunset``                       — minutes_to_sunset +
+        soc_now + will_full_before_sunset + time_to_full_hours
+        (every value already lives in ``prediction``).
+      * ``daily_report``                     — yesterday_kwh + month_kwh
+        + lifetime_kwh (from the latest reading's accumulated fields).
+
+    Returns ``None`` for any prefix that is not in the v44 phase 1a
+    whitelist. The mirror layer treats ``None`` exactly the same as
+    "no payload" (``result=None`` on the row), so unknown prefixes
+    keep behaving like pre-v44.
+
+    The helper does **not** recompute any energy intelligence — it
+    only echoes values already prepared by the notification builders.
+    """
+    _user_id, _device_id = current_scope_ids()
+    ts_utc = datetime.now(UTC).isoformat()
+    base = {
+        'v': 1,
+        'device_id': _device_id,
+        'ts_utc': ts_utc,
+    }
+
+    if prefix in ('periodic_day', 'periodic_night') and latest is not None:
+        base.update({
+            'soc': float(latest.battery_soc or 0),
+            'solar_w': float(latest.solar_power or 0),
+            'home_w': float(latest.home_load or 0),
+        })
+        # Short weather summary — only attach when the existing weather
+        # snapshot has already filled it in (no new fetches, no recomputation).
+        cond = getattr(weather, 'condition_ar', None) if weather else None
+        if cond:
+            base['weather_summary'] = cond
+        return base
+
+    if prefix == 'pre_sunset' and prediction is not None:
+        base.update({
+            'minutes_to_sunset': prediction.get('minutes_to_sunset'),
+            'soc_now': prediction.get('soc'),
+            'will_full_before_sunset':
+                bool(prediction.get('will_full_before_sunset')),
+            'time_to_full_hours': prediction.get('time_to_full_hours'),
+        })
+        return base
+
+    if prefix == 'daily_report' and latest is not None:
+        base.update({
+            # ``daily_production`` is the accumulated "today so far"
+            # counter from the inverter. The morning report runs after
+            # local 07:00 / 09:00, by which point the counter rolls
+            # over and the value represents the previous full day's
+            # production on most devices. We expose it under the
+            # ``yesterday_kwh`` key the v44 contract specifies; if a
+            # specific device exposes it differently the value is still
+            # what the existing Telegram daily report shows.
+            'yesterday_kwh': float(latest.daily_production or 0),
+            'month_kwh': float(latest.monthly_production or 0),
+            'lifetime_kwh': float(latest.total_production or 0),
+        })
+        return base
+
+    return None
+
+
+def _send_scheduled_notification(prefix, title, message, channel, level='info', *, payload=None):
+    """Send a scheduled (cron / interval) notification through Telegram
+    and/or SMS, and — when at least one channel succeeds — mirror the
+    event into the mobile Notification Center.
+
+    v44 phase 1a: an optional ``payload`` dict may be supplied. It is
+    forwarded verbatim to :func:`mirror_energy_notification_to_center`
+    and persisted into ``NotificationEvent.result`` as a structured
+    echo. The payload is **never** used to gate the send or alter the
+    Telegram/SMS text — it is presentation data for the mobile client.
+    """
     settings = load_settings()
     now = datetime.now(UTC)
     clean_title = _normalize_telegram_text(title)
@@ -1435,6 +1522,7 @@ def _send_scheduled_notification(prefix, title, message, channel, level='info'):
             user_id=_user_id,
             device_id=_device_id,
             level=level,
+            payload=payload,
         )
     else:
         _diag('scheduled notification NOT marked sent: %s result=%s', prefix, ','.join(responses) or '-')
@@ -1606,7 +1694,13 @@ def run_advanced_notification_scheduler():
         _diag('periodic_day decision: is_day=%s due=%s', is_day, due_day)
         if due_day:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='day')
-            _send_scheduled_notification('periodic_day', title, message, settings.get('periodic_day_channel', 'telegram'), 'info')
+            _send_scheduled_notification(
+                'periodic_day', title, message,
+                settings.get('periodic_day_channel', 'telegram'), 'info',
+                payload=_build_scheduled_event_payload(
+                    'periodic_day', latest=latest, weather=weather,
+                ),
+            )
         else:
             _diag('periodic_day skipped after checks')
     else:
@@ -1620,7 +1714,13 @@ def run_advanced_notification_scheduler():
         _diag('periodic_night decision: is_day=%s due=%s', is_day, due_night)
         if due_night:
             title, message = build_periodic_status_message(latest, weather, settings=settings, phase_override='night')
-            _send_scheduled_notification('periodic_night', title, message, settings.get('periodic_night_channel', 'telegram'), 'info')
+            _send_scheduled_notification(
+                'periodic_night', title, message,
+                settings.get('periodic_night_channel', 'telegram'), 'info',
+                payload=_build_scheduled_event_payload(
+                    'periodic_night', latest=latest, weather=weather,
+                ),
+            )
         else:
             _diag('periodic_night skipped after checks')
     else:
@@ -1637,7 +1737,13 @@ def run_advanced_notification_scheduler():
                     and prediction.get('will_full_before_sunset')
                 ):
                     title, message, level = build_pre_sunset_message(latest, weather, settings=settings)
-                    _send_scheduled_notification('pre_sunset', title, message, settings.get('pre_sunset_channel', 'telegram'), level)
+                    _send_scheduled_notification(
+                        'pre_sunset', title, message,
+                        settings.get('pre_sunset_channel', 'telegram'), level,
+                        payload=_build_scheduled_event_payload(
+                            'pre_sunset', prediction=prediction,
+                        ),
+                    )
             except Exception:
                 pass
 
@@ -1663,7 +1769,13 @@ def run_advanced_notification_scheduler():
             same_minute = last_sent and last_sent.astimezone(now_local.tzinfo).strftime('%Y-%m-%d %H:%M') == now_local.strftime('%Y-%m-%d %H:%M')
             if not same_minute:
                 title, message = build_daily_morning_report_message(latest, settings=settings)
-                _send_scheduled_notification('daily_report', title, message, settings.get('daily_report_channel', 'telegram'), 'info')
+                _send_scheduled_notification(
+                    'daily_report', title, message,
+                    settings.get('daily_report_channel', 'telegram'), 'info',
+                    payload=_build_scheduled_event_payload(
+                        'daily_report', latest=latest,
+                    ),
+                )
 
     # 7) محرك SMS للحالات الحرجة
     _run_sms_critical_engine(settings, latest, weather, now_local)
