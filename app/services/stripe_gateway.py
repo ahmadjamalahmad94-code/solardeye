@@ -621,6 +621,28 @@ def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, ac
                     metadata = dict(metadata)
                 except Exception:
                     metadata = {}
+            # v92l — Stripe `list()` sometimes returns a shallow
+            # session whose metadata appears empty even when the
+            # server stored the keys. If metadata looks empty,
+            # explicitly `retrieve()` the session to get the
+            # canonical record before deciding to skip.
+            if not metadata:
+                try:
+                    session_id_for_retrieve = getattr(sess, 'id', None)
+                    if session_id_for_retrieve:
+                        full = pkg.checkout.Session.retrieve(
+                            session_id_for_retrieve,
+                        )
+                        full_md = getattr(full, 'metadata', None) or {}
+                        if hasattr(full_md, 'to_dict_recursive'):
+                            try:
+                                full_md = full_md.to_dict_recursive()
+                            except Exception:
+                                full_md = {}
+                        if isinstance(full_md, dict) and full_md:
+                            metadata = full_md
+                except Exception:
+                    pass
             sess_case_id = str(metadata.get('case_id') or '')
             sess_kind = str(metadata.get('kind') or '')
             sess_payment_status = str(

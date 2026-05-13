@@ -423,6 +423,11 @@ def diagnostics_list_sessions():
         logger.exception('diagnostics: list failed')
         return jsonify({'ok': False, 'code': 'list_failed'}), 500
     raw_sessions = (getattr(listing, 'data', None) or [])
+    # v92l — also retrieve each session individually because
+    # Stripe's `list()` response sometimes returns a shallow view
+    # where `metadata` looks empty even when the server actually
+    # stored the keys. `retrieve()` returns the canonical record.
+    deep_retrieve = (request.args.get('deep') or '').strip() == '1'
     rows = []
     raw_count = 0
     for sess in raw_sessions:
@@ -436,6 +441,27 @@ def diagnostics_list_sessions():
                     metadata = {}
             if not isinstance(metadata, dict):
                 metadata = {}
+            # Deep retrieve for diagnostic clarity.
+            retrieved_metadata = None
+            if deep_retrieve:
+                try:
+                    session_id = getattr(sess, 'id', None)
+                    if session_id:
+                        full = pkg.checkout.Session.retrieve(session_id)
+                        full_md = getattr(full, 'metadata', None) or {}
+                        if hasattr(full_md, 'to_dict_recursive'):
+                            try:
+                                full_md = full_md.to_dict_recursive()
+                            except Exception:
+                                full_md = {}
+                        if isinstance(full_md, dict):
+                            retrieved_metadata = full_md
+                            # Promote retrieved metadata into the
+                            # shallow one so filters see the truth.
+                            if not metadata and full_md:
+                                metadata = full_md
+                except Exception:
+                    pass
             sess_kind = str(metadata.get('kind') or '')
             # Apply optional kind filter (v92j default was hard-
             # filtered to plan_change_invoice — v92k makes the
@@ -446,7 +472,7 @@ def diagnostics_list_sessions():
                 # Default view: hide truly-untagged sessions unless
                 # the caller asked for `all=1`.
                 continue
-            rows.append({
+            row = {
                 'session_id': getattr(sess, 'id', None),
                 'payment_status': getattr(sess, 'payment_status', None),
                 'status': getattr(sess, 'status', None),
@@ -456,7 +482,10 @@ def diagnostics_list_sessions():
                 'created': getattr(sess, 'created', None),
                 'customer_email': getattr(sess, 'customer_email', None),
                 'metadata': metadata,
-            })
+            }
+            if retrieved_metadata is not None:
+                row['retrieved_metadata'] = retrieved_metadata
+            rows.append(row)
         except Exception:
             continue
     return jsonify({
