@@ -387,21 +387,30 @@ def create_invoice_checkout():
 
 @payments_bp.route('/payments/stripe/diagnostics/sessions', methods=['GET'])
 def diagnostics_list_sessions():
-    """v92j — admin/diagnostic endpoint. Lists the most recent
-    Stripe Checkout Sessions tagged with `kind='plan_change_invoice'`
-    so an operator (or the user during debugging) can confirm
-    which case_id each paid session was tagged with. Useful when a
-    user paid but their CURRENT pending invoice is a different
-    case_id (the original got replaced/recreated).
+    """v92j (v92k expanded) — admin/diagnostic endpoint.
 
-    Returns JSON with up to 50 sessions. Requires login; no
-    user-specific filtering — this is a debug surface, not a
-    customer feature."""
+    Lists the most recent Stripe Checkout Sessions visible with the
+    current `STRIPE_SECRET_KEY`. By default no filter is applied
+    so we can confirm:
+      * The API key actually sees sessions at all (proves which
+        Stripe account / mode we're talking to).
+      * What metadata each session carries (so we can spot whether
+        the `kind`/`case_id` tags were missing or different).
+
+    Query params:
+      * `kind=plan_change_invoice` — narrow to plan-change sessions
+      * `all=1`                   — show every session even if no
+                                    metadata.kind is set
+    """
     user = _active_user()
     if user is None:
         return jsonify({'ok': False, 'code': 'auth_required'}), 401
+    kind_filter = (request.args.get('kind') or '').strip()
+    show_all = (request.args.get('all') or '').strip() == '1'
     try:
-        from ..services.stripe_gateway import _configure_stripe, StripeNotReady
+        from ..services.stripe_gateway import (
+            _configure_stripe, StripeNotReady, PROVIDER_MODE, PROVIDER_NAME,
+        )
         pkg = _configure_stripe()
     except StripeNotReady:
         return jsonify({'ok': False, 'code': 'stripe_not_ready'}), 503
@@ -413,8 +422,11 @@ def diagnostics_list_sessions():
     except Exception:
         logger.exception('diagnostics: list failed')
         return jsonify({'ok': False, 'code': 'list_failed'}), 500
+    raw_sessions = (getattr(listing, 'data', None) or [])
     rows = []
-    for sess in (getattr(listing, 'data', None) or []):
+    raw_count = 0
+    for sess in raw_sessions:
+        raw_count += 1
         try:
             metadata = getattr(sess, 'metadata', None) or {}
             if hasattr(metadata, 'to_dict_recursive'):
@@ -424,19 +436,53 @@ def diagnostics_list_sessions():
                     metadata = {}
             if not isinstance(metadata, dict):
                 metadata = {}
-            if str(metadata.get('kind') or '') != 'plan_change_invoice':
+            sess_kind = str(metadata.get('kind') or '')
+            # Apply optional kind filter (v92j default was hard-
+            # filtered to plan_change_invoice — v92k makes the
+            # filter explicit so we can SEE ALL sessions).
+            if kind_filter and sess_kind != kind_filter:
+                continue
+            if not show_all and not kind_filter and not sess_kind:
+                # Default view: hide truly-untagged sessions unless
+                # the caller asked for `all=1`.
                 continue
             rows.append({
                 'session_id': getattr(sess, 'id', None),
                 'payment_status': getattr(sess, 'payment_status', None),
+                'status': getattr(sess, 'status', None),
+                'mode': getattr(sess, 'mode', None),
                 'amount_total': getattr(sess, 'amount_total', None),
                 'currency': getattr(sess, 'currency', None),
                 'created': getattr(sess, 'created', None),
+                'customer_email': getattr(sess, 'customer_email', None),
                 'metadata': metadata,
             })
         except Exception:
             continue
-    return jsonify({'ok': True, 'data': {'sessions': rows, 'count': len(rows)}})
+    return jsonify({
+        'ok': True,
+        'data': {
+            'sessions': rows,
+            'count': len(rows),
+            'raw_total_seen_on_this_key': raw_count,
+            'provider': PROVIDER_NAME,
+            'mode': PROVIDER_MODE,
+            'kind_filter': kind_filter or None,
+            'show_all': show_all,
+            'hint': (
+                'No sessions visible at all → the STRIPE_SECRET_KEY '
+                'on this deployment doesn\'t match the account where '
+                'the payment was made.'
+                if raw_count == 0 else
+                ('Sessions visible but none plan_change_invoice → the '
+                 'payment used a non-plan-change checkout, OR metadata '
+                 'never got attached.'
+                 if not rows else
+                 'Plan-change sessions visible — compare case_id values.'
+                )
+            ),
+        },
+    })
 
 
 # ── Reconcile path — subscriber-triggered payment verification ───
