@@ -18,10 +18,11 @@
     {# v93f — financial + support rows navigate directly to source;
        system rows open the floating modal. The CSS hook
        `ncv40-row--<class>` lets the theme color them differently. #}
-    <a class="ncv40-row ncv40-row--{{ item.notification_class or 'system' }}{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
+    <a class="ncv40-row ncv40-row--{{ item.notification_class or 'system' }} ncv40-row--cat-{{ item.notification_category or 'energy' }}{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
        href="{{ item.url }}"
        {% if (item.notification_class or 'system') == 'system' %}data-ncv40-modal{% endif %}
        data-notif-class="{{ item.notification_class or 'system' }}"
+       data-notif-category="{{ item.notification_category or 'energy' }}"
        data-modal-title="{{ item.title|e }}"
        data-modal-details="{{ item.details|e }}"
        data-modal-sender="{{ (item.assignee or '')|e }}"
@@ -32,6 +33,7 @@
        data-ncv40-item
        data-ncv40-open
        data-kind="{{ item.kind }}"
+       data-category="{{ item.notification_category or 'energy' }}"
        data-status="{{ item.status }}"
        data-priority="{{ item.priority }}"
        data-unread="{{ item.unread_count }}"

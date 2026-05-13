@@ -53,8 +53,22 @@
   }
 
   /* ---------------- Filtering ---------------- */
+  // v93h — the toolbar now exposes per-category tabs (system /
+  // weather / energy) on top of the existing kind-based tabs
+  // (message / ticket). The list rows carry a `data-category`
+  // attribute computed server-side. The mapping is:
+  //   data-ncv40-tab="system"  → category === 'financial'
+  //                              (subscription, payment, plan
+  //                               change, quota nearing limit)
+  //   data-ncv40-tab="weather" → category === 'weather'
+  //   data-ncv40-tab="energy"  → category === 'energy'
+  //                              (loads, battery, solar, sundown,
+  //                               sunrise, inverter, daily report)
+  // The legacy kind-based tabs (message / ticket) keep working
+  // because rows carry both `data-kind` and `data-category`.
   function matches(item) {
     const kind     = (item.dataset.kind || 'system').toLowerCase();
+    const category = (item.dataset.category || '').toLowerCase();
     const unread   = Number(item.dataset.unread || 0) > 0;
     const archived = item.dataset.archived === '1';
     const status   = (item.dataset.status || '').toLowerCase();
@@ -64,7 +78,9 @@
     if (state.tab === 'unread'  && !unread) return false;
     if (state.tab === 'message' && kind !== 'message') return false;
     if (state.tab === 'ticket'  && kind !== 'ticket') return false;
-    if (state.tab === 'system'  && kind !== 'system') return false;
+    if (state.tab === 'system'  && category !== 'financial') return false;
+    if (state.tab === 'weather' && category !== 'weather')   return false;
+    if (state.tab === 'energy'  && category !== 'energy')    return false;
     if (state.tab === 'archive' && !archived) return false;
 
     if (state.tab !== 'archive') {

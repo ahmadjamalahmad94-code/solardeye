@@ -530,15 +530,22 @@ def _agg_service_label(event_type, lang='ar'):
     return table.get(key, '')
 
 
-# v93f — top-level classification used by the bell + notif-center
-# to decide click behaviour and color theme:
-#   * 'financial' (plan-change, invoices, payments) → DIRECT NAV
-#     to source page; no modal. Subscriber wants to act now.
-#   * 'support'   (tickets, support messages)       → DIRECT NAV
-#     to the case page; no modal.
-#   * 'system'    (energy/weather/load/etc.)        → OPEN MODAL
-#     (no useful navigation target — keep the user on the
-#     notification center).
+# v93f / v93h — multi-tier classification used by the bell + notif-
+# center to decide click behaviour, color theme, AND filter tabs.
+#
+# `notification_class` (top-level, drives click behaviour):
+#   * 'financial'  → direct nav (subscription/payment/quota/plan)
+#   * 'support'    → direct nav (tickets/messages)
+#   * 'system'     → open modal (energy/weather/load — no target)
+#
+# `notification_category` (v93h, drives filter tabs in the center):
+#   * 'financial'  — same as financial class (system per user
+#                    intuition: subscription/payment/quotas etc.)
+#   * 'support'    — messages + tickets
+#   * 'weather'    — weather_alert only
+#   * 'energy'     — everything else in the system class
+#                    (loads, battery, solar, sundown, sunrise,
+#                     daily report, inverter, etc.)
 _FINANCIAL_EVENT_PREFIXES = (
     'plan_change',
     'invoice',
@@ -546,6 +553,7 @@ _FINANCIAL_EVENT_PREFIXES = (
     'billing',
     'subscription',
     'wallet',
+    'quota',
 )
 _SUPPORT_EVENT_PREFIXES = (
     'support',
@@ -553,6 +561,9 @@ _SUPPORT_EVENT_PREFIXES = (
     'message',
     'conversation',
     'mail',
+)
+_WEATHER_EVENT_PREFIXES = (
+    'weather',
 )
 
 
@@ -570,6 +581,23 @@ def _agg_notification_class(event_type, source_type, kind):
         if et.startswith(pref) or st.startswith(pref):
             return 'financial'
     return 'system'
+
+
+def _agg_notification_category(event_type, source_type, kind):
+    """v93h — finer-grained label for the filter tabs.
+
+    Returns 'financial' | 'support' | 'weather' | 'energy'. The
+    notification center toolbar exposes one tab per category so the
+    subscriber can isolate "Energy alerts only" from "Weather
+    alerts" without going into search."""
+    cls = _agg_notification_class(event_type, source_type, kind)
+    if cls != 'system':
+        return cls
+    et = (event_type or '').strip().lower()
+    for pref in _WEATHER_EVENT_PREFIXES:
+        if et.startswith(pref):
+            return 'weather'
+    return 'energy'
 
 
 def _agg_status_label(status):
@@ -713,6 +741,17 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             getattr(last, 'source_type', None),
             kind,
         )
+        # v93h — finer-grained category that drives the filter tabs
+        # in the notification center toolbar. Splits the old
+        # `system` bucket into `weather` + `energy` so the
+        # subscriber can isolate the genuinely system-level events
+        # (subscription/payment/quota — already in `financial`)
+        # from environmental / device alerts.
+        notification_category = _agg_notification_category(
+            getattr(last, 'event_type', None),
+            getattr(last, 'source_type', None),
+            kind,
+        )
         group = {
             'group_key': key,
             'kind': kind,
@@ -731,6 +770,7 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             'sender': assignee_name or '',  # legacy alias the bell JS reads
             'has_source_link': has_meaningful_source,
             'notification_class': notification_class,  # v93f
+            'notification_category': notification_category,  # v93h
             'unread_count': unread_count,
             'events_count': len(events),
             'last_activity_at': last_at,
@@ -748,6 +788,14 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
         'open_tickets': sum(1 for g in groups if g['kind'] == 'ticket' and not g['is_closed']),
         'system_alerts': sum(1 for g in groups if g['kind'] == 'system'),
         'all': len(groups),
+        # v93h — per-category counts that the notif-center toolbar
+        # uses to render the new filter chips. We count groups,
+        # not events, to stay consistent with how the list itself
+        # is rendered.
+        'financial_count': sum(1 for g in groups if g.get('notification_category') == 'financial'),
+        'support_count':   sum(1 for g in groups if g.get('notification_category') == 'support'),
+        'weather_count':   sum(1 for g in groups if g.get('notification_category') == 'weather'),
+        'energy_count':    sum(1 for g in groups if g.get('notification_category') == 'energy'),
     }
     timeline = [g for g in groups if g['kind'] == 'system'][:5]
     if len(timeline) < 4:

@@ -21,10 +21,14 @@
     <small class="ncv40-stat-trend">{{ 'Currently in progress' if is_en else 'قيد المعالجة الآن' }}</small>
   </article>
 
+  {# v93h — the toolbar tab "system" now means financial /
+     account-level system events (subscription, payment, quota,
+     plan change). Card jumps to that filter on click, so the
+     value shown is the financial group count. #}
   <article class="ncv40-stat" data-ncv40-stat="system" data-stat-key="system">
     <div class="ncv40-stat-icon">{{ ncv40_icon('sparkles') }}</div>
     <span class="ncv40-stat-label">{{ 'System alerts' if is_en else 'تنبيهات النظام' }}</span>
-    <strong class="ncv40-stat-value">{{ stats.system_alerts or 0 }}</strong>
-    <small class="ncv40-stat-trend">{{ 'Operational updates' if is_en else 'تحديثات تشغيلية' }}</small>
+    <strong class="ncv40-stat-value">{{ stats.financial_count or 0 }}</strong>
+    <small class="ncv40-stat-trend">{{ 'Subscription, payment & quotas' if is_en else 'الاشتراك والدفع والكوتات' }}</small>
   </article>
 </section>

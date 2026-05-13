@@ -1457,3 +1457,29 @@
   background: #dbeafe !important;
   color: #1e40af !important;
 }
+
+/* v93h — finer category accents inside the notif-center list so
+   weather (cyan) and energy (amber) rows are visually distinct
+   from the financial/system (blue) baseline. We only override
+   the bar + avatar; the row background keeps its existing class-
+   level tint so unread/archived state still reads correctly. */
+.ncv40-row--cat-weather .ncv40-row-bar {
+  background: linear-gradient(180deg, #06b6d4, #0e7490) !important;
+}
+.ncv40-row--cat-weather .ncv40-row-avatar {
+  background: linear-gradient(135deg, #06b6d4, #0e7490) !important;
+  color: #ffffff !important;
+}
+.ncv40-row--cat-energy .ncv40-row-bar {
+  background: linear-gradient(180deg, #f97316, #c2410c) !important;
+}
+.ncv40-row--cat-energy .ncv40-row-avatar {
+  background: linear-gradient(135deg, #f97316, #c2410c) !important;
+  color: #ffffff !important;
+}
+/* Financial = system tab — keep the blue baseline but make the
+   bar a touch greener so it reads as "money/account" not
+   "ambient". */
+.ncv40-row--cat-financial .ncv40-row-bar {
+  background: linear-gradient(180deg, #10b981, #059669) !important;
+}

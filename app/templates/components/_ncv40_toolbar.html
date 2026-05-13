@@ -1,9 +1,23 @@
-{# Notification Center v40 — Toolbar (tabs + search) #}
+{# Notification Center v40 — Toolbar (tabs + search)
+   v93h — granular filter tabs. The legacy "System" tab lumped
+   subscription/payment/quotas together with energy + weather
+   alerts; that meant a subscriber who wanted to see "did my
+   payment go through?" had to scroll past 50 load alerts.
+   We now expose the categories the aggregator computes:
+     • System  — financial events (subscription, payment, quotas,
+                 plan changes). Maps to notification_category=financial.
+     • Weather — weather alerts (notification_category=weather).
+     • Energy  — load/battery/solar/sundown/sunrise/inverter
+                 (notification_category=energy).
+     • Messages — internal mail conversations (kind=message).
+     • Tickets  — support tickets (kind=ticket). #}
 {% set count_message = (groups | selectattr('kind', 'equalto', 'message') | list) | length %}
 {% set count_ticket  = (groups | selectattr('kind', 'equalto', 'ticket')  | list) | length %}
-{% set count_system  = (groups | selectattr('kind', 'equalto', 'system')  | list) | length %}
 {% set count_unread  = (groups | selectattr('unread_count', 'gt', 0) | list) | length %}
 {% set count_archive = (groups | selectattr('is_archived') | list) | length %}
+{% set count_system_finance = stats.financial_count if stats and stats.get('financial_count') is not none else (groups | selectattr('notification_category', 'equalto', 'financial') | list) | length %}
+{% set count_weather = stats.weather_count if stats and stats.get('weather_count') is not none else (groups | selectattr('notification_category', 'equalto', 'weather') | list) | length %}
+{% set count_energy  = stats.energy_count  if stats and stats.get('energy_count')  is not none else (groups | selectattr('notification_category', 'equalto', 'energy')  | list) | length %}
 
 <div class="ncv40-toolbar">
   <nav class="ncv40-tabs" aria-label="{{ 'Tabs' if is_en else 'تبويبات' }}">
@@ -17,20 +31,34 @@
       <span>{{ 'Unread' if is_en else 'غير المقروء' }}</span>
       <span class="ncv40-tab-count">{{ count_unread }}</span>
     </button>
+    {# v93h — "System" now means *financial / account* system
+       events: subscription renewal, payment receipts, quota
+       nearing limits, plan-change workflow. Energy + weather
+       have their own tabs. #}
+    <button class="ncv40-tab" type="button" data-ncv40-tab="system">
+      {{ ncv40_icon('sparkles') }}
+      <span>{{ 'System' if is_en else 'اشعارات النظام' }}</span>
+      <span class="ncv40-tab-count">{{ count_system_finance }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="weather">
+      {{ ncv40_icon('cloud') }}
+      <span>{{ 'Weather' if is_en else 'اشعارات الطقس' }}</span>
+      <span class="ncv40-tab-count">{{ count_weather }}</span>
+    </button>
+    <button class="ncv40-tab" type="button" data-ncv40-tab="energy">
+      {{ ncv40_icon('bolt') }}
+      <span>{{ 'Energy' if is_en else 'اشعارات الطاقة' }}</span>
+      <span class="ncv40-tab-count">{{ count_energy }}</span>
+    </button>
     <button class="ncv40-tab" type="button" data-ncv40-tab="message">
       {{ ncv40_icon('mail') }}
-      <span>{{ 'Messages' if is_en else 'الرسائل' }}</span>
+      <span>{{ 'Messages' if is_en else 'اشعارات الرسائل' }}</span>
       <span class="ncv40-tab-count">{{ count_message }}</span>
     </button>
     <button class="ncv40-tab" type="button" data-ncv40-tab="ticket">
       {{ ncv40_icon('ticket') }}
       <span>{{ 'Tickets' if is_en else 'التذاكر' }}</span>
       <span class="ncv40-tab-count">{{ count_ticket }}</span>
-    </button>
-    <button class="ncv40-tab" type="button" data-ncv40-tab="system">
-      {{ ncv40_icon('sparkles') }}
-      <span>{{ 'System' if is_en else 'النظام' }}</span>
-      <span class="ncv40-tab-count">{{ count_system }}</span>
     </button>
     <button class="ncv40-tab" type="button" data-ncv40-tab="archive">
       {{ ncv40_icon('archive') }}
