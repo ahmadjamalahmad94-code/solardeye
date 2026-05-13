@@ -352,13 +352,21 @@ def _event_to_safe_dict(event) -> dict[str, Any]:
 
 
 def handle_event(event: dict[str, Any]) -> dict[str, Any]:
-    """Minimal v84 event handler — log the event type and a small
-    safe identifier, do NOT mutate any subscription state.
+    """v84 sandbox-foundation event handler, extended in v86 to
+    settle plan-change invoices.
 
-    v84 is the sandbox foundation; auto-activation on
-    `checkout.session.completed` is a deliberate future step that
-    requires a clearly safe test-only flow. For now we just
-    acknowledge receipt so Stripe doesn't retry indefinitely.
+    What still does NOT happen here (deliberate, locked by tests):
+      * No automatic subscription activation.
+      * No `apply_request(...)` call — plan apply remains a
+        separate explicit admin step.
+
+    What v86 adds: when a `checkout.session.completed` event
+    arrives with our `kind='plan_change_invoice'` metadata, we
+    call `plan_change_workbench.mark_invoice_settled(...)` on the
+    referenced case. This flips the case status from
+    `payment_requested` → `payment_settled` so the admin queue
+    surfaces the receipt; the operator (or a future
+    `subscription.applied` automation) clicks Apply afterwards.
     """
     event_type = str(event.get('type') or 'unknown')
     event_id = str(event.get('id') or '')
@@ -368,15 +376,150 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
         'stripe_webhook_received type=%s event_id=%s object_id=%s mode=%s',
         event_type, event_id, obj_id, PROVIDER_MODE,
     )
-    return {
+    result = {
         'received': True,
         'event_type': event_type,
         'event_id': event_id,
         'object_id': obj_id,
         'mode': PROVIDER_MODE,
-        'handled': False,  # v84 deliberately does not mutate state
-        'reason': (
-            'v84 sandbox foundation does not auto-activate '
-            'subscriptions; event acknowledged.'
-        ),
+        'handled': False,
+        'reason': 'event_type_not_handled',
+    }
+    # v86: settle plan-change invoices on completed checkout.
+    if event_type == 'checkout.session.completed':
+        metadata = (obj.get('metadata') or {}) if isinstance(obj, dict) else {}
+        kind = str(metadata.get('kind') or '').strip()
+        if kind == 'plan_change_invoice':
+            case_id_raw = metadata.get('case_id')
+            try:
+                case_id = int(case_id_raw) if case_id_raw is not None else None
+            except (TypeError, ValueError):
+                case_id = None
+            if case_id:
+                settle_outcome = _settle_plan_change_invoice(case_id)
+                result.update(settle_outcome)
+                result['handled'] = settle_outcome.get('settled', False)
+                if result['handled']:
+                    result['reason'] = 'plan_change_invoice_settled'
+                else:
+                    result['reason'] = settle_outcome.get(
+                        'skip_reason', 'settle_failed',
+                    )
+    return result
+
+
+def _settle_plan_change_invoice(case_id: int) -> dict[str, Any]:
+    """Internal helper: look up the plan-change case + flip it to
+    `payment_settled` via the workbench. Never raises; returns a
+    small dict the webhook handler folds into its response."""
+    try:
+        from ..models import SupportCase
+        from . import plan_change_workbench as wb
+        case = SupportCase.query.filter_by(
+            id=case_id, case_type='plan_change_request',
+        ).first()
+        if case is None:
+            return {'settled': False, 'skip_reason': 'case_not_found'}
+        if (case.status or '').lower() != wb.STATUS_PAYMENT_REQUESTED:
+            # Idempotency: if the case already advanced (admin
+            # marked it settled out-of-band, or another webhook
+            # fired first), we ack without re-flipping.
+            return {
+                'settled': False,
+                'skip_reason': f'case_already_in_{case.status}',
+                'case_status': case.status,
+            }
+        wb.mark_invoice_settled(
+            case, actor_user_id=None,  # webhook is an unattributed actor
+            note='Settled by Stripe sandbox webhook',
+            commit=True,
+        )
+        return {
+            'settled': True,
+            'case_id': case.id,
+            'case_status': case.status,
+        }
+    except Exception as exc:
+        logger.warning(
+            'stripe_invoice_settle_failed err_class=%s',
+            type(exc).__name__,
+        )
+        return {'settled': False, 'skip_reason': 'internal_error'}
+
+
+# v86: ── Invoice checkout for plan-change payment requests ──────────
+
+
+def create_invoice_checkout_session(
+    *,
+    case_id: int,
+    amount_value: float,
+    currency: str,
+    case_label: str,
+    success_url: str,
+    cancel_url: str,
+    customer_email: Optional[str] = None,
+    tenant_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> dict[str, Any]:
+    """Create a Stripe Checkout Session that bills the exact
+    prorated amount on a plan-change invoice (`INV-…` ledger row).
+
+    Differences from `create_checkout_session`:
+      * `kind='plan_change_invoice'` metadata so the webhook
+        handler recognises completed checkouts and flips the case
+        status to `payment_settled` via `mark_invoice_settled`.
+      * `case_id` is preserved verbatim in the metadata so the
+        webhook can resolve the originating request.
+    """
+    if amount_value <= 0:
+        raise ValueError('amount_value must be a positive number')
+    if not currency or len(currency) > 8:
+        raise ValueError('currency is required and must be short')
+    if not case_label:
+        raise ValueError('case_label is required')
+    if not success_url or not cancel_url:
+        raise ValueError('success_url + cancel_url are required')
+    if not case_id:
+        raise ValueError('case_id is required')
+    pkg = _configure_stripe()
+    unit_amount = int(round(float(amount_value) * 100))
+    safe_metadata: dict[str, Any] = {
+        'provider': PROVIDER_NAME,
+        'mode': PROVIDER_MODE,
+        'kind': 'plan_change_invoice',
+        'case_id': str(case_id),
+    }
+    if tenant_id is not None:
+        safe_metadata['tenant_id'] = str(tenant_id)
+    if user_id is not None:
+        safe_metadata['user_id'] = str(user_id)
+    try:
+        session = pkg.checkout.Session.create(
+            mode='payment',
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': currency.lower(),
+                    'product_data': {'name': case_label[:120]},
+                    'unit_amount': unit_amount,
+                },
+                'quantity': 1,
+            }],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=customer_email or None,
+            metadata=safe_metadata,
+        )
+    except Exception as exc:
+        logger.warning(
+            'stripe_invoice_checkout_failed err_class=%s',
+            type(exc).__name__,
+        )
+        raise
+    return {
+        'id': getattr(session, 'id', None),
+        'url': getattr(session, 'url', None),
+        'provider': PROVIDER_NAME,
+        'mode': PROVIDER_MODE,
     }

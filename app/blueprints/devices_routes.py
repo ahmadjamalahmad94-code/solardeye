@@ -315,6 +315,25 @@ def devices_manage():
         return redirect(url_for('auth.login'))
 
     if request.method == 'POST':
+        # v86: enforce the stock-based device ceiling on the web
+        # path too — previously only the mobile create endpoint
+        # checked `allowed_device_limit(user)`. Without this gate
+        # a subscriber could exceed their plan's `max_devices` by
+        # using the web form. Block with a calm Arabic flash and
+        # bounce them back to the device-manage page.
+        from ..services.subscriptions import allowed_device_limit
+        active_count = AppDevice.query.filter_by(
+            owner_user_id=user.id, is_active=True,
+        ).count()
+        max_devices = allowed_device_limit(user)
+        if max_devices <= 0 or active_count >= max_devices:
+            flash(
+                'تم بلوغ الحد الأقصى للأجهزة المسموح به في خطتك '
+                f'({active_count}/{max_devices}). '
+                'يمكنك ترقية الخطة أو إلغاء تنشيط جهاز قبل إضافة جهاز جديد.',
+                'warning',
+            )
+            return redirect(url_for('main.devices_manage', lang=_lang()))
         device = AppDevice(owner_user_id=user.id)
         db.session.add(device)
         db.session.flush()
@@ -328,8 +347,8 @@ def devices_manage():
         # mobile-create path; uses the unconditional
         # `record_usage_for_user(...)` helper so a soft-exceeded
         # quota row still tracks the new addition truthfully.
-        # Never raises; the stock-based ceiling already gates the
-        # actually disallowed cases elsewhere.
+        # Never raises; the stock-based ceiling above already gates
+        # the actually disallowed cases.
         _record_usage_for_user(user, 'devices_limit', 1, commit=False)
         db.session.commit()
         flash('تمت إضافة الجهاز بنجاح.', 'success')

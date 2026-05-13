@@ -302,6 +302,72 @@ def track_api_call_for_user(user: AppUser | None, *, commit: bool = False) -> Te
     return record_usage_for_user(user, 'api_calls_limit', 1, commit=commit)
 
 
+# v86: ── Shared `before_request` hook for API blueprints ──────────────
+#
+# v80 wired a `before_request` hook on `mobile_core_api_bp` only. v86
+# closes the API quota coverage gap by exposing the same hook logic as
+# a free function the other mobile blueprints can register
+# (`mobile_devices_api_bp`, `mobile_notifications_api_bp`,
+# `mobile_support_api_bp`). One canonical hook, registered on each
+# blueprint — no duplicated logic.
+
+# Path prefixes / paths that must never count against the quota:
+#   * `/api/mobile/auth/` and `/api/v1/mobile/auth/` — login / refresh /
+#     me / logout: subscribers must always be able to authenticate
+#     even when their quota is exhausted.
+#   * `/api/mobile/health` + bare `/health` — infrastructure pings.
+#   * CORS preflight (`OPTIONS`) is filtered inside the hook itself.
+_API_QUOTA_SKIP_PREFIXES: tuple[str, ...] = (
+    '/api/mobile/auth/',
+    '/api/v1/mobile/auth/',
+)
+_API_QUOTA_SKIP_PATHS: frozenset[str] = frozenset({
+    '/api/mobile/health',
+    '/health',
+})
+
+
+def record_api_quota_for_current_request() -> None:
+    """Idempotent, defensive API-quota tick.
+
+    Reads the active Flask request and `g`, resolves the bearer/
+    session user, and records one tick against the user's
+    `api_calls_limit`. Sets `g._v80_api_call_counted` after a
+    successful bump so any re-entry inside the same request cycle
+    (a sub-blueprint, an after-request hook re-invocation, etc.)
+    cannot double-count.
+
+    Returns None always. Never raises. Each blueprint registers
+    this as its `before_request` handler — the central skip list
+    above takes care of auth + health + preflight.
+    """
+    try:
+        from flask import g, request
+        method = (request.method or '').upper()
+        if method == 'OPTIONS':
+            return None
+        path = request.path or ''
+        if path in _API_QUOTA_SKIP_PATHS:
+            return None
+        if any(path.startswith(p) for p in _API_QUOTA_SKIP_PREFIXES):
+            return None
+        if getattr(g, '_v80_api_call_counted', False):
+            return None
+        # Local import — `mobile_auth` lives in a sister service
+        # module and is the canonical bearer→user resolver.
+        from .mobile_auth import user_from_bearer_or_session
+        user = user_from_bearer_or_session()
+        if user is None or getattr(user, 'is_admin', False):
+            return None
+        track_api_call_for_user(user, commit=False)
+        g._v80_api_call_counted = True
+    except Exception:
+        # Defensive: a quota bookkeeping failure must never derail a
+        # legitimate API request.
+        pass
+    return None
+
+
 def consume_or_raise(user: AppUser | None, quota_key: str, amount: float = 1, *, lang: str = 'ar') -> TenantQuota | None:
     ok, message, quota = consume_quota_for_user(user, quota_key, amount, lang=lang, commit=False)
     if not ok:

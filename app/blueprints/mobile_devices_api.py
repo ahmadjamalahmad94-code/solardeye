@@ -41,6 +41,17 @@ def _extract_station_coords(latest):
 
 mobile_devices_api_bp = Blueprint('mobile_devices_api', __name__, url_prefix='/api/v1/devices')
 
+
+# v86: register the shared API-quota hook so every protected request
+# under `/api/v1/devices/*` ticks the subscriber's `api_calls_limit`.
+# The hook is centrally defined in `quota_engine` so v86 closes the
+# coverage gap left over from v80 without duplicating the bookkeeping
+# logic in three different blueprint modules.
+@mobile_devices_api_bp.before_request
+def _v86_record_api_quota():
+    from ..services.quota_engine import record_api_quota_for_current_request
+    record_api_quota_for_current_request()
+
 # v56: views accepted by `GET /<id>/statistics`. The wider web surface
 # (`/statistics`, `/reports`) also supports `week`, but phase-1 mobile
 # only renders `day` and `month` — week support would require a new

@@ -17,6 +17,14 @@ from ..services.quota_engine import consume_quota_for_user
 
 mobile_support_api_bp = Blueprint('mobile_support_api', __name__, url_prefix='/api/v1/support')
 
+
+# v86: shared API-quota hook — closes the v80 coverage gap for the
+# `/api/v1/support/*` namespace.
+@mobile_support_api_bp.before_request
+def _v86_record_api_quota():
+    from ..services.quota_engine import record_api_quota_for_current_request
+    record_api_quota_for_current_request()
+
 # v71: ── Mobile attachment upload constants ─────────────────────────
 #
 # Mirror of `SUPPORT_ATTACHMENT_EXTENSIONS` and

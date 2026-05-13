@@ -169,8 +169,51 @@
               </article>
               {% endfor %}
             </div>
+            {# v86: rich pending banner. Shows the case status,
+               the exact amount owed when an invoice exists, and a
+               sandbox-checkout button so the subscriber can move
+               their own request forward without waiting for an
+               admin nudge. #}
             {% if pending_request %}
-            <div class="sub-pending-banner">⏳ {{ 'You already have a pending plan-change request.' if is_en else 'لديك طلب ترقية باقة قيد المراجعة.' }}</div>
+              {% set st = pending_request.status or 'open' %}
+              {% set is_payment = st in ['payment_requested', 'payment_settled'] %}
+              <div class="sub-pending-banner" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;{% if is_payment %}border-left:4px solid #f59e0b;background:rgba(245,158,11,0.07);{% endif %}padding:14px 16px">
+                <div style="flex:1 1 260px">
+                  <strong style="display:block;margin-bottom:4px">
+                    {% if st == 'payment_requested' %}
+                      🧾 {{ 'Payment requested for your plan-change' if is_en else 'مطلوب دفع لإكمال تغيير الخطة' }}
+                    {% elif st == 'payment_settled' %}
+                      ⏳ {{ 'Payment received — awaiting plan apply' if is_en else 'تم استلام الدفعة — بانتظار تطبيق الخطة' }}
+                    {% elif st == 'awaiting_subscriber_reply' %}
+                      💬 {{ 'A proposal is waiting for your reply.' if is_en else 'لديك مقترح بانتظار ردك.' }}
+                    {% elif st == 'under_review' %}
+                      🔍 {{ 'Your plan-change request is under review.' if is_en else 'طلب تغيير خطتك قيد المراجعة.' }}
+                    {% else %}
+                      ⏳ {{ 'You have a pending plan-change request.' if is_en else 'لديك طلب تغيير خطة قيد المتابعة.' }}
+                    {% endif %}
+                  </strong>
+                  {% if pending_invoice %}
+                    <div style="font-size:0.9rem;color:#475569;margin-top:4px">
+                      {% if is_en %}
+                        Amount due: <strong dir="ltr">{{ '%.2f'|format(pending_invoice.amount or 0) }} {{ pending_invoice.currency or 'USD' }}</strong>
+                        <span style="color:#94a3b8">· ref <code dir="ltr">{{ pending_invoice.reference }}</code></span>
+                      {% else %}
+                        المبلغ المستحق: <strong dir="ltr">{{ '%.2f'|format(pending_invoice.amount or 0) }} {{ pending_invoice.currency or 'USD' }}</strong>
+                        <span style="color:#94a3b8">· مرجع <code dir="ltr">{{ pending_invoice.reference }}</code></span>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+                {% if st == 'payment_requested' and pending_invoice %}
+                  <form method="post" action="{{ url_for('payments.create_invoice_checkout', lang=ui_lang) }}" style="margin:0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="case_id" value="{{ pending_request.id }}">
+                    <button type="submit" class="btn-pill warning" style="border:none;cursor:pointer">
+                      💳 {{ 'Pay with sandbox card' if is_en else 'الدفع بالبطاقة التجريبية' }}
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
             {% endif %}
           </div>
         </section>

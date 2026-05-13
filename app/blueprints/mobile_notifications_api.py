@@ -15,6 +15,14 @@ from ..services.security import sanitize_response_payload
 mobile_notifications_api_bp = Blueprint('mobile_notifications_api', __name__, url_prefix='/api/v1/notifications')
 
 
+# v86: shared API-quota hook — closes the v80 coverage gap for the
+# `/api/v1/notifications/*` namespace.
+@mobile_notifications_api_bp.before_request
+def _v86_record_api_quota():
+    from ..services.quota_engine import record_api_quota_for_current_request
+    record_api_quota_for_current_request()
+
+
 def _require_user():
     user = user_from_bearer_or_session()
     if not user:

@@ -355,10 +355,30 @@ def account_subscription():
         days_left_num = max(delta, 0)
     total_days = (plan.duration_days_default or 30) if plan else 30
     pct_left = min(max(round(days_left_num / total_days * 100), 0), 100) if total_days else 0
-    # pending plan-change requests
-    pending_request = SupportCase.query.filter_by(
-        user_id=user.id, case_type='plan_change_request', status='open'
-    ).order_by(SupportCase.created_at.desc()).first()
+    # v86: surface ALL non-terminal plan-change cases (not just
+    # `open`). Pre-v86 the page only fetched `status='open'`, which
+    # meant a subscriber whose case had already advanced to
+    # `payment_requested` / `payment_settled` / `under_review` saw
+    # nothing on their subscription page about it — leading them
+    # to wonder where their request went. Now we surface the
+    # active set so the subscriber can see exactly what's pending,
+    # what they owe (if anything), and the case status.
+    from ..services.plan_change_workbench import (
+        ACTIVE_STATUSES, find_pending_invoice,
+    )
+    pending_request = (
+        SupportCase.query
+        .filter_by(user_id=user.id, case_type='plan_change_request')
+        .filter(SupportCase.status.in_(tuple(ACTIVE_STATUSES)))
+        .order_by(SupportCase.created_at.desc())
+        .first()
+    )
+    # If the pending request reached the invoice stage, fetch the
+    # `INV-…` ledger row so the template can show the exact amount
+    # owed + a deep-link to the sandbox checkout.
+    pending_invoice = (
+        find_pending_invoice(pending_request) if pending_request else None
+    )
     return render_template(
         'account_subscription_phase1a.html',
         user=user, tenant=tenant, subscription=sub, plan=plan,
@@ -368,6 +388,7 @@ def account_subscription():
         days_left_num=days_left_num,
         pct_left=pct_left,
         pending_request=pending_request,
+        pending_invoice=pending_invoice,
         ui_lang=_lang(),
     )
 

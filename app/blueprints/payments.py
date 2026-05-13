@@ -29,7 +29,8 @@ from ..models import AppUser, SubscriptionPlan
 from ..services.stripe_gateway import (
     PROVIDER_MODE, PROVIDER_NAME, StripeNotReady,
     WebhookNotConfigured, WebhookSignatureInvalid,
-    create_checkout_session, handle_event, public_key_for_client,
+    create_checkout_session, create_invoice_checkout_session,
+    handle_event, public_key_for_client,
     stripe_status, verify_and_parse_webhook,
 )
 
@@ -222,6 +223,149 @@ def create_checkout():
                 'url': result.get('url'),
                 'provider': result.get('provider'),
                 'mode': result.get('mode'),
+            },
+        })
+    checkout_url = result.get('url')
+    if checkout_url:
+        return redirect(checkout_url, code=303)
+    flash('تعذّر استلام رابط الدفع من Stripe.', 'danger')
+    return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+
+
+# ── v86: subscriber-driven invoice checkout ─────────────────────────
+
+
+@payments_bp.route('/payments/stripe/checkout/invoice', methods=['POST'])
+def create_invoice_checkout():
+    """v86: subscriber-initiated checkout for an outstanding
+    plan-change invoice.
+
+    The subscriber clicks "Pay with sandbox card" on their
+    subscription page when their plan-change request is in
+    `payment_requested` state. We:
+      1. resolve the case by id + verify it belongs to the
+         requesting user (security boundary),
+      2. resolve the pending `INV-…` ledger row for the exact
+         amount (server-side source of truth),
+      3. create a Stripe Checkout Session tagged with
+         `kind='plan_change_invoice'` + `case_id` metadata so the
+         webhook handler can flip the case to `payment_settled`
+         on completion.
+
+    Never trusts client-supplied amounts. Never mutates the case
+    or ledger here — settlement is the webhook's job.
+    """
+    user = _active_user()
+    if user is None:
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'auth_required'}), 401
+        return redirect(url_for('auth.login'))
+    try:
+        case_id = int(request.form.get('case_id') or 0)
+    except (TypeError, ValueError):
+        case_id = 0
+    if not case_id:
+        msg = 'معرّف طلب تغيير الخطة مطلوب.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'case_id_required', 'message': msg}), 400
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    from ..models import SupportCase
+    from ..services.plan_change_workbench import (
+        STATUS_PAYMENT_REQUESTED, find_pending_invoice,
+    )
+    case = SupportCase.query.filter_by(
+        id=case_id, case_type='plan_change_request',
+    ).first()
+    if not case:
+        msg = 'طلب تغيير الخطة غير موجود.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'case_not_found', 'message': msg}), 404
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    # Security: the subscriber can only checkout invoices on their
+    # OWN cases. Cross-user attempts are silently rejected as
+    # "not found".
+    if case.user_id != user.id:
+        msg = 'طلب تغيير الخطة غير موجود.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'case_not_found', 'message': msg}), 404
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    if (case.status or '').lower() != STATUS_PAYMENT_REQUESTED:
+        msg = 'هذا الطلب ليس في حالة "دفع مطلوب".'
+        if _wants_json():
+            return jsonify({
+                'ok': False, 'code': 'case_not_pending_payment',
+                'message': msg, 'current_status': case.status,
+            }), 409
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    invoice = find_pending_invoice(case)
+    if not invoice or not invoice.amount or invoice.amount <= 0:
+        msg = 'لا يوجد مبلغ مستحق على هذا الطلب.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'no_pending_invoice', 'message': msg}), 400
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    try:
+        success_url = url_for(
+            'payments.checkout_success',
+            session_id='{CHECKOUT_SESSION_ID}', _external=True,
+        )
+    except Exception:  # pragma: no cover
+        success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
+    try:
+        cancel_url = url_for('payments.checkout_cancel', _external=True)
+    except Exception:  # pragma: no cover
+        cancel_url = '/payments/stripe/cancel'
+    try:
+        result = create_invoice_checkout_session(
+            case_id=case.id,
+            amount_value=float(invoice.amount),
+            currency=(invoice.currency or 'USD'),
+            case_label=(case.subject or f'plan_change_invoice_{case.id}'),
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=(getattr(user, 'email', None) or None),
+            tenant_id=getattr(user, 'tenant_id', None),
+            user_id=user.id,
+        )
+    except StripeNotReady as exc:
+        logger.warning('stripe_not_ready_invoice: %s', exc)
+        msg = 'خدمة الدفع غير مهيّأة بعد. يرجى التواصل مع الدعم.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'stripe_not_ready', 'message': msg}), 503
+        flash(msg, 'danger')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    except ValueError as exc:
+        logger.info('stripe_invoice_input_invalid: %s', exc)
+        msg = 'تعذّر إنشاء جلسة الدفع لمدخلات غير صالحة.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'invalid_input', 'message': msg}), 400
+        flash(msg, 'warning')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    except Exception as exc:  # pragma: no cover - Stripe SDK errors
+        logger.warning(
+            'stripe_invoice_checkout_failed err_class=%s',
+            type(exc).__name__,
+        )
+        msg = 'تعذّر إنشاء جلسة الدفع. حاول مرة أخرى لاحقاً.'
+        if _wants_json():
+            return jsonify({'ok': False, 'code': 'stripe_error', 'message': msg}), 502
+        flash(msg, 'danger')
+        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    if _wants_json():
+        return jsonify({
+            'ok': True,
+            'data': {
+                'session_id': result.get('id'),
+                'url': result.get('url'),
+                'provider': result.get('provider'),
+                'mode': result.get('mode'),
+                'invoice_reference': invoice.reference,
+                'amount': float(invoice.amount),
+                'currency': invoice.currency or 'USD',
             },
         })
     checkout_url = result.get('url')

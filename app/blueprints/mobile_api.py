@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from flask import Blueprint, g, request, session
+from flask import Blueprint, current_app, g, request, session
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -1563,6 +1563,24 @@ def mobile_account_request_plan_change():
         status='open',
     )
     db.session.add(case)
+    db.session.flush()
+    # v86: mobile parity with web. The web subscriber path
+    # (`billing.account_subscription_request_change` → preview →
+    # confirm) routes through `notify_admins_of_plan_change_request`
+    # so every active admin sees the new request in their bell +
+    # notification center. The mobile path historically skipped
+    # this — admins were blind to mobile submissions. v86 closes
+    # that gap. Wrapped defensively so a notification failure can
+    # never block the subscriber's submission.
+    try:
+        from ..services.support_ops import notify_admins_of_plan_change_request
+        notify_admins_of_plan_change_request(
+            case, requester=user, target_plan=target_plan, commit=False,
+        )
+    except Exception:
+        current_app.logger.exception(
+            'mobile_plan_change_request admin notify failed'
+        )
     db.session.commit()
 
     return api_ok(
