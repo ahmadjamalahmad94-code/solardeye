@@ -372,51 +372,124 @@ def account_subscription():
     )
 
 
-@billing_bp.route('/account/subscription/request-change', methods=['POST'])
-def account_subscription_request_change():
+# v85: ── Subscriber-driven plan-change flow ─────────────────────────
+#
+# The subscriber is now the primary decision-maker. They preview
+# the two scenarios (same-duration vs reduced-days) and confirm one
+# directly. Direct-execute paths flip the case to `resolved`
+# immediately; only the same-duration positive-amount path goes
+# through `payment_requested` for invoicing.
+
+
+@billing_bp.route('/account/subscription/change/preview', methods=['GET'])
+def account_subscription_change_preview():
+    """Subscriber-facing preview page. Shows both scenarios for a
+    selected target plan and a clear confirm button per scenario.
+
+    Pure read — no case is created, no balance is touched. Safe to
+    refresh / share the URL. The route handler is HTML-first but
+    returns JSON when called with `Accept: application/json` so
+    the same endpoint can serve a future mobile client.
+    """
     user = _active_user()
     if user is None:
         return redirect(url_for('auth.login'))
-    tenant, sub = ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
-    plan_id = int(request.form.get('plan_id') or 0)
-    message = (request.form.get('message') or '').strip()
-    target_plan = SubscriptionPlan.query.get(plan_id) if plan_id else None
-    if not target_plan:
-        flash('الخطة المطلوبة غير موجودة', 'warning')
-        return redirect(url_for('billing.account_subscription', lang=_lang()))
-    # cancel older open requests for the same user
-    SupportCase.query.filter_by(
-        user_id=user.id, case_type='plan_change_request', status='open'
-    ).update({'status': 'cancelled'})
-    plan_name = target_plan.name_ar or target_plan.name_en or target_plan.code
-    case = SupportCase(
-        case_type='plan_change_request',
-        source_id=user.id,
-        tenant_id=getattr(tenant, 'id', None),
-        user_id=user.id,
-        subject=f'طلب تغيير الخطة إلى {plan_name}',
-        priority='normal',
-        status='open',
+    ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan_id = int(request.args.get('plan_id') or 0)
+    from ..services.subscriber_plan_change import preview as _preview
+    result = _preview(user, plan_id)
+    wants_json = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.accept_mimetypes.best == 'application/json'
     )
-    # store target plan info and user note in case subject extended form
-    case.subject = f'طلب تغيير الخطة إلى {plan_name}' + (f' — {message}' if message else '')
-    db.session.add(case)
-    db.session.flush()
-    # v81: fan out an admin-visible notification so operators see the
-    # request in the admin notification center. Each active admin gets
-    # exactly one event keyed to this case; the dedup inside
-    # `notify_admins_of_plan_change_request` prevents a re-render from
-    # spamming the queue.
-    try:
-        from ..services.support_ops import notify_admins_of_plan_change_request
-        notify_admins_of_plan_change_request(
-            case, requester=user, target_plan=target_plan, commit=False,
+    if wants_json:
+        return jsonify({'ok': True, 'data': result.to_dict()})
+    return render_template(
+        'subscriber_plan_change_preview.html',
+        preview=result, ui_lang=_lang(), user=user,
+    )
+
+
+@billing_bp.route('/account/subscription/change/confirm', methods=['POST'])
+def account_subscription_change_confirm():
+    """Subscriber commits to a scenario. Dispatches:
+      * reduced-days → direct apply (status=resolved)
+      * same-duration > 0 → invoice (status=payment_requested)
+      * same-duration ≤ 0 → direct apply (status=resolved)
+    """
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan_id = int(request.form.get('plan_id') or 0)
+    mode = (request.form.get('mode') or '').strip()
+    days_raw = (request.form.get('desired_target_days') or '').strip()
+    desired_days = int(days_raw) if days_raw.isdigit() else None
+    from ..services.subscriber_plan_change import confirm as _confirm
+    result = _confirm(
+        user, plan_id, mode=mode,
+        desired_target_days=desired_days,
+        commit=True,
+    )
+    wants_json = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.accept_mimetypes.best == 'application/json'
+    )
+    if wants_json:
+        status_code = 200 if result.outcome != 'blocked' else 400
+        return jsonify({
+            'ok': result.outcome != 'blocked',
+            'data': result.to_dict(),
+        }), status_code
+    if result.outcome == 'applied':
+        flash(
+            'تم تطبيق تغيير الخطة بنجاح.',
+            'success',
         )
-    except Exception:
-        current_app.logger.exception('plan_change_request admin notify failed')
-    db.session.commit()
-    flash(f'تم إرسال طلب تغيير الخطة إلى "{plan_name}" بنجاح. سيتواصل معك الفريق قريبًا.', 'success')
+    elif result.outcome == 'payment_required':
+        flash(
+            f'تم إنشاء طلب دفع بمبلغ {result.amount:.2f} {result.currency}. '
+            'يمكنك إكمال الدفع لتطبيق التغيير.',
+            'success',
+        )
+    else:
+        flash(
+            'تعذّر تطبيق تغيير الخطة. '
+            f'السبب: {result.blocked_reason or "غير معروف"}.',
+            'warning',
+        )
     return redirect(url_for('billing.account_subscription', lang=_lang()))
+
+
+@billing_bp.route('/account/subscription/request-change', methods=['POST'])
+def account_subscription_request_change():
+    """v85 legacy entry point.
+
+    Previously this submitted a vague "I'd like plan X" support
+    case. The subscriber-driven flow (v85) replaces it with the
+    explicit preview + confirm flow. We keep this route for
+    backwards compatibility (e.g. links in old emails / older
+    mobile clients) but funnel it into the new preview page so
+    every plan-change submission becomes a deliberate, scenario-
+    aware action."""
+    user = _active_user()
+    if user is None:
+        return redirect(url_for('auth.login'))
+    ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    plan_id = int(request.form.get('plan_id') or 0)
+    # Funnel into the explicit preview page so the subscriber sees
+    # the scenario breakdown before committing. We deliberately do
+    # NOT create a vague "I'd like plan X" support case here — v85
+    # moved decision-making to the subscriber, with a clear preview
+    # → confirm pair. The optional `message` field on the old form
+    # is dropped: a free-text note is no longer needed because the
+    # scenario is explicit.
+    return redirect(
+        url_for(
+            'billing.account_subscription_change_preview',
+            plan_id=plan_id, lang=_lang(),
+        )
+    )
 
 
 # v81: ── Admin plan-change-request workflow ──────────────────────────
@@ -726,6 +799,48 @@ def admin_plan_change_request_cancel(case_id: int):
         commit=True,
     )
     flash('تم إغلاق طلب تغيير الخطة دون تطبيقه.', 'success')
+    return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+
+
+# v85: ── Admin invoice-settlement action ───────────────────────────
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/settle', methods=['POST'])
+def admin_plan_change_request_settle(case_id: int):
+    """Manual operator confirmation that a payment-requested
+    invoice has been settled out-of-band. Flips the case to
+    `payment_settled` and notifies the subscriber. Plan application
+    still requires an explicit Apply click (we keep the
+    settlement → apply gap visible so a wrong settlement record
+    can be reversed before the subscription mutates).
+
+    A future payment-gateway webhook will call the underlying
+    `mark_invoice_settled` helper automatically; this route is the
+    manual fallback for operator-confirmed receipts.
+    """
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    if (case.status or '').lower() != 'payment_requested':
+        flash(
+            'يمكن تأكيد الاستلام فقط للطلبات في حالة "دفع مطلوب".',
+            'warning',
+        )
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.plan_change_workbench import mark_invoice_settled
+    actor = _active_user()
+    note = (request.form.get('note') or '').strip()
+    mark_invoice_settled(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        note=note,
+        commit=True,
+    )
+    flash('تم تأكيد استلام الدفعة. الخطة بانتظار التطبيق النهائي.', 'success')
     return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
 
 

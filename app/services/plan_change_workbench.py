@@ -62,6 +62,11 @@ STATUS_OPEN = 'open'
 STATUS_UNDER_REVIEW = 'under_review'
 STATUS_AWAITING_SUBSCRIBER = 'awaiting_subscriber_reply'
 STATUS_PAYMENT_REQUESTED = 'payment_requested'
+# v85: transient state between "subscriber paid the invoice" and
+# "admin (or future webhook) applied the plan change". Keeps the
+# admin workbench queue surfaceable when there's settlement work
+# pending application.
+STATUS_PAYMENT_SETTLED = 'payment_settled'
 STATUS_RESOLVED = 'resolved'
 STATUS_CLOSED = 'closed'
 STATUS_CANCELLED = 'cancelled'
@@ -71,18 +76,22 @@ LIFECYCLE_STATUSES = (
     STATUS_UNDER_REVIEW,
     STATUS_AWAITING_SUBSCRIBER,
     STATUS_PAYMENT_REQUESTED,
+    STATUS_PAYMENT_SETTLED,
     STATUS_RESOLVED,
     STATUS_CLOSED,
     STATUS_CANCELLED,
 )
 
 # States considered "still pending an outcome" — the queue's KPI band
-# and the sidebar badge anchor on this set.
+# and the sidebar badge anchor on this set. `payment_settled` IS
+# included because the plan change hasn't been applied yet at that
+# point — admin/webhook still needs to flip it to resolved.
 ACTIVE_STATUSES = frozenset({
     STATUS_OPEN,
     STATUS_UNDER_REVIEW,
     STATUS_AWAITING_SUBSCRIBER,
     STATUS_PAYMENT_REQUESTED,
+    STATUS_PAYMENT_SETTLED,
 })
 
 
@@ -731,6 +740,58 @@ def apply_request(case: SupportCase, *, actor_user_id: int | None, scenario: Sce
     out['scenario'] = scenario.to_dict()
     out['case_status'] = case.status
     return out
+
+
+def mark_invoice_settled(case: SupportCase, *, actor_user_id: int | None, note: str = '', commit: bool = True) -> dict:
+    """v85: admin-side action that records "subscriber paid the
+    invoice" without applying the plan change yet.
+
+    Flips the case status from `payment_requested` → `payment_settled`
+    and writes an audit row referencing the pending invoice. Does
+    NOT yet write a counter-credit — that's correct because the
+    pending debit IS the obligation; settlement is recorded by:
+
+      * an `AdminActivityLog` / `SupportAuditLog` row showing
+        "subscriber paid out-of-band"
+      * the `plan_change_pending` ledger row staying in place until
+        `apply_request` settles it (category → `plan_change`).
+
+    A future payment-gateway webhook is the natural caller for this
+    helper. For v85 it's surfaced as a manual admin action so
+    operators can record receipts they've confirmed out-of-band.
+    """
+    if not case:
+        return {}
+    pending = find_pending_invoice(case)
+    case.status = STATUS_PAYMENT_SETTLED
+    case.updated_at = datetime.utcnow()
+    _audit(
+        case, 'plan_change.invoice_settled_pending_apply',
+        'Invoice marked as settled by admin; awaiting plan apply',
+        actor_user_id=actor_user_id,
+        details={
+            'invoice_reference': getattr(pending, 'reference', None),
+            'invoice_id': getattr(pending, 'id', None),
+            'note': note,
+        },
+    )
+    # Subscriber notification: receipt acknowledgement.
+    _notify_subscriber(
+        case,
+        event_type='plan_change_invoice_settled',
+        title='تم استلام الدفعة',
+        message=(
+            'تم تأكيد استلام الدفعة لطلب تغيير الخطة. '
+            'سيتم تطبيق التغيير قريباً.'
+        ),
+        actor_user_id=actor_user_id,
+    )
+    if commit:
+        db.session.commit()
+    return {
+        'case_status': case.status,
+        'invoice_reference': getattr(pending, 'reference', None),
+    }
 
 
 def reject_request(case: SupportCase, *, actor_user_id: int | None, reason: str = '', commit: bool = True) -> dict:

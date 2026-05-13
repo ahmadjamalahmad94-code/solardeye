@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{# v85 — subscriber-facing plan-change preview + confirm page.
+   Two scenario cards side-by-side, plain Arabic+English copy
+   explaining the trade-off, exact numbers before confirmation. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set p = preview %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area admin-shell-v2" style="max-width:1100px">
+
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">
+          <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" style="text-decoration:none;color:inherit">
+            {{ 'My subscription' if is_en else 'اشتراكي' }}
+          </a>
+          ·
+          {{ 'Plan change' if is_en else 'تغيير الخطة' }}
+        </span>
+        <h1>{{ 'Choose how you want to change your plan' if is_en else 'اختر طريقة تغيير الخطة' }}</h1>
+        <p>{{ 'Two clear options. Pick the one that fits — the exact numbers are shown below.' if is_en else 'خياران واضحان. اختر الأنسب لك — الأرقام التفصيلية أدناه.' }}</p>
+      </div>
+    </header>
+
+    {% if p.blocked_reason %}
+      <section class="admin-card-v2" style="border:1px solid #ef4444;background:rgba(239,68,68,0.04)">
+        <div class="section-heading-inline">
+          <div>
+            <small>⚠ {{ 'Cannot proceed' if is_en else 'تعذّر إكمال الطلب' }}</small>
+            <h3>
+              {% if p.blocked_reason == 'no_active_subscription' %}
+                {{ 'No active subscription found.' if is_en else 'لا يوجد اشتراك فعّال.' }}
+              {% elif p.blocked_reason == 'target_plan_unavailable' %}
+                {{ 'The target plan is not available.' if is_en else 'الخطة المطلوبة غير متاحة.' }}
+              {% elif p.blocked_reason == 'same_plan_already_active' %}
+                {{ 'You are already on this plan.' if is_en else 'أنت على هذه الخطة بالفعل.' }}
+              {% else %}
+                {{ p.blocked_reason }}
+              {% endif %}
+            </h3>
+          </div>
+        </div>
+        <p style="margin:8px 0">
+          <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="btn-pill">
+            {{ 'Back to my subscription' if is_en else 'العودة إلى اشتراكي' }}
+          </a>
+        </p>
+      </section>
+
+    {% else %}
+
+    {# ─── Context band ──────────────────────────────────────────── #}
+    <section class="admin-kpi-grid-v2">
+      <article class="admin-kpi-card">
+        <small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small>
+        <strong>{{ p.current_plan_label }}</strong>
+        <span dir="ltr">{{ '%.2f'|format(p.same_duration.current_plan_price) }} {{ p.currency }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Target plan' if is_en else 'الخطة المطلوبة' }}</small>
+        <strong>{{ p.target_plan_label }}</strong>
+        <span dir="ltr">{{ '%.2f'|format(p.same_duration.target_plan_price) }} {{ p.currency }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Remaining days' if is_en else 'الأيام المتبقّية' }}</small>
+        <strong dir="ltr">{{ p.remaining_days }}</strong>
+        <span>{{ 'on current plan' if is_en else 'على الخطة الحالية' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Current value left' if is_en else 'قيمة المتبقّي الحالية' }}</small>
+        <strong dir="ltr">{{ '%.2f'|format(p.same_duration.current_remaining_value) }} {{ p.currency }}</strong>
+        <span>{{ 'pro-rated' if is_en else 'محسوبة بالتناسب' }}</span>
+      </article>
+    </section>
+
+    {# ─── Two scenario cards ────────────────────────────────────── #}
+    <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:14px">
+
+      {# Scenario A — Same duration #}
+      <form method="post" action="{{ url_for('billing.account_subscription_change_confirm', lang=ui_lang) }}"
+            class="admin-card-v2" style="border:1px solid #6366f1;background:rgba(99,102,241,0.04)"
+            onsubmit="return confirm('{{ 'Confirm: keep the same remaining days and proceed?' if is_en else 'هل تريد الاستمرار بنفس عدد الأيام المتبقّية؟' }}');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="plan_id" value="{{ p.target_plan_id }}">
+        <input type="hidden" name="mode" value="same_duration">
+
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Option A' if is_en else 'الخيار أ' }}</small>
+            <h3>{{ 'Keep my remaining days, pay the difference' if is_en else 'إبقاء أيامي والدفع للفرق' }}</h3>
+          </div>
+          <strong dir="ltr" style="font-size:1.4rem;{% if p.same_duration.amount > 0 %}color:#d97706{% elif p.same_duration.amount < 0 %}color:#059669{% endif %}">
+            {{ '%+.2f'|format(p.same_duration.amount) }} {{ p.currency }}
+          </strong>
+        </div>
+
+        <p style="margin:8px 0">
+          {% if p.same_duration.amount > 0 %}
+            {{ 'You keep all of your remaining %d day(s). The system will generate a payment request for the difference. The plan change is applied once payment is confirmed.'|format(p.remaining_days) if is_en else 'تحتفظ بكل أيامك المتبقّية (%d يوماً). سيتم إنشاء طلب دفع للفرق، ويُطبَّق التغيير فور تأكيد الدفع.'|format(p.remaining_days) }}
+          {% elif p.same_duration.amount < 0 %}
+            {{ 'You keep all of your remaining %d day(s) and receive a wallet credit for the difference. The plan change is applied immediately.'|format(p.remaining_days) if is_en else 'تحتفظ بكل أيامك المتبقّية (%d يوماً) ويُسجَّل لك رصيد بالفرق في المحفظة. يتم تطبيق التغيير مباشرة.'|format(p.remaining_days) }}
+          {% else %}
+            {{ 'No financial difference. The plan change is applied immediately and your remaining days stay the same.' if is_en else 'لا فرق مالي. يتم تطبيق التغيير مباشرة وتبقى أيامك كما هي.' }}
+          {% endif %}
+        </p>
+
+        <table class="admin-table-v2" style="margin:0">
+          <tbody>
+            <tr>
+              <td>{{ 'Remaining days' if is_en else 'الأيام المتبقّية' }}</td>
+              <td dir="ltr"><strong>{{ p.same_duration.remaining_days }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Days on target plan' if is_en else 'الأيام على الخطة الجديدة' }}</td>
+              <td dir="ltr"><strong>{{ p.same_duration.target_days }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(p.same_duration.current_remaining_value) }} {{ p.currency }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Target equivalent value' if is_en else 'القيمة المكافئة على الخطة الجديدة' }}</td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(p.same_duration.target_remaining_value) }} {{ p.currency }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <button type="submit" class="btn-pill {% if p.same_duration.amount > 0 %}warning{% else %}success{% endif %}" style="margin-top:12px;width:100%">
+          {% if p.same_duration.amount > 0 %}
+            🧾 {{ 'Create payment request' if is_en else 'إنشاء طلب دفع' }}
+          {% elif p.same_duration.amount < 0 %}
+            ✅ {{ 'Apply with wallet credit' if is_en else 'تطبيق مع تسجيل رصيد' }}
+          {% else %}
+            ✅ {{ 'Apply now' if is_en else 'تطبيق الآن' }}
+          {% endif %}
+        </button>
+      </form>
+
+      {# Scenario B — Reduced days #}
+      <form method="post" action="{{ url_for('billing.account_subscription_change_confirm', lang=ui_lang) }}"
+            class="admin-card-v2" style="border:1px solid #10b981;background:rgba(16,185,129,0.04)"
+            onsubmit="return confirm('{{ 'Confirm: switch to the new plan with fewer days, no extra payment?' if is_en else 'هل تريد الانتقال للخطة الجديدة بأيام أقل دون دفع إضافي؟' }}');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="plan_id" value="{{ p.target_plan_id }}">
+        <input type="hidden" name="mode" value="reduced_days">
+        {# desired_target_days is intentionally omitted on the
+           subscriber form — the free-swap value is the honest
+           "no extra charge" baseline. Admin override remains
+           available in the admin workbench. #}
+
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Option B' if is_en else 'الخيار ب' }}</small>
+            <h3>{{ 'Switch now, fewer days, no extra payment' if is_en else 'التحويل بأقل أيام بدون دفع إضافي' }}</h3>
+          </div>
+          <strong dir="ltr" style="font-size:1.4rem;color:#059669">
+            {{ p.reduced_days.target_days }} {{ 'days' if is_en else 'يوم' }}
+          </strong>
+        </div>
+
+        <p style="margin:8px 0">
+          {{ 'Your current value transfers to the new plan as %d day(s). No extra payment is required and the plan change is applied immediately.'|format(p.reduced_days.target_days) if is_en else 'تنتقل قيمتك الحالية إلى الخطة الجديدة على شكل %d يوماً. لا حاجة لأي دفعة إضافية، ويتم التطبيق مباشرة.'|format(p.reduced_days.target_days) }}
+        </p>
+
+        <table class="admin-table-v2" style="margin:0">
+          <tbody>
+            <tr>
+              <td>{{ 'Remaining days on current plan' if is_en else 'الأيام المتبقّية حالياً' }}</td>
+              <td dir="ltr"><strong>{{ p.reduced_days.remaining_days }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Free target days (no extra payment)' if is_en else 'أيام مجانية على الخطة الجديدة' }}</td>
+              <td dir="ltr"><strong>{{ p.reduced_days.extra.free_target_days }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Target per-day price' if is_en else 'سعر اليوم على الخطة الجديدة' }}</td>
+              <td dir="ltr"><strong>{{ '%.4f'|format(p.reduced_days.extra.target_per_day_price) }} {{ p.currency }}</strong></td>
+            </tr>
+            <tr>
+              <td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(p.reduced_days.current_remaining_value) }} {{ p.currency }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <button type="submit" class="btn-pill success" style="margin-top:12px;width:100%">
+          ✅ {{ 'Apply with reduced days' if is_en else 'تطبيق مع تقليل الأيام' }}
+        </button>
+      </form>
+    </section>
+
+    <p style="margin:16px 0 0 0;color:#64748b;font-size:0.85rem">
+      {{ 'Need help choosing? Contact support before applying — the team is happy to walk you through both options.' if is_en else 'لست متأكداً؟ تواصل مع الدعم قبل التأكيد — الفريق يرحب بمساعدتك في اختيار الأنسب.' }}
+    </p>
+
+    {% endif %}
+
+  </main>
+</div>
+{% endblock %}

@@ -855,10 +855,14 @@ def test_open_request_count_only_counts_active_states():
     # active app context even when mocked.
     with _ctx(), mock.patch.object(wb.SupportCase, 'query', case_query):
         assert wb.open_request_count() == 4
-    # Sanity check that the active statuses tuple was the argument.
+    # Sanity check that the active statuses set carries every
+    # state that still needs an admin/system outcome. v85 added
+    # `payment_settled` (between payment_requested and resolved),
+    # which is still pending application — so it's correctly
+    # included here.
     assert wb.ACTIVE_STATUSES == frozenset({
         'open', 'under_review', 'awaiting_subscriber_reply',
-        'payment_requested',
+        'payment_requested', 'payment_settled',
     })
 
 
@@ -893,20 +897,27 @@ def test_admin_notify_uses_workbench_detail_url_as_direct_url():
 
 
 def test_lifecycle_status_vocabulary_is_locked():
-    """Spec lock: the seven lifecycle states are part of the
-    workbench contract. A test failure here means someone renamed a
-    state and a downstream caller (queue tabs, notification
-    routing) might break silently."""
+    """Spec lock: the lifecycle states are part of the workbench
+    contract. A test failure here means someone renamed a state
+    and a downstream caller (queue tabs, notification routing,
+    sidebar badge) might break silently.
+
+    v85 grew the vocabulary by one — `payment_settled` (between
+    `payment_requested` and `resolved`) — so the subscriber-driven
+    flow can record "subscriber paid the invoice; plan apply
+    pending" cleanly. The order below reflects the natural
+    timeline of a request."""
     from app.services.plan_change_workbench import (
         LIFECYCLE_STATUSES, ACTIVE_STATUSES,
     )
     assert LIFECYCLE_STATUSES == (
         'open', 'under_review', 'awaiting_subscriber_reply',
-        'payment_requested', 'resolved', 'closed', 'cancelled',
+        'payment_requested', 'payment_settled',
+        'resolved', 'closed', 'cancelled',
     )
     assert ACTIVE_STATUSES == frozenset({
         'open', 'under_review', 'awaiting_subscriber_reply',
-        'payment_requested',
+        'payment_requested', 'payment_settled',
     })
 
 
