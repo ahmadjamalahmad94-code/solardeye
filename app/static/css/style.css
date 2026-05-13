@@ -337,6 +337,13 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
 .deye-flow-stage .flow-box .flow-state.muted { color:#94a3b8; }
 .deye-flow-stage .flow-box.solar { top:70px; left:42px; }
 .deye-flow-stage .flow-box.grid { top:70px; right:42px; }
+/* v93u — Generator sits horizontally centered on the top row, in the
+   empty space between Panels (top-left) and Grid (top-right). The
+   short vertical line in the SVG (`#generatorTrack`) connects its
+   bottom edge to the inverter's top. Same dimensions (130×96 px) as
+   every other flow-box; the existing icon/value/title styling
+   applies unchanged. */
+.deye-flow-stage .flow-box.generator { top:70px; left:calc(50% - 65px); }
 .deye-flow-stage .flow-box.inverter { top:220px; left:calc(50% - 65px); }
 .deye-flow-stage .flow-box.home { bottom:72px; left:calc(50% - 65px); }
 .deye-flow-stage .flow-box.battery { bottom:72px; left:42px; }
@@ -389,6 +396,14 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
   .deye-flow-stage .flow-box.grid { top:40px; right:24px; }
   .deye-flow-stage .flow-box.inverter { top:220px; left:calc(50% - 65px); }
   .deye-flow-stage .flow-box.battery { bottom:80px; left:24px; }
+  /* v93u — On narrow screens we keep the generator in the same
+     top row as Panels (left:24) and Grid (right:24), so the
+     three top-row cards sit side-by-side without overlapping
+     either each other (solar ends ≈ x=154; grid starts ≈
+     x=container-154; generator is centred between them) or
+     the inverter (top:220px sits well below this row's
+     bottom edge at y=136). */
+  .deye-flow-stage .flow-box.generator { top:40px; left:calc(50% - 65px); }
 }
 
 /* V12 notifications */

@@ -166,13 +166,24 @@
               <path d="M150 444 H 320 C 368 444 386 410 386 366 V 308 H 418" class="track-animated {{ 'energy-charge active reverse' if battery_insights.charge_power_w > 0 else ('energy-use active' if battery_insights.discharge_power_w > 0 else 'energy-idle') }}"/>
               <path id="homeTrack" d="M750 444 H 580 C 532 444 514 410 514 366 V 308 H 482" class="track-base"/>
               <path d="M750 444 H 580 C 532 444 514 410 514 366 V 308 H 482" class="track-animated energy-use {{ 'active reverse' if (latest and latest.home_load > 0) else '' }}"/>
+              {# v93u — Generator track: short vertical line from the
+                 top-middle generator box down to the inverter's top
+                 edge. Active when `battery_insights.generator_input_w
+                 > 5` (matches the helper's noise floor). Energy class
+                 'energy-use' so the dot scrolls toward the hub
+                 (generator → inverter, no back-feed). #}
+              <path id="generatorTrack" d="M450 164 V 252" class="track-base"/>
+              <path d="M450 164 V 252" class="track-animated energy-use {{ 'active' if (battery_insights.generator_input_w or 0) > 5 else '' }}"/>
               {% if latest and latest.solar_power > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#solarTrack"/></animateMotion></circle>{% endif %}
               {% if latest and latest.home_load > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#homeTrack"/></animateMotion></circle>{% endif %}
               {% if battery_insights.charge_power_w > 0 %}<circle r="8" class="flow-dot dot-charge"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#batteryTrack"/></animateMotion></circle>{% elif battery_insights.discharge_power_w > 0 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#batteryTrack"/></animateMotion></circle>{% endif %}
               {% if latest and latest.grid_power and latest.grid_power|abs > 0 %}<circle r="8" class="flow-dot dot-idle"><animateMotion dur="2.5s" repeatCount="indefinite" rotate="auto" {% if latest.grid_power > 0 %}keyPoints="1;0" keyTimes="0;1" calcMode="linear"{% endif %}><mpath href="#gridTrack"/></animateMotion></circle>{% endif %}
+              {% if (battery_insights.generator_input_w or 0) > 5 %}<circle r="8" class="flow-dot dot-use"><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto"><mpath href="#generatorTrack"/></animateMotion></circle>{% endif %}
             </svg>
             <div class="flow-box solar highlight"><div class="icon-wrap">☀️</div><div class="flow-value" data-bind="latest.solar_power_short">{{ format_power(latest.solar_power) if latest else '0.0' }}</div><div class="flow-title">{{ 'Panels' if ui_lang == 'en' else 'الألواح' }}</div></div>
             <div class="flow-box grid"><div class="icon-wrap">⚡</div><div class="flow-value" data-bind="latest.grid_power_short">{{ format_power(latest.grid_power) if latest else '0.0' }}</div><div class="flow-title">{{ 'Grid' if ui_lang == 'en' else 'الشبكة' }}</div><div class="flow-state {% if latest and (latest.grid_power or 0) == 0 %}muted{% endif %}">{% if latest and (latest.grid_power or 0) == 0 %}Off-grid{% else %}{{ 'Live measure' if ui_lang == 'en' else 'قياس مباشر' }}{% endif %}</div></div>
+            {# v93u — Generator box sits in the top-middle row, between Panels and Grid. Reads `battery_insights.generator_input_w` (direct AC-IN when gridStatus=Static + relay closed, OR inferred from station_generation - PV when relay=Break). #}
+            <div class="flow-box generator"><div class="icon-wrap">⛽</div><div class="flow-value" data-bind="generator.power_short">{{ format_power(battery_insights.generator_input_w or 0) }}</div><div class="flow-title">{{ 'Generator' if ui_lang == 'en' else 'المولد' }}</div></div>
             <div class="flow-box inverter highlight centered-gap"><div class="icon-wrap">▣</div><div class="flow-value" data-bind="status.title_short">{{ system_status.title }}</div><div class="flow-title">{{ 'Inverter' if ui_lang == 'en' else 'الانفرتر' }}</div></div>
             <div class="flow-box battery"><div class="soc-tag" data-bind="battery.soc_pct">{{ (latest.battery_soc or 0)|int }}%</div><div class="icon-wrap">🔋</div><div class="flow-value" data-bind="battery.flow_w">{{ format_power((battery_insights.charge_power_w or battery_insights.discharge_power_w) if latest else 0) }}</div><div class="flow-title">{{ 'Battery' if ui_lang == 'en' else 'البطارية' }}</div></div>
             <div class="flow-box home"><div class="icon-wrap">🏠</div><div class="flow-value" data-bind="latest.home_load_short">{{ format_power(latest.home_load) if latest else '0.0' }}</div><div class="flow-title">{{ 'Home' if ui_lang == 'en' else 'البيت' }}</div></div>
@@ -577,6 +588,11 @@
     setBind('battery.soc_label',  'الشحن ' + Math.round(l.battery_soc || 0) + '%');
     setBind('battery.soc_pct_full', 'البطارية الآن • ' + Math.round(l.battery_soc || 0) + '%');
     setBind('battery.flow_w', fmtPower(batt.charge_power_w || batt.discharge_power_w || 0));
+    // v93u — refresh the new generator flow-box value on every
+    // poll tick. The field comes through `battery_insights` so
+    // it's available as `batt.generator_input_w`. The server
+    // helper already filters noise below 5 W.
+    setBind('generator.power_short', fmtPower(batt.generator_input_w || 0));
     var st = p.system_status || {};
     setBind('status.title',       st.title || '');
     setBind('status.title_short', st.title || '');
