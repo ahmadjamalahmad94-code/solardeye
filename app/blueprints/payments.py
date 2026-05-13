@@ -388,17 +388,58 @@ def create_invoice_checkout():
 
 @payments_bp.route('/payments/stripe/success', methods=['GET'])
 def checkout_success():
-    """Neutral confirmation page reached when Stripe redirects the
-    subscriber back after a successful test payment. v84 does NOT
-    auto-activate the subscription — operators settle the request
-    explicitly through the existing admin workflow once the webhook
-    handler is wired to mutate state."""
+    """Confirmation page reached when Stripe redirects the subscriber
+    back after a successful test payment.
+
+    v92f — redirect-fallback verification. The Stripe webhook is the
+    authoritative path for marking the invoice settled + applying
+    the plan change, but on Render Sandbox the webhook is often
+    not wired (the Stripe dashboard's webhook endpoint isn't
+    configured to point at the deployment). The result was that
+    the subscriber paid successfully, saw a green check, returned
+    to their account page and STILL saw the pending-invoice banner
+    — because nothing on the backend knew the payment had
+    happened.
+
+    This route now actively verifies the session with Stripe and,
+    if the payment is confirmed, settles the invoice + applies
+    the plan change right here. Idempotent: if the webhook already
+    fired (or the user re-opens this URL later), we ack without
+    double-applying.
+    """
+    session_id = request.args.get('session_id', '').strip()
+    actor = _active_user()
+    actor_user_id = getattr(actor, 'id', None)
+    verification = None
+    if session_id and '{' not in session_id and '%7B' not in session_id:
+        try:
+            from ..services.stripe_gateway import (
+                verify_and_settle_checkout_session,
+            )
+            verification = verify_and_settle_checkout_session(
+                session_id, auto_apply=True,
+                actor_user_id=actor_user_id,
+            )
+            logger.info(
+                'stripe_redirect_verify session_id=%s reason=%s '
+                'applied=%s case_status=%s',
+                session_id[:32],
+                (verification or {}).get('reason'),
+                (verification or {}).get('applied'),
+                (verification or {}).get('case_status'),
+            )
+        except Exception as exc:
+            logger.warning(
+                'stripe_redirect_verify_failed err_class=%s',
+                type(exc).__name__,
+            )
     return render_template(
         'payment_success.html',
-        session_id=request.args.get('session_id', '').strip(),
+        session_id=session_id,
         provider=PROVIDER_NAME,
         mode=PROVIDER_MODE,
         ui_lang=session.get('ui_lang') or 'ar',
+        verification=verification,
     )
 
 

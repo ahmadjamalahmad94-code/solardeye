@@ -11,6 +11,9 @@
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set has_real_session = session_id and '{' not in session_id and '%7B' not in session_id %}
+{% set v = verification or {} %}
+{% set plan_applied = v.get('applied') == True or v.get('reason') == 'already_applied' %}
+{% set settled_pending = (v.get('settled') == True and not plan_applied) %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
   <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px;position:relative;overflow:hidden">
@@ -32,28 +35,34 @@
       </div>
 
       <h1 class="pay-result-card__title">
-        🎉 {{ 'Payment received!' if is_en else 'تم استلام الدفعة!' }}
+        {% if plan_applied %}
+          🎉 {{ 'Plan changed successfully!' if is_en else 'تم تطبيق الخطة الجديدة!' }}
+        {% else %}
+          🎉 {{ 'Payment received!' if is_en else 'تم استلام الدفعة!' }}
+        {% endif %}
       </h1>
       <p class="pay-result-card__subtitle">
-        {% if is_en %}
-          Your test payment was accepted. We'll apply your plan change in a moment.
+        {% if plan_applied %}
+          {{ 'Your test payment was accepted and your new plan is active on your subscription. Enjoy!' if is_en else 'تم قبول دفعتك التجريبية وتفعيل خطتك الجديدة على اشتراكك. استمتع!' }}
+        {% elif settled_pending %}
+          {{ 'Your payment is confirmed. The plan change will reflect on your subscription momentarily.' if is_en else 'تم تأكيد دفعتك. سيظهر تطبيق الخطة على اشتراكك خلال لحظات.' }}
         {% else %}
-          تم قبول دفعتك التجريبية بنجاح. سيتم تطبيق تغيير الخطة على اشتراكك خلال لحظات.
+          {{ 'Your test payment was accepted. Your plan change will be applied shortly.' if is_en else 'تم قبول دفعتك التجريبية بنجاح. سيتم تطبيق تغيير الخطة قريباً.' }}
         {% endif %}
       </p>
 
       <ul class="pay-result-card__steps">
-        <li>
-          <span class="pay-result-card__step-num">1</span>
+        <li class="{% if v.get('verified') %}pay-result-card__step--done{% endif %}">
+          <span class="pay-result-card__step-num">{% if v.get('verified') %}✓{% else %}1{% endif %}</span>
           <span>{{ 'Your test payment is confirmed.' if is_en else 'تم تأكيد دفعتك التجريبية.' }}</span>
         </li>
-        <li>
-          <span class="pay-result-card__step-num">2</span>
-          <span>{{ 'The invoice will be marked as settled.' if is_en else 'يتم تحديث الفاتورة إلى "تم الاستلام".' }}</span>
+        <li class="{% if v.get('settled') or plan_applied %}pay-result-card__step--done{% endif %}">
+          <span class="pay-result-card__step-num">{% if v.get('settled') or plan_applied %}✓{% else %}2{% endif %}</span>
+          <span>{{ 'The invoice is marked as settled.' if is_en else 'تم تحديث الفاتورة إلى "تم الاستلام".' }}</span>
         </li>
-        <li>
-          <span class="pay-result-card__step-num">3</span>
-          <span>{{ 'Your new plan kicks in right after.' if is_en else 'تنتقل اشتراكك إلى الخطة الجديدة مباشرة.' }}</span>
+        <li class="{% if plan_applied %}pay-result-card__step--done{% endif %}">
+          <span class="pay-result-card__step-num">{% if plan_applied %}✓{% else %}3{% endif %}</span>
+          <span>{{ 'Your new plan is active.' if is_en else 'خطتك الجديدة مُفعَّلة على اشتراكك.' }}</span>
         </li>
       </ul>
 
@@ -259,13 +268,23 @@
     flex: 0 0 30px;
     width: 30px; height: 30px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
     color: #ffffff;
     font-weight: 900;
     font-size: .9rem;
     display: inline-flex;
     align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(100, 116, 139, 0.20);
+    transition: background .25s ease, box-shadow .25s ease, transform .25s ease;
+  }
+  .pay-result-card__step--done .pay-result-card__step-num {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     box-shadow: 0 4px 10px rgba(16, 185, 129, 0.32);
+    transform: scale(1.04);
+  }
+  .pay-result-card__step--done {
+    border-color: rgba(16, 185, 129, 0.32);
+    background: rgba(16, 185, 129, 0.04);
   }
 
   .pay-result-card__receipt-details {

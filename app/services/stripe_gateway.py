@@ -426,10 +426,20 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _settle_plan_change_invoice(case_id: int) -> dict[str, Any]:
+def _settle_plan_change_invoice(case_id: int, *, auto_apply: bool = False, actor_user_id: int | None = None, note: str | None = None) -> dict[str, Any]:
     """Internal helper: look up the plan-change case + flip it to
     `payment_settled` via the workbench. Never raises; returns a
-    small dict the webhook handler folds into its response."""
+    small dict the webhook/success-fallback handler folds into its
+    response.
+
+    v92f — `auto_apply=True` chains the workbench's `apply_request`
+    right after settlement so the plan switch is actually applied
+    on the subscriber's account. This is what the
+    `checkout_success` redirect-fallback path uses (since the
+    Stripe webhook may not be wired on Render Sandbox); the
+    webhook path keeps `auto_apply=False` and leaves the apply
+    step to the admin workflow, matching v86 behavior.
+    """
     try:
         from ..models import SupportCase
         from . import plan_change_workbench as wb
@@ -438,24 +448,71 @@ def _settle_plan_change_invoice(case_id: int) -> dict[str, Any]:
         ).first()
         if case is None:
             return {'settled': False, 'skip_reason': 'case_not_found'}
-        if (case.status or '').lower() != wb.STATUS_PAYMENT_REQUESTED:
-            # Idempotency: if the case already advanced (admin
-            # marked it settled out-of-band, or another webhook
-            # fired first), we ack without re-flipping.
+        current_status = (case.status or '').lower()
+        # The case may already be in `payment_settled` or `resolved`
+        # (idempotency — webhook + redirect-fallback may both fire).
+        if current_status == wb.STATUS_RESOLVED:
             return {
-                'settled': False,
-                'skip_reason': f'case_already_in_{case.status}',
-                'case_status': case.status,
+                'settled': False, 'applied': False,
+                'skip_reason': 'case_already_resolved',
+                'case_id': case.id, 'case_status': case.status,
             }
-        wb.mark_invoice_settled(
-            case, actor_user_id=None,  # webhook is an unattributed actor
-            note='Settled by Stripe sandbox webhook',
-            commit=True,
-        )
+        settled_this_call = False
+        if current_status == wb.STATUS_PAYMENT_REQUESTED:
+            wb.mark_invoice_settled(
+                case, actor_user_id=actor_user_id,
+                note=note or 'Settled by Stripe sandbox',
+                commit=True,
+            )
+            settled_this_call = True
+        elif current_status != wb.STATUS_PAYMENT_SETTLED:
+            # Some other state (open / under_review / closed /
+            # cancelled). The webhook ack must NOT silently flip
+            # those — return a non-settled outcome so the v86
+            # idempotency contract is preserved.
+            return {
+                'settled': False, 'applied': False,
+                'skip_reason': f'case_already_in_{case.status}',
+                'case_id': case.id, 'case_status': case.status,
+            }
+        elif not auto_apply:
+            # `payment_settled` reached but caller is the webhook
+            # (auto_apply=False). The webhook contract from v86 is
+            # to ack idempotently — do NOT chain apply, do NOT
+            # re-settle, just report the no-op so `result['reason']`
+            # carries an "already" string.
+            return {
+                'settled': False, 'applied': False,
+                'skip_reason': 'case_already_settled',
+                'case_id': case.id, 'case_status': case.status,
+            }
+        # If asked to chain the apply step, do it now. `apply_request`
+        # is idempotent at the case level — we only invoke it when
+        # the case sits at `payment_settled` (either set just above
+        # or already there from a prior settle).
+        applied = False
+        ledger_entry_id = None
+        if auto_apply:
+            current_status = (case.status or '').lower()
+            if current_status == wb.STATUS_PAYMENT_SETTLED:
+                try:
+                    apply_result = wb.apply_request(
+                        case, actor_user_id=actor_user_id, commit=True,
+                    )
+                    applied = True
+                    if isinstance(apply_result, dict):
+                        ledger_entry_id = apply_result.get('ledger_entry_id')
+                except Exception as apply_exc:
+                    logger.warning(
+                        'stripe_invoice_apply_failed err_class=%s case_id=%s',
+                        type(apply_exc).__name__, case.id,
+                    )
         return {
-            'settled': True,
+            'settled': settled_this_call,
+            'applied': applied,
             'case_id': case.id,
             'case_status': case.status,
+            'ledger_entry_id': ledger_entry_id,
         }
     except Exception as exc:
         logger.warning(
@@ -463,6 +520,106 @@ def _settle_plan_change_invoice(case_id: int) -> dict[str, Any]:
             type(exc).__name__,
         )
         return {'settled': False, 'skip_reason': 'internal_error'}
+
+
+def verify_and_settle_checkout_session(session_id: str, *, auto_apply: bool = True, actor_user_id: int | None = None) -> dict[str, Any]:
+    """v92f — redirect-fallback companion to the webhook.
+
+    The Stripe webhook is the authoritative path for marking an
+    invoice settled, but on Render Sandbox the webhook is often not
+    wired. So when Stripe redirects the subscriber back to
+    `/payments/stripe/success?session_id=<id>`, the route handler
+    calls this helper which:
+
+      1. Retrieves the Checkout Session from Stripe.
+      2. Confirms `payment_status == 'paid'` AND
+         `metadata.kind == 'plan_change_invoice'`.
+      3. Settles the invoice + (by default) applies the plan
+         change via `_settle_plan_change_invoice(..., auto_apply=True)`.
+
+    Idempotent: re-hitting the success URL after the plan is already
+    applied returns `applied=False` with `skip_reason='case_already_resolved'`.
+
+    Never raises. Returns a result dict the success route folds into
+    the template so the page can show "تم الدفع وطُبّقت الخطة" instead
+    of the generic "ستُطبَّق قريباً".
+    """
+    result: dict[str, Any] = {
+        'verified': False,
+        'paid': False,
+        'settled': False,
+        'applied': False,
+        'reason': None,
+        'case_status': None,
+    }
+    if not session_id:
+        result['reason'] = 'missing_session_id'
+        return result
+    # Defensive: reject the literal placeholder if it ever leaks
+    # through again (pre-v92e behavior).
+    if '{' in session_id or '%7B' in session_id:
+        result['reason'] = 'placeholder_session_id'
+        return result
+    try:
+        pkg = _configure_stripe()
+    except StripeNotReady:
+        result['reason'] = 'stripe_not_ready'
+        return result
+    try:
+        sess = pkg.checkout.Session.retrieve(session_id)
+    except Exception as exc:
+        logger.warning(
+            'stripe_session_retrieve_failed err_class=%s session_id=%s',
+            type(exc).__name__, session_id[:32],
+        )
+        result['reason'] = 'session_retrieve_failed'
+        return result
+    payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
+    metadata = getattr(sess, 'metadata', None) or {}
+    if hasattr(metadata, 'to_dict_recursive'):
+        try:
+            metadata = metadata.to_dict_recursive()
+        except Exception:
+            metadata = {}
+    kind = str(metadata.get('kind') or '').strip()
+    raw_case_id = metadata.get('case_id')
+    try:
+        case_id = int(raw_case_id) if raw_case_id is not None else None
+    except (TypeError, ValueError):
+        case_id = None
+    result['verified'] = True
+    result['paid'] = payment_status == 'paid'
+    result['payment_status'] = payment_status
+    result['kind'] = kind
+    result['case_id'] = case_id
+    if kind != 'plan_change_invoice':
+        result['reason'] = 'not_plan_change_invoice'
+        return result
+    if not case_id:
+        result['reason'] = 'missing_case_id'
+        return result
+    if not result['paid']:
+        result['reason'] = f'payment_status_{payment_status or "unknown"}'
+        return result
+    # All checks passed — settle + (optionally) apply.
+    settle_outcome = _settle_plan_change_invoice(
+        case_id,
+        auto_apply=auto_apply,
+        actor_user_id=actor_user_id,
+        note='Settled by Stripe redirect-fallback after sandbox payment',
+    )
+    result.update(settle_outcome)
+    if settle_outcome.get('applied'):
+        result['reason'] = 'settled_and_applied'
+    elif settle_outcome.get('settled'):
+        result['reason'] = 'settled_pending_apply'
+    elif settle_outcome.get('skip_reason') == 'case_already_resolved':
+        result['reason'] = 'already_applied'
+    else:
+        result['reason'] = settle_outcome.get(
+            'skip_reason', 'settle_failed',
+        )
+    return result
 
 
 # v86: ── Invoice checkout for plan-change payment requests ──────────
