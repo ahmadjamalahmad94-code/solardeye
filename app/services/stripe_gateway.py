@@ -542,6 +542,97 @@ def _settle_plan_change_invoice(case_id: int, *, auto_apply: bool = False, actor
         return {'settled': False, 'skip_reason': 'internal_error'}
 
 
+def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, actor_user_id: int | None = None) -> dict[str, Any]:
+    """v92h — manual reconciliation for a case where the payment
+    happened but the redirect/webhook never updated the case.
+
+    Common reason on Render Sandbox: the subscriber paid BEFORE
+    the v92f auto-apply was deployed, or the redirect was
+    interrupted (browser closed, deep-link to mobile app, etc.).
+    The user sees the "مطلوب دفع" banner still showing even
+    though Stripe knows the payment went through.
+
+    This helper asks Stripe directly: "show me the most recent
+    Checkout Sessions whose metadata.case_id matches this case",
+    finds one with `payment_status='paid'`, then runs the standard
+    `_settle_plan_change_invoice` settle + (optionally) apply
+    chain. Idempotent — if the case is already resolved we ack.
+
+    Never raises; returns a structured dict the route handler can
+    turn into a flash + redirect or a JSON response.
+    """
+    result: dict[str, Any] = {
+        'reconciled': False,
+        'paid': False,
+        'settled': False,
+        'applied': False,
+        'reason': None,
+        'case_id': case_id,
+    }
+    if not case_id:
+        result['reason'] = 'missing_case_id'
+        return result
+    try:
+        pkg = _configure_stripe()
+    except StripeNotReady:
+        result['reason'] = 'stripe_not_ready'
+        return result
+    # Pull recent sessions and filter by metadata.case_id. Stripe's
+    # listing endpoint doesn't support metadata search server-side
+    # so we walk the first page (up to 100) which is more than
+    # enough for the "subscriber just paid" timeframe.
+    try:
+        listing = pkg.checkout.Session.list(limit=100)
+    except Exception as exc:
+        logger.warning(
+            'stripe_session_list_failed err_class=%s',
+            type(exc).__name__,
+        )
+        result['reason'] = 'session_list_failed'
+        return result
+    target_case_id_str = str(case_id)
+    paid_session = None
+    for sess in (getattr(listing, 'data', None) or []):
+        metadata = getattr(sess, 'metadata', None) or {}
+        if hasattr(metadata, 'to_dict_recursive'):
+            try:
+                metadata = metadata.to_dict_recursive()
+            except Exception:
+                metadata = {}
+        if str(metadata.get('case_id') or '') != target_case_id_str:
+            continue
+        if str(metadata.get('kind') or '') != 'plan_change_invoice':
+            continue
+        payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
+        if payment_status == 'paid':
+            paid_session = sess
+            break
+    if paid_session is None:
+        result['reason'] = 'no_paid_session_found'
+        return result
+    result['paid'] = True
+    result['session_id'] = getattr(paid_session, 'id', None)
+    settle_outcome = _settle_plan_change_invoice(
+        case_id,
+        auto_apply=auto_apply,
+        actor_user_id=actor_user_id,
+        note='Reconciled by subscriber after sandbox payment',
+    )
+    result.update(settle_outcome)
+    result['reconciled'] = True
+    if settle_outcome.get('applied'):
+        result['reason'] = 'reconciled_and_applied'
+    elif settle_outcome.get('settled'):
+        result['reason'] = 'reconciled_settled_pending_apply'
+    elif settle_outcome.get('skip_reason') == 'case_already_resolved':
+        result['reason'] = 'already_applied'
+    else:
+        result['reason'] = settle_outcome.get(
+            'skip_reason', 'reconcile_failed',
+        )
+    return result
+
+
 def verify_and_settle_checkout_session(session_id: str, *, auto_apply: bool = True, actor_user_id: int | None = None) -> dict[str, Any]:
     """v92f — redirect-fallback companion to the webhook.
 

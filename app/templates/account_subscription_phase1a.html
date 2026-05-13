@@ -229,19 +229,32 @@
                   {% endif %}
                 </div>
                 {% if st == 'payment_requested' and pending_invoice %}
-                  <form method="post" action="{{ url_for('payments.create_invoice_checkout', lang=ui_lang) }}" class="pay-pending-banner__cta-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="case_id" value="{{ pending_request.id }}">
-                    <button type="submit" class="pay-pending-banner__cta">
-                      <span class="pay-pending-banner__cta-icon">💳</span>
-                      <span class="pay-pending-banner__cta-label">
-                        {{ 'Pay with sandbox card' if is_en else 'الدفع بالبطاقة التجريبية' }}
-                      </span>
-                      <span class="pay-pending-banner__cta-arrow" aria-hidden="true">
-                        {% if is_en %}→{% else %}←{% endif %}
-                      </span>
-                    </button>
-                  </form>
+                  <div class="pay-pending-banner__cta-stack">
+                    <form method="post" action="{{ url_for('payments.create_invoice_checkout', lang=ui_lang) }}" class="pay-pending-banner__cta-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="case_id" value="{{ pending_request.id }}">
+                      <button type="submit" class="pay-pending-banner__cta">
+                        <span class="pay-pending-banner__cta-icon">💳</span>
+                        <span class="pay-pending-banner__cta-label">
+                          {{ 'Pay with sandbox card' if is_en else 'الدفع بالبطاقة التجريبية' }}
+                        </span>
+                        <span class="pay-pending-banner__cta-arrow" aria-hidden="true">
+                          {% if is_en %}→{% else %}←{% endif %}
+                        </span>
+                      </button>
+                    </form>
+                    {# v92h — manual reconciliation button. Calls
+                       Stripe directly to verify any paid session
+                       for this case and applies it. Useful when
+                       the user paid but the redirect-fallback or
+                       webhook didn't run. #}
+                    <form method="post" action="{{ url_for('payments.reconcile_invoice', case_id=pending_request.id, lang=ui_lang) }}" class="pay-pending-banner__reconcile-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="pay-pending-banner__reconcile-btn" title="{{ 'Already paid? Verify and apply.' if is_en else 'هل دفعت بالفعل؟ تحقّق وحدّث الحالة.' }}">
+                        ✓ {{ 'I already paid — verify now' if is_en else 'دفعت بالفعل — تحقّق الآن' }}
+                      </button>
+                    </form>
+                  </div>
                 {% endif %}
               </div>
             {% endif %}
@@ -453,6 +466,34 @@
     letter-spacing: .2px;
   }
   .pay-pending-banner__cta-form { margin: 0; }
+  .pay-pending-banner__cta-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pay-pending-banner__reconcile-form { margin: 0; }
+  .pay-pending-banner__reconcile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 14px;
+    background: transparent;
+    color: #047857;
+    border: 1px dashed rgba(16, 185, 129, 0.5);
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: .82rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .pay-pending-banner__reconcile-btn:hover {
+    background: rgba(16, 185, 129, 0.06);
+    border-color: rgba(16, 185, 129, 0.7);
+    border-style: solid;
+  }
   .pay-pending-banner__cta {
     display: inline-flex;
     align-items: center;
