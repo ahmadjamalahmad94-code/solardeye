@@ -290,6 +290,44 @@ def test_subscriber_preview_template_explains_per_day_logic_in_plain_words():
 # ════════════════════════════════════════════════════════════════════════
 
 
+def test_web_confirm_wraps_early_auth_and_tenant_calls():
+    """v88b — the v88 try/except only protected `_confirm()`. If
+    `_active_user()` or `ensure_user_tenant_and_subscription()`
+    raised (corrupt session, transient DB error), the route still
+    surfaced a bare Flask 500 HTML page. v88b extends the safety
+    net to wrap those early calls too."""
+    path = os.path.join(
+        _REPO_ROOT, 'app', 'blueprints', 'billing.py',
+    )
+    with open(path, 'r', encoding='utf-8') as fh:
+        text = fh.read()
+    # The route now logs and returns `_fail('internal_error', status=500)`
+    # if _active_user itself raises.
+    assert '_active_user failed' in text
+    # And similarly for ensure_user_tenant_and_subscription.
+    assert 'ensure_user_tenant_and_subscription failed' in text
+
+
+def test_app_level_error_handlers_registered():
+    """v88b — there must be an app-level 500/404/405 handler so an
+    uncaught exception in ANY blueprint (billing, payments,
+    mobile_api, etc.) returns a controlled response, not Flask's
+    default 'Internal Server Error' HTML page."""
+    path = os.path.join(
+        _REPO_ROOT, 'app', '__init__.py',
+    )
+    with open(path, 'r', encoding='utf-8') as fh:
+        text = fh.read()
+    assert '@app.errorhandler(500)' in text
+    assert '@app.errorhandler(404)' in text
+    assert '@app.errorhandler(405)' in text
+    # The handler must branch on Accept / X-Requested-With so API
+    # callers get JSON while browser users get the error template.
+    assert '_wants_json_response' in text
+    # And it must log the original exception so ops can diagnose.
+    assert 'Unhandled 500 on' in text
+
+
 def test_web_confirm_json_failure_payload_carries_machine_code():
     """In JSON mode, every controlled failure returns
     `{'ok': False, 'code': '<stable-string>', 'message': '<ar>'}`."""

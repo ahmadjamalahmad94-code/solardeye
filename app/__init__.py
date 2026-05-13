@@ -98,6 +98,90 @@ def create_app():
     app.register_blueprint(fleet_api_bp)
     app.register_blueprint(payments_bp)
 
+    # v88b — app-level error handlers. Previously the only 500
+    # handler lived on `main_bp` (blueprint-scoped), so an
+    # unhandled exception in `billing_bp` / `payments_bp` /
+    # `mobile_api_bp` etc. fell through to Flask's default
+    # minimalist "Internal Server Error" HTML page. Mobile shells
+    # interpret that as a connection failure. This app-level
+    # fallback ensures every uncaught error returns a controlled
+    # JSON response for API namespaces and the project's standard
+    # error template for HTML pages — never the bare default.
+    from flask import jsonify, render_template, request as _req
+
+    def _wants_json_response() -> bool:
+        path = _req.path or ''
+        if path.startswith('/api/'):
+            return True
+        if _req.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return True
+        try:
+            return _req.accept_mimetypes.best == 'application/json'
+        except Exception:
+            return False
+
+    @app.errorhandler(500)
+    def _v88b_app_internal_server_error(exc):  # noqa: ARG001
+        # Log the original exception so ops can diagnose; the
+        # client gets a clean structured response.
+        try:
+            app.logger.exception('Unhandled 500 on %s %s',
+                                 _req.method, _req.path)
+        except Exception:
+            pass
+        if _wants_json_response():
+            return jsonify({
+                'ok': False,
+                'code': 'internal_error',
+                'message': 'حدث خطأ غير متوقّع في الخادم.',
+            }), 500
+        try:
+            return render_template(
+                'error.html', code=500,
+                message='حدث خطأ غير متوقّع في الخادم.',
+            ), 500
+        except Exception:
+            # If even rendering the error template fails, fall
+            # back to a tiny inline body so the response is still
+            # not the default ugly Flask page.
+            return (
+                '<!doctype html><meta charset="utf-8"><title>500</title>'
+                '<h1>حدث خطأ في الخادم</h1>'
+                '<p>الرجاء المحاولة مجدداً بعد قليل.</p>'
+            ), 500
+
+    @app.errorhandler(404)
+    def _v88b_app_not_found(exc):  # noqa: ARG001
+        if _wants_json_response():
+            return jsonify({
+                'ok': False,
+                'code': 'not_found',
+                'message': 'المسار غير موجود.',
+            }), 404
+        try:
+            return render_template(
+                'error.html', code=404,
+                message='الصفحة غير موجودة.',
+            ), 404
+        except Exception:
+            return '<h1>404</h1>', 404
+
+    @app.errorhandler(405)
+    def _v88b_app_method_not_allowed(exc):  # noqa: ARG001
+        if _wants_json_response():
+            return jsonify({
+                'ok': False,
+                'code': 'method_not_allowed',
+                'message': 'هذه الطريقة غير مسموح بها لهذا المسار.',
+            }), 405
+        try:
+            return render_template(
+                'error.html', code=405,
+                message='هذه الطريقة غير مسموح بها لهذا المسار.',
+            ), 405
+        except Exception:
+            return '<h1>405</h1>', 405
+
     with app.app_context():
         db.create_all()
         _migrate_database()

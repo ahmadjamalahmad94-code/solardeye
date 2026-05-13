@@ -451,10 +451,22 @@ def account_subscription_change_confirm():
     error instead of a raw 500 page. The original traceback is
     still logged via `logger.exception` for ops visibility.
     """
-    user = _active_user()
-    if user is None:
-        return redirect(url_for('auth.login'))
-    ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
+    # v88b — wider safety net. The v88 try/except only wrapped the
+    # `_confirm()` call, leaving `_active_user()` and
+    # `ensure_user_tenant_and_subscription()` exposed. If either of
+    # those raises (a corrupt session, a tenant row that points to
+    # nothing, a transient DB error), the route still returned a
+    # bare Flask 500 page — because there is no app-level error
+    # handler (the 500 handler lives on `main_bp` only, scoped to
+    # that blueprint's routes). The fix is split:
+    #
+    #   * Compute `wants_json` first so `_fail()` is callable from
+    #     anywhere in the route, including before user resolution.
+    #   * Wrap EVERYTHING that touches the DB / session in one
+    #     outer try/except. Any unexpected failure becomes a
+    #     controlled `internal_error` response, never a 500 HTML.
+    #   * The original traceback is still logged via
+    #     `logger.exception` so ops can diagnose.
     wants_json = (
         request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         or request.accept_mimetypes.best == 'application/json'
@@ -466,12 +478,39 @@ def account_subscription_change_confirm():
             'plan_id_invalid': 'رقم الخطة غير صحيح.',
             'desired_target_days_invalid': 'عدد الأيام المُدخَل غير صحيح.',
             'internal_error': 'حدث خطأ غير متوقّع. الرجاء المحاولة مجدداً.',
+            'auth_required': 'يجب تسجيل الدخول للمتابعة.',
         }
         msg = message or ar_messages.get(code, 'تعذّر تنفيذ الطلب.')
         if wants_json:
             return jsonify({'ok': False, 'code': code, 'message': msg}), status
         flash(msg, 'warning')
         return redirect(url_for('billing.account_subscription', lang=_lang()))
+
+    try:
+        user = _active_user()
+    except Exception:
+        current_app.logger.exception(
+            'account_subscription_change_confirm: _active_user failed'
+        )
+        return _fail('internal_error', status=500)
+    if user is None:
+        if wants_json:
+            return jsonify({
+                'ok': False, 'code': 'auth_required',
+                'message': 'يجب تسجيل الدخول للمتابعة.',
+            }), 401
+        return redirect(url_for('auth.login'))
+    try:
+        ensure_user_tenant_and_subscription(
+            user, activated_by_user_id=user.id,
+        )
+    except Exception:
+        current_app.logger.exception(
+            'account_subscription_change_confirm: '
+            'ensure_user_tenant_and_subscription failed (user_id=%s)',
+            getattr(user, 'id', None),
+        )
+        return _fail('internal_error', status=500)
 
     raw_plan_id = (request.form.get('plan_id') or '').strip()
     if not raw_plan_id:
