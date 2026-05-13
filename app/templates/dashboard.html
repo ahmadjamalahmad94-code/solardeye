@@ -146,7 +146,39 @@
             <div class="d40-side-stat"><small>{{ 'Solar output' if ui_lang == 'en' else 'الناتج من الشمس' }}</small><strong data-bind="latest.solar_power">{{ format_power(latest.solar_power) if latest else '0.0' }} W</strong><em>{{ 'Instant production' if ui_lang == 'en' else 'الإنتاج اللحظي' }}</em></div>
             <div class="d40-side-stat"><small>{{ 'Going to home' if ui_lang == 'en' else 'الذاهب للبيت' }}</small><strong data-bind="latest.home_load">{{ format_power(latest.home_load) if latest else '0.0' }} W</strong><em>{{ 'Current home use' if ui_lang == 'en' else 'الاستهلاك الحالي للمنزل' }}</em></div>
             <div class="d40-side-stat"><small>{{ 'Battery flow' if ui_lang == 'en' else 'الذاهب للبطارية' }}</small><strong>{% if battery_insights.charge_power_w > 0 %}{{ format_power(battery_insights.charge_power_w) }}{% elif battery_insights.discharge_power_w > 0 %}{{ format_power(battery_insights.discharge_power_w) }}{% else %}0.0{% endif %} W</strong><em data-bind="battery.soc_label">{{ 'Charge' if ui_lang == 'en' else 'الشحن' }} {{ (latest.battery_soc or 0)|int }}%</em></div>
-            <div class="d40-side-stat"><small>{{ 'Grid' if ui_lang == 'en' else 'الشبكة' }}</small><strong data-bind="latest.grid_power">{{ format_power(latest.grid_power) if latest else '0.0' }} W</strong><em>{% if latest and (latest.grid_power or 0) == 0 %}{{ 'Off-grid right now' if ui_lang == 'en' else 'مفصولة حاليًا' }}{% else %}{{ 'Live grid measurement' if ui_lang == 'en' else 'قياس الشبكة الحالي' }}{% endif %}</em></div>
+            {# v93w — side stat now reads "External source" instead
+               of "Grid alone". Big value = sum of grid + generator
+               AC-IN wattage. Caption identifies the source(s):
+               grid only, generator only, both, or none. Driven by
+               `battery_insights.grid_input_w` /
+               `battery_insights.generator_input_w` /
+               `battery_insights.ac_in_source_label`. #}
+            {% set _gw = battery_insights.grid_input_w or 0 %}
+            {% set _genw = battery_insights.generator_input_w or 0 %}
+            {% set _ext_total = _gw + _genw %}
+            <div class="d40-side-stat">
+              <small>{{ 'External source' if ui_lang == 'en' else 'مصدر خارجي' }}</small>
+              <strong data-bind="external.total_w">{{ format_power(_ext_total) }} W</strong>
+              <em data-bind="external.detail">
+                {%- if _gw > 5 and _genw > 5 -%}
+                  {%- if ui_lang == 'en' -%}
+                    Grid {{ _gw|int }} W · Generator {{ _genw|int }} W
+                  {%- else -%}
+                    شبكة {{ _gw|int }} W · مولد {{ _genw|int }} W
+                  {%- endif -%}
+                {%- elif _gw > 5 -%}
+                  {{ 'Grid only · live measurement' if ui_lang == 'en' else 'شبكة فقط · قياس مباشر' }}
+                {%- elif _genw > 5 -%}
+                  {%- if ui_lang == 'en' -%}
+                    Generator · {{ _genw|int }} W
+                  {%- else -%}
+                    مولد · {{ _genw|int }} W
+                  {%- endif -%}
+                {%- else -%}
+                  {{ 'No external input' if ui_lang == 'en' else 'لا يوجد إدخال خارجي' }}
+                {%- endif -%}
+              </em>
+            </div>
             <div class="d40-side-stat"><small>{{ 'Total production today' if ui_lang == 'en' else 'إجمالي الإنتاج اليومي' }}</small><strong>{{ format_energy(production_summary.today_kwh) if production_summary else '0.00 kWh' }}</strong><em>{{ 'Today summary' if ui_lang == 'en' else 'ملخص اليوم' }}</em></div>
           </div>
 
@@ -593,6 +625,29 @@
     // it's available as `batt.generator_input_w`. The server
     // helper already filters noise below 5 W.
     setBind('generator.power_short', fmtPower(batt.generator_input_w || 0));
+    // v93w — refresh the "External source" side stat. Sums
+    // grid + generator AC-IN and produces a humane Arabic /
+    // English caption identifying which source is active.
+    var _gw = Number(batt.grid_input_w || 0);
+    var _genw = Number(batt.generator_input_w || 0);
+    var _extTotal = _gw + _genw;
+    var lang = (document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
+    setBind('external.total_w', fmtPower(_extTotal) + ' W');
+    var detail;
+    if (_gw > 5 && _genw > 5) {
+      detail = (lang === 'en')
+        ? ('Grid ' + Math.round(_gw) + ' W · Generator ' + Math.round(_genw) + ' W')
+        : ('شبكة ' + Math.round(_gw) + ' W · مولد ' + Math.round(_genw) + ' W');
+    } else if (_gw > 5) {
+      detail = (lang === 'en') ? 'Grid only · live measurement' : 'شبكة فقط · قياس مباشر';
+    } else if (_genw > 5) {
+      detail = (lang === 'en')
+        ? ('Generator · ' + Math.round(_genw) + ' W')
+        : ('مولد · ' + Math.round(_genw) + ' W');
+    } else {
+      detail = (lang === 'en') ? 'No external input' : 'لا يوجد إدخال خارجي';
+    }
+    setBind('external.detail', detail);
     var st = p.system_status || {};
     setBind('status.title',       st.title || '');
     setBind('status.title_short', st.title || '');
