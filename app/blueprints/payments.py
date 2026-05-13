@@ -392,74 +392,104 @@ def reconcile_invoice(case_id: int):
     the payment happened but the case is still in
     `payment_requested`.
 
-    Why this exists: on Render Sandbox the webhook is often not
-    wired, AND the v92f redirect-fallback only fires when Stripe
-    sends the user back to `/payments/stripe/success`. If the user
-    closed the browser, lost connectivity, or paid before v92f was
-    deployed, the case remains `payment_requested` even though
-    Stripe knows the payment was successful. This route lets the
-    subscriber click "✓ دفعت من قبل" on the pending banner to
-    reconcile manually.
+    v92i — wrapped in a defensive try/except so the route never
+    returns a bare 500. Any unexpected exception is logged with
+    full traceback via `logger.exception` and the subscriber gets
+    a controlled flash + redirect to the subscription page.
 
     Security: only the case owner can reconcile their own case.
     """
-    user = _active_user()
-    if user is None:
+    fallback_redirect = url_for(
+        'main.account_subscription',
+        lang=session.get('ui_lang') or 'ar',
+    )
+
+    def _flash_and_back(msg: str, level: str = 'warning'):
         if _wants_json():
-            return jsonify({'ok': False, 'code': 'auth_required'}), 401
-        return redirect(url_for('auth.login'))
-    from ..models import SupportCase
-    case = SupportCase.query.filter_by(
-        id=case_id, case_type='plan_change_request',
-    ).first()
-    if not case or case.user_id != user.id:
-        msg = 'طلب تغيير الخطة غير موجود.'
-        if _wants_json():
-            return jsonify({'ok': False, 'code': 'case_not_found', 'message': msg}), 404
-        flash(msg, 'warning')
-        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+            return jsonify({'ok': False, 'message': msg}), 400
+        flash(msg, level)
+        return redirect(fallback_redirect)
+
     try:
-        from ..services.stripe_gateway import (
-            reconcile_paid_session_for_case,
+        user = _active_user()
+        if user is None:
+            if _wants_json():
+                return jsonify({'ok': False, 'code': 'auth_required'}), 401
+            return redirect(url_for('auth.login'))
+        from ..models import SupportCase
+        case = SupportCase.query.filter_by(
+            id=case_id, case_type='plan_change_request',
+        ).first()
+        if not case or case.user_id != user.id:
+            msg = 'طلب تغيير الخطة غير موجود.'
+            if _wants_json():
+                return jsonify({'ok': False, 'code': 'case_not_found', 'message': msg}), 404
+            flash(msg, 'warning')
+            return redirect(fallback_redirect)
+        try:
+            from ..services.stripe_gateway import (
+                reconcile_paid_session_for_case,
+            )
+        except Exception:
+            logger.exception(
+                'stripe_reconcile: import failed (case_id=%s)', case_id,
+            )
+            return _flash_and_back('خدمة الدفع غير متاحة حالياً.')
+        try:
+            outcome = reconcile_paid_session_for_case(
+                case_id, auto_apply=True, actor_user_id=user.id,
+            )
+        except Exception:
+            logger.exception(
+                'stripe_reconcile: gateway call raised (case_id=%s)', case_id,
+            )
+            return _flash_and_back(
+                'تعذّر التحقّق من الدفعة الآن. الرجاء المحاولة مجدداً بعد قليل.'
+            )
+        logger.info(
+            'stripe_reconcile case_id=%s reason=%s applied=%s case_status=%s',
+            case_id,
+            outcome.get('reason'),
+            outcome.get('applied'),
+            outcome.get('case_status'),
         )
-    except Exception:
-        msg = 'خدمة الدفع غير متاحة حالياً.'
         if _wants_json():
-            return jsonify({'ok': False, 'code': 'stripe_not_ready', 'message': msg}), 503
-        flash(msg, 'warning')
-        return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
-    outcome = reconcile_paid_session_for_case(
-        case_id, auto_apply=True, actor_user_id=user.id,
-    )
-    logger.info(
-        'stripe_reconcile case_id=%s reason=%s applied=%s case_status=%s',
-        case_id,
-        outcome.get('reason'),
-        outcome.get('applied'),
-        outcome.get('case_status'),
-    )
-    if _wants_json():
-        ok = bool(outcome.get('applied') or outcome.get('settled') or outcome.get('reason') == 'already_applied')
-        return jsonify({'ok': ok, 'data': outcome})
-    # Human-friendly flash mapping.
-    reason = outcome.get('reason')
-    if outcome.get('applied') or reason == 'reconciled_and_applied':
-        flash('تم تأكيد دفعتك وتطبيق الخطة الجديدة على اشتراكك.', 'success')
-    elif reason == 'already_applied':
-        flash('الخطة الجديدة مُفعَّلة بالفعل على اشتراكك.', 'success')
-    elif outcome.get('settled') or reason == 'reconciled_settled_pending_apply':
-        flash('تم تأكيد دفعتك. الخطة الجديدة ستُطبَّق خلال لحظات.', 'success')
-    elif reason == 'no_paid_session_found':
-        flash(
-            'لم نجد دفعة مكتملة لهذا الطلب على Stripe. '
-            'لو سددت للتو وما يزال هذا التنبيه ظاهراً، انتظر دقيقة وحاول مجدداً.',
-            'warning',
+            ok = bool(
+                outcome.get('applied')
+                or outcome.get('settled')
+                or outcome.get('reason') == 'already_applied'
+            )
+            return jsonify({'ok': ok, 'data': outcome})
+        # Human-friendly flash mapping.
+        reason = outcome.get('reason')
+        if outcome.get('applied') or reason == 'reconciled_and_applied':
+            flash('تم تأكيد دفعتك وتطبيق الخطة الجديدة على اشتراكك.', 'success')
+        elif reason == 'already_applied':
+            flash('الخطة الجديدة مُفعَّلة بالفعل على اشتراكك.', 'success')
+        elif outcome.get('settled') or reason == 'reconciled_settled_pending_apply':
+            flash('تم تأكيد دفعتك. الخطة الجديدة ستُطبَّق خلال لحظات.', 'success')
+        elif reason == 'no_paid_session_found':
+            flash(
+                'لم نجد دفعة مكتملة لهذا الطلب على Stripe. '
+                'لو سددت للتو وما يزال هذا التنبيه ظاهراً، انتظر دقيقة وحاول مجدداً.',
+                'warning',
+            )
+        elif reason == 'stripe_not_ready':
+            flash('خدمة الدفع غير مهيّأة. الرجاء التواصل مع الدعم.', 'warning')
+        else:
+            flash('تعذّر تأكيد الدفعة الآن. الرجاء المحاولة مجدداً بعد قليل.', 'warning')
+        return redirect(fallback_redirect)
+    except Exception:
+        # Final safety net — ANY uncaught exception in the route
+        # produces a controlled response. The full traceback is
+        # logged so ops can diagnose without exposing internals.
+        logger.exception(
+            'stripe_reconcile: unhandled error in route (case_id=%s)',
+            case_id,
         )
-    elif reason == 'stripe_not_ready':
-        flash('خدمة الدفع غير مهيّأة. الرجاء التواصل مع الدعم.', 'warning')
-    else:
-        flash('تعذّر تأكيد الدفعة الآن. الرجاء المحاولة مجدداً بعد قليل.', 'warning')
-    return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+        return _flash_and_back(
+            'حدث خطأ غير متوقّع أثناء التحقّق من الدفعة. الرجاء المحاولة مجدداً.'
+        )
 
 
 # ── Result pages — neutral, no DB mutation ─────────────────────────

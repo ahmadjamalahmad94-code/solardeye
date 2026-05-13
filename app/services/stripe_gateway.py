@@ -592,32 +592,67 @@ def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, ac
         return result
     target_case_id_str = str(case_id)
     paid_session = None
-    for sess in (getattr(listing, 'data', None) or []):
-        metadata = getattr(sess, 'metadata', None) or {}
-        if hasattr(metadata, 'to_dict_recursive'):
-            try:
-                metadata = metadata.to_dict_recursive()
-            except Exception:
-                metadata = {}
-        if str(metadata.get('case_id') or '') != target_case_id_str:
+    # v92i — wrap the iteration so a single malformed session entry
+    # can never tear down the whole reconcile call. Each metadata
+    # access is also wrapped individually because the Stripe SDK's
+    # lazy attribute proxies have raised AttributeError in the
+    # field on some account states.
+    sessions = []
+    try:
+        sessions = list(getattr(listing, 'data', None) or [])
+    except Exception:
+        sessions = []
+    for sess in sessions:
+        try:
+            metadata = getattr(sess, 'metadata', None) or {}
+            if hasattr(metadata, 'to_dict_recursive'):
+                try:
+                    metadata = metadata.to_dict_recursive()
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                try:
+                    metadata = dict(metadata)
+                except Exception:
+                    metadata = {}
+            if str(metadata.get('case_id') or '') != target_case_id_str:
+                continue
+            if str(metadata.get('kind') or '') != 'plan_change_invoice':
+                continue
+            payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
+            if payment_status == 'paid':
+                paid_session = sess
+                break
+        except Exception as inner_exc:
+            logger.warning(
+                'stripe_session_iter_skipped err_class=%s',
+                type(inner_exc).__name__,
+            )
             continue
-        if str(metadata.get('kind') or '') != 'plan_change_invoice':
-            continue
-        payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
-        if payment_status == 'paid':
-            paid_session = sess
-            break
     if paid_session is None:
         result['reason'] = 'no_paid_session_found'
         return result
     result['paid'] = True
-    result['session_id'] = getattr(paid_session, 'id', None)
-    settle_outcome = _settle_plan_change_invoice(
-        case_id,
-        auto_apply=auto_apply,
-        actor_user_id=actor_user_id,
-        note='Reconciled by subscriber after sandbox payment',
-    )
+    try:
+        result['session_id'] = getattr(paid_session, 'id', None)
+    except Exception:
+        result['session_id'] = None
+    try:
+        settle_outcome = _settle_plan_change_invoice(
+            case_id,
+            auto_apply=auto_apply,
+            actor_user_id=actor_user_id,
+            note='Reconciled by subscriber after sandbox payment',
+        )
+    except Exception as settle_exc:
+        logger.exception(
+            'stripe_reconcile_settle_raised case_id=%s err_class=%s',
+            case_id, type(settle_exc).__name__,
+        )
+        result['reason'] = 'settle_raised'
+        return result
+    if not isinstance(settle_outcome, dict):
+        settle_outcome = {}
     result.update(settle_outcome)
     result['reconciled'] = True
     if settle_outcome.get('applied'):
