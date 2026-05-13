@@ -437,25 +437,81 @@ def account_subscription_change_confirm():
       * reduced-days → direct apply (status=resolved)
       * same-duration > 0 → invoice (status=payment_requested)
       * same-duration ≤ 0 → direct apply (status=resolved)
+
+    v88 hardening — this route used to crash with a bare 500 when:
+      * The form's `plan_id` was non-numeric (e.g. `"abc"`) because
+        `int(...)` raises `ValueError`.
+      * `subscriber_plan_change.confirm` raised an unexpected
+        exception (e.g. a defensive `ValueError` from
+        `plan_change_workbench.apply_request`, or a transient
+        SQL error).
+
+    Inputs are now parsed defensively and the service call is
+    wrapped so the subscriber always sees a controlled flash / JSON
+    error instead of a raw 500 page. The original traceback is
+    still logged via `logger.exception` for ops visibility.
     """
     user = _active_user()
     if user is None:
         return redirect(url_for('auth.login'))
     ensure_user_tenant_and_subscription(user, activated_by_user_id=user.id)
-    plan_id = int(request.form.get('plan_id') or 0)
-    mode = (request.form.get('mode') or '').strip()
-    days_raw = (request.form.get('desired_target_days') or '').strip()
-    desired_days = int(days_raw) if days_raw.isdigit() else None
-    from ..services.subscriber_plan_change import confirm as _confirm
-    result = _confirm(
-        user, plan_id, mode=mode,
-        desired_target_days=desired_days,
-        commit=True,
-    )
     wants_json = (
         request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         or request.accept_mimetypes.best == 'application/json'
     )
+
+    def _fail(code: str, status: int = 400, message: str | None = None):
+        ar_messages = {
+            'plan_id_required': 'لم يُحدَّد رقم الخطة.',
+            'plan_id_invalid': 'رقم الخطة غير صحيح.',
+            'desired_target_days_invalid': 'عدد الأيام المُدخَل غير صحيح.',
+            'internal_error': 'حدث خطأ غير متوقّع. الرجاء المحاولة مجدداً.',
+        }
+        msg = message or ar_messages.get(code, 'تعذّر تنفيذ الطلب.')
+        if wants_json:
+            return jsonify({'ok': False, 'code': code, 'message': msg}), status
+        flash(msg, 'warning')
+        return redirect(url_for('billing.account_subscription', lang=_lang()))
+
+    raw_plan_id = (request.form.get('plan_id') or '').strip()
+    if not raw_plan_id:
+        return _fail('plan_id_required')
+    try:
+        plan_id = int(raw_plan_id)
+    except (TypeError, ValueError):
+        return _fail('plan_id_invalid')
+
+    mode = (request.form.get('mode') or '').strip()
+    days_raw = (request.form.get('desired_target_days') or '').strip()
+    desired_days = None
+    if days_raw:
+        if not days_raw.isdigit():
+            return _fail('desired_target_days_invalid')
+        try:
+            desired_days = int(days_raw)
+        except (TypeError, ValueError):
+            return _fail('desired_target_days_invalid')
+        # Refuse silly extremes early so `timedelta(days=N)` deeper
+        # in apply_request can't OverflowError.
+        if desired_days < 0 or desired_days > 10_000:
+            return _fail('desired_target_days_invalid')
+
+    from ..services.subscriber_plan_change import confirm as _confirm
+    try:
+        result = _confirm(
+            user, plan_id, mode=mode,
+            desired_target_days=desired_days,
+            commit=True,
+        )
+    except Exception:
+        current_app.logger.exception(
+            'account_subscription_change_confirm: unexpected error '
+            'from subscriber_plan_change.confirm '
+            '(user_id=%s, plan_id=%s, mode=%s, desired_days=%s)',
+            getattr(user, 'id', None), plan_id, mode, desired_days,
+        )
+        return _fail('internal_error', status=500)
+
     if wants_json:
         status_code = 200 if result.outcome != 'blocked' else 400
         return jsonify({

@@ -210,14 +210,29 @@ def _audit(
     case: SupportCase, action: str, summary: str, *,
     actor_user_id: int | None, details: dict | None = None,
 ) -> None:
-    """Append a structured audit row tied to the case."""
+    """Append a structured audit row tied to the case.
+
+    v88 hardening: `details_json` is built with a `default=str`
+    fallback so any datetime / Decimal / Mock-like object that
+    sneaks into `details` (e.g. via a future scenario field) gets
+    stringified instead of raising `TypeError` and 500-ing the
+    whole apply path. Audit row content is for ops/finance review,
+    not machine consumption — a stringified value is acceptable
+    when the alternative is losing the entire transaction.
+    """
+    try:
+        details_json = json.dumps(
+            details or {}, ensure_ascii=False, default=str,
+        )
+    except Exception:
+        details_json = '{}'
     db.session.add(SupportAuditLog(
-        case_type=case.case_type,
-        source_id=case.source_id,
+        case_type=getattr(case, 'case_type', None) or 'plan_change_request',
+        source_id=getattr(case, 'source_id', None) or getattr(case, 'user_id', 0) or 0,
         actor_user_id=actor_user_id,
         action=action,
-        summary=summary[:255],
-        details_json=json.dumps(details or {}, ensure_ascii=False),
+        summary=(summary or '')[:255],
+        details_json=details_json,
         created_at=datetime.utcnow(),
     ))
 
@@ -228,18 +243,28 @@ def _notify_subscriber(
 ) -> NotificationEvent | None:
     """Push a NotificationEvent to the subscriber owning the case.
     Returns the persisted instance or `None` when the case has no
-    user attached."""
+    user attached.
+
+    v88 hardening: `user_id` coercion is wrapped so a non-int
+    `case.user_id` (corruption / mocking edge case) gracefully
+    returns `None` instead of bubbling a `TypeError` out of the
+    apply path. Title length is clamped (model column = 220).
+    """
     user_id = getattr(case, 'user_id', None)
     if not user_id:
         return None
+    try:
+        target_user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
     ev = NotificationEvent(
         event_type=event_type,
-        target_user_id=int(user_id),
+        target_user_id=target_user_id,
         tenant_id=getattr(case, 'tenant_id', None),
         source_type='plan_change_request',
-        source_id=case.id,
-        title=title[:220],
-        message=message,
+        source_id=getattr(case, 'id', None),
+        title=(title or '')[:220],
+        message=message or '',
         direct_url='/account/subscription',
         status='new',
         created_at=datetime.utcnow(),

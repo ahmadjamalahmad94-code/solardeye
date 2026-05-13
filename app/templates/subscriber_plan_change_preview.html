@@ -118,10 +118,17 @@
             <p>{{ 'You will not see "same days + credit". A money refund or wallet credit is never the outcome of a downgrade.' if is_en else 'لن تجد خيار "نفس الأيام + رصيد". لا يوجد إرجاع للمبلغ ولا رصيد للمحفظة عند النزول إلى خطة أرخص.' }}</p>
           </div>
           <div class="admin-card-v2" style="margin:0;border:1px dashed #6366f1">
-            <h4 style="margin-top:0">∑ {{ 'The math' if is_en else 'طريقة الحساب' }}</h4>
-            <p dir="ltr" style="font-family:ui-monospace,monospace;font-size:.85rem">
-              remaining_value = (remaining_days ÷ current_cycle_days) × current_plan_price<br>
-              new_days = remaining_value ÷ (target_price ÷ target_cycle_days)
+            <h4 style="margin-top:0">💡 {{ 'Why you get more days' if is_en else 'لماذا تحصل على أيام أكثر' }}</h4>
+            <p>
+              {% if is_en %}
+                You have <strong>{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong> of unused value on your current plan.
+                The new plan costs only <strong>{{ '%.4f'|format(reduced.extra.target_per_day_price) }} {{ p.currency }}</strong> per day,
+                so each remaining unit of value buys you more days than before — that's why your conversion lands on <strong>{{ reduced.target_days }}</strong> day(s).
+              {% else %}
+                لديك <strong>{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong> قيمة متبقّية على خطتك الحالية.
+                الخطة الجديدة تكلّفك <strong>{{ '%.4f'|format(reduced.extra.target_per_day_price) }} {{ p.currency }}</strong> فقط في اليوم،
+                وكل وحدة من قيمتك المتبقّية تشتري لك أياماً أكثر — لذلك ينتج التحويل <strong>{{ reduced.target_days }}</strong> يوماً.
+              {% endif %}
             </p>
           </div>
         {% elif policy == 'upgrade' %}
@@ -134,10 +141,23 @@
             <p>{{ 'Your remaining value is kept, but converted into the higher daily rate. You receive fewer days on the new plan and pay nothing extra.' if is_en else 'تُحفَظ قيمتك المتبقّية ويُعاد تسعيرها وفق السعر اليومي الأعلى، فتحصل على أيام أقل على الخطة الجديدة دون أي مبلغ إضافي.' }}</p>
           </div>
           <div class="admin-card-v2" style="margin:0;border:1px dashed #6366f1">
-            <h4 style="margin-top:0">∑ {{ 'The math' if is_en else 'طريقة الحساب' }}</h4>
-            <p dir="ltr" style="font-family:ui-monospace,monospace;font-size:.85rem">
-              A: amount_due = target_remaining_value − current_remaining_value<br>
-              B: new_days   = current_remaining_value ÷ target_per_day
+            <h4 style="margin-top:0">💡 {{ 'Why fewer days on a more expensive plan' if is_en else 'لماذا تقلّ الأيام على الخطة الأعلى' }}</h4>
+            <p>
+              {% if is_en %}
+                The new plan is <strong>{{ '%.4f'|format(reduced.extra.target_per_day_price) }} {{ p.currency }}</strong> per day —
+                more than your current plan's daily cost. Your remaining value
+                (<strong>{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong>)
+                stretches across fewer days at that higher rate, so option B lands on <strong>{{ reduced.target_days }}</strong> day(s).
+                Even a plan with a lower total price can have a higher per-day cost if its cycle is shorter — that's why a 1-month plan
+                can be "more expensive per day" than a 12-month plan.
+              {% else %}
+                الخطة الجديدة تكلّف <strong>{{ '%.4f'|format(reduced.extra.target_per_day_price) }} {{ p.currency }}</strong> في اليوم —
+                أكثر من السعر اليومي لخطتك الحالية. قيمتك المتبقّية
+                (<strong>{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong>)
+                تكفي لأيام أقل بهذا السعر، فينتج الخيار "ب" <strong>{{ reduced.target_days }}</strong> يوماً.
+                حتى الخطة ذات السعر الكلي الأقل قد تكون "أغلى في اليوم" لو كانت دورتها أقصر — لذلك قد تكون خطة شهر واحد
+                أغلى في اليوم من خطة سنة كاملة.
+              {% endif %}
             </p>
           </div>
         {% else %}

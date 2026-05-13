@@ -103,6 +103,13 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     # `SupportCase(case_type='plan_change_request')` — does NOT switch
     # plans immediately; the admin team triages the case.
     '/account/subscription/request-change': {'POST'},
+    # v87 — mobile-native subscriber-driven plan-change preview/
+    # confirm endpoints. The dispatcher's not-found / method-not-
+    # allowed catch-all reads this allowlist to emit a structured
+    # 405 when a wrong method hits a known path (instead of a vague
+    # 404 the mobile shell would render as "connection failed").
+    '/account/plan-change/preview': {'GET'},
+    '/account/plan-change/confirm': {'POST'},
     '/profile': {'GET', 'PATCH'},
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
@@ -1474,14 +1481,23 @@ def mobile_account_delete():
 
 @mobile_core_api_bp.post('/account/subscription/request-change')
 def mobile_account_request_plan_change():
-    """v65 — subscriber-initiated plan-change request.
+    """v65 — legacy subscriber-initiated plan-change request (kept
+    as a stable compatibility wrapper).
 
-    Mirrors the web `billing.account_subscription_request_change`
-    flow verbatim: persists the request as a `SupportCase` row
-    (`case_type='plan_change_request'`, `status='open'`) and cancels
-    any prior open request for the same user. **Does NOT switch
-    plans immediately** — admins triage the case through the
-    existing support workflow.
+    v88 contract notes:
+    * This endpoint is the **legacy mobile path**. It still works
+      and is intentionally not removed so older app builds keep
+      operating. The response now carries a `meta.superseded_by`
+      pointer to the v87 subscriber-driven flow so newer clients
+      know which endpoints to migrate to.
+    * Behavior preserved verbatim: persists the request as a
+      `SupportCase` row (`case_type='plan_change_request'`,
+      `status='open'`), cancels prior open requests for the same
+      user, and fans the new request out to admins. It does NOT
+      switch plans immediately — admins triage through the
+      workbench. To switch plans without admin triage, mobile
+      clients should call `GET /account/plan-change/preview`
+      then `POST /account/plan-change/confirm` (v87).
 
     Request body:
       * `plan_id`  (int, **required**) — target plan id; must be
@@ -1585,7 +1601,17 @@ def mobile_account_request_plan_change():
 
     return api_ok(
         _account_payload(user),
-        meta={'api_version': 'v1', 'namespace': 'api/mobile'},
+        meta={
+            'api_version': 'v1',
+            'namespace': 'api/mobile',
+            # v88 — explicit deprecation pointer so newer mobile
+            # builds can migrate to the subscriber-driven flow.
+            # The legacy endpoint continues to function unchanged.
+            'superseded_by': {
+                'preview': '/api/mobile/account/plan-change/preview',
+                'confirm': '/api/mobile/account/plan-change/confirm',
+            },
+        },
         status=201,
     )
 
@@ -1633,8 +1659,23 @@ def mobile_account_plan_change_preview():
             'Plan id must be an integer.', code='plan_id_invalid',
             field='plan_id',
         )
+    # v88 — wrap the service call so an unexpected exception in
+    # preview becomes a structured 500 (which the mobile shell can
+    # render as a real error message) instead of a Flask HTML 500
+    # page that the shell collapses into "فشل الاتصال بالخادم".
     from ..services.subscriber_plan_change import preview as _preview
-    result = _preview(user, plan_id)
+    try:
+        result = _preview(user, plan_id)
+    except Exception:
+        current_app.logger.exception(
+            'mobile_account_plan_change_preview: unexpected error '
+            '(user_id=%s, plan_id=%s)',
+            getattr(user, 'id', None), plan_id,
+        )
+        return _json_error(
+            'Unexpected error while building plan-change preview.',
+            code='internal_error', status=500,
+        )
     return api_ok(
         result.to_dict(),
         meta={'api_version': 'v1', 'namespace': 'api/mobile'},
@@ -1693,11 +1734,35 @@ def mobile_account_plan_change_confirm():
                 code='desired_target_days_invalid',
                 field='desired_target_days',
             )
+        # Same clamp as the web route — refuse silly values early so
+        # `timedelta(days=N)` deeper in apply_request can't overflow.
+        if desired_days < 0 or desired_days > 10_000:
+            return _json_error(
+                'desired_target_days is out of range.',
+                code='desired_target_days_invalid',
+                field='desired_target_days',
+            )
+    # v88 — wrap the service call so an unexpected exception in
+    # confirm becomes a structured 500 with a stable error code.
+    # The original traceback is logged via `logger.exception` so
+    # ops can see it; the mobile client gets a clean payload that
+    # never renders as a generic "connection failed".
     from ..services.subscriber_plan_change import confirm as _confirm
-    result = _confirm(
-        user, plan_id, mode=mode, desired_target_days=desired_days,
-        commit=True,
-    )
+    try:
+        result = _confirm(
+            user, plan_id, mode=mode, desired_target_days=desired_days,
+            commit=True,
+        )
+    except Exception:
+        current_app.logger.exception(
+            'mobile_account_plan_change_confirm: unexpected error '
+            '(user_id=%s, plan_id=%s, mode=%s, desired_days=%s)',
+            getattr(user, 'id', None), plan_id, mode, desired_days,
+        )
+        return _json_error(
+            'Unexpected error while applying the plan change.',
+            code='internal_error', status=500,
+        )
     payload = result.to_dict()
     if result.outcome == 'blocked':
         return api_error(
