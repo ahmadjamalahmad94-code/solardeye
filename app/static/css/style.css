@@ -494,7 +494,11 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
 }
 .battery-lab-grid { grid-template-columns: 2fr 1fr; }
 .battery-metric-grid { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:14px; }
-.battery-insight-list { display:grid; gap:12px; }
+/* v93t — pack operating-indicator rows two-per-row so the panel
+   doesn't waste vertical space when the page is wide. Collapses
+   to one column on narrow screens via the existing media queries
+   below. */
+.battery-insight-list { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
 /* v93q — operating-indicators reorg accents.
    * flow-charging: green tint on +W (battery is gaining energy)
    * flow-discharging: amber tint on -W (battery is losing energy)
@@ -523,6 +527,13 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
 }
 @media (max-width: 900px) {
   .report-hero-grid, .report-kpi-grid, .battery-metric-grid, .weather-grid-mini { grid-template-columns: 1fr; }
+}
+/* v93t — operating-indicators stays at 2 columns until the
+   screen is genuinely too narrow (under ~440 px). On phones
+   400-600 px wide the two-column pack is exactly what the
+   owner asked for — no wasted vertical space. */
+@media (max-width: 440px) {
+  .battery-insight-list { grid-template-columns: 1fr; }
 }
 
 
