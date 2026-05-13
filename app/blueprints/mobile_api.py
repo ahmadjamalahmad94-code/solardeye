@@ -1712,13 +1712,6 @@ def mobile_account_request_plan_change():
             field='plan_id',
         )
 
-    # Same cancel-then-create pattern as `billing.account_subscription_request_change`.
-    SupportCase.query.filter_by(
-        user_id=user.id,
-        case_type='plan_change_request',
-        status='open',
-    ).update({'status': 'cancelled'})
-
     tenant, _ = ensure_user_tenant_and_subscription(
         user, activated_by_user_id=user.id,
     )
@@ -1727,16 +1720,39 @@ def mobile_account_request_plan_change():
     if message:
         subject = f'{subject} — {message}'
 
-    case = SupportCase(
+    # v88c — ROOT CAUSE FIX. The `support_case` table has a UNIQUE
+    # INDEX on `(case_type, source_id)`, so each user can only have
+    # ONE `plan_change_request` row regardless of status. The
+    # previous "cancel-prior-open + insert-new" pattern broke that
+    # invariant because `.update({'status': 'cancelled'})` left the
+    # old row in place — the next INSERT then raised
+    # `IntegrityError` and the mobile shell collapsed the 500 into
+    # "فشل الاتصال بالخادم". Find-or-reuse keeps the invariant
+    # intact and preserves a single audit thread per subscriber.
+    existing = SupportCase.query.filter_by(
         case_type='plan_change_request',
         source_id=user.id,
-        tenant_id=getattr(tenant, 'id', None),
-        user_id=user.id,
-        subject=subject,
-        priority='normal',
-        status='open',
-    )
-    db.session.add(case)
+    ).first()
+    if existing is not None:
+        existing.tenant_id = getattr(tenant, 'id', None)
+        existing.user_id = user.id
+        existing.subject = subject
+        existing.priority = 'normal'
+        existing.status = 'open'
+        existing.is_frozen = False
+        existing.updated_at = datetime.utcnow()
+        case = existing
+    else:
+        case = SupportCase(
+            case_type='plan_change_request',
+            source_id=user.id,
+            tenant_id=getattr(tenant, 'id', None),
+            user_id=user.id,
+            subject=subject,
+            priority='normal',
+            status='open',
+        )
+        db.session.add(case)
     db.session.flush()
     try:
         from ..services.support_ops import notify_admins_of_plan_change_request

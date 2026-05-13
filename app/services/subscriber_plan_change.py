@@ -179,9 +179,35 @@ def _resolve_subscriber_context(user: AppUser):
 
 
 def _build_synthetic_case(user: AppUser, target_plan: SubscriptionPlan, status: str = wb.STATUS_OPEN, *, subject: str | None = None, commit: bool = False) -> SupportCase:
-    """Create a `SupportCase` row for this confirm. We anchor every
-    subscriber-driven decision on a case so the admin workbench's
-    queue + audit history stay complete."""
+    """Anchor a `SupportCase` for this confirm via find-or-reuse.
+
+    v88c — ROOT CAUSE FIX. The database carries a UNIQUE INDEX on
+    `(case_type, source_id)` (see `_ensure_database_indexes` in
+    `app/__init__.py`), which means each user can only have ONE
+    `plan_change_request` row in the `support_case` table — period,
+    regardless of status. Inserting a second row with the same
+    `(case_type, source_id)` raises `IntegrityError` and 500s the
+    confirm route.
+
+    Previously this function did a raw INSERT every time, relying
+    on `_cancel_prior_open_cases` to "clean up". But that helper
+    only flips `status` to `'cancelled'`; the rows stay in place,
+    so the UNIQUE INDEX is never freed.
+
+    The correct pattern (matching `support_ops.audit_case`'s lookup
+    behavior) is **find-or-reuse**: if a row with the same
+    `(case_type='plan_change_request', source_id=user.id)` already
+    exists, reset its fields (subject, status, priority, frozen
+    flag, updated_at) and reuse it. Otherwise, insert a new row.
+
+    This:
+      * Respects the UNIQUE INDEX — no IntegrityError.
+      * Preserves `case.id` across multiple confirms, so the
+        audit history accumulates on the same case row instead of
+        scattering across orphan rows.
+      * Keeps the "one active plan-change case per subscriber"
+        invariant the index was designed to enforce.
+    """
     tenant_id = getattr(user, 'tenant_id', None)
     plan_label = (
         getattr(target_plan, 'name_ar', None)
@@ -189,12 +215,32 @@ def _build_synthetic_case(user: AppUser, target_plan: SubscriptionPlan, status: 
         or getattr(target_plan, 'code', None)
         or f'plan-{target_plan.id}'
     )
+    final_subject = subject or f'طلب تغيير الخطة إلى {plan_label}'
+    existing = SupportCase.query.filter_by(
+        case_type='plan_change_request',
+        source_id=user.id,
+    ).first()
+    if existing is not None:
+        # Recycle the existing row. We deliberately reset
+        # `is_frozen` so a previously-resolved/closed case can be
+        # reopened by a fresh subscriber-driven confirm.
+        existing.tenant_id = tenant_id
+        existing.user_id = user.id
+        existing.subject = final_subject
+        existing.priority = 'normal'
+        existing.status = status
+        existing.is_frozen = False
+        existing.updated_at = datetime.utcnow()
+        db.session.flush()
+        if commit:
+            db.session.commit()
+        return existing
     case = SupportCase(
         case_type='plan_change_request',
         source_id=user.id,
         tenant_id=tenant_id,
         user_id=user.id,
-        subject=subject or f'طلب تغيير الخطة إلى {plan_label}',
+        subject=final_subject,
         priority='normal',
         status=status,
     )

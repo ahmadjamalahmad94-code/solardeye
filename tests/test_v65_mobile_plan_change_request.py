@@ -401,10 +401,11 @@ def test_route_non_integer_plan_id_returns_plan_id_invalid():
     assert resp.get_json()['code'] == 'plan_id_invalid'
 
 
-def test_route_happy_path_cancels_prior_then_creates_new_case():
-    """Locks the cancel-then-create pattern: the prior open case
-    must be cancelled before a new SupportCase is added, and the
-    response must carry the refreshed `_account_payload`."""
+def test_route_happy_path_creates_new_case_when_none_exists():
+    """v88c — the legacy mobile route now uses find-or-reuse on the
+    UNIQUE INDEX `(case_type, source_id)`. When no prior case
+    exists, a fresh SupportCase is inserted; the response must
+    carry the refreshed `_account_payload`."""
     from app.blueprints.mobile_api import (
         mobile_account_request_plan_change, SubscriptionPlan, SupportCase,
     )
@@ -415,11 +416,10 @@ def test_route_happy_path_cancels_prior_then_creates_new_case():
     plan_query = mock.Mock()
     plan_query.get.return_value = target_plan
 
-    # Track the cancel-update call on SupportCase.query.filter_by(...).update(...).
-    cancel_chain = mock.Mock()
+    # find-or-reuse: `.filter_by(...).first()` returns None → INSERT path.
     case_query = mock.Mock()
-    case_query.filter_by.return_value = cancel_chain
-    cancel_chain.update.return_value = 1  # one prior case cancelled
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = None
 
     refreshed_payload = {
         'user': {'id': 42},
@@ -447,15 +447,14 @@ def test_route_happy_path_cancels_prior_then_creates_new_case():
          mock.patch('app.blueprints.mobile_api.db', db_mock):
         resp = mobile_account_request_plan_change()
 
-    # Cancel-then-create order locked.
-    case_query.filter_by.assert_called_once_with(
-        user_id=42,
+    # The route looks up by (case_type, source_id) — the same
+    # columns covered by the UNIQUE INDEX.
+    case_query.filter_by.assert_any_call(
         case_type='plan_change_request',
-        status='open',
+        source_id=42,
     )
-    cancel_chain.update.assert_called_once_with({'status': 'cancelled'})
 
-    # Exactly one new SupportCase added + committed.
+    # No prior row → exactly one new SupportCase added + committed.
     assert db_mock.session.add.call_count == 1
     db_mock.session.commit.assert_called_once()
 
@@ -467,15 +466,67 @@ def test_route_happy_path_cancels_prior_then_creates_new_case():
     assert added_case.source_id == 42
     assert added_case.status == 'open'
     assert added_case.priority == 'normal'
-    # Subject convention matches the web flow exactly so the admin
-    # triage queue reads both submission channels identically.
     assert added_case.subject == 'طلب تغيير الخطة إلى برو — please upgrade me'
 
-    # Refreshed account payload is returned with 201.
     assert resp.status_code == 201
     data = resp.get_json()['data']
     assert data['pending_plan_change_request']['id'] == 555
     assert data['pending_plan_change_request']['requested_plan_id'] == 2
+
+
+def test_route_reuses_existing_case_under_unique_index():
+    """v88c — when a prior `plan_change_request` row already exists
+    for the same `source_id` (which is the normal case after the
+    first submission, because the UNIQUE INDEX forbids a second
+    row), the route MUST reuse it instead of inserting. The reused
+    row's fields are reset to the new submission's values."""
+    from app.blueprints.mobile_api import (
+        mobile_account_request_plan_change, SubscriptionPlan, SupportCase,
+    )
+    app = _make_app()
+    user = _fake_user(id_=42)
+    target_plan = _fake_plan(2, code='pro', name_ar='برو', name_en='Pro')
+
+    plan_query = mock.Mock()
+    plan_query.get.return_value = target_plan
+
+    existing_case = mock.Mock()
+    existing_case.id = 999
+    existing_case.case_type = 'plan_change_request'
+    existing_case.source_id = 42
+    existing_case.status = 'cancelled'
+    existing_case.is_frozen = True
+
+    case_query = mock.Mock()
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = existing_case
+
+    fake_tenant = _fake_tenant(plan_id=1)
+    db_mock = mock.Mock()
+
+    with app.test_request_context(
+        '/api/mobile/account/subscription/request-change',
+        method='POST',
+        json={'plan_id': 2, 'message': 'try again'},
+    ), _patch_bearer_user(user), \
+         mock.patch.object(SubscriptionPlan, 'query', plan_query), \
+         mock.patch.object(SupportCase, 'query', case_query), \
+         _patch_ensure_tenant(fake_tenant), \
+         _patch_account_payload({}), \
+         mock.patch('app.blueprints.mobile_api.db', db_mock):
+        mobile_account_request_plan_change()
+
+    # No new SupportCase added — the existing row was recycled.
+    add_calls = [
+        c for c in db_mock.session.add.call_args_list
+        if c.args and c.args[0].__class__.__name__ == 'SupportCase'
+    ]
+    assert add_calls == []
+    # Existing row's fields were reset to the new submission.
+    assert existing_case.subject == 'طلب تغيير الخطة إلى برو — try again'
+    assert existing_case.status == 'open'
+    assert existing_case.is_frozen is False
+    assert existing_case.tenant_id == 700
 
 
 def test_route_happy_path_without_message_omits_separator():
@@ -492,9 +543,8 @@ def test_route_happy_path_without_message_omits_separator():
     plan_query = mock.Mock()
     plan_query.get.return_value = target_plan
     case_query = mock.Mock()
-    cancel_chain = mock.Mock()
-    case_query.filter_by.return_value = cancel_chain
-    cancel_chain.update.return_value = 0
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = None  # find-or-reuse → INSERT path
 
     db_mock = mock.Mock()
     with app.test_request_context(
@@ -525,9 +575,8 @@ def test_route_long_message_is_capped_at_240_chars():
     plan_query = mock.Mock()
     plan_query.get.return_value = target_plan
     case_query = mock.Mock()
-    cancel_chain = mock.Mock()
-    case_query.filter_by.return_value = cancel_chain
-    cancel_chain.update.return_value = 0
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = None  # find-or-reuse → INSERT path
 
     huge = 'X' * 10_000
     db_mock = mock.Mock()

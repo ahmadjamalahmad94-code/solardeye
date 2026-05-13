@@ -328,6 +328,118 @@ def test_app_level_error_handlers_registered():
     assert 'Unhandled 500 on' in text
 
 
+def test_v88c_build_synthetic_case_reuses_existing_row_under_unique_index():
+    """v88c root-cause fix lock.
+
+    The database carries `CREATE UNIQUE INDEX
+    ux_support_case_case_type_source_id ON support_case
+    (case_type, source_id)`. That index means each user can have
+    only ONE `plan_change_request` row in the table — period,
+    regardless of status. The previous `_build_synthetic_case`
+    helper did a raw INSERT every confirm, which raised
+    `IntegrityError` (500 on the route) on the second submission.
+
+    The fix is find-or-reuse: when a row already exists for the
+    same `(case_type, source_id)`, reset its fields and return it
+    instead of inserting a duplicate."""
+    from app.services import subscriber_plan_change as spc
+    from flask import Flask
+    from app.extensions import db
+
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+
+    user = mock.Mock()
+    user.id = 1
+    user.tenant_id = 1
+    target_plan = mock.Mock()
+    target_plan.id = 3
+    target_plan.name_ar = 'الخطة البلاتينية'
+
+    existing = mock.Mock()
+    existing.id = 555
+    existing.case_type = 'plan_change_request'
+    existing.source_id = 1
+    existing.status = 'resolved'  # frozen previous confirm
+    existing.is_frozen = True
+
+    case_query = mock.Mock()
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = existing
+
+    added = []
+    with app.app_context():
+        with mock.patch.object(spc.SupportCase, 'query', case_query), \
+             mock.patch.object(spc.db.session, 'add', side_effect=added.append), \
+             mock.patch.object(spc.db.session, 'flush'), \
+             mock.patch.object(spc.db.session, 'commit'):
+            result = spc._build_synthetic_case(
+                user, target_plan,
+                status='under_review',
+                subject='طلب تغيير الخطة إلى الخطة البلاتينية',
+            )
+
+    # The query targeted the same composite key the UNIQUE INDEX
+    # covers — case_type + source_id.
+    case_query.filter_by.assert_any_call(
+        case_type='plan_change_request',
+        source_id=1,
+    )
+    # CRUCIALLY: no new SupportCase row was added — the existing
+    # one was recycled. Adding a new row would have raised
+    # IntegrityError in production.
+    assert [
+        x for x in added if x.__class__.__name__ == 'SupportCase'
+    ] == []
+    # The recycled row got its fields reset.
+    assert result is existing
+    assert existing.status == 'under_review'
+    assert existing.is_frozen is False
+    assert existing.subject == 'طلب تغيير الخطة إلى الخطة البلاتينية'
+    assert existing.tenant_id == 1
+
+
+def test_v88c_build_synthetic_case_inserts_when_no_prior_row():
+    """The other half of find-or-reuse: when no row exists for the
+    (case_type, source_id) pair, a fresh INSERT happens."""
+    from app.services import subscriber_plan_change as spc
+    from flask import Flask
+    from app.extensions import db
+
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+
+    user = mock.Mock()
+    user.id = 7
+    user.tenant_id = 1
+    target_plan = mock.Mock()
+    target_plan.id = 3
+    target_plan.name_ar = 'الخطة البلاتينية'
+
+    case_query = mock.Mock()
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = None  # no prior row
+
+    added = []
+    with app.app_context():
+        with mock.patch.object(spc.SupportCase, 'query', case_query), \
+             mock.patch.object(spc.db.session, 'add', side_effect=added.append), \
+             mock.patch.object(spc.db.session, 'flush'), \
+             mock.patch.object(spc.db.session, 'commit'):
+            spc._build_synthetic_case(
+                user, target_plan,
+                status='under_review',
+            )
+    cases = [x for x in added if x.__class__.__name__ == 'SupportCase']
+    assert len(cases) == 1
+    assert cases[0].source_id == 7
+    assert cases[0].case_type == 'plan_change_request'
+
+
 def test_web_confirm_json_failure_payload_carries_machine_code():
     """In JSON mode, every controlled failure returns
     `{'ok': False, 'code': '<stable-string>', 'message': '<ar>'}`."""

@@ -193,10 +193,12 @@ def test_legacy_endpoint_with_message_keeps_triage_fallback():
 
     plan_query = mock.Mock()
     plan_query.get.return_value = target_plan
-    cancel_chain = mock.Mock()
+    # v88c — legacy mobile route now uses find-or-reuse on the
+    # UNIQUE (case_type, source_id) index. With first()=None the
+    # INSERT branch is taken, matching the original test intent.
     case_query = mock.Mock()
-    case_query.filter_by.return_value = cancel_chain
-    cancel_chain.update.return_value = 0
+    case_query.filter_by.return_value = case_query
+    case_query.first.return_value = None
     db_mock = mock.Mock()
 
     with app.test_request_context(
