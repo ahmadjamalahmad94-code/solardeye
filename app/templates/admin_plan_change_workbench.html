@@ -414,40 +414,217 @@
 
     </section>
 
-    {# ─── 5. History rail ──────────────────────────────────────── #}
-    <section class="admin-card-v2" style="margin-top:14px">
-      <div class="section-heading-inline">
-        <div>
-          <small>{{ 'Audit trail' if is_en else 'سجل العمليات' }}</small>
-          <h3>{{ 'Request history' if is_en else 'تاريخ الطلب' }}</h3>
+    {# ─── 5. History — v93 Arabic Timeline + Action Glossary ──── #}
+    {# v93 — Replaced the dense 4-column English table with a
+       vertical timeline that translates each action code into a
+       human Arabic sentence (or English) using ACTION_LABELS map,
+       plus a side glossary so a new operator can learn what every
+       action means at a glance. #}
+    {% set ACTION_LABELS = {
+      'plan_change.under_review':            ('🔍 فتح المُدير ورشة الطلب', '🔍 Admin opened the workbench'),
+      'plan_change.discussion':              ('💬 إرسال مقترح للمشترك', '💬 Sent proposal to subscriber'),
+      'plan_change.invoice_issued':          ('🧾 إصدار طلب دفع', '🧾 Payment request issued'),
+      'plan_change.invoice_settled':         ('💰 تسوية الفاتورة', '💰 Invoice settled'),
+      'plan_change.invoice_settled_pending_apply': ('✓ تأكيد الدفعة (بانتظار التطبيق)', '✓ Payment confirmed (awaiting apply)'),
+      'plan_change.invoice_reversed':        ('↩ عكس الفاتورة', '↩ Invoice reversed'),
+      'plan_change.apply':                   ('✅ تطبيق التحويل النهائي', '✅ Final plan switch applied'),
+      'plan_change.reject':                  ('✖ رفض الطلب', '✖ Request rejected'),
+      'plan_change.cancel':                  ('⏸ إغلاق صامت', '⏸ Closed silently'),
+      'plan_change.subscriber_chose_same_duration': ('👤 المشترك اختار: نفس الأيام', '👤 Subscriber chose: same days'),
+      'plan_change.subscriber_chose_reduced_days':  ('👤 المشترك اختار: تحويل القيمة لأيام', '👤 Subscriber chose: value→days'),
+    } %}
+    {% set ACTION_COLORS = {
+      'plan_change.under_review':                  '#6366f1',
+      'plan_change.discussion':                    '#06b6d4',
+      'plan_change.invoice_issued':                '#f59e0b',
+      'plan_change.invoice_settled':               '#10b981',
+      'plan_change.invoice_settled_pending_apply': '#10b981',
+      'plan_change.invoice_reversed':              '#ef4444',
+      'plan_change.apply':                         '#059669',
+      'plan_change.reject':                        '#ef4444',
+      'plan_change.cancel':                        '#94a3b8',
+      'plan_change.subscriber_chose_same_duration': '#d97706',
+      'plan_change.subscriber_chose_reduced_days':  '#0891b2',
+    } %}
+
+    <section style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:flex-start">
+
+      {# ── Timeline column ─────────────────────────────────────── #}
+      <article class="admin-card-v2">
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Audit trail' if is_en else 'سجل العمليات' }}</small>
+            <h3>{{ 'Request timeline' if is_en else 'مسار الطلب الزمني' }}</h3>
+          </div>
         </div>
-      </div>
-      <div class="table-shell-v2">
-        <table class="admin-table-v2">
-          <thead>
-            <tr>
-              <th>{{ 'When' if is_en else 'متى' }}</th>
-              <th>{{ 'Action' if is_en else 'الإجراء' }}</th>
-              <th>{{ 'Summary' if is_en else 'الوصف' }}</th>
-              <th>{{ 'Actor' if is_en else 'الفاعل' }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in history %}
-              <tr>
-                <td><span class="table-sub" dir="ltr">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</span></td>
-                <td><strong>{{ item.action }}</strong></td>
-                <td>{{ item.summary }}</td>
-                <td>{{ item.actor_user_id if item.actor_user_id else '—' }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="4" style="text-align:center;padding:14px">{{ 'No history yet.' if is_en else 'لا توجد عمليات سابقة بعد.' }}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+        <div class="pcw-timeline">
+          {% for item in history %}
+            {% set label_pair = ACTION_LABELS.get(item.action, (item.action, item.action)) %}
+            {% set bar_color = ACTION_COLORS.get(item.action, '#64748b') %}
+            <div class="pcw-timeline__row">
+              <div class="pcw-timeline__bar" style="background:{{ bar_color }}"></div>
+              <div class="pcw-timeline__dot" style="background:{{ bar_color }}"></div>
+              <div class="pcw-timeline__body">
+                <div class="pcw-timeline__head">
+                  <strong>{{ label_pair[1] if is_en else label_pair[0] }}</strong>
+                  <small dir="ltr">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</small>
+                </div>
+                <p class="pcw-timeline__summary">{{ item.summary or '—' }}</p>
+                <div class="pcw-timeline__meta">
+                  <span>👤 {{ 'Actor:' if is_en else 'الفاعل:' }} {{ item.actor_user_id if item.actor_user_id else ('System' if is_en else 'النظام') }}</span>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div style="padding:18px;text-align:center;color:#94a3b8">
+              {{ 'No history yet.' if is_en else 'لا توجد عمليات سابقة بعد.' }}
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      {# ── Action glossary (side panel) ─────────────────────────── #}
+      <aside style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <article class="admin-card-v2" style="border-left:4px solid #6366f1">
+          <div class="section-heading-inline">
+            <div>
+              <small>{{ 'Operator guide' if is_en else 'دليل المُدير' }}</small>
+              <h3>{{ 'What each step means' if is_en else 'معنى كل إجراء' }}</h3>
+            </div>
+          </div>
+          <ul class="pcw-glossary">
+            <li><strong>📨 {{ 'Request received' if is_en else 'استلام الطلب' }}</strong>
+              <span>{{ 'A subscriber submitted a new plan-change request.' if is_en else 'قدّم المشترك طلب تغيير خطة جديد.' }}</span></li>
+            <li><strong>👤 {{ 'Subscriber chose' if is_en else 'اختيار المشترك' }}</strong>
+              <span>{{ 'The subscriber selected one of the two pricing scenarios (keep days vs reduce days).' if is_en else 'اختار المشترك أحد سيناريوهي التسعير (نفس الأيام أو أيام أقل).' }}</span></li>
+            <li><strong>🧾 {{ 'Invoice issued' if is_en else 'إصدار فاتورة' }}</strong>
+              <span>{{ 'A payment request was created. The subscriber must pay before the plan switches.' if is_en else 'تم إنشاء طلب دفع. على المشترك السداد قبل تطبيق التحويل.' }}</span></li>
+            <li><strong>💰 {{ 'Invoice settled' if is_en else 'تسوية الفاتورة' }}</strong>
+              <span>{{ 'The payment was confirmed (Stripe sandbox or admin-confirmed).' if is_en else 'تم تأكيد استلام الدفعة (Stripe Sandbox أو تأكيد إداري).' }}</span></li>
+            <li><strong>✅ {{ 'Apply' if is_en else 'تطبيق' }}</strong>
+              <span>{{ 'The plan change was committed: subscription mutated + ledger written.' if is_en else 'تم تطبيق تغيير الخطة فعلياً: تعديل الاشتراك وكتابة قيد محاسبي.' }}</span></li>
+            <li><strong>↩ {{ 'Reversed' if is_en else 'عكس' }}</strong>
+              <span>{{ 'A pending invoice was cancelled with a counter-credit.' if is_en else 'تم عكس فاتورة معلّقة بقيد مقابل.' }}</span></li>
+            <li><strong>✖ {{ 'Rejected' if is_en else 'رفض' }}</strong>
+              <span>{{ 'Admin closed the request and notified the subscriber.' if is_en else 'أغلق المُدير الطلب وأبلغ المشترك.' }}</span></li>
+            <li><strong>⏸ {{ 'Cancelled' if is_en else 'إغلاق صامت' }}</strong>
+              <span>{{ 'Closed without notifying the subscriber (duplicates / cleanup).' if is_en else 'إغلاق دون إبلاغ المشترك (للمكررات والتنظيف).' }}</span></li>
+          </ul>
+        </article>
+      </aside>
+
     </section>
 
   </main>
 </div>
+
+<style>
+  /* v93 — workbench timeline + glossary */
+  .pcw-timeline {
+    position: relative;
+    padding: 12px 0 0 0;
+  }
+  .pcw-timeline__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 6px 24px 1fr;
+    gap: 12px;
+    padding: 10px 14px 18px 14px;
+    align-items: flex-start;
+  }
+  .pcw-timeline__bar {
+    width: 4px;
+    margin-inline-start: 6px;
+    min-height: 100%;
+    border-radius: 4px;
+    opacity: 0.35;
+  }
+  .pcw-timeline__row:last-child .pcw-timeline__bar {
+    background: transparent !important;
+  }
+  .pcw-timeline__dot {
+    width: 18px;
+    height: 18px;
+    margin-top: 4px;
+    border-radius: 50%;
+    border: 4px solid #ffffff;
+    box-shadow: 0 0 0 2px currentColor, 0 4px 10px rgba(15, 23, 42, 0.1);
+    align-self: flex-start;
+  }
+  .pcw-timeline__body {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .pcw-timeline__body:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  }
+  .pcw-timeline__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .pcw-timeline__head strong {
+    font-size: .98rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.4;
+  }
+  .pcw-timeline__head small {
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pcw-timeline__summary {
+    margin: 0 0 6px 0;
+    color: #334155;
+    font-size: .88rem;
+    line-height: 1.6;
+  }
+  .pcw-timeline__meta {
+    color: #94a3b8;
+    font-size: .78rem;
+    font-weight: 600;
+  }
+  .pcw-glossary {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pcw-glossary li {
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+  }
+  .pcw-glossary li strong {
+    display: block;
+    color: #0f172a;
+    font-size: .92rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .pcw-glossary li span {
+    display: block;
+    color: #475569;
+    font-size: .82rem;
+    line-height: 1.55;
+  }
+  /* v93 — ensure the workbench hero uses the adopted sky→amber
+     unified gradient, in case a downstream stylesheet shadows it. */
+  main.admin-shell-v2 > header.admin-page-head {
+    background: linear-gradient(135deg, #0e3b86 0%, #3aa7ff 50%, #ffd66e 100%) !important;
+    border: none !important;
+    border-radius: 30px !important;
+  }
+</style>
 {% endblock %}

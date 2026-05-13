@@ -47,9 +47,10 @@
 
       <div class="pay-result-card__actions">
         {% if is_mobile %}
-          <a href="zynavolt://payment-result?status=cancelled" class="pay-result-card__btn pay-result-card__btn--primary">
-            {% if is_en %}Return to the app ←{% else %}ارجع للتطبيق ←{% endif %}
-          </a>
+          {# v93 — manual-return UX (see payment_success.html for rationale). #}
+          <button onclick="window.close()" class="pay-result-card__btn pay-result-card__btn--primary">
+            {% if is_en %}✕ Close window{% else %}✕ إغلاق النافذة{% endif %}
+          </button>
         {% else %}
           <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
             {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
@@ -58,27 +59,15 @@
       </div>
       {% if is_mobile %}
         <p style="margin:14px 0 0 0;color:#64748b;font-size:.82rem;font-weight:600">
-          {{ 'You can close this browser window safely.' if is_en else 'يمكنك إغلاق نافذة المتصفّح بأمان.' }}
+          {% if is_en %}
+            Close this window and re-open the app. Nothing was charged.
+          {% else %}
+            أغلق هذه النافذة وافتح التطبيق مجدداً. لم يتم تحصيل أي مبلغ.
+          {% endif %}
         </p>
       {% endif %}
     </article>
   </main>
-
-{% if is_mobile %}
-<script>
-(function () {
-  var triggered = false;
-  function jumpBack() {
-    if (triggered) return;
-    triggered = true;
-    try {
-      window.location.href = 'zynavolt://payment-result?status=cancelled';
-    } catch (e) { /* no-op */ }
-  }
-  setTimeout(jumpBack, 2500);
-})();
-</script>
-{% endif %}
 
 <style>
   .pay-result-card {

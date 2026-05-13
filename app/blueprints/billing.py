@@ -1026,6 +1026,17 @@ FINANCE_CATEGORIES = {
     'extra_service':  {'label_ar': 'خدمات إضافية', 'label_en': 'Extra Services',     'type': 'debit', 'account': 'revenue', 'icon': '⭐', 'color': '#6ee7b7'},
     'setup_fee':      {'label_ar': 'رسوم إعداد',   'label_en': 'Setup Fee',          'type': 'debit', 'account': 'revenue', 'icon': '🧾', 'color': '#14b8a6'},
     'other_income':   {'label_ar': 'إيرادات أخرى', 'label_en': 'Other Income',       'type': 'credit','account': 'revenue', 'icon': '$',  'color': '#a7f3d0'},
+    # v93 — plan-change ledger rows. Originally categorized as
+    # 'general' (so they fell into "عام / Other"), which confused
+    # the operator because they ARE revenue from a paid plan
+    # upgrade. Now mapped to the proper Revenue / Liability /
+    # Refund accounts so دفتر الأستاذ filter tabs reflect reality:
+    #   * plan_change            → Revenue   (settled debit on apply)
+    #   * plan_change_pending    → Liability (subscriber owes; unsettled invoice)
+    #   * plan_change_reversal   → Refund    (counter-credit on reject/cancel)
+    'plan_change':          {'label_ar': 'تغيير خطة',           'label_en': 'Plan Change',           'type': 'debit',  'account': 'revenue',   'icon': '🔁', 'color': '#0ea5e9'},
+    'plan_change_pending':  {'label_ar': 'طلب دفع — تغيير خطة',  'label_en': 'Plan Change — Pending', 'type': 'debit',  'account': 'liability', 'icon': '⏳', 'color': '#f59e0b'},
+    'plan_change_reversal': {'label_ar': 'عكس — تغيير خطة',     'label_en': 'Plan Change — Reversal','type': 'credit', 'account': 'refund',    'icon': '↩',  'color': '#dc2626'},
     # Company expenses
     'hosting':        {'label_ar': 'استضافة وخوادم', 'label_en': 'Hosting & Servers', 'type': 'debit','account': 'expense','icon': '🖥', 'color': '#f43f5e'},
     'development':    {'label_ar': 'تطوير برمجي',    'label_en': 'Development',       'type': 'debit','account': 'expense','icon': '💻', 'color': '#fb7185'},

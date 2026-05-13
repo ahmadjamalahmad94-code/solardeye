@@ -600,8 +600,11 @@ def _aggregated_unread_counts(user):
 def notifications_feed():
     if not session.get('logged_in'):
         return jsonify({'count': 0, 'items': []})
+    # v93 — bump bell feed from 5 to 10 so subscriber's bell matches
+    # admin behaviour. The CSS already scrolls (`max-height:360px;
+    # overflow:auto`) so the extra rows render correctly.
     groups, _stats, _timeline = _aggregated_notification_groups(limit=200, include_archived=True)
-    items = groups[:5]
+    items = groups[:10]
     user = _active_user()
     try:
         total, mail_count, ticket_count = _aggregated_unread_counts(user)

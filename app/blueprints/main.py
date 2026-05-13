@@ -135,12 +135,37 @@ def _plan_feature_enabled(feature_key: str) -> bool:
 
 
 def _admin_guard(permission: str = 'can_manage_users'):
+    """v93 — guard for admin-only routes.
+
+    Previously redirected non-admins to `admin_landing_url()`
+    (which is `/admin/dashboard`). Problem: the dashboard itself
+    calls this guard, so any non-admin who lands on ANY admin
+    page got bounced into an infinite redirect loop
+    (`ERR_TOO_MANY_REDIRECTS`).
+
+    The fix: send non-admins to a NON-admin destination — their
+    subscriber-side dashboard. The `next_url` query param lets us
+    detect when they came from an admin URL (so we don't re-redirect
+    them back into the admin namespace)."""
     if is_system_admin():
         return None
     if has_permission(permission):
         return None
-    flash('This page is not available for your role.' if _lang() == 'en' else 'هذه الصفحة غير متاحة ضمن صلاحيات دورك.', 'warning')
-    return redirect(admin_landing_url(_lang()))
+    flash(
+        'This page is not available for your role.'
+        if _lang() == 'en'
+        else 'هذه الصفحة غير متاحة ضمن صلاحيات دورك.',
+        'warning',
+    )
+    # Try the subscriber dashboard first; fall back to root.
+    try:
+        target = url_for('main.dashboard', lang=_lang())
+    except Exception:
+        try:
+            target = url_for('main.home', lang=_lang())
+        except Exception:
+            target = '/'
+    return redirect(target)
 
 
 

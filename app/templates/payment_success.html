@@ -93,9 +93,17 @@
 
       <div class="pay-result-card__actions">
         {% if is_mobile %}
-          <a href="zynavolt://payment-result?status=success" class="pay-result-card__btn pay-result-card__btn--primary" id="pay-mobile-return">
-            {% if is_en %}Return to the app ←{% else %}ارجع للتطبيق ←{% endif %}
-          </a>
+          {# v93 — manual-return UX. The custom `zynavolt://` URL
+             scheme was never registered on Android/iOS so the
+             auto-redirect of v92g silently failed. We now show a
+             clear "close this window and reopen the app" instruction
+             instead of pretending a deep link will work. When the
+             Flutter app implements a real intent-filter + listener,
+             we can re-enable the auto-redirect — until then, this
+             honest UX is better than a broken button. #}
+          <button onclick="window.close()" class="pay-result-card__btn pay-result-card__btn--primary">
+            {% if is_en %}✕ Close window{% else %}✕ إغلاق النافذة{% endif %}
+          </button>
         {% else %}
           <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
             {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
@@ -104,31 +112,15 @@
       </div>
       {% if is_mobile %}
         <p class="pay-result-card__mobile-hint">
-          {{ 'You can safely close this browser window — the app refreshed automatically.' if is_en else 'يمكنك إغلاق نافذة المتصفّح بأمان — التطبيق حُدِّث تلقائياً.' }}
+          {% if is_en %}
+            ✓ Your payment is confirmed. Close this browser window and re-open the app — your new plan is already active.
+          {% else %}
+            ✓ تم تأكيد دفعتك. أغلق نافذة المتصفّح وافتح التطبيق مجدداً — خطتك الجديدة فعّالة بالفعل.
+          {% endif %}
         </p>
       {% endif %}
     </article>
   </main>
-
-{% if is_mobile %}
-<script>
-/* v92g — mobile redirect-fallback. After ~2.5s, attempt to hand
-   the user back to the app via the custom URL scheme. If the
-   scheme isn't registered (older app build, browser blocks it),
-   the visible "ارجع للتطبيق" button still works. */
-(function () {
-  var triggered = false;
-  function jumpBack() {
-    if (triggered) return;
-    triggered = true;
-    try {
-      window.location.href = 'zynavolt://payment-result?status=success';
-    } catch (e) { /* no-op */ }
-  }
-  setTimeout(jumpBack, 2500);
-})();
-</script>
-{% endif %}
 
 <style>
   /* v92e — celebratory confetti rain */

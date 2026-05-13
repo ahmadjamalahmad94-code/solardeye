@@ -382,11 +382,124 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   function render(items){
     if(!list) return;
     if(!items || !items.length){ list.innerHTML = `<div class="notification-empty">${lang()==='en'?'No open notifications.':'لا توجد إشعارات مفتوحة حاليًا.'}</div>`; return; }
+    // v93 — bell items are now `<button>` that opens a floating
+    // modal instead of `<a>` that navigates away. The modal renders
+    // the full title/message + a "Go to source" button that
+    // preserves the original navigation when the user wants it.
     list.innerHTML = items.map(item => {
       const kind = item.kind === 'ticket' ? 'ticket' : 'message';
-      return `<a class="notification-item kind-${esc(kind)} status-${esc(item.status)}" href="${esc(item.url)}" data-event-id="${esc(item.event_id || '')}"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></a>`;
+      // Serialize the payload onto the button so the modal can
+      // render without a second network call. Strings are escaped.
+      const payload = encodeURIComponent(JSON.stringify({
+        title: item.title || '',
+        details: item.details || '',
+        url: item.url || '',
+        sender: item.sender || '',
+        created_at: item.created_at || '',
+        status: item.status || '',
+        kind: kind,
+        event_id: item.event_id || '',
+      }));
+      return `<button type="button" class="notification-item kind-${esc(kind)} status-${esc(item.status)}" data-event-id="${esc(item.event_id || '')}" data-payload="${payload}" style="text-align:start;width:100%;border:1px solid transparent;cursor:pointer;font:inherit"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></button>`;
     }).join('');
+    // Wire each newly-rendered button to open the modal.
+    list.querySelectorAll('.notification-item').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        try {
+          const raw = btn.getAttribute('data-payload') || '';
+          const data = JSON.parse(decodeURIComponent(raw));
+          openNotificationModal(data);
+        } catch(e) { /* swallow */ }
+      });
+    });
   }
+
+  // v93 — Floating modal for notification details. Renders once
+  // on demand and reuses the DOM node thereafter.
+  let modalRoot = null;
+  function ensureModal(){
+    if(modalRoot) return modalRoot;
+    modalRoot = document.createElement('div');
+    modalRoot.id = 'notifModalRoot';
+    modalRoot.className = 'notif-modal';
+    modalRoot.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px;backdrop-filter:blur(4px)';
+    modalRoot.innerHTML = `
+      <div class="notif-modal__card" style="background:#fff;border-radius:22px;max-width:520px;width:100%;box-shadow:0 30px 80px rgba(15,23,42,0.28);overflow:hidden;direction:rtl;font-family:inherit">
+        <div class="notif-modal__head" style="padding:18px 20px;background:linear-gradient(135deg,#0e3b86,#3aa7ff);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <strong id="notifModalTitle" style="font-size:1.05rem;font-weight:900;line-height:1.35"></strong>
+          <button type="button" id="notifModalClose" aria-label="Close" style="background:rgba(255,255,255,0.18);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
+        <div class="notif-modal__body" style="padding:20px;color:#1e293b;line-height:1.7;font-size:.95rem">
+          <p id="notifModalMessage" style="margin:0 0 14px 0;white-space:pre-wrap;word-wrap:break-word"></p>
+          <div id="notifModalMeta" style="margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0;color:#64748b;font-size:.82rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"></div>
+        </div>
+        <div class="notif-modal__actions" style="padding:14px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+          <a id="notifModalGoto" href="#" style="display:none;padding:10px 18px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:12px;text-decoration:none;font-weight:800;font-size:.9rem">${lang()==='en'?'Open source →':'فتح المصدر ←'}</a>
+          <button type="button" id="notifModalCloseBtn" style="padding:10px 18px;background:#e2e8f0;color:#0f172a;border:none;border-radius:12px;cursor:pointer;font-weight:800;font-size:.9rem">${lang()==='en'?'Close':'إغلاق'}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalRoot);
+    // Wire close handlers.
+    const close = function(){ modalRoot.style.display = 'none'; };
+    modalRoot.addEventListener('click', function(ev){
+      if(ev.target === modalRoot) close();
+    });
+    modalRoot.querySelector('#notifModalClose').addEventListener('click', close);
+    modalRoot.querySelector('#notifModalCloseBtn').addEventListener('click', close);
+    document.addEventListener('keydown', function(ev){
+      if(ev.key === 'Escape' && modalRoot.style.display === 'flex') close();
+    });
+    return modalRoot;
+  }
+  function openNotificationModal(data){
+    const root = ensureModal();
+    root.querySelector('#notifModalTitle').textContent =
+      legacyInline(data.title) || (lang()==='en'?'Notification':'إشعار');
+    root.querySelector('#notifModalMessage').textContent =
+      legacyInline(data.details) || '';
+    const meta = root.querySelector('#notifModalMeta');
+    meta.innerHTML = '';
+    if(data.sender){
+      const s = document.createElement('span');
+      s.textContent = (lang()==='en'?'From: ':'من: ') + data.sender;
+      meta.appendChild(s);
+    }
+    if(data.created_at){
+      const t = document.createElement('span');
+      t.textContent = data.created_at;
+      meta.appendChild(t);
+    }
+    const goto = root.querySelector('#notifModalGoto');
+    if(data.url && data.url !== '#'){
+      goto.href = data.url;
+      goto.style.display = '';
+    } else {
+      goto.style.display = 'none';
+    }
+    root.style.display = 'flex';
+  }
+  // Expose for use by other surfaces (notification center page).
+  window.openNotificationModal = openNotificationModal;
+
+  // v93 — wire `[data-ncv40-modal]` anchors in the notifications-
+  // center page to the same floating modal. Click the anchor →
+  // modal opens; the "Open source" button in the modal still
+  // navigates to the original href if the user wants.
+  document.addEventListener('click', function(ev){
+    const a = ev.target.closest && ev.target.closest('a[data-ncv40-modal]');
+    if(!a) return;
+    ev.preventDefault();
+    openNotificationModal({
+      title: a.getAttribute('data-modal-title') || '',
+      details: a.getAttribute('data-modal-details') || '',
+      sender: a.getAttribute('data-modal-sender') || '',
+      created_at: a.getAttribute('data-modal-created') || '',
+      url: a.getAttribute('data-modal-url') || a.getAttribute('href') || '',
+      kind: a.getAttribute('data-modal-kind') || 'message',
+    });
+  });
   function updateCounts(data){
     const next = Number(data.count || 0);
     if(count) { count.textContent = next; count.classList.toggle('is-zero', next <= 0); }

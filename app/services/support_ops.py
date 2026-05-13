@@ -483,6 +483,88 @@ def _plan_label(plan: SubscriptionPlan | None) -> str:
     )
 
 
+def notify_admins_of_plan_change_applied(case: SupportCase, *, subscriber: AppUser | None = None, target_plan: SubscriptionPlan | None = None, scenario=None, commit: bool = False) -> list[NotificationEvent]:
+    """v93 — fanout admin notifications when a plan-change request
+    is APPLIED (subscription actually switched).
+
+    The subscriber gets a 2nd-person message via `_notify_subscriber`
+    ("تم تحويل اشتراكك..."); admins need a 3rd-person variant that
+    names the subscriber so the admin's bell makes sense at a
+    glance ("Subscriber X switched to plan Y").
+
+    Idempotent: dedups against any unread admin event for the same
+    case + the same event_type so a webhook + redirect-fallback
+    both firing don't double-notify."""
+    if not case:
+        return []
+    admin_ids = _admin_user_ids()
+    if not admin_ids:
+        return []
+    subscriber_label = ''
+    if subscriber is not None:
+        subscriber_label = (
+            getattr(subscriber, 'full_name', None)
+            or getattr(subscriber, 'username', None)
+            or f'user #{getattr(subscriber, "id", "")}'
+        )
+    elif getattr(case, 'user_id', None):
+        try:
+            req = AppUser.query.get(case.user_id)
+            if req is not None:
+                subscriber_label = (
+                    getattr(req, 'full_name', None)
+                    or getattr(req, 'username', None)
+                    or f'user #{getattr(req, "id", "")}'
+                )
+        except Exception:
+            subscriber_label = f'user #{case.user_id}'
+    target_label = _plan_label(target_plan)
+    target_days = getattr(scenario, 'target_days', None) if scenario else None
+    amount = getattr(scenario, 'amount', None) if scenario else None
+    currency = getattr(scenario, 'currency', 'USD') if scenario else 'USD'
+    title = f'تطبيق تحويل خطة — {subscriber_label}'.strip()
+    parts = [
+        f'قام المشترك {subscriber_label} بتطبيق تغيير خطته '
+        f'إلى {target_label}.'
+    ]
+    if target_days:
+        parts.append(f'الأيام الجديدة: {target_days}.')
+    if amount and amount > 0.01:
+        parts.append(f'المبلغ: {amount:.2f} {currency}.')
+    message = ' '.join(parts)
+    event_type = 'plan_change_applied_admin'
+    existing = NotificationEvent.query.filter_by(
+        event_type=event_type,
+        source_type=_PLAN_CHANGE_SOURCE_TYPE,
+        source_id=case.id,
+        is_read=False,
+    ).all()
+    already_notified = {ev.target_user_id for ev in existing if ev.target_user_id is not None}
+    out: list[NotificationEvent] = []
+    now = datetime.utcnow()
+    detail_path = f'/admin/plan-change-requests/{case.id}'
+    for admin_id in admin_ids:
+        if admin_id in already_notified:
+            continue
+        ev = NotificationEvent(
+            event_type=event_type,
+            target_user_id=admin_id,
+            tenant_id=getattr(case, 'tenant_id', None),
+            source_type=_PLAN_CHANGE_SOURCE_TYPE,
+            source_id=case.id,
+            title=title,
+            message=message,
+            direct_url=detail_path,
+            status='new',
+            created_at=now,
+        )
+        db.session.add(ev)
+        out.append(ev)
+    if commit and out:
+        db.session.commit()
+    return out
+
+
 def notify_admins_of_plan_change_payment(case: SupportCase, *, requester: AppUser | None = None, target_plan: SubscriptionPlan | None = None, amount: float | None = None, currency: str | None = None, commit: bool = False) -> list[NotificationEvent]:
     """v92g — fanout admin notifications for a plan-change PAYMENT
     event (settlement). Fires from the redirect-fallback after

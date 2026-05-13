@@ -995,16 +995,49 @@ def apply_request(case: SupportCase, *, actor_user_id: int | None, scenario: Sce
     case.status = STATUS_RESOLVED
     case.is_frozen = True
     case.updated_at = now
+    # v93 — subscriber-facing message rewritten in consistent 2nd
+    # person. The old wording mixed "اشتراكك" (you) and "المشترك"
+    # (he/she) which looked awkward, especially when the same user
+    # was both admin and subscriber.
+    target_label_ar = _plan_label(target)
+    parts_ar = [f'تم تحويل اشتراكك إلى {target_label_ar}.']
+    if scenario.target_days:
+        parts_ar.append(f'تبقى لك {scenario.target_days} يوماً.')
+    if scenario.amount and scenario.amount > 0.01:
+        parts_ar.append(
+            f'المبلغ المُسوّى: {scenario.amount:.2f} {scenario.currency}.'
+        )
+    subscriber_message = ' '.join(parts_ar)
     _notify_subscriber(
         case,
         event_type=EVENT_APPLIED,
         title='تم تطبيق طلب تغيير الخطة',
-        message=(
-            f'تم تحويل اشتراكك إلى {_plan_label(target)}. '
-            f'{scenario.summary_ar}'
-        ),
+        message=subscriber_message,
         actor_user_id=actor_user_id,
     )
+    # v93 — also fan out an admin-perspective notification ("subscriber
+    # X applied the plan change"). The subscriber message above is
+    # written for the subscriber; the admin needs a 3rd-person
+    # version that names the subscriber.
+    try:
+        from .support_ops import notify_admins_of_plan_change_applied
+        subscriber = (
+            AppUser.query.get(case.user_id) if case.user_id else None
+        )
+        notify_admins_of_plan_change_applied(
+            case,
+            subscriber=subscriber,
+            target_plan=target,
+            scenario=scenario,
+            commit=False,
+        )
+    except Exception:
+        # Defensive — admin fanout failure must never undo the
+        # subscriber-facing apply.
+        import logging as _logging
+        _logging.getLogger(__name__).exception(
+            'admin fanout for plan-change apply failed'
+        )
     _audit(
         case, 'plan_change.apply',
         f'Applied via {scenario.mode}/{scenario.policy_kind} → '
