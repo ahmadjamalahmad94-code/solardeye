@@ -1,14 +1,27 @@
 {% extends "base.html" %}
-{# v90 — premium sandbox payment confirmation page.
-   Was a single small card; redesigned into a calm hero + receipt-
-   style summary + clear next-steps list, with a prominent
-   sandbox badge so the subscriber never confuses test mode with
-   a real charge. #}
+{# v92e — premium sandbox payment confirmation, brought to life.
+   * Confetti rain animation (CSS-only, prefers-reduced-motion safe).
+   * Warm Arabic-first copy with the subscriber's name when known.
+   * The success_id is the REAL Stripe id now (v92e fixed the
+     `{CHECKOUT_SESSION_ID}` literal-placeholder bug) and only
+     renders when present + non-placeholder.
+   * Dropped the dev-y "provider = stripe · mode = test" line in
+     favor of a calm "🔒 آمن · Stripe Sandbox" badge.
+#}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set has_real_session = session_id and '{' not in session_id and '%7B' not in session_id %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px">
+  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px;position:relative;overflow:hidden">
+
+    {# ─── Confetti rain (decorative, no JS) ─────────────────────── #}
+    <div class="pay-confetti" aria-hidden="true">
+      {% for i in range(18) %}
+        <span class="pay-confetti__piece pay-confetti__piece--{{ i % 6 }}"></span>
+      {% endfor %}
+    </div>
+
     <article class="pay-result-card pay-result-card--ok">
       <span class="pay-result-card__badge">
         🧪 {{ 'Sandbox / test mode' if is_en else 'وضع تجريبي' }}
@@ -19,39 +32,48 @@
       </div>
 
       <h1 class="pay-result-card__title">
-        {{ 'Payment received' if is_en else 'تم استلام الدفعة' }}
+        🎉 {{ 'Payment received!' if is_en else 'تم استلام الدفعة!' }}
       </h1>
       <p class="pay-result-card__subtitle">
-        {{ 'Your test payment was accepted by Stripe Sandbox. We will apply your plan change shortly.' if is_en else 'تم قبول دفعتك التجريبية على Stripe Sandbox. سيتم تطبيق تغيير الخطة قريباً.' }}
+        {% if is_en %}
+          Your test payment was accepted. We'll apply your plan change in a moment.
+        {% else %}
+          تم قبول دفعتك التجريبية بنجاح. سيتم تطبيق تغيير الخطة على اشتراكك خلال لحظات.
+        {% endif %}
       </p>
 
       <ul class="pay-result-card__steps">
         <li>
           <span class="pay-result-card__step-num">1</span>
-          <span>{{ 'We received your test payment confirmation.' if is_en else 'استلمنا تأكيد دفعتك التجريبية.' }}</span>
+          <span>{{ 'Your test payment is confirmed.' if is_en else 'تم تأكيد دفعتك التجريبية.' }}</span>
         </li>
         <li>
           <span class="pay-result-card__step-num">2</span>
-          <span>{{ 'Our system marks the invoice as settled.' if is_en else 'يتم وضع الفاتورة في حالة "تم الاستلام".' }}</span>
+          <span>{{ 'The invoice will be marked as settled.' if is_en else 'يتم تحديث الفاتورة إلى "تم الاستلام".' }}</span>
         </li>
         <li>
           <span class="pay-result-card__step-num">3</span>
-          <span>{{ 'The plan change is then applied to your subscription.' if is_en else 'يتم تطبيق تغيير الخطة على اشتراكك.' }}</span>
+          <span>{{ 'Your new plan kicks in right after.' if is_en else 'تنتقل اشتراكك إلى الخطة الجديدة مباشرة.' }}</span>
         </li>
       </ul>
 
-      {% if session_id %}
-        <div class="pay-result-card__receipt">
-          <span class="pay-result-card__receipt-label">
-            {{ 'Stripe reference' if is_en else 'مرجع Stripe' }}
-          </span>
-          <code dir="ltr">{{ session_id }}</code>
-        </div>
+      {% if has_real_session %}
+        <details class="pay-result-card__receipt-details">
+          <summary>
+            <span>{{ 'Show receipt details' if is_en else 'تفاصيل الإيصال' }}</span>
+          </summary>
+          <div class="pay-result-card__receipt">
+            <span class="pay-result-card__receipt-label">
+              {{ 'Stripe reference' if is_en else 'مرجع Stripe' }}
+            </span>
+            <code dir="ltr">{{ session_id }}</code>
+          </div>
+        </details>
       {% endif %}
 
-      <p class="pay-result-card__meta" dir="ltr">
-        provider = {{ provider }} · mode = {{ mode }}
-      </p>
+      <div class="pay-result-card__safety">
+        🔒 <span>{{ 'Secured by Stripe · Sandbox' if is_en else 'مُؤمَّن عبر Stripe · وضع تجريبي' }}</span>
+      </div>
 
       <div class="pay-result-card__actions">
         <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
@@ -63,10 +85,54 @@
 </div>
 
 <style>
+  /* v92e — celebratory confetti rain */
+  .pay-confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .pay-confetti__piece {
+    position: absolute;
+    top: -40px;
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0.85;
+    animation: pay-confetti-fall linear infinite;
+    transform-origin: center;
+  }
+  /* Six colors + six start positions + slightly different durations
+     so the rain looks organic instead of a marching parade. */
+  .pay-confetti__piece--0 { background: #10b981; left:  8%; animation-duration: 6.2s; animation-delay: -0.4s; }
+  .pay-confetti__piece--1 { background: #f59e0b; left: 22%; animation-duration: 7.1s; animation-delay: -1.6s; }
+  .pay-confetti__piece--2 { background: #6366f1; left: 38%; animation-duration: 5.8s; animation-delay: -3.0s; }
+  .pay-confetti__piece--3 { background: #ec4899; left: 54%; animation-duration: 7.6s; animation-delay: -2.2s; }
+  .pay-confetti__piece--4 { background: #3aa7ff; left: 70%; animation-duration: 6.4s; animation-delay: -0.9s; }
+  .pay-confetti__piece--5 { background: #84cc16; left: 86%; animation-duration: 8.0s; animation-delay: -3.7s; }
+  /* Spread additional pieces via :nth-child offsets so we don't
+     need 18 separate selectors. */
+  .pay-confetti__piece:nth-child(7n+1)  { left: calc(8%  + 4%); animation-duration: 7.4s; animation-delay: -2.5s; }
+  .pay-confetti__piece:nth-child(7n+2)  { left: calc(22% + 4%); animation-duration: 6.8s; animation-delay: -1.0s; }
+  .pay-confetti__piece:nth-child(7n+3)  { left: calc(38% + 4%); animation-duration: 8.2s; animation-delay: -4.4s; }
+  .pay-confetti__piece:nth-child(7n+4)  { left: calc(54% + 4%); animation-duration: 5.6s; animation-delay: -0.2s; }
+  .pay-confetti__piece:nth-child(7n+5)  { left: calc(70% + 4%); animation-duration: 7.0s; animation-delay: -3.3s; }
+  .pay-confetti__piece:nth-child(7n+6)  { left: calc(86% + 4%); animation-duration: 6.6s; animation-delay: -1.8s; }
+  @keyframes pay-confetti-fall {
+    0%   { transform: translate3d(0, -20px, 0) rotate(0deg);   opacity: 0; }
+    10%  { opacity: 0.85; }
+    100% { transform: translate3d(20px, 110vh, 0) rotate(540deg); opacity: 0.85; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pay-confetti { display: none; }
+  }
+
   .pay-result-card {
     position: relative;
+    z-index: 1;
     width: 100%;
-    max-width: 560px;
+    max-width: 600px;
     padding: 56px 36px 36px;
     background: #ffffff;
     border-radius: 28px;
@@ -77,11 +143,14 @@
   .pay-result-card::before {
     content: "";
     position: absolute; inset: 0 0 auto 0;
-    height: 160px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+    height: 180px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.18), transparent 60%),
+      radial-gradient(circle at 80% 30%, rgba(99, 102, 241, 0.12), transparent 60%);
     pointer-events: none;
   }
   .pay-result-card > * { position: relative; z-index: 1; }
+
   .pay-result-card__badge {
     display: inline-block;
     padding: 5px 12px;
@@ -94,87 +163,142 @@
     text-transform: uppercase;
     margin-bottom: 22px;
   }
+
   .pay-result-card__ring {
-    width: 96px; height: 96px;
-    margin: 0 auto 18px;
+    width: 110px; height: 110px;
+    margin: 0 auto 20px;
     border-radius: 50%;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     display: flex;
     align-items: center; justify-content: center;
-    box-shadow: 0 18px 36px rgba(16, 185, 129, 0.28);
+    box-shadow: 0 18px 36px rgba(16, 185, 129, 0.32);
     position: relative;
+    animation: pay-ring-pop 0.65s cubic-bezier(.34,1.56,.64,1) both;
   }
-  .pay-result-card__ring::before {
+  .pay-result-card__ring::before,
+  .pay-result-card__ring::after {
     content: "";
     position: absolute;
-    inset: -6px;
+    inset: -8px;
     border-radius: 50%;
     border: 2px solid rgba(16, 185, 129, 0.18);
     animation: pay-pulse 2.4s ease-in-out infinite;
   }
+  .pay-result-card__ring::after {
+    animation-delay: 1.2s;
+  }
   .pay-result-card__ring-icon {
     color: #ffffff;
-    font-size: 52px;
+    font-size: 58px;
     font-weight: 900;
     line-height: 1;
+    animation: pay-check-in 0.6s ease-out 0.2s both;
+  }
+  @keyframes pay-ring-pop {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes pay-check-in {
+    0%   { transform: scale(0) rotate(-30deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
   }
   @keyframes pay-pulse {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50%      { transform: scale(1.08); opacity: 0.2; }
+    0%, 100% { transform: scale(1);    opacity: 0.6; }
+    50%      { transform: scale(1.10); opacity: 0.2; }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .pay-result-card__ring,
+    .pay-result-card__ring-icon { animation: none; }
+    .pay-result-card__ring::before,
+    .pay-result-card__ring::after { animation: none; opacity: 0; }
+  }
+
   .pay-result-card__title {
     margin: 0 0 10px;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 900;
     color: #0f172a;
+    letter-spacing: -0.2px;
   }
   .pay-result-card__subtitle {
-    margin: 0 0 24px;
+    margin: 0 0 26px;
     color: #475569;
-    font-size: .98rem;
-    line-height: 1.55;
+    font-size: 1rem;
+    line-height: 1.6;
   }
+
   .pay-result-card__steps {
     list-style: none;
-    margin: 0 0 24px;
+    margin: 0 0 22px;
     padding: 0;
     text-align: start;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
   .pay-result-card__steps li {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    color: #334155;
-    font-size: .92rem;
-    line-height: 1.45;
+    border-radius: 14px;
+    color: #1e293b;
+    font-size: .94rem;
+    line-height: 1.5;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .pay-result-card__steps li:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.10);
   }
   .pay-result-card__step-num {
-    flex: 0 0 28px;
-    width: 28px; height: 28px;
+    flex: 0 0 30px;
+    width: 30px; height: 30px;
     border-radius: 50%;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
     font-weight: 900;
-    font-size: .85rem;
+    font-size: .9rem;
     display: inline-flex;
     align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.32);
   }
+
+  .pay-result-card__receipt-details {
+    margin: 0 0 16px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+  }
+  .pay-result-card__receipt-details summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 12px 16px;
+    font-size: .85rem;
+    font-weight: 700;
+    color: #475569;
+    user-select: none;
+  }
+  .pay-result-card__receipt-details summary::-webkit-details-marker { display: none; }
+  .pay-result-card__receipt-details summary::after {
+    content: "▾";
+    margin-inline-start: 6px;
+    transition: transform .15s ease;
+    display: inline-block;
+  }
+  .pay-result-card__receipt-details[open] summary::after { transform: rotate(180deg); }
   .pay-result-card__receipt {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-    background: #f1f5f9;
-    border-radius: 12px;
+    padding: 12px 16px 16px;
+    border-top: 1px solid #e2e8f0;
     word-break: break-all;
   }
   .pay-result-card__receipt-label {
@@ -189,13 +313,25 @@
     font-size: .85rem;
     font-weight: 700;
     color: #0f172a;
+    background: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
   }
-  .pay-result-card__meta {
+
+  .pay-result-card__safety {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin: 0 0 22px;
-    color: #94a3b8;
-    font-size: .78rem;
-    font-weight: 600;
+    padding: 7px 14px;
+    background: rgba(16, 185, 129, 0.08);
+    color: #047857;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 700;
   }
+
   .pay-result-card__actions {
     display: flex;
     justify-content: center;
@@ -204,27 +340,33 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 13px 26px;
-    border-radius: 14px;
+    padding: 14px 30px;
+    border-radius: 16px;
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 1.02rem;
     text-decoration: none;
-    transition: transform .15s ease, box-shadow .15s ease;
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
   }
   .pay-result-card__btn--primary {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
-    box-shadow: 0 10px 24px rgba(16, 185, 129, 0.32);
+    box-shadow: 0 12px 28px rgba(16, 185, 129, 0.34);
   }
   .pay-result-card__btn--primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 30px rgba(16, 185, 129, 0.42);
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px rgba(16, 185, 129, 0.46);
+    filter: brightness(1.05);
   }
+  .pay-result-card__btn--primary:active {
+    transform: translateY(0);
+  }
+
   @media (max-width: 540px) {
     .pay-result-card { padding: 40px 22px 28px; border-radius: 22px; }
-    .pay-result-card__ring { width: 80px; height: 80px; }
-    .pay-result-card__ring-icon { font-size: 44px; }
-    .pay-result-card__title { font-size: 1.3rem; }
+    .pay-result-card__ring { width: 92px; height: 92px; }
+    .pay-result-card__ring-icon { font-size: 48px; }
+    .pay-result-card__title { font-size: 1.35rem; }
+    .pay-result-card__subtitle { font-size: .95rem; }
   }
 </style>
 {% endblock %}

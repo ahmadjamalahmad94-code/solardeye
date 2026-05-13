@@ -39,9 +39,9 @@
         </li>
       </ul>
 
-      <p class="pay-result-card__meta" dir="ltr">
-        provider = {{ provider }} · mode = {{ mode }}
-      </p>
+      <div class="pay-result-card__safety">
+        🔒 <span>{{ 'Stripe Sandbox · safe environment' if is_en else 'بيئة آمنة · Stripe Sandbox' }}</span>
+      </div>
 
       <div class="pay-result-card__actions">
         <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
@@ -143,11 +143,17 @@
     display: inline-flex;
     align-items: center; justify-content: center;
   }
-  .pay-result-card__meta {
+  .pay-result-card__safety {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin: 0 0 22px;
-    color: #94a3b8;
-    font-size: .78rem;
-    font-weight: 600;
+    padding: 7px 14px;
+    background: rgba(99, 102, 241, 0.08);
+    color: #4338ca;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 700;
   }
   .pay-result-card__actions {
     display: flex;

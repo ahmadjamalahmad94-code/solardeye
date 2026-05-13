@@ -2085,11 +2085,10 @@ def mobile_account_plan_change_checkout():
             _txt('لا توجد فاتورة معلقة لهذا الطلب.', 'No pending invoice for this request.'),
             code='no_pending_invoice',
         )
+    # v92e — same placeholder-encoding fix as `payments.create_invoice_checkout`.
     try:
-        success_url = url_for(
-            'payments.checkout_success',
-            session_id='{CHECKOUT_SESSION_ID}', _external=True,
-        )
+        base_success = url_for('payments.checkout_success', _external=True)
+        success_url = base_success + '?session_id={CHECKOUT_SESSION_ID}'
     except Exception:  # pragma: no cover
         success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
     try:

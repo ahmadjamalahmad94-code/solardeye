@@ -156,12 +156,16 @@ def create_checkout():
         or getattr(plan, 'code', None)
         or f'plan-{plan.id}'
     )
+    # v92e — Stripe replaces `{CHECKOUT_SESSION_ID}` inside the
+    # success_url query string only if the placeholder is sent
+    # UNENCODED. `url_for(..., session_id='{CHECKOUT_SESSION_ID}')`
+    # URL-encodes the braces to `%7B...%7D` and Stripe leaves them
+    # alone, so the success page received the literal placeholder
+    # instead of a real session id. We now build the success URL
+    # by appending the placeholder verbatim.
     try:
-        success_url = url_for(
-            'payments.checkout_success',
-            session_id='{CHECKOUT_SESSION_ID}',
-            _external=True,
-        )
+        base_success = url_for('payments.checkout_success', _external=True)
+        success_url = base_success + '?session_id={CHECKOUT_SESSION_ID}'
     except Exception:  # pragma: no cover - falls back to relative
         success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
     try:
