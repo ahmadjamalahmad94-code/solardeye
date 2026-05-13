@@ -15,9 +15,13 @@
 
   <div class="ncv40-list" data-ncv40-list>
     {% for item in groups %}
-    <a class="ncv40-row{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
+    {# v93f — financial + support rows navigate directly to source;
+       system rows open the floating modal. The CSS hook
+       `ncv40-row--<class>` lets the theme color them differently. #}
+    <a class="ncv40-row ncv40-row--{{ item.notification_class or 'system' }}{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
        href="{{ item.url }}"
-       data-ncv40-modal
+       {% if (item.notification_class or 'system') == 'system' %}data-ncv40-modal{% endif %}
+       data-notif-class="{{ item.notification_class or 'system' }}"
        data-modal-title="{{ item.title|e }}"
        data-modal-details="{{ item.details|e }}"
        data-modal-sender="{{ (item.assignee or '')|e }}"

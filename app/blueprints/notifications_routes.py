@@ -530,6 +530,48 @@ def _agg_service_label(event_type, lang='ar'):
     return table.get(key, '')
 
 
+# v93f — top-level classification used by the bell + notif-center
+# to decide click behaviour and color theme:
+#   * 'financial' (plan-change, invoices, payments) → DIRECT NAV
+#     to source page; no modal. Subscriber wants to act now.
+#   * 'support'   (tickets, support messages)       → DIRECT NAV
+#     to the case page; no modal.
+#   * 'system'    (energy/weather/load/etc.)        → OPEN MODAL
+#     (no useful navigation target — keep the user on the
+#     notification center).
+_FINANCIAL_EVENT_PREFIXES = (
+    'plan_change',
+    'invoice',
+    'payment',
+    'billing',
+    'subscription',
+    'wallet',
+)
+_SUPPORT_EVENT_PREFIXES = (
+    'support',
+    'ticket',
+    'message',
+    'conversation',
+    'mail',
+)
+
+
+def _agg_notification_class(event_type, source_type, kind):
+    """Return one of 'financial' | 'support' | 'system'."""
+    et = (event_type or '').strip().lower()
+    st = (source_type or '').strip().lower()
+    # Support routing: explicit source/kind takes precedence.
+    if kind in ('message', 'ticket'):
+        return 'support'
+    for pref in _SUPPORT_EVENT_PREFIXES:
+        if et.startswith(pref) or st.startswith(pref):
+            return 'support'
+    for pref in _FINANCIAL_EVENT_PREFIXES:
+        if et.startswith(pref) or st.startswith(pref):
+            return 'financial'
+    return 'system'
+
+
 def _agg_status_label(status):
     labels = {
         'new': 'جديد', 'open': 'مفتوح', 'assigned': 'مخصص', 'in_progress': 'قيد المتابعة',
@@ -665,6 +707,12 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             '/notifications/' not in resolved_url and
             '/notification-center' not in resolved_url
         )
+        # v93f — top-level class for click-behaviour + color theme.
+        notification_class = _agg_notification_class(
+            getattr(last, 'event_type', None),
+            getattr(last, 'source_type', None),
+            kind,
+        )
         group = {
             'group_key': key,
             'kind': kind,
@@ -682,6 +730,7 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             'assignee': assignee_name or '—',
             'sender': assignee_name or '',  # legacy alias the bell JS reads
             'has_source_link': has_meaningful_source,
+            'notification_class': notification_class,  # v93f
             'unread_count': unread_count,
             'events_count': len(events),
             'last_activity_at': last_at,

@@ -1403,3 +1403,57 @@
     0 0 0 4px rgba(255,255,255,.65),
     0 6px 14px -6px var(--row-tint-edge, rgba(15,23,42,.18)) !important;
 }
+
+/* v93f — color theme per notification class (financial / support / system) */
+.ncv40-row--financial .ncv40-row-bar {
+  background: linear-gradient(180deg, #10b981, #059669) !important;
+}
+.ncv40-row--financial {
+  background: linear-gradient(135deg, rgba(16,185,129,0.04), transparent 70%) !important;
+}
+.ncv40-row--financial .ncv40-row-avatar {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+}
+.ncv40-row--support .ncv40-row-bar {
+  background: linear-gradient(180deg, #f59e0b, #d97706) !important;
+}
+.ncv40-row--support {
+  background: linear-gradient(135deg, rgba(245,158,11,0.04), transparent 70%) !important;
+}
+.ncv40-row--support .ncv40-row-avatar {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #ffffff !important;
+}
+.ncv40-row--system .ncv40-row-bar {
+  background: linear-gradient(180deg, #3aa7ff, #0e3b86) !important;
+}
+.ncv40-row--system {
+  background: linear-gradient(135deg, rgba(58,167,255,0.04), transparent 70%) !important;
+}
+
+/* Bell dropdown items — same color hooks via .notif-class-* */
+.notification-item.notif-class-financial {
+  background: linear-gradient(135deg, rgba(16,185,129,0.06), #ffffff) !important;
+  border-color: rgba(16,185,129,0.25) !important;
+}
+.notification-item.notif-class-financial .notif-kind {
+  background: #d1fae5 !important;
+  color: #047857 !important;
+}
+.notification-item.notif-class-support {
+  background: linear-gradient(135deg, rgba(245,158,11,0.06), #ffffff) !important;
+  border-color: rgba(245,158,11,0.25) !important;
+}
+.notification-item.notif-class-support .notif-kind {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+}
+.notification-item.notif-class-system {
+  background: linear-gradient(135deg, rgba(58,167,255,0.06), #ffffff) !important;
+  border-color: rgba(58,167,255,0.25) !important;
+}
+.notification-item.notif-class-system .notif-kind {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}

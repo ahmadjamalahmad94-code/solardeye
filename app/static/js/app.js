@@ -382,14 +382,13 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
   function render(items){
     if(!list) return;
     if(!items || !items.length){ list.innerHTML = `<div class="notification-empty">${lang()==='en'?'No open notifications.':'لا توجد إشعارات مفتوحة حاليًا.'}</div>`; return; }
-    // v93 — bell items are now `<button>` that opens a floating
-    // modal instead of `<a>` that navigates away. The modal renders
-    // the full title/message + a "Go to source" button that
-    // preserves the original navigation when the user wants it.
+    // v93f — bell items behave differently per `notification_class`:
+    //   * financial / support → DIRECT navigation to source page
+    //     (user wants to act on the item, not just read it)
+    //   * system (energy/weather/etc.) → open floating modal
     list.innerHTML = items.map(item => {
       const kind = item.kind === 'ticket' ? 'ticket' : 'message';
-      // Serialize the payload onto the button so the modal can
-      // render without a second network call. Strings are escaped.
+      const cls = item.notification_class || 'system';
       const payload = encodeURIComponent(JSON.stringify({
         title: item.title || '',
         details: item.details || '',
@@ -399,16 +398,22 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
         status: item.status || '',
         kind: kind,
         event_id: item.event_id || '',
-        // v93e — hide "Open source" button in the modal when the
-        // resolved URL is just the notifications center itself.
         has_source_link: item.has_source_link !== false,
+        notification_class: cls,
       }));
-      return `<button type="button" class="notification-item kind-${esc(kind)} status-${esc(item.status)}" data-event-id="${esc(item.event_id || '')}" data-payload="${payload}" style="text-align:start;width:100%;border:1px solid transparent;cursor:pointer;font:inherit"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></button>`;
+      // Color theme per class — adds a class hook the CSS reads.
+      return `<button type="button" class="notification-item notif-class-${esc(cls)} kind-${esc(kind)} status-${esc(item.status)}" data-event-id="${esc(item.event_id || '')}" data-payload="${payload}" data-notif-class="${esc(cls)}" data-direct-url="${esc(item.url || '')}" style="text-align:start;width:100%;border:1px solid transparent;cursor:pointer;font:inherit"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></button>`;
     }).join('');
-    // Wire each newly-rendered button to open the modal.
     list.querySelectorAll('.notification-item').forEach(function(btn){
       btn.addEventListener('click', function(ev){
         ev.preventDefault();
+        const cls = btn.getAttribute('data-notif-class') || 'system';
+        const directUrl = btn.getAttribute('data-direct-url') || '';
+        // v93f — financial + support direct-navigate.
+        if((cls === 'financial' || cls === 'support') && directUrl && directUrl !== '#'){
+          window.location.href = directUrl;
+          return;
+        }
         try {
           const raw = btn.getAttribute('data-payload') || '';
           const data = JSON.parse(decodeURIComponent(raw));
