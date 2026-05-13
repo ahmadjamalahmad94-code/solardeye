@@ -153,7 +153,15 @@ _MOBILE_ACCOUNT_ALLOWED_FIELDS = {
 
 
 def _lang() -> str:
-    raw = request.args.get('lang') or session.get('ui_lang') or 'ar'
+    # Defensive: helpers like `_txt(...)` can be called by unit tests
+    # that build error payloads outside a Flask request context.
+    # Touching `request.args` / `session` there raises RuntimeError
+    # and turns a tested helper into an unrelated crash. Fall back to
+    # 'ar' (the project default) when no request context is active.
+    try:
+        raw = request.args.get('lang') or session.get('ui_lang') or 'ar'
+    except RuntimeError:
+        return 'ar'
     return 'en' if str(raw).lower().startswith('en') else 'ar'
 
 
@@ -2525,7 +2533,7 @@ def mobile_device_delete(device_id: int):
         return err
     device = _mobile_device_for_user(user, device_id)
     if not device:
-        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
 
     device.is_active = False
     device.updated_at = datetime.utcnow()
@@ -2899,10 +2907,10 @@ def _mobile_device_scope(user):
         try:
             device_id = int(raw_device_id)
         except (TypeError, ValueError):
-            return None, None, api_error('Device id is invalid.', code='invalid_device_id', status=400)
+            return None, None, api_error(_txt('معرّف الجهاز غير صالح.', 'Device id is invalid.'), code='invalid_device_id', status=400)
         device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
         if not device:
-            return None, None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+            return None, None, api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
         return 'device', device, None
     return 'device', _selected_device_for_user(user), None
 
@@ -3139,12 +3147,12 @@ def notifications():
 
 @mobile_api_bp.get('/health')
 def health():
-    return api_ok({'version': '10.1', 'message': 'SolarDeye mobile API is ready'}, meta={'api_version': 'v1'})
+    return api_ok({'version': '10.1', 'message': _txt('واجهة الجوال جاهزة للعمل.', 'SolarDeye mobile API is ready')}, meta={'api_version': 'v1'})
 
 
 @mobile_core_api_bp.get('/health')
 def mobile_health():
-    return api_ok({'version': '10.1', 'message': 'SolarDeye mobile API is ready'}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
+    return api_ok({'version': '10.1', 'message': _txt('واجهة الجوال جاهزة للعمل.', 'SolarDeye mobile API is ready')}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
 def _mobile_allowed_methods_for(normalized_path: str):
@@ -3199,9 +3207,9 @@ def mobile_core_missing_or_method_not_allowed(mobile_path):
     allowed_methods = _mobile_allowed_methods_for(normalized_path)
     if allowed_methods:
         return api_error(
-            'Method is not allowed for this mobile API endpoint.',
+            _txt('طريقة الطلب غير مسموحة لهذه الواجهة.', 'Method is not allowed for this mobile API endpoint.'),
             code='method_not_allowed',
             status=405,
             allowed_methods=sorted(allowed_methods),
         )
-    return api_error('Mobile API endpoint was not found.', code='not_found', status=404)
+    return api_error(_txt('تعذّر العثور على واجهة الجوال المطلوبة.', 'Mobile API endpoint was not found.'), code='not_found', status=404)
