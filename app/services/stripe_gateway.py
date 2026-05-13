@@ -862,6 +862,15 @@ def create_invoice_checkout_session(
         safe_metadata['tenant_id'] = str(tenant_id)
     if user_id is not None:
         safe_metadata['user_id'] = str(user_id)
+    # v92p — explicit pre-create log of the EXACT metadata dict we
+    # are about to send to Stripe. If user pays and Stripe still
+    # shows empty metadata, this proves our payload was correct
+    # vs. proves it was already wrong on our side.
+    logger.info(
+        'stripe_invoice_checkout: about_to_create '
+        'safe_metadata_keys=%s safe_metadata=%r case_id=%s amount=%s',
+        list(safe_metadata.keys()), safe_metadata, case_id, amount_value,
+    )
     # v92b — Stripe Checkout's `locale` parameter has a **strict
     # allowlist** of supported values. Arabic is NOT in that list
     # (Stripe-supported list as of 2026-05: auto, bg, cs, da, de,
@@ -932,6 +941,26 @@ def create_invoice_checkout_session(
             metadata=safe_metadata,
             locale=stripe_locale,
         )
+        # v92p — confirm what Stripe ECHOED back on the create
+        # response. If we sent X but Stripe responds with Y={},
+        # the bug is server-side; if Stripe echoes X, the bug is
+        # in our DIAGNOSTICS path (and the original payment worked).
+        try:
+            echo_md = getattr(session, 'metadata', None) or {}
+            if hasattr(echo_md, 'to_dict_recursive'):
+                try:
+                    echo_md = echo_md.to_dict_recursive()
+                except Exception:
+                    echo_md = {}
+            logger.info(
+                'stripe_invoice_checkout: created session_id=%s '
+                'metadata_echoed=%r match_keys=%s',
+                getattr(session, 'id', None),
+                echo_md if isinstance(echo_md, dict) else str(echo_md)[:200],
+                bool(echo_md) and set(echo_md.keys()) >= set(safe_metadata.keys()),
+            )
+        except Exception:
+            pass
     except Exception as exc:
         # v92c — capture Stripe's actual error message + offending
         # parameter so the next failure pinpoints the real cause
