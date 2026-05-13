@@ -68,7 +68,16 @@ def decode_weather(code: int | None):
     return label, category, ICON_MAP.get(category, ICON_MAP['unknown'])
 
 
-def solar_rating_from_cloud(cloud_cover: float | None) -> str:
+def solar_rating_from_cloud(cloud_cover: float | None, *, is_daylight: bool = True) -> str:
+    """Map cloud cover → Arabic solar production rating.
+
+    v93k — `is_daylight=False` overrides cloud-based rating with a
+    night-appropriate label. Without this guard, a clear night sky
+    (cloud_cover≈1%) was scoring "إنتاج قوي" — which is nonsense
+    when the sun is below the horizon.
+    """
+    if not is_daylight:
+        return 'لا إنتاج · ليلًا'
     cloud = float(cloud_cover or 0)
     if cloud < 20:
         return 'إنتاج قوي'
@@ -79,7 +88,15 @@ def solar_rating_from_cloud(cloud_cover: float | None) -> str:
     return 'إنتاج منخفض جدًا'
 
 
-def advice_from_cloud(cloud_cover: float | None) -> str:
+def advice_from_cloud(cloud_cover: float | None, *, is_daylight: bool = True) -> str:
+    """Map cloud cover → Arabic actionable advice.
+
+    v93k — `is_daylight=False` overrides cloud-based advice with a
+    night-appropriate copy so we never tell the user "وقت ممتاز
+    لتشغيل الأجهزة الثقيلة" at 8 PM with the sun below the horizon.
+    """
+    if not is_daylight:
+        return 'الشمس غاربة — لا يوجد إنتاج شمسي حتى الشروق.'
     cloud = float(cloud_cover or 0)
     if cloud < 20:
         return 'وقت ممتاز لتشغيل الأجهزة الثقيلة.'
@@ -90,7 +107,44 @@ def advice_from_cloud(cloud_cover: float | None) -> str:
     return 'تجنب تشغيل الأجهزة الثقيلة حتى يتحسن الشحن.'
 
 
-def _slot_from_hourly(times, temps, codes, clouds, pops, hour_selector: int):
+def _night_decoration(condition_ar: str, category: str, icon: str) -> tuple[str, str, str]:
+    """v93k — When a slot is after sunset / before sunrise, the
+    Open-Meteo weather_code may still return `0` (clear), which the
+    WEATHER_CODE_MAP labels as "مشمس" with a ☀️ icon — wrong at
+    night. We swap to a night-aware label/icon only for the bright
+    categories (`sunny`, `partly_cloudy`); other categories
+    (rain/snow/fog/storm) keep their natural label since they read
+    the same way day or night.
+    """
+    if category == 'sunny':
+        return ('ليلًا', 'night_clear', '🌙')
+    if category == 'partly_cloudy':
+        return ('ليلًا · غائم جزئيًا', 'night_partly_cloudy', '☁️')
+    return (condition_ar, category, icon)
+
+
+def _is_daylight_dt(slot_dt: datetime, sunrise_dt: datetime | None, sunset_dt: datetime | None) -> bool:
+    """v93k — return whether `slot_dt` falls inside the daylight
+    window. We use the natural sunrise + sunset (not effective_*)
+    because the consumer-facing rating should match the visible
+    sun position, not the production-efficiency curve. A slot
+    exactly at sunset still counts as night (sun has set)."""
+    if sunrise_dt is None or sunset_dt is None:
+        # Conservative fallback: anything strictly between 06:00 and
+        # 18:00 is daylight if we have no real sunrise/sunset data.
+        return 6 <= slot_dt.hour < 18
+    # Compare in the slot's own day. Open-Meteo sometimes gives a
+    # sunrise/sunset of a different date than the slot when timezones
+    # are weird; we project sunrise/sunset onto the slot's date.
+    try:
+        sr = slot_dt.replace(hour=sunrise_dt.hour, minute=sunrise_dt.minute, second=0, microsecond=0)
+        ss = slot_dt.replace(hour=sunset_dt.hour, minute=sunset_dt.minute, second=0, microsecond=0)
+    except Exception:
+        return 6 <= slot_dt.hour < 18
+    return sr <= slot_dt < ss
+
+
+def _slot_from_hourly(times, temps, codes, clouds, pops, hour_selector: int, *, sunrise_dt=None, sunset_dt=None):
     for idx, t in enumerate(times):
         try:
             dt = datetime.fromisoformat(t)
@@ -99,6 +153,12 @@ def _slot_from_hourly(times, temps, codes, clouds, pops, hour_selector: int):
         if dt.hour == hour_selector:
             label, category, icon = decode_weather(codes[idx] if idx < len(codes) else None)
             cloud = clouds[idx] if idx < len(clouds) else None
+            is_day = _is_daylight_dt(dt, sunrise_dt, sunset_dt)
+            # v93k — replace "مشمس · ☀️" with "ليلًا · 🌙" for clear
+            # post-sunset hours so the next-hour card doesn't claim
+            # the sun is shining at 8 PM.
+            if not is_day:
+                label, category, icon = _night_decoration(label, category, icon)
             return {
                 'time': t,
                 'temperature': temps[idx] if idx < len(temps) else None,
@@ -107,8 +167,8 @@ def _slot_from_hourly(times, temps, codes, clouds, pops, hour_selector: int):
                 'condition_ar': label,
                 'category': category,
                 'icon': icon,
-                'solar_rating': solar_rating_from_cloud(cloud),
-                'advice': advice_from_cloud(cloud),
+                'solar_rating': solar_rating_from_cloud(cloud, is_daylight=is_day),
+                'advice': advice_from_cloud(cloud, is_daylight=is_day),
             }
     return {
         'time': None, 'temperature': None, 'cloud_cover': None,
@@ -151,20 +211,25 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
     effective_sunset_time = None
     sunrise_time = None
     effective_sunrise_time = None
+    # v93k — keep the parsed datetimes around so the slot/timeline
+    # builders can ask `is this hour daylight?` before claiming
+    # "إنتاج قوي" at 8 PM.
+    sunset_dt = None
+    sunrise_dt = None
     if sunset_list:
         try:
             sunset_dt = datetime.fromisoformat(sunset_list[0])
             sunset_time = sunset_dt.strftime('%H:%M')
             effective_sunset_time = (sunset_dt.replace(second=0, microsecond=0) - timedelta(hours=1)).strftime('%H:%M')
         except Exception:
-            pass
+            sunset_dt = None
     if sunrise_list:
         try:
             sunrise_dt = datetime.fromisoformat(sunrise_list[0])
             sunrise_time = sunrise_dt.strftime('%H:%M')
             effective_sunrise_time = sunrise_dt.replace(second=0, microsecond=0).strftime('%H:%M')
         except Exception:
-            pass
+            sunrise_dt = None
 
     next_hour = None
     timeline = []
@@ -175,10 +240,19 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         except Exception:
             continue
         if next_hour is None and dt > now:
-            next_hour = _slot_from_hourly(times, temps, codes, clouds, pops, dt.hour)
+            next_hour = _slot_from_hourly(
+                times, temps, codes, clouds, pops, dt.hour,
+                sunrise_dt=sunrise_dt, sunset_dt=sunset_dt,
+            )
         if dt.date() == now.date() and dt.hour in selected_hours:
             label, cat, ic = decode_weather(codes[idx] if idx < len(codes) else None)
             cloud = clouds[idx] if idx < len(clouds) else None
+            is_day = _is_daylight_dt(dt, sunrise_dt, sunset_dt)
+            # v93k — night-decorate clear/partly-cloudy categories
+            # so a 6 PM slot after a 5:48 PM sunset doesn't read
+            # "مشمس · ☀️".
+            if not is_day:
+                label, cat, ic = _night_decoration(label, cat, ic)
             timeline.append({
                 'time_label': dt.strftime('%I:%M').lstrip('0') + (' ص' if dt.hour < 12 else ' م'),
                 'temperature': temps[idx] if idx < len(temps) else None,
@@ -187,8 +261,8 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
                 'condition_ar': label,
                 'category': cat,
                 'icon': ic,
-                'solar_rating': solar_rating_from_cloud(cloud),
-                'advice': advice_from_cloud(cloud),
+                'solar_rating': solar_rating_from_cloud(cloud, is_daylight=is_day),
+                'advice': advice_from_cloud(cloud, is_daylight=is_day),
             })
     if next_hour is None:
         next_hour = {'time': None, 'temperature': None, 'cloud_cover': None, 'precipitation_probability': None, 'condition_ar': 'غير متاح', 'category': 'unknown', 'icon': ICON_MAP['unknown'], 'solar_rating': 'غير متاح', 'advice': 'لا توجد بيانات.'}
@@ -203,9 +277,12 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         category=category,
         icon=icon,
         current_time=current.get('time'),
-        morning=_slot_from_hourly(times, temps, codes, clouds, pops, 9),
-        noon=_slot_from_hourly(times, temps, codes, clouds, pops, 12),
-        afternoon=_slot_from_hourly(times, temps, codes, clouds, pops, 15),
+        # v93k — pass sunrise/sunset so morning/noon/afternoon slots
+        # don't accidentally fall outside the daylight window if the
+        # user is in a polar timezone with weird daily cycles.
+        morning=_slot_from_hourly(times, temps, codes, clouds, pops, 9, sunrise_dt=sunrise_dt, sunset_dt=sunset_dt),
+        noon=_slot_from_hourly(times, temps, codes, clouds, pops, 12, sunrise_dt=sunrise_dt, sunset_dt=sunset_dt),
+        afternoon=_slot_from_hourly(times, temps, codes, clouds, pops, 15, sunrise_dt=sunrise_dt, sunset_dt=sunset_dt),
         next_hour=next_hour,
         sunset_time=sunset_time,
         effective_sunset_time=effective_sunset_time,
