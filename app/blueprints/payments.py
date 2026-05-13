@@ -313,17 +313,26 @@ def create_invoice_checkout():
             return jsonify({'ok': False, 'code': 'no_pending_invoice', 'message': msg}), 400
         flash(msg, 'warning')
         return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+    # v92q — same fix as v92e applied at the top of this file:
+    # `url_for(..., session_id='{CHECKOUT_SESSION_ID}', _external=True)`
+    # URL-encodes the braces to `%7B...%7D` so Stripe sees the
+    # encoded placeholder and leaves it untouched. The fix is to
+    # append the placeholder verbatim AFTER the base URL.
     try:
-        success_url = url_for(
-            'payments.checkout_success',
-            session_id='{CHECKOUT_SESSION_ID}', _external=True,
+        base_success = url_for(
+            'payments.checkout_success', _external=True,
         )
+        success_url = base_success + '?session_id={CHECKOUT_SESSION_ID}'
     except Exception:  # pragma: no cover
         success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
     try:
         cancel_url = url_for('payments.checkout_cancel', _external=True)
     except Exception:  # pragma: no cover
         cancel_url = '/payments/stripe/cancel'
+    logger.info(
+        'stripe_invoice_checkout: success_url=%s cancel_url=%s',
+        success_url, cancel_url,
+    )
     try:
         result = create_invoice_checkout_session(
             case_id=case.id,
