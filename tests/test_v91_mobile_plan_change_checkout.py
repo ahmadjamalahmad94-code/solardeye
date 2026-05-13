@@ -125,9 +125,14 @@ def test_mobile_dispatcher_allowlist_includes_checkout_endpoint():
 
 
 def test_stripe_gateway_supports_locale_parameter():
-    """`create_invoice_checkout_session` accepts a `locale` kwarg and
-    forwards it to Stripe (mapping ar/en explicitly + falling back
-    to 'auto'). v90 introduced this; v91 confirms the contract."""
+    """v92b — `create_invoice_checkout_session` accepts a `locale`
+    kwarg and forwards it to Stripe. Stripe does NOT support Arabic
+    in its Checkout locale allowlist, so the gateway maps:
+      * 'en*'                → 'en'
+      * any Stripe-supported → forwarded verbatim
+      * Arabic or anything   → 'auto' (Stripe picks from headers)
+    Passing 'ar' literally would make Stripe reject the session
+    with `invalid_request_error`."""
     path = os.path.join(
         _REPO_ROOT, 'app', 'services', 'stripe_gateway.py',
     )
@@ -135,8 +140,12 @@ def test_stripe_gateway_supports_locale_parameter():
         text = fh.read()
     assert 'locale: Optional[str] = None' in text
     assert "stripe_locale = 'auto'" in text
-    assert "stripe_locale = 'ar'" in text
     assert "stripe_locale = 'en'" in text
+    # v92b — Arabic must NOT be forwarded as a literal 'ar' anymore;
+    # the supported-locale allowlist is the new gatekeeper.
+    assert '_STRIPE_SUPPORTED_LOCALES' in text
+    # Arabic is explicitly not in the allowlist.
+    assert "'ar'" not in text.split('_STRIPE_SUPPORTED_LOCALES')[1].split('}')[0]
 
 
 def test_json_error_helper_forwards_extra_kwargs():

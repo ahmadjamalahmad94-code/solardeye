@@ -495,19 +495,36 @@ def create_invoice_checkout_session(
         safe_metadata['tenant_id'] = str(tenant_id)
     if user_id is not None:
         safe_metadata['user_id'] = str(user_id)
-    # v90 — pass the subscriber's UI locale to Stripe so the hosted
-    # Checkout page renders in Arabic (or English) instead of the
-    # browser default. Stripe accepts a small allowlist of locale
-    # strings; we map 'ar'/'en' explicitly and fall back to 'auto'
-    # for anything unrecognized so a future language doesn't break
-    # the flow.
+    # v92b — Stripe Checkout's `locale` parameter has a **strict
+    # allowlist** of supported values. Arabic is NOT in that list
+    # (Stripe-supported list as of 2026-05: auto, bg, cs, da, de,
+    # el, en, en-GB, es, es-419, et, fi, fil, fr, fr-CA, hr, hu,
+    # id, it, ja, ko, lt, lv, ms, mt, nb, nl, pl, pt, pt-BR, ro,
+    # ru, sk, sl, sv, th, tr, vi, zh, zh-HK, zh-TW). Passing
+    # `locale='ar'` makes Stripe reject the session creation with
+    # an `invalid_request_error`, which v90 surfaced to the
+    # subscriber as "تعذّر إنشاء جلسة الدفع".
+    #
+    # The fix: only forward values Stripe actually supports. Map
+    # English → 'en', everything else (including Arabic) → 'auto'
+    # so Stripe picks the closest supported language from the
+    # browser's `Accept-Language` header.
+    _STRIPE_SUPPORTED_LOCALES = {
+        'auto', 'bg', 'cs', 'da', 'de', 'el', 'en', 'en-GB',
+        'es', 'es-419', 'et', 'fi', 'fil', 'fr', 'fr-CA',
+        'hr', 'hu', 'id', 'it', 'ja', 'ko', 'lt', 'lv',
+        'ms', 'mt', 'nb', 'nl', 'pl', 'pt', 'pt-BR', 'ro',
+        'ru', 'sk', 'sl', 'sv', 'th', 'tr', 'vi', 'zh',
+        'zh-HK', 'zh-TW',
+    }
     stripe_locale = 'auto'
     if locale:
         normalized = str(locale).lower().strip()
-        if normalized.startswith('ar'):
-            stripe_locale = 'ar'
-        elif normalized.startswith('en'):
+        if normalized.startswith('en'):
             stripe_locale = 'en'
+        elif normalized in _STRIPE_SUPPORTED_LOCALES:
+            stripe_locale = normalized
+        # Arabic and any other unsupported language → keep 'auto'.
     try:
         session = pkg.checkout.Session.create(
             mode='payment',
