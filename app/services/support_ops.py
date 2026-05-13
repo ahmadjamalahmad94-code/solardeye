@@ -517,6 +517,11 @@ def notify_admins_of_plan_change_request(case: SupportCase, *, requester: AppUse
     already_notified = {ev.target_user_id for ev in existing if ev.target_user_id is not None}
     out: list[NotificationEvent] = []
     now = datetime.utcnow()
+    # v82: route admins directly to the workbench detail page so a
+    # click on the bell lands on the financial decision surface for
+    # the exact request that fired the event. The list view stays
+    # available via the sidebar; the bell is one click less.
+    detail_path = f'/admin/plan-change-requests/{case.id}'
     for admin_id in admin_ids:
         if admin_id in already_notified:
             continue
@@ -528,7 +533,7 @@ def notify_admins_of_plan_change_request(case: SupportCase, *, requester: AppUse
             source_id=case.id,
             title=title,
             message=message,
-            direct_url='#',  # link is computed lazily by support_ops._safe_direct_url_for_user
+            direct_url=detail_path,
             status='new',
             created_at=now,
         )
@@ -661,12 +666,13 @@ def compute_plan_change_quote(case: SupportCase, *, target_plan: SubscriptionPla
 def apply_plan_change_request(case: SupportCase, *, actor_user_id: int | None, target_plan: SubscriptionPlan | None = None, now: datetime | None = None, commit: bool = True) -> dict:
     """Apply an approved plan-change request.
 
-    Switches the tenant's `plan_id` and updates / writes a
-    `TenantSubscription` row anchored to the existing `ends_at` so
-    the subscriber doesn't lose paid time. Records the diff as a
-    single explicit `WalletLedger` entry (debit if extra charge,
-    credit if refund) and notifies the subscriber. Returns the
-    quote dict augmented with the resulting case status.
+    v82: the financial + subscription side-effects are now delegated
+    to `billing_engine.change_plan(...)` so admin tools and the v81
+    plan-change workflow share one canonical path. The subscriber
+    keeps their paid time (`ends_at` is preserved), the diff is
+    written as one explicit `WalletLedger` row, and the
+    case-specific concerns (audit row + subscriber notification +
+    case status flip) stay here in `support_ops` where they belong.
     """
     if not case:
         return {}
@@ -675,43 +681,23 @@ def apply_plan_change_request(case: SupportCase, *, actor_user_id: int | None, t
     quote = compute_plan_change_quote(case, target_plan=target, now=now)
     target = quote['target_plan']
     tenant = TenantAccount.query.get(getattr(case, 'tenant_id', None)) if getattr(case, 'tenant_id', None) else None
-    sub = quote['subscription']
-    if tenant and target:
-        tenant.plan_id = target.id
-        tenant.status = 'active'
-        if sub:
-            sub.plan_id = target.id
-            sub.status = 'active'
-            sub.updated_at = now
-        # Reset plan-derived quotas to the new plan; preserves manual
-        # overrides because `apply_plan_quotas_to_tenant` only touches
-        # `source='plan'` rows.
-        try:
-            from .quota_engine import apply_plan_quotas_to_tenant
-            apply_plan_quotas_to_tenant(tenant, target, commit=False)
-        except Exception:
-            pass
-    # Ledger entry for the diff.
-    extra = float(quote.get('extra_charge') or 0)
     ledger_entry = None
-    if tenant and target and abs(extra) >= 0.01:
-        entry_type = 'debit' if extra > 0 else 'credit'
-        ledger_entry = WalletLedger(
-            tenant_id=tenant.id,
+    if tenant and target:
+        from .billing_engine import change_plan as _change_plan
+        # Carry the case identity in the ledger reference so finance
+        # can trace every plan-change line back to the originating
+        # support case, not just the resulting subscription row.
+        result = _change_plan(
+            tenant, target,
             actor_user_id=actor_user_id,
-            entry_type=entry_type,
-            amount=round(abs(extra), 2),
-            currency=quote['currency'],
-            note=(
-                f'Plan change applied: {_plan_label(quote.get("current_plan"))} → '
-                f'{_plan_label(target)} ({quote.get("remaining_days", 0)} day(s) remaining)'
-            ),
-            reference=f'PCH-{tenant.id}-{case.id}',
-            category=_PLAN_CHANGE_LEDGER_CATEGORY,
-            is_recurring=False,
+            reference_token=f'PCH-{tenant.id}-{case.id}',
+            now=now,
+            commit=False,
         )
-        db.session.add(ledger_entry)
+        if result.ledger_entry_id is not None:
+            ledger_entry = WalletLedger.query.get(result.ledger_entry_id)
     quote['ledger_entry'] = ledger_entry
+    extra = float(quote.get('extra_charge') or 0)
     # Mark case resolved.
     case.status = 'resolved'
     case.updated_at = now

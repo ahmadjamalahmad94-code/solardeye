@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{# v82 — financial workbench detail page for one plan-change request.
+
+   Operations desk feel: KPI band of the request's own state, side-
+   by-side scenario cards (same-duration vs reduced-days), an
+   audit-history rail, and a single action toolbar. Every number
+   the operator decides on is computed server-side by
+   `plan_change_workbench` so the math stays testable and auditable. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+{% set sc_same = scenarios.same_duration %}
+{% set sc_reduced = scenarios.reduced_days %}
+{% set status = case.status or 'open' %}
+{% set is_open = status not in ['resolved','closed','cancelled'] %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area admin-shell-v2">
+
+    {# ─── Page head with breadcrumb back to the queue ───────────── #}
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">
+          <a href="{{ url_for('billing.admin_plan_change_requests', lang=ui_lang) }}" style="text-decoration:none;color:inherit">
+            {{ 'Billing operations · Plan-change requests' if is_en else 'العمليات المالية · طلبات تغيير الخطة' }}
+          </a>
+          · #<span dir="ltr">{{ case.id }}</span>
+        </span>
+        <h1>{{ 'Plan-change workbench' if is_en else 'ورشة تغيير الخطة' }}</h1>
+        <p>
+          {{ 'Run the scenarios, propose terms to the subscriber, issue a payment request, then apply.' if is_en else 'احسب السيناريوهات، اطرح المقترح على المشترك، أصدر طلب دفع، ثم طبّق التغيير.' }}
+        </p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="status-pill {% if status == 'resolved' %}success{% elif status in ['closed','cancelled'] %}danger{% elif status in ['payment_requested','awaiting_subscriber_reply'] %}warning{% endif %}">
+          {{ ui_label(status, 'status', ui_lang) }}
+        </span>
+      </div>
+    </header>
+
+    {# ─── Request facts band ────────────────────────────────────── #}
+    <section class="admin-kpi-grid-v2">
+      <article class="admin-kpi-card">
+        <small>{{ 'Subscriber' if is_en else 'المشترك' }}</small>
+        <strong>{{ (user.full_name or user.username) if user else '—' }}</strong>
+        <span>{{ mask_email(user.email) if user and user.email else (user.username if user else '—') }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small>
+        <strong>{{ sc_same.current_plan_price | round(2) }} {{ sc_same.currency }}</strong>
+        <span>{{ sc_same.cycle_days_current }} {{ 'day cycle' if is_en else 'يوم/دورة' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Target plan' if is_en else 'الخطة المطلوبة' }}</small>
+        {% if target_plan %}
+          <strong>{{ target_plan.name_ar or target_plan.name_en or target_plan.code }}</strong>
+          <span dir="ltr">{{ sc_same.target_plan_price | round(2) }} {{ sc_same.currency }} · {{ sc_same.cycle_days_target }}d</span>
+        {% else %}
+          <strong>—</strong>
+          <span>{{ 'Could not resolve target plan from subject' if is_en else 'تعذّر استخراج الخطة المطلوبة' }}</span>
+        {% endif %}
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Remaining' if is_en else 'الأيام المتبقّية' }}</small>
+        <strong dir="ltr">{{ sc_same.remaining_days }}</strong>
+        <span>{{ 'days on current plan' if is_en else 'يوم على الخطة الحالية' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Subject' if is_en else 'الموضوع' }}</small>
+        <strong style="font-size:0.95rem;font-weight:600">{{ case.subject or '—' }}</strong>
+        <span dir="ltr">{{ case.created_at.strftime('%Y-%m-%d %H:%M') if case.created_at else '—' }}</span>
+      </article>
+    </section>
+
+    {# ─── Pending invoice band (only when there's one open) ─────── #}
+    {% if pending_invoice %}
+    <section class="admin-card-v2" style="border:1px solid #f59e0b;background:rgba(245,158,11,0.04);margin-bottom:14px">
+      <div class="section-heading-inline">
+        <div>
+          <small>⚠ {{ 'Pending invoice' if is_en else 'طلب دفع معلّق' }}</small>
+          <h3 dir="ltr">{{ pending_invoice.reference }}</h3>
+        </div>
+        <div style="text-align:end">
+          <strong style="font-size:1.4rem" dir="ltr">{{ pending_invoice.amount | round(2) }} {{ pending_invoice.currency }}</strong>
+          <div class="table-sub" dir="ltr">{{ pending_invoice.created_at.strftime('%Y-%m-%d %H:%M') if pending_invoice.created_at else '—' }}</div>
+        </div>
+      </div>
+      <p style="margin:8px 0 0 0;color:#92400e">
+        {{ 'The subscriber has been notified. Applying the request will settle this invoice automatically. Rejecting or cancelling will write a counter-credit.' if is_en else 'تم إبلاغ المشترك بطلب الدفع. تطبيق الطلب يسوّي هذا القيد تلقائيًا، والرفض/الإغلاق يكتب قيدًا معاكسًا.' }}
+      </p>
+    </section>
+    {% endif %}
+
+    {# ─── Side-by-side scenarios ────────────────────────────────── #}
+    <section class="admin-card-v2" style="margin-bottom:14px">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Financial scenarios' if is_en else 'السيناريوهات المالية' }}</small>
+          <h3>{{ 'Pick a pricing mode for any action' if is_en else 'اختر نمط التسعير لأي إجراء' }}</h3>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;padding:8px">
+
+        {# ── Scenario A — same duration ─────────────────────────── #}
+        <article class="admin-card-v2" style="border:1px solid #6366f1;background:rgba(99,102,241,0.04)">
+          <div class="section-heading-inline">
+            <div>
+              <small>{{ 'Scenario A' if is_en else 'السيناريو أ' }}</small>
+              <h3>{{ sc_same.label_en if is_en else sc_same.label_ar }}</h3>
+            </div>
+            <strong dir="ltr" style="font-size:1.4rem;{% if sc_same.amount > 0 %}color:#d97706{% elif sc_same.amount < 0 %}color:#059669{% endif %}">
+              {{ '%+.2f'|format(sc_same.amount) }} {{ sc_same.currency }}
+            </strong>
+          </div>
+          <p style="margin:6px 0 8px 0">{{ sc_same.summary_en if is_en else sc_same.summary_ar }}</p>
+          <table class="admin-table-v2" style="margin:0">
+            <tbody>
+              <tr><td>{{ 'Remaining days' if is_en else 'الأيام المتبقّية' }}</td><td dir="ltr"><strong>{{ sc_same.remaining_days }}</strong></td></tr>
+              <tr><td>{{ 'Target days (this scenario)' if is_en else 'أيام الباقة الجديدة' }}</td><td dir="ltr"><strong>{{ sc_same.target_days }}</strong></td></tr>
+              <tr><td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td><td dir="ltr"><strong>{{ '%.2f'|format(sc_same.current_remaining_value) }} {{ sc_same.currency }}</strong></td></tr>
+              <tr><td>{{ 'Target equivalent value' if is_en else 'القيمة المكافئة على الباقة الجديدة' }}</td><td dir="ltr"><strong>{{ '%.2f'|format(sc_same.target_remaining_value) }} {{ sc_same.currency }}</strong></td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        {# ── Scenario B — reduced days ──────────────────────────── #}
+        <article class="admin-card-v2" style="border:1px solid #10b981;background:rgba(16,185,129,0.04)">
+          <div class="section-heading-inline">
+            <div>
+              <small>{{ 'Scenario B' if is_en else 'السيناريو ب' }}</small>
+              <h3>{{ sc_reduced.label_en if is_en else sc_reduced.label_ar }}</h3>
+            </div>
+            <strong dir="ltr" style="font-size:1.4rem;{% if sc_reduced.amount > 0 %}color:#d97706{% elif sc_reduced.amount < 0 %}color:#059669{% endif %}">
+              {{ '%+.2f'|format(sc_reduced.amount) }} {{ sc_reduced.currency }}
+            </strong>
+          </div>
+          <p style="margin:6px 0 8px 0">{{ sc_reduced.summary_en if is_en else sc_reduced.summary_ar }}</p>
+          <table class="admin-table-v2" style="margin:0">
+            <tbody>
+              <tr><td>{{ 'Free target days (no extra charge)' if is_en else 'أيام مجانية على الباقة الجديدة (دون مبلغ إضافي)' }}</td><td dir="ltr"><strong>{{ sc_reduced.extra.free_target_days }}</strong></td></tr>
+              <tr><td>{{ 'Chosen target days' if is_en else 'الأيام المختارة' }}</td><td dir="ltr"><strong>{{ sc_reduced.target_days }}</strong></td></tr>
+              <tr><td>{{ 'Target per-day price' if is_en else 'سعر اليوم على الباقة الجديدة' }}</td><td dir="ltr"><strong>{{ '%.4f'|format(sc_reduced.extra.target_per_day_price) }} {{ sc_reduced.currency }}</strong></td></tr>
+              <tr><td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td><td dir="ltr"><strong>{{ '%.2f'|format(sc_reduced.current_remaining_value) }} {{ sc_reduced.currency }}</strong></td></tr>
+            </tbody>
+          </table>
+
+          {# Manual day adjustment — operator can preview before
+             committing by re-loading the page with the new value. #}
+          <form method="get" action="{{ url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=ui_lang) }}" style="margin-top:10px">
+            <label style="display:flex;gap:8px;align-items:center">
+              <span class="table-sub">{{ 'Adjust days on target plan:' if is_en else 'تعديل عدد الأيام على الباقة الجديدة:' }}</span>
+              <input type="number" name="desired_target_days" min="0" max="3650" value="{{ desired_target_days if desired_target_days is not none else sc_reduced.target_days }}" style="width:90px">
+              <button type="submit" class="btn-pill">{{ 'Recalculate' if is_en else 'احسب' }}</button>
+            </label>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    {# ─── Action toolbar ────────────────────────────────────────── #}
+    {% if is_open %}
+    <section class="admin-card-v2" style="margin-bottom:14px">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Action toolbar' if is_en else 'شريط الإجراءات' }}</small>
+          <h3>{{ 'Decide on the request' if is_en else 'اتخاذ قرار على الطلب' }}</h3>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;padding:8px">
+
+        {# Discussion form #}
+        <form method="post" action="{{ url_for('billing.admin_plan_change_request_discuss', case_id=case.id, lang=ui_lang) }}" class="admin-card-v2" style="border:1px solid #cbd5e1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <h4 style="margin-top:0">💬 {{ 'Send proposal to subscriber' if is_en else 'إرسال مقترح للمشترك' }}</h4>
+          <p class="table-sub" style="margin:0 0 8px 0">{{ 'The chosen scenario summary is appended automatically.' if is_en else 'يتم إرفاق ملخص السيناريو تلقائيًا.' }}</p>
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Pricing mode' if is_en else 'نمط التسعير' }}</span>
+            <select name="mode" style="width:100%">
+              <option value="same_duration">{{ sc_same.label_en if is_en else sc_same.label_ar }}</option>
+              <option value="reduced_days">{{ sc_reduced.label_en if is_en else sc_reduced.label_ar }}</option>
+            </select>
+          </label>
+          <input type="hidden" name="desired_target_days" value="{{ desired_target_days if desired_target_days is not none else sc_reduced.target_days }}">
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Message to subscriber (Arabic)' if is_en else 'نص المقترح للمشترك (عربي)' }}</span>
+            <textarea name="body" rows="3" style="width:100%" placeholder="{{ 'مقترح من الإدارة لتغيير الخطة...' }}" required></textarea>
+          </label>
+          <button type="submit" class="btn-pill">{{ '💬 Send proposal' if is_en else '💬 إرسال المقترح' }}</button>
+        </form>
+
+        {# Invoice / payment request form #}
+        <form method="post" action="{{ url_for('billing.admin_plan_change_request_invoice', case_id=case.id, lang=ui_lang) }}" class="admin-card-v2" style="border:1px solid #f59e0b;background:rgba(245,158,11,0.04)">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <h4 style="margin-top:0">🧾 {{ 'Issue payment request' if is_en else 'إصدار طلب دفع' }}</h4>
+          <p class="table-sub" style="margin:0 0 8px 0">
+            {{ 'Records a pending obligation in the wallet ledger and notifies the subscriber. Only valid when the scenario amount is positive.' if is_en else 'يسجل التزامًا معلقًا في دفتر المحفظة ويُبلغ المشترك. مسموح فقط عندما يكون المبلغ موجبًا.' }}
+          </p>
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Pricing mode' if is_en else 'نمط التسعير' }}</span>
+            <select name="mode" style="width:100%">
+              <option value="same_duration">{{ sc_same.label_en if is_en else sc_same.label_ar }} ({{ '%+.2f'|format(sc_same.amount) }} {{ sc_same.currency }})</option>
+              <option value="reduced_days">{{ sc_reduced.label_en if is_en else sc_reduced.label_ar }} ({{ '%+.2f'|format(sc_reduced.amount) }} {{ sc_reduced.currency }})</option>
+            </select>
+          </label>
+          <input type="hidden" name="desired_target_days" value="{{ desired_target_days if desired_target_days is not none else sc_reduced.target_days }}">
+          <button type="submit" class="btn-pill warning" onclick="return confirm('{{ 'Issue this payment request and notify the subscriber?' if is_en else 'إصدار طلب الدفع وإبلاغ المشترك؟' }}');">
+            🧾 {{ 'Issue invoice' if is_en else 'إصدار الطلب' }}
+          </button>
+        </form>
+
+        {# Final apply form #}
+        <form method="post" action="{{ url_for('billing.admin_plan_change_request_approve', case_id=case.id, lang=ui_lang) }}" class="admin-card-v2" style="border:1px solid #10b981;background:rgba(16,185,129,0.04)">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <h4 style="margin-top:0">✅ {{ 'Approve & apply' if is_en else 'موافقة وتطبيق' }}</h4>
+          <p class="table-sub" style="margin:0 0 8px 0">
+            {{ 'Applies the plan change with the chosen scenario. Settles any pending invoice automatically.' if is_en else 'يطبّق تغيير الخطة بالسيناريو المختار. يسوّي أي قيد معلق تلقائيًا.' }}
+          </p>
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Pricing mode' if is_en else 'نمط التسعير' }}</span>
+            <select name="mode" style="width:100%">
+              <option value="same_duration">{{ sc_same.label_en if is_en else sc_same.label_ar }} ({{ '%+.2f'|format(sc_same.amount) }} {{ sc_same.currency }})</option>
+              <option value="reduced_days">{{ sc_reduced.label_en if is_en else sc_reduced.label_ar }} ({{ '%+.2f'|format(sc_reduced.amount) }} {{ sc_reduced.currency }})</option>
+            </select>
+          </label>
+          <input type="hidden" name="desired_target_days" value="{{ desired_target_days if desired_target_days is not none else sc_reduced.target_days }}">
+          <button type="submit" class="btn-pill success" {% if not target_plan %}disabled{% endif %} onclick="return confirm('{{ 'Apply the plan change and write the final ledger entry?' if is_en else 'تطبيق تغيير الخطة وتسجيل القيد المالي النهائي؟' }}');">
+            ✅ {{ 'Apply' if is_en else 'تطبيق' }}
+          </button>
+        </form>
+
+        {# Reject form #}
+        <form method="post" action="{{ url_for('billing.admin_plan_change_request_reject', case_id=case.id, lang=ui_lang) }}" class="admin-card-v2" style="border:1px solid #ef4444">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <h4 style="margin-top:0">✖ {{ 'Reject' if is_en else 'رفض' }}</h4>
+          <p class="table-sub" style="margin:0 0 8px 0">{{ 'Notifies the subscriber. Reverses any pending invoice with a counter-credit.' if is_en else 'يُبلغ المشترك. يعكس أي قيد دفع معلق برصيد مقابل.' }}</p>
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Reason (optional)' if is_en else 'السبب (اختياري)' }}</span>
+            <input type="text" name="reason" placeholder="{{ 'Reason for rejection...' if is_en else 'سبب الرفض...' }}" style="width:100%">
+          </label>
+          <button type="submit" class="btn-pill danger" onclick="return confirm('{{ 'Reject this request and notify the subscriber?' if is_en else 'رفض الطلب وإبلاغ المشترك؟' }}');">
+            ✖ {{ 'Reject' if is_en else 'رفض' }}
+          </button>
+        </form>
+
+        {# Cancel form (silent close) #}
+        <form method="post" action="{{ url_for('billing.admin_plan_change_request_cancel', case_id=case.id, lang=ui_lang) }}" class="admin-card-v2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <h4 style="margin-top:0">⏸ {{ 'Cancel (silent close)' if is_en else 'إغلاق صامت' }}</h4>
+          <p class="table-sub" style="margin:0 0 8px 0">{{ 'Closes without notifying the subscriber. Used for duplicates/cleanup.' if is_en else 'يُغلق دون إبلاغ المشترك. يستخدم للمكررات والتنظيف.' }}</p>
+          <label style="display:block;margin-bottom:8px">
+            <span class="table-sub">{{ 'Internal note (optional)' if is_en else 'ملاحظة داخلية (اختيارية)' }}</span>
+            <input type="text" name="reason" placeholder="{{ 'Internal cleanup note...' if is_en else 'ملاحظة تنظيف داخلية...' }}" style="width:100%">
+          </label>
+          <button type="submit" class="btn-pill" onclick="return confirm('{{ 'Close this request without notifying the subscriber?' if is_en else 'إغلاق الطلب دون إبلاغ المشترك؟' }}');">
+            ⏸ {{ 'Close' if is_en else 'إغلاق' }}
+          </button>
+        </form>
+
+      </div>
+    </section>
+    {% endif %}
+
+    {# ─── History rail ──────────────────────────────────────────── #}
+    <section class="admin-card-v2">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Audit trail' if is_en else 'سجل العمليات' }}</small>
+          <h3>{{ 'Request history' if is_en else 'تاريخ الطلب' }}</h3>
+        </div>
+      </div>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'When' if is_en else 'متى' }}</th>
+              <th>{{ 'Action' if is_en else 'الإجراء' }}</th>
+              <th>{{ 'Summary' if is_en else 'الوصف' }}</th>
+              <th>{{ 'Actor' if is_en else 'الفاعل' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+              <tr>
+                <td><span class="table-sub" dir="ltr">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</span></td>
+                <td><strong>{{ item.action }}</strong></td>
+                <td>{{ item.summary }}</td>
+                <td>{{ item.actor_user_id if item.actor_user_id else '—' }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" style="text-align:center;padding:14px">{{ 'No history yet.' if is_en else 'لا توجد عمليات سابقة بعد.' }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+{% endblock %}

@@ -295,42 +295,43 @@ def admin_subscriber_extend(user_id):
     if amount <= 0:
         flash('أدخل مدة صحيحة لإضافتها', 'warning')
         return redirect(url_for('main.admin_subscribers', lang=_lang()))
-    base = sub.ends_at if sub and sub.ends_at and sub.ends_at > datetime.utcnow() else datetime.utcnow()
     if unit == 'months':
         delta_days = amount * 30
     elif unit == 'years':
         delta_days = amount * 365
     else:
         delta_days = amount
-    if sub:
-        sub.ends_at = base + timedelta(days=delta_days)
-        if unit == 'trial_days':
-            sub.status = 'trial'
-            sub.trial_ends_at = sub.ends_at
-        elif sub.status in ['expired', 'suspended', 'trial']:
-            sub.status = 'active'
-        sub.notes = ((sub.notes or '') + ('\n' if sub.notes else '') + (notes or f'Extended by {amount} {unit}')).strip()
-        sub.updated_at = datetime.utcnow()
-    if tenant:
-        tenant.status = 'trial' if unit == 'trial_days' else 'active'
-        tenant.updated_at = datetime.utcnow()
 
-    # Auto-generate ledger entry for paid extensions (skip free trial extensions)
-    if sub and unit != 'trial_days' and tenant:
-        try:
-            from ..services.subscriptions import _create_subscription_ledger_entry
-            plan_obj = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
-            if plan_obj and float(plan_obj.price or 0) > 0:
-                _create_subscription_ledger_entry(
-                    tenant, plan_obj, delta_days, sub,
-                    activated_by_user_id=admin_user.id if admin_user else None,
-                    is_renewal=True,
-                )
-        except Exception as exc:
-            current_app.logger.warning('Auto-ledger for extend failed: %s', exc)
-
-    db.session.commit()
-    flash('تمت إضافة مدة الاشتراك بنجاح', 'success')
+    # v82: route through the canonical billing engine. Prior behaviour
+    # charged the FULL plan price for every paid extension, even a
+    # 5-day bump on a $20 90-day Pro plan. The engine now charges a
+    # prorated fraction `(delta_days / plan.duration_days_default) *
+    # plan.price` so the operator can extend mid-cycle without
+    # accidentally double-charging the subscriber.
+    if not sub:
+        flash('لا يوجد اشتراك حالي ليتم تمديده.', 'warning')
+        return redirect(url_for('main.admin_subscribers', lang=_lang()))
+    try:
+        from ..services.billing_engine import extend as _engine_extend
+        result = _engine_extend(
+            tenant,
+            extra_days=delta_days,
+            actor_user_id=admin_user.id if admin_user else None,
+            notes=notes or f'Extended by {amount} {unit}',
+            is_trial_extension=(unit == 'trial_days'),
+            commit=True,
+        )
+        if abs(result.amount) >= 0.01:
+            flash(
+                f'تمت إضافة {delta_days} يوماً إلى الاشتراك. '
+                f'القيد المالي: {result.amount:.2f} {result.currency}.',
+                'success',
+            )
+        else:
+            flash('تمت إضافة المدة بدون أي تعديل مالي.', 'success')
+    except Exception as exc:
+        current_app.logger.warning('Subscription extend failed: %s', exc)
+        flash('تعذّر تمديد الاشتراك. حاول مرة أخرى.', 'danger')
     return redirect(url_for('main.admin_subscribers', lang=_lang()))
 
 
@@ -436,42 +437,81 @@ def _plan_change_request_or_404(case_id: int):
     return case
 
 
+# v82: ── Plan-change request admin queue + workbench ────────────────
+
+
+_PLAN_CHANGE_QUEUE_TABS = (
+    ('all', 'الكل', 'All'),
+    ('open', 'جديد', 'New'),
+    ('under_review', 'قيد المراجعة', 'Under review'),
+    ('awaiting_subscriber_reply', 'بانتظار المشترك', 'Awaiting subscriber'),
+    ('payment_requested', 'دفع مطلوب', 'Payment requested'),
+    ('resolved', 'مطبَّقة', 'Applied'),
+    ('closed', 'مرفوضة', 'Rejected'),
+    ('cancelled', 'ملغاة', 'Cancelled'),
+)
+
+
+def _plan_change_summary_counts(rows):
+    """Build the KPI band counts the workbench list page renders."""
+    from collections import Counter
+    counts = Counter((c.status or 'open') for c in rows)
+    total = len(rows)
+    return {
+        'total': total,
+        'open': counts.get('open', 0),
+        'under_review': counts.get('under_review', 0),
+        'awaiting_subscriber_reply': counts.get('awaiting_subscriber_reply', 0),
+        'payment_requested': counts.get('payment_requested', 0),
+        'resolved': counts.get('resolved', 0),
+        'closed': counts.get('closed', 0),
+        'cancelled': counts.get('cancelled', 0),
+    }
+
+
 @billing_bp.route('/admin/plan-change-requests', methods=['GET'])
 def admin_plan_change_requests():
     guard = _admin_guard('can_manage_subscriptions')
     if guard:
         return guard
-    from ..services.support_ops import (
-        compute_plan_change_quote, extract_plan_change_target_plan,
+    from ..services.plan_change_workbench import (
+        workbench_queue, quote_same_duration,
     )
-    cases = (
-        SupportCase.query
-        .filter_by(case_type='plan_change_request')
-        .order_by(SupportCase.status.asc(), SupportCase.updated_at.desc(), SupportCase.id.desc())
-        .limit(200)
-        .all()
+    from ..services.support_ops import extract_plan_change_target_plan
+    status_filter = (request.args.get('status') or 'all').strip()
+    cases_all = workbench_queue(limit=400)
+    filtered = (
+        cases_all if status_filter == 'all'
+        else [c for c in cases_all if (c.status or 'open') == status_filter]
     )
     rows = []
-    for c in cases:
+    for c in filtered:
         user = AppUser.query.get(c.user_id) if c.user_id else None
         target = extract_plan_change_target_plan(c)
-        quote = compute_plan_change_quote(c, target_plan=target)
+        scenario = quote_same_duration(c, target_plan=target)
         rows.append({
             'case': c,
             'user': user,
             'target_plan': target,
-            'quote': quote,
+            'scenario': scenario,
         })
     return render_template(
         'admin_plan_change_requests.html',
         rows=rows,
+        tabs=_PLAN_CHANGE_QUEUE_TABS,
+        active_status=status_filter,
+        counts=_plan_change_summary_counts(cases_all),
         ui_lang=_lang(),
         summary=_admin_counts_snapshot(),
+        focus_case_id=int(request.args.get('case') or 0),
     )
 
 
-@billing_bp.route('/admin/plan-change-requests/<int:case_id>/approve', methods=['POST'])
-def admin_plan_change_request_approve(case_id: int):
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>', methods=['GET'])
+def admin_plan_change_request_detail(case_id: int):
+    """Workbench detail view — the financial operations desk for a
+    single request. Shows current state, both scenarios, audit
+    history, pending invoice (if any), and the action toolbar."""
     guard = _admin_guard('can_manage_subscriptions')
     if guard:
         return guard
@@ -479,25 +519,168 @@ def admin_plan_change_request_approve(case_id: int):
     if not case:
         flash('طلب تغيير الخطة غير موجود.', 'warning')
         return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
-    if (case.status or '').lower() != 'open':
-        flash('لا يمكن تطبيق طلب مغلق أو منتهي.', 'warning')
-        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
-    from ..services.support_ops import apply_plan_change_request
+    from ..services.plan_change_workbench import (
+        build_scenario_set, case_audit_history, find_pending_invoice,
+        mark_under_review,
+    )
+    from ..services.support_ops import extract_plan_change_target_plan
+    # Idempotent state nudge: opening the workbench on a brand-new
+    # request flips it to "under_review" so the queue KPI reflects
+    # that someone is actively holding it.
     actor = _active_user()
-    result = apply_plan_change_request(
+    if case.status == 'open':
+        mark_under_review(
+            case,
+            actor_user_id=getattr(actor, 'id', None),
+            commit=True,
+        )
+    user = AppUser.query.get(case.user_id) if case.user_id else None
+    target_plan = extract_plan_change_target_plan(case)
+    desired_days_raw = (request.args.get('desired_target_days') or '').strip()
+    desired_days = int(desired_days_raw) if desired_days_raw.isdigit() else None
+    scenarios = build_scenario_set(
+        case, target_plan=target_plan, desired_target_days=desired_days,
+    )
+    pending_invoice = find_pending_invoice(case)
+    history = case_audit_history(case)
+    return render_template(
+        'admin_plan_change_workbench.html',
+        case=case,
+        user=user,
+        target_plan=target_plan,
+        scenarios=scenarios,
+        pending_invoice=pending_invoice,
+        history=history,
+        desired_target_days=desired_days,
+        ui_lang=_lang(),
+        summary=_admin_counts_snapshot(),
+    )
+
+
+def _resolve_scenario_from_form(case):
+    """Parse the pricing-mode + day-adjustment fields out of an admin
+    workbench POST and return a `Scenario` (raises `ValueError` for
+    unknown modes)."""
+    from ..services.plan_change_workbench import select_scenario
+    from ..services.support_ops import extract_plan_change_target_plan
+    mode = (request.form.get('mode') or 'same_duration').strip()
+    desired_days_raw = (request.form.get('desired_target_days') or '').strip()
+    desired_days = int(desired_days_raw) if desired_days_raw.isdigit() else None
+    target = extract_plan_change_target_plan(case)
+    return select_scenario(
+        case,
+        mode=mode,
+        target_plan=target,
+        desired_target_days=desired_days,
+    )
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/discuss', methods=['POST'])
+def admin_plan_change_request_discuss(case_id: int):
+    """Send a structured discussion proposal to the subscriber. The
+    chosen scenario is included in the notification message so the
+    subscriber sees the exact numbers the admin proposed."""
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.plan_change_workbench import send_discussion
+    actor = _active_user()
+    body = (request.form.get('body') or '').strip()
+    if not body:
+        flash('نص المحادثة مطلوب لإرسال مقترح.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+    try:
+        scenario = _resolve_scenario_from_form(case)
+    except ValueError:
+        scenario = None
+    send_discussion(
         case,
         actor_user_id=getattr(actor, 'id', None),
+        body=body,
+        scenario=scenario,
         commit=True,
     )
-    extra = float(result.get('extra_charge') or 0)
-    currency = result.get('currency') or 'USD'
-    if abs(extra) >= 0.01:
+    flash('تم إرسال المقترح للمشترك.', 'success')
+    return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/invoice', methods=['POST'])
+def admin_plan_change_request_invoice(case_id: int):
+    """Issue a payment-request / invoice-like obligation for the
+    chosen scenario. Only valid when the scenario amount is
+    positive (subscriber owes money)."""
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.plan_change_workbench import issue_invoice
+    actor = _active_user()
+    try:
+        scenario = _resolve_scenario_from_form(case)
+    except ValueError as exc:
+        flash(f'وضع التسعير غير معروف: {exc}', 'danger')
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+    if scenario.amount <= 0:
+        flash('لا يوجد مبلغ مستحق على المشترك لهذا السيناريو.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+    entry = issue_invoice(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        scenario=scenario,
+        commit=True,
+    )
+    if entry is not None:
         flash(
-            f'تم تطبيق تغيير الخطة. الفرق المسجّل: {extra:.2f} {currency}.',
+            f'تم إصدار طلب الدفع بمبلغ {scenario.amount:.2f} {scenario.currency}.',
+            'success',
+        )
+    return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/approve', methods=['POST'])
+def admin_plan_change_request_approve(case_id: int):
+    """Apply the request through the canonical billing engine using
+    the chosen scenario. Settles any pending invoice automatically."""
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    blocking = {'resolved', 'closed', 'cancelled'}
+    if (case.status or '').lower() in blocking:
+        flash('لا يمكن تطبيق طلب مغلق أو منتهٍ.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.plan_change_workbench import apply_request
+    actor = _active_user()
+    try:
+        scenario = _resolve_scenario_from_form(case)
+    except ValueError as exc:
+        flash(f'وضع التسعير غير معروف: {exc}', 'danger')
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+    result = apply_request(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        scenario=scenario,
+        commit=True,
+    )
+    amount = float(result.get('amount') or 0)
+    currency = result.get('currency') or scenario.currency
+    if abs(amount) >= 0.01:
+        flash(
+            f'تم تطبيق تغيير الخطة. القيد المسجّل: {amount:+.2f} {currency}.',
             'success',
         )
     else:
-        flash('تم تطبيق تغيير الخطة دون فرق مالي.', 'success')
+        flash('تم تطبيق تغيير الخطة دون أي فرق مالي.', 'success')
     return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
 
 
@@ -510,10 +693,10 @@ def admin_plan_change_request_reject(case_id: int):
     if not case:
         flash('طلب تغيير الخطة غير موجود.', 'warning')
         return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
-    from ..services.support_ops import reject_plan_change_request
+    from ..services.plan_change_workbench import reject_request
     actor = _active_user()
     reason = (request.form.get('reason') or '').strip()
-    reject_plan_change_request(
+    reject_request(
         case,
         actor_user_id=getattr(actor, 'id', None),
         reason=reason,
@@ -525,8 +708,7 @@ def admin_plan_change_request_reject(case_id: int):
 
 @billing_bp.route('/admin/plan-change-requests/<int:case_id>/cancel', methods=['POST'])
 def admin_plan_change_request_cancel(case_id: int):
-    """Soft-close without notifying the subscriber. Use when the
-    request was a duplicate / superseded by another admin action."""
+    """Close without notifying the subscriber (duplicates / cleanup)."""
     guard = _admin_guard('can_manage_subscriptions')
     if guard:
         return guard
@@ -534,19 +716,15 @@ def admin_plan_change_request_cancel(case_id: int):
     if not case:
         flash('طلب تغيير الخطة غير موجود.', 'warning')
         return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
-    from ..services.support_ops import audit_case
+    from ..services.plan_change_workbench import cancel_request
     actor = _active_user()
-    case.status = 'cancelled'
-    case.is_frozen = True
-    case.updated_at = datetime.utcnow()
-    audit_case(
-        case.case_type, case.source_id,
-        getattr(actor, 'id', None),
-        'plan_change.cancel',
-        'Admin closed plan-change request without applying',
-        commit=False,
+    reason = (request.form.get('reason') or '').strip()
+    cancel_request(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        reason=reason,
+        commit=True,
     )
-    db.session.commit()
     flash('تم إغلاق طلب تغيير الخطة دون تطبيقه.', 'success')
     return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
 

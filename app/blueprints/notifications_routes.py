@@ -457,6 +457,22 @@ def _agg_priority_label(priority):
 
 
 def _agg_open_url(kind, source_id, ev, lang='ar'):
+    # v82: plan-change events route admins straight to the workbench
+    # detail page. Falls through to the regular support routing for
+    # everything else.
+    raw_source = (
+        getattr(ev, 'source_type', None)
+        or getattr(ev, 'event_type', None)
+        or ''
+    ).strip().lower()
+    if raw_source == 'plan_change_request' and source_id:
+        try:
+            return url_for(
+                'billing.admin_plan_change_request_detail',
+                case_id=int(source_id), lang=lang,
+            )
+        except Exception:
+            pass
     if kind in {'message', 'ticket'} and source_id:
         try:
             return url_for('main.admin_support_command_center', lang=lang, case=f'{kind}-{int(source_id)}')

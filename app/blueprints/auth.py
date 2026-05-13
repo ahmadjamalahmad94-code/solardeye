@@ -558,5 +558,16 @@ def protect_routes():
                 # Fallback keeps older databases usable before Heavy v6 migration completes.
                 g.mail_notification_count = 0
                 g.ticket_notification_count = 0
+        # v82: count plan-change requests that are still waiting for an
+        # admin outcome. Drives the sidebar badge on the
+        # "Plan-change requests" entry. Safe-default to 0 on any error
+        # so a missing column / migration can never break navigation.
+        g.plan_change_open_count = 0
+        try:
+            if g.current_user is not None and g.is_admin:
+                from ..services.plan_change_workbench import open_request_count
+                g.plan_change_open_count = open_request_count()
+        except Exception:
+            g.plan_change_open_count = 0
 
     # Security: subscriber sessions must never render /admin/* pages, even if a notification conta
