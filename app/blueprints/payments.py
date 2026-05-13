@@ -388,99 +388,147 @@ def create_invoice_checkout():
 
 @payments_bp.route('/payments/stripe/diagnostics/selftest', methods=['GET'])
 def diagnostics_selftest():
-    """v92n — self-test that proves whether Stripe is accepting our
-    metadata at all.
-
-    Creates a minimal Checkout Session with deterministic test
-    metadata ({selftest: '1', stamp: <ts>}), immediately retrieves
-    it, and returns both metadata views side-by-side. If the
-    retrieved metadata is empty, the issue is with Stripe (or our
-    SDK version). If it has the keys, the issue is elsewhere
-    (route doesn't pass them, gets stripped somewhere else)."""
-    user = _active_user()
-    if user is None:
-        return jsonify({'ok': False, 'code': 'auth_required'}), 401
+    """v92n/v92o — self-test that proves whether Stripe is accepting
+    our metadata at all. Whole body wrapped so any exception
+    becomes a JSON 500 instead of an HTML 500 (which is useless
+    for diagnosis)."""
     try:
-        from ..services.stripe_gateway import (
-            _configure_stripe, StripeNotReady,
-        )
-        pkg = _configure_stripe()
-    except StripeNotReady:
-        return jsonify({'ok': False, 'code': 'stripe_not_ready'}), 503
-    except Exception:
-        logger.exception('selftest: configure failed')
-        return jsonify({'ok': False, 'code': 'internal_error'}), 500
-    stamp = str(int(datetime.utcnow().timestamp()))
-    sent_metadata = {
-        'selftest': '1',
-        'stamp': stamp,
-        'note': 'v92n_selftest',
-    }
-    try:
-        created = pkg.checkout.Session.create(
-            mode='payment',
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {'name': 'v92n self-test'},
-                    'unit_amount': 100,
-                },
-                'quantity': 1,
-            }],
-            success_url='https://example.com/success',
-            cancel_url='https://example.com/cancel',
-            metadata=sent_metadata,
-        )
-    except Exception as exc:
-        logger.exception('selftest: create failed')
-        return jsonify({
-            'ok': False,
-            'code': 'create_failed',
-            'err_class': type(exc).__name__,
-            'sent_metadata': sent_metadata,
-        }), 500
-    created_id = getattr(created, 'id', None)
-    created_md = getattr(created, 'metadata', None) or {}
-    if hasattr(created_md, 'to_dict_recursive'):
         try:
-            created_md = created_md.to_dict_recursive()
+            user = _active_user()
+        except Exception as exc:
+            logger.exception('selftest: _active_user raised')
+            return jsonify({
+                'ok': False, 'code': 'active_user_raised',
+                'err_class': type(exc).__name__,
+            }), 500
+        if user is None:
+            return jsonify({'ok': False, 'code': 'auth_required'}), 401
+        try:
+            from ..services.stripe_gateway import (
+                _configure_stripe, StripeNotReady,
+            )
+            pkg = _configure_stripe()
+        except StripeNotReady:
+            return jsonify({'ok': False, 'code': 'stripe_not_ready'}), 503
+        except Exception as exc:
+            logger.exception('selftest: configure failed')
+            return jsonify({
+                'ok': False, 'code': 'configure_failed',
+                'err_class': type(exc).__name__,
+            }), 500
+        try:
+            stamp = str(int(datetime.utcnow().timestamp()))
+        except Exception:
+            stamp = 'unknown'
+        sent_metadata = {
+            'selftest': '1',
+            'stamp': stamp,
+            'note': 'v92n_selftest',
+        }
+        try:
+            created = pkg.checkout.Session.create(
+                mode='payment',
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {'name': 'v92n self-test'},
+                        'unit_amount': 100,
+                    },
+                    'quantity': 1,
+                }],
+                success_url='https://example.com/success',
+                cancel_url='https://example.com/cancel',
+                metadata=sent_metadata,
+            )
+        except Exception as exc:
+            logger.exception('selftest: create failed')
+            user_message = getattr(exc, 'user_message', None)
+            param = getattr(exc, 'param', None)
+            return jsonify({
+                'ok': False,
+                'code': 'create_failed',
+                'err_class': type(exc).__name__,
+                'err_message': str(exc)[:400] if str(exc) else None,
+                'err_user_message': user_message,
+                'err_param': param,
+                'sent_metadata': sent_metadata,
+            }), 500
+        try:
+            created_id = getattr(created, 'id', None)
+        except Exception:
+            created_id = None
+        try:
+            created_md_raw = getattr(created, 'metadata', None) or {}
+            created_md = _coerce_to_plain_dict(created_md_raw)
         except Exception:
             created_md = {}
-    try:
-        retrieved = pkg.checkout.Session.retrieve(created_id)
-    except Exception as exc:
+        retrieved_md: dict = {}
+        retrieve_err = None
+        try:
+            retrieved = pkg.checkout.Session.retrieve(created_id)
+            retrieved_md_raw = getattr(retrieved, 'metadata', None) or {}
+            retrieved_md = _coerce_to_plain_dict(retrieved_md_raw)
+        except Exception as exc:
+            retrieve_err = type(exc).__name__
+            logger.exception('selftest: retrieve failed')
+        match = bool(retrieved_md and retrieved_md.get('stamp') == stamp)
+        return jsonify({
+            'ok': True,
+            'data': {
+                'sent_metadata': sent_metadata,
+                'created_id': created_id,
+                'metadata_in_create_response': created_md,
+                'metadata_in_retrieve_response': retrieved_md,
+                'retrieve_error': retrieve_err,
+                'match': match,
+                'hint': (
+                    'PASS — metadata round-trips through Stripe correctly. '
+                    'The 6 prior sessions came from a different path '
+                    'that did not include metadata.'
+                    if match else
+                    'FAIL — Stripe drops or strips the metadata kwarg. '
+                    'Most likely an outdated stripe-python in '
+                    'requirements.txt or the API key has restricted '
+                    'metadata-write permission.'
+                ),
+            },
+        })
+    except Exception as outer_exc:
+        logger.exception('selftest: outer raised')
         return jsonify({
             'ok': False,
-            'code': 'retrieve_failed',
-            'err_class': type(exc).__name__,
-            'sent_metadata': sent_metadata,
-            'created_id': created_id,
+            'code': 'unhandled',
+            'err_class': type(outer_exc).__name__,
+            'err_message': str(outer_exc)[:400] if str(outer_exc) else None,
         }), 500
-    retrieved_md = getattr(retrieved, 'metadata', None) or {}
-    if hasattr(retrieved_md, 'to_dict_recursive'):
+
+
+def _coerce_to_plain_dict(value) -> dict:
+    """Convert a Stripe StripeObject / nested mapping into a plain
+    JSON-serializable dict. Used by the diagnostics endpoint."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return {str(k): v for k, v in value.items()}
+    if hasattr(value, 'to_dict_recursive'):
         try:
-            retrieved_md = retrieved_md.to_dict_recursive()
+            d = value.to_dict_recursive()
+            if isinstance(d, dict):
+                return {str(k): v for k, v in d.items()}
         except Exception:
-            retrieved_md = {}
-    return jsonify({
-        'ok': True,
-        'data': {
-            'sent_metadata': sent_metadata,
-            'created_id': created_id,
-            'metadata_in_create_response': created_md,
-            'metadata_in_retrieve_response': retrieved_md,
-            'match': bool(retrieved_md) and dict(retrieved_md).get('stamp') == stamp,
-            'hint': (
-                'PASS — metadata round-trips through Stripe correctly. '
-                'The original missing-metadata sessions came from a '
-                'different code path or older SDK call.'
-                if dict(retrieved_md).get('stamp') == stamp else
-                'FAIL — Stripe drops metadata on session.create. This '
-                'is likely an SDK version or API version mismatch.'
-            ),
-        },
-    })
+            pass
+    if hasattr(value, 'to_dict'):
+        try:
+            d = value.to_dict()
+            if isinstance(d, dict):
+                return {str(k): v for k, v in d.items()}
+        except Exception:
+            pass
+    try:
+        return dict(value)
+    except Exception:
+        return {}
 
 
 # ── Diagnostic: list Stripe sessions for plan-change debugging ──
