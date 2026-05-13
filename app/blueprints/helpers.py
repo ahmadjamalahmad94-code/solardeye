@@ -513,6 +513,11 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         # crash on a missing key.
         'external_ac_input_w': 0.0,
         'feed_in_w': 0.0,
+        # v93m — same defensive default for the diagnostics tier.
+        'grid_status_raw': '',
+        'grid_status_label': '',
+        'daily_generator_kwh': None,
+        'total_generator_kwh': None,
     }
     if not latest:
         return empty
@@ -531,6 +536,14 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
     # number so the UI can show it as "إدخال خارجي".
     external_ac_input_w = 0.0
     feed_in_w = 0.0
+    # v93m — diagnostic fields so the user can verify whether
+    # Deye is actually seeing AC-IN. When the live wattage is
+    # zero, the cumulative kWh + gridStatus label tell us if
+    # the inverter has ever seen any AC-IN today.
+    grid_status_raw = ''
+    grid_status_label = ''
+    daily_generator_kwh = None
+    total_generator_kwh = None
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
@@ -548,6 +561,32 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
                     external_ac_input_w = abs(gps)
                 elif gps > 0:
                     feed_in_w = abs(gps)
+            # v93m — pull diagnostic fields. `gridStatus` mapping:
+            #   Static    → "بدون شبكة" (off-grid setup)
+            #   On / Run  → "متّصل بالشبكة"
+            #   Off       → "غير متّصل"
+            grid_status_raw = str(derived.get('gridStatus') or '').strip()
+            gs_lower = grid_status_raw.lower()
+            if 'static' in gs_lower:
+                grid_status_label = 'بدون شبكة (وضع احتياطي)'
+            elif gs_lower in {'on', 'run', 'normal', 'connected'}:
+                grid_status_label = 'متّصل بالشبكة/AC IN'
+            elif gs_lower in {'off', 'disconnected'}:
+                grid_status_label = 'غير متّصل'
+            elif grid_status_raw:
+                grid_status_label = grid_status_raw
+            try:
+                v = derived.get('dailyGeneratorKwh')
+                if v is not None:
+                    daily_generator_kwh = float(v)
+            except (TypeError, ValueError):
+                pass
+            try:
+                v = derived.get('totalGeneratorKwh')
+                if v is not None:
+                    total_generator_kwh = float(v)
+            except (TypeError, ValueError):
+                pass
         except Exception:
             pass
 
@@ -623,6 +662,18 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         # label keeps the wording accurate either way.
         'external_ac_input_w': round(external_ac_input_w, 1),
         'feed_in_w': round(feed_in_w, 1),
+        # v93m — diagnostic fields so the user can verify what
+        # Deye is reporting even when the live wattage reads 0.
+        'grid_status_raw': grid_status_raw,
+        'grid_status_label': grid_status_label,
+        'daily_generator_kwh': (
+            round(daily_generator_kwh, 2)
+            if daily_generator_kwh is not None else None
+        ),
+        'total_generator_kwh': (
+            round(total_generator_kwh, 2)
+            if total_generator_kwh is not None else None
+        ),
     }
 
 

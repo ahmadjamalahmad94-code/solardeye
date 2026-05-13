@@ -328,15 +328,39 @@ class DeyeClient:
         else:
             charge_power = discharge_power = battery_power = 0.0
 
-        # ── Grid power ────────────────────────────────────────────────────────
+        # ── Grid / generator power ────────────────────────────────────────────
+        # v93m — On a Deye hybrid inverter the AC-IN port carries BOTH
+        # utility grid AND any backup generator wired to the same
+        # terminal. The cloud API does not differentiate the two
+        # sources; both produce a non-zero `totalGridPower`.
+        #
+        # Pre-v93m we masked `grid_power` to 0 whenever
+        # `gridStatus == 'Static'` (battery-backup setup), assuming
+        # "Static" meant "nothing on the AC-IN port". That was wrong —
+        # "Static" only means "no utility grid detected"; a running
+        # generator wired to AC-IN can still provide hundreds of watts
+        # which Deye correctly reports as `totalGridPower`. The old
+        # mask was hiding the generator from off-grid users.
+        #
+        # New behaviour: trust the wattage. Filter out small readings
+        # below 5 W as electrical noise. The raw `gridStatus` string
+        # is surfaced separately so the UI can label the source
+        # honestly ("شبكة" vs "مولد" can't be inferred — we label it
+        # "AC-IN" / "إدخال خارجي").
         grid_power_raw = _f('totalGridPower')
         grid_feedin    = _f('gridTiePower')
-        # gridStatus: "Static" = no grid connection (BATTERY_BACKUP system)
-        grid_status = str(d.get('gridStatus') or '').lower()
-        if 'static' in grid_status or abs(grid_power_raw) < 5:
+        grid_status_raw = str(d.get('gridStatus') or '').strip()
+        if abs(grid_power_raw) < 5:
             grid_power = 0.0
         else:
             grid_power = grid_power_raw
+        # Cumulative AC-IN energy counters (kWh). On most residential
+        # Deye hybrids the field name embeds "generator" because the
+        # firmware was originally designed for genset backup; the
+        # counter actually sums all AC-IN energy regardless of
+        # source.
+        daily_gen_kwh    = _f('dailyProductiongenerator')
+        total_gen_kwh    = _f('totalProductiongenerator')
 
         inverter_power = _f('inverterOutputPowerL1l2') or solar_power
 
@@ -392,6 +416,13 @@ class DeyeClient:
                     'purchasePower':     max(-grid_power, 0),
                     'feedInPower':       max(grid_power, 0),
                     'gridPowerSigned':   grid_power,
+                    # v93m — diagnostic fields so the UI can explain
+                    # *why* AC-IN power is zero (no source on the port
+                    # vs. raw value masked vs. inverter says "static").
+                    'gridStatus':              grid_status_raw,
+                    'totalGridPowerRaw':       grid_power_raw,
+                    'dailyGeneratorKwh':       daily_gen_kwh,
+                    'totalGeneratorKwh':       total_gen_kwh,
                     # PV strings
                     'dcPowerPv1': pv1_power,
                     'dcPowerPv2': pv2_power,
