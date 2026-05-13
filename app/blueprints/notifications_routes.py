@@ -457,15 +457,30 @@ def _agg_priority_label(priority):
 
 
 def _agg_open_url(kind, source_id, ev, lang='ar'):
-    # v82: plan-change events route admins straight to the workbench
-    # detail page. Falls through to the regular support routing for
-    # everything else.
+    # v82 / v93b — plan-change events route ADMINS straight to the
+    # workbench detail page. Subscribers (and anyone else viewing
+    # their OWN notifications) should be routed to the URL the
+    # notification actually carries (`direct_url`), NOT the admin
+    # surface — because the subscriber should never land on
+    # /admin/* even if user_id=1 happens to be both admin and
+    # subscriber. We resolve "is this viewer admin?" once via the
+    # same `_is_admin_like` helper the aggregator already uses
+    # below to decide which events to surface at all.
     raw_source = (
         getattr(ev, 'source_type', None)
         or getattr(ev, 'event_type', None)
         or ''
     ).strip().lower()
-    if raw_source == 'plan_change_request' and source_id:
+    viewer = _active_user()
+    viewer_is_admin = _is_admin_like(viewer)
+    # Heuristic: events whose event_type ends with `_admin` are
+    # explicitly admin-targeted regardless of viewer role; keep
+    # their admin URL.
+    ev_type = (getattr(ev, 'event_type', None) or '').strip().lower()
+    is_admin_targeted_event = ev_type.endswith('_admin')
+    if raw_source == 'plan_change_request' and source_id and (
+        viewer_is_admin or is_admin_targeted_event
+    ):
         try:
             return url_for(
                 'billing.admin_plan_change_request_detail',
@@ -473,7 +488,7 @@ def _agg_open_url(kind, source_id, ev, lang='ar'):
             )
         except Exception:
             pass
-    if kind in {'message', 'ticket'} and source_id:
+    if kind in {'message', 'ticket'} and source_id and viewer_is_admin:
         try:
             return url_for('main.admin_support_command_center', lang=lang, case=f'{kind}-{int(source_id)}')
         except Exception:
