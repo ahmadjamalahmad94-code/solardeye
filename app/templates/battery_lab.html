@@ -60,6 +60,18 @@
           {% if battery_insights.grid_relay_status_label %}
           <div><span>ريليه AC IN</span><strong>{{ battery_insights.grid_relay_status_label }}</strong></div>
           {% endif %}
+          {# v93o — when the relay is Break and the device-tier
+             AC-IN sensor reads 0 W, the station-tier
+             `generationPower` exposes the hidden source.
+             Surface BOTH the raw station figure and the
+             inferred external-input estimate so the user can
+             reason about the discrepancy. #}
+          {% if battery_insights.inferred_external_w is not none %}
+          <div><span>إدخال خارجي محسوب (مولد محتمل)</span><strong>{{ battery_insights.inferred_external_w }} W</strong></div>
+          {% endif %}
+          {% if battery_insights.station_generation_w is not none %}
+          <div><span>إنتاج محطة (Deye station)</span><strong>{{ battery_insights.station_generation_w }} W</strong></div>
+          {% endif %}
           {% if battery_insights.daily_generator_kwh is not none %}
           <div><span>إدخال خارجي اليوم</span><strong>{{ battery_insights.daily_generator_kwh }} kWh</strong></div>
           {% endif %}

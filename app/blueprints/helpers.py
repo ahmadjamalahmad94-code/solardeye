@@ -521,6 +521,10 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         # v93n — relay status defaults.
         'grid_relay_status_raw': '',
         'grid_relay_status_label': '',
+        # v93o — station-tier discrepancy defaults.
+        'station_generation_w': None,
+        'pv_total_w': 0.0,
+        'inferred_external_w': None,
     }
     if not latest:
         return empty
@@ -558,6 +562,20 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
     # internal current sensor.
     relay_status_raw = ''
     relay_status_label = ''
+    # v93o — `station_summary.generationPower` is what Deye reports
+    # at the STATION tier — total generation throughput of the
+    # inverter regardless of how the device-tier sensors split it
+    # up. On a BATTERY_BACKUP system with relay=Break, the device
+    # tier shows 0 W on AC-IN and ~0 W on PV strings, yet the
+    # station tier reports the actual through-power (e.g.
+    # 1003 W of "generation" when a generator is feeding the
+    # battery via a transfer switch). We surface this so the
+    # user can see the hidden source — labelled honestly as
+    # "إنتاج محطة (مجمّع)" rather than "generator" because Deye
+    # doesn't attribute it to a specific source.
+    station_generation_w = None
+    pv_total_w = 0.0
+    inferred_external_w = None
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
@@ -615,6 +633,46 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
                 relay_status_label = 'موصول — Deye يقيس AC IN'
             elif relay_status_raw:
                 relay_status_label = relay_status_raw
+            # v93o — pull station-tier generationPower + sum PV
+            # strings so the UI can show the discrepancy when
+            # AC-IN is hidden by relay=Break.
+            try:
+                pv1 = safe_power_w(derived.get('dcPowerPv1'), 0.0)
+                pv2 = safe_power_w(derived.get('dcPowerPv2'), 0.0)
+                pv3 = safe_power_w(derived.get('dcPowerPv3'), 0.0)
+                pv_total_w = max(pv1 + pv2 + pv3, 0.0)
+            except Exception:
+                pv_total_w = 0.0
+            try:
+                station_summary = raw.get('station_summary') if isinstance(raw, dict) else None
+                latest_blob = raw.get('latest') if isinstance(raw, dict) else None
+                gen_val = None
+                for blob in (latest_blob, station_summary):
+                    if isinstance(blob, dict):
+                        candidate = blob.get('generationPower')
+                        if candidate is not None:
+                            gen_val = candidate
+                            break
+                if gen_val is not None:
+                    station_generation_w = float(gen_val)
+            except (TypeError, ValueError):
+                station_generation_w = None
+            # When AC-IN sensor reads 0 W (e.g. relay=Break) but
+            # station_generation_w exceeds the device-tier PV total
+            # by a meaningful margin, that gap is a strong signal
+            # of generator power Deye knows about at the station
+            # tier but doesn't expose at the device tier. We
+            # compute it as a separate `inferred_external_w`
+            # field — labelled clearly as محسوب so the user knows
+            # this isn't a direct measurement.
+            if (
+                station_generation_w is not None
+                and external_ac_input_w <= 5.0
+                and station_generation_w - pv_total_w >= 50.0
+            ):
+                inferred_external_w = max(
+                    station_generation_w - pv_total_w, 0.0,
+                )
         except Exception:
             pass
 
@@ -707,6 +765,23 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         # regardless of what the user does in software.
         'grid_relay_status_raw': relay_status_raw,
         'grid_relay_status_label': relay_status_label,
+        # v93o — station-tier production + inferred external
+        # input. `station_generation_w` is the raw figure Deye
+        # reports for the whole station; `pv_total_w` is the
+        # sum of the three PV string powers from the device tier.
+        # `inferred_external_w` is non-None only when the gap
+        # between them is meaningful and the AC-IN sensor
+        # reads ~0 W — i.e., the generator is feeding the
+        # inverter through a path Deye doesn't sense.
+        'station_generation_w': (
+            round(station_generation_w, 1)
+            if station_generation_w is not None else None
+        ),
+        'pv_total_w': round(pv_total_w, 1),
+        'inferred_external_w': (
+            round(inferred_external_w, 1)
+            if inferred_external_w is not None else None
+        ),
     }
 
 
