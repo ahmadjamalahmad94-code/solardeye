@@ -518,6 +518,9 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'grid_status_label': '',
         'daily_generator_kwh': None,
         'total_generator_kwh': None,
+        # v93n — relay status defaults.
+        'grid_relay_status_raw': '',
+        'grid_relay_status_label': '',
     }
     if not latest:
         return empty
@@ -544,6 +547,17 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
     grid_status_label = ''
     daily_generator_kwh = None
     total_generator_kwh = None
+    # v93n — `gridRelayStatus` is the SINGLE most important
+    # diagnostic when AC-IN reads 0 with a generator running.
+    # "Break" means the inverter has electrically isolated AC IN
+    # (usually because the source frequency/voltage failed
+    # Deye's sync checks). In that mode Deye physically cannot
+    # measure generator power because the sensing relay is
+    # open — the generator is feeding the battery via an
+    # external path (transfer switch) that bypasses Deye's
+    # internal current sensor.
+    relay_status_raw = ''
+    relay_status_label = ''
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
@@ -587,6 +601,20 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
                     total_generator_kwh = float(v)
             except (TypeError, ValueError):
                 pass
+            # v93n — gridRelayStatus translation. The Deye firmware
+            # reports the AC-IN relay state in English; we translate
+            # to actionable Arabic so a subscriber doesn't have to
+            # know what "Break" means.
+            relay_status_raw = str(derived.get('gridRelayStatus') or '').strip()
+            rs_lower = relay_status_raw.lower()
+            if 'break' in rs_lower:
+                relay_status_label = (
+                    'مفصول كهربائيًا — Deye لا يقيس AC IN'
+                )
+            elif 'close' in rs_lower or 'on' in rs_lower or 'normal' in rs_lower:
+                relay_status_label = 'موصول — Deye يقيس AC IN'
+            elif relay_status_raw:
+                relay_status_label = relay_status_raw
         except Exception:
             pass
 
@@ -674,6 +702,11 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
             round(total_generator_kwh, 2)
             if total_generator_kwh is not None else None
         ),
+        # v93n — AC-IN relay state. When this is "Break" the
+        # generator wattage is genuinely unmeasurable by Deye
+        # regardless of what the user does in software.
+        'grid_relay_status_raw': relay_status_raw,
+        'grid_relay_status_label': relay_status_label,
     }
 
 

@@ -57,6 +57,9 @@
           {% if battery_insights.grid_status_label %}
           <div><span>حالة AC IN حسب Deye</span><strong>{{ battery_insights.grid_status_label }}</strong></div>
           {% endif %}
+          {% if battery_insights.grid_relay_status_label %}
+          <div><span>ريليه AC IN</span><strong>{{ battery_insights.grid_relay_status_label }}</strong></div>
+          {% endif %}
           {% if battery_insights.daily_generator_kwh is not none %}
           <div><span>إدخال خارجي اليوم</span><strong>{{ battery_insights.daily_generator_kwh }} kWh</strong></div>
           {% endif %}
