@@ -628,20 +628,43 @@ def test_reject_plan_change_request_closes_case_and_notifies():
 
 def test_admin_relevant_vocabularies_cover_plan_change_workflow():
     """Spec lock: the two whitelists shared with the notification
-    center must include every event/source type produced by the v81
-    workflow so admin views never miss them."""
+    center must surface admin-perspective plan-change events.
+
+    v93j note — the lists are tighter than they were in v81. We
+    deliberately exclude the *subscriber*-perspective event types
+    (`plan_change_applied`, `plan_change_rejected`,
+    `plan_change_discussion`, `plan_change_invoice_issued`) and
+    we removed the shared `plan_change_request` source-type
+    because those carry 2nd-person Arabic wording aimed at the
+    subscriber ("تم تحويل اشتراكك") and would look wrong in admin
+    view. Admins still see plan-change activity reliably because
+    admin-perspective events (`plan_change_request`,
+    `plan_change_applied_admin`,
+    `plan_change_payment_settled_admin`) are fanned out per-admin
+    via `target_user_id`.
+    """
     from app.services.support_ops import (
         ADMIN_RELEVANT_EVENT_TYPES,
         ADMIN_RELEVANT_SOURCE_TYPES,
     )
-    assert 'plan_change_request' in ADMIN_RELEVANT_EVENT_TYPES
-    assert 'plan_change_applied' in ADMIN_RELEVANT_EVENT_TYPES
-    assert 'plan_change_rejected' in ADMIN_RELEVANT_EVENT_TYPES
+    # Admin-perspective event types — these MUST be surfaced to
+    # admins. `plan_change_request` is the initial-fanout admin
+    # event_type produced by `notify_admins_of_plan_change_request`.
     assert 'support' in ADMIN_RELEVANT_EVENT_TYPES
-    # Source-type vocabulary spans the support flow + plan-change.
-    assert {'message', 'ticket', 'plan_change_request'}.issubset(
-        ADMIN_RELEVANT_SOURCE_TYPES,
-    )
+    assert 'plan_change_request' in ADMIN_RELEVANT_EVENT_TYPES
+    assert 'plan_change_applied_admin' in ADMIN_RELEVANT_EVENT_TYPES
+    assert 'plan_change_payment_settled_admin' in ADMIN_RELEVANT_EVENT_TYPES
+    # Subscriber-perspective event types — these MUST NOT be on
+    # the admin whitelist; their wording addresses the subscriber.
+    assert 'plan_change_applied' not in ADMIN_RELEVANT_EVENT_TYPES
+    assert 'plan_change_rejected' not in ADMIN_RELEVANT_EVENT_TYPES
+    # Source-type vocabulary spans the support flow only. The
+    # `plan_change_request` source_type is intentionally OMITTED
+    # because both subscriber-targeted and admin-targeted plan-
+    # change notifications share it; whitelisting it leaked
+    # subscriber wording into admin view.
+    assert {'message', 'ticket'}.issubset(ADMIN_RELEVANT_SOURCE_TYPES)
+    assert 'plan_change_request' not in ADMIN_RELEVANT_SOURCE_TYPES
 
 
 def test_admin_relevant_vocabularies_exclude_subscriber_energy_types():

@@ -1483,3 +1483,28 @@
 .ncv40-row--cat-financial .ncv40-row-bar {
   background: linear-gradient(180deg, #10b981, #059669) !important;
 }
+
+/* v93j — admin-perspective rows. These are notifications the
+   admin gets when a subscriber takes a workflow action (applied
+   plan change, paid an invoice). The wording is 3rd-person
+   ("قام المشترك X بـ...") and we mark them with a violet accent
+   + an "إدارة" chip so they don't get confused with subscriber-
+   perspective notifications. The accent overrides the
+   class-level bar so the admin chrome reads "this is for you". */
+.ncv40-row--admin-view .ncv40-row-bar {
+  background: linear-gradient(180deg, #8b5cf6, #6d28d9) !important;
+}
+.ncv40-row--admin-view {
+  background: linear-gradient(135deg, rgba(139,92,246,0.05), transparent 70%) !important;
+}
+.ncv40-row--admin-view .ncv40-row-avatar {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+  color: #ffffff !important;
+}
+/* The Admin chip itself. */
+.ncv40-chip.admin-view {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  border-color: transparent !important;
+}

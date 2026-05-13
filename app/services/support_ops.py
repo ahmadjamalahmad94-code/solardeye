@@ -975,14 +975,36 @@ def reject_plan_change_request(case: SupportCase, *, actor_user_id: int | None, 
     return {'case_status': case.status, 'reason': reason}
 
 
-# v81: stable vocabularies for the admin notification center filter
-# (see notifications_routes._aggregated_notification_groups). Defined
-# here so any future event type joins one canonical list.
+# v81 / v93j: stable vocabularies for the admin notification center
+# filter (see notifications_routes._aggregated_notification_groups).
+#
+# v93j rationale — the admin's notification center is for admin-
+# perspective events ONLY. Subscriber-perspective notifications fired
+# by the workbench (`plan_change_applied`, `plan_change_rejected`,
+# `plan_change_discussion`, `plan_change_invoice_issued`) all carry
+# 2nd-person Arabic wording ("تم تحويل اشتراكك" / "اشتراكك") because
+# they address the subscriber. They must NEVER surface in admin view.
+#
+# Before v93j, admins saw those subscriber events because the source-
+# type filter included `plan_change_request` — which both subscriber-
+# targeted AND admin-targeted plan-change notifications share. We now
+# whitelist ONLY admin-perspective event types and we removed
+# `plan_change_request` from the source-type whitelist. Admin events
+# are still surfaced reliably because they are fanned out per-admin
+# via `target_user_id` in `notify_admins_of_plan_change_*` helpers.
 ADMIN_RELEVANT_EVENT_TYPES = frozenset({
     'support',
+    # `plan_change_request` is the event_type fired by
+    # `notify_admins_of_plan_change_request` (admin initial fanout).
+    # Both the message AND the target are admin — keep it in.
     _PLAN_CHANGE_ADMIN_EVENT_TYPE,
-    _PLAN_CHANGE_APPLIED_EVENT_TYPE,
-    _PLAN_CHANGE_REJECTED_EVENT_TYPE,
+    # Admin-perspective 3rd-person variants ("قام المشترك X بـ...").
+    # These are already fanned out per-admin via target_user_id; the
+    # whitelist is belt-and-suspenders so a future fanout bug doesn't
+    # silently hide admin-perspective rows.
+    'plan_change_applied_admin',
+    'plan_change_payment_settled_admin',
+    'plan_change_request_admin',
 })
 ADMIN_RELEVANT_SOURCE_TYPES = frozenset({
     'message',
@@ -992,5 +1014,8 @@ ADMIN_RELEVANT_SOURCE_TYPES = frozenset({
     'conversation',
     'ticket',
     'support_ticket',
-    _PLAN_CHANGE_SOURCE_TYPE,
+    # Note: `plan_change_request` is intentionally NOT here. Both
+    # subscriber-targeted (2nd person) and admin-targeted (3rd
+    # person) plan-change events share that source_type; including
+    # it leaked subscriber wording into admin view (v93j bug).
 })

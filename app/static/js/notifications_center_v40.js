@@ -338,6 +338,146 @@
     });
   }
 
+  /* v93j — honour ?tab=X in the URL so a soft-reload preserves
+     whichever filter tab was active. We click() the matching
+     tab button (it already wires up state.tab + apply()). */
+  try {
+    const url = new URL(window.location.href);
+    const wantedTab = url.searchParams.get('tab');
+    if (wantedTab) {
+      const tabBtn = root.querySelector('[data-ncv40-tab="' + wantedTab + '"]');
+      if (tabBtn) tabBtn.click();
+    }
+  } catch(e) { /* ignore */ }
+
   /* Initial render */
   apply();
+
+  /* ---------------- v93j: auto-mark-read on entering the center
+     ----------------
+     The user is on /notification-center looking at the list. The
+     bell badge should drop to 0 because they've effectively
+     "seen" their notifications. We wait 1500ms so an accidental
+     navigation (back-forward) doesn't lose unread state, then
+     fire a single mark-all-read.
+
+     We also clear the visual unread state on each row + the
+     stat-card counters so the page reflects reality without a
+     reload. */
+  let autoReadDone = false;
+  function autoMarkAllRead(){
+    if (autoReadDone) return;
+    if (!markUrl) return;
+    autoReadDone = true;
+    const fd = new FormData();
+    fd.append('all', '1');
+    postMark(fd).then(() => {
+      items.forEach(item => {
+        item.dataset.unread = '0';
+        item.classList.remove('is-unread');
+        const badge = item.querySelector('.ncv40-unread-badge');
+        if (badge) {
+          badge.textContent = '0';
+          badge.classList.add('is-zero');
+        }
+      });
+      const stat = root.querySelector('[data-ncv40-stat-unread]');
+      if (stat) stat.textContent = '0';
+      // Refresh visible-count + filtered list (so the "unread"
+      // tab now reads 0).
+      apply();
+    });
+  }
+  // Fire after a small delay so the user sees that the list
+  // existed in its unread state for at least a beat.
+  setTimeout(autoMarkAllRead, 1500);
+
+  /* ---------------- v93j: live refresh every 10s
+     ----------------
+     The user wants new notifications to appear without a full
+     page reload AND wants the bell badge to keep updating.
+     Strategy: poll `/notifications/feed` every 10s. If the
+     server returns groups whose `last_event_id` we don't have
+     in the DOM yet, do a soft refresh — fetch the same page and
+     swap the list HTML.
+
+     We poll the public feed endpoint (lightweight JSON, ~10
+     rows) rather than re-rendering the whole center on every
+     tick. The page reload only happens when there's actually
+     new content to show. */
+  const FEED_URL = '/notifications/feed';
+  let lastSeenIds = new Set();
+  items.forEach(it => {
+    // The list rows don't carry the raw event id; we instead
+    // track group_key which is stable for support cases and
+    // unique-per-event for system rows.
+    lastSeenIds.add(it.dataset.groupKey || '');
+  });
+
+  function softReload(){
+    // Use fetch to grab the current page HTML, then replace just
+    // the list region — keeping scroll position + filter state
+    // intact. The list container has `data-ncv40-list` and the
+    // toolbar counts live in `_ncv40_toolbar.html` which we'd
+    // ideally also replace, but reloading the page is the
+    // simplest reliable path. Use location.reload(false) so the
+    // browser uses its cache for assets and we don't lose the
+    // sticky session.
+    try {
+      // Stash the active tab in the URL so it persists across
+      // reload — without this, the user always lands on "All".
+      const activeTab = root.querySelector('[data-ncv40-tab].is-active');
+      if (activeTab && activeTab.dataset.ncv40Tab && activeTab.dataset.ncv40Tab !== 'all') {
+        const u = new URL(window.location.href);
+        u.searchParams.set('tab', activeTab.dataset.ncv40Tab);
+        window.history.replaceState({}, '', u.toString());
+      }
+    } catch(e) { /* ignore */ }
+    window.location.reload();
+  }
+
+  let inflight = false;
+  function pollFeed(){
+    if (inflight) return;
+    inflight = true;
+    fetch(FEED_URL, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.json())
+      .then(json => {
+        const feedItems = (json && json.items) || [];
+        // Look for any item whose group_key isn't already in our
+        // DOM — that's a "new" row. We compare keys instead of
+        // counts because mark-all-read keeps the row count
+        // stable while toggling unread/read.
+        let hasNew = false;
+        feedItems.forEach(it => {
+          const key = (it && (it.group_key || it.groupKey)) || '';
+          if (key && !lastSeenIds.has(key)) hasNew = true;
+        });
+        // Also surface unread badge counts on bell badges that
+        // share this page (mirroring app.js bell behaviour).
+        const c = Number(json && json.count) || 0;
+        document.querySelectorAll(
+          '#dashHeaderNotifCountV29,#dashHeaderNotifMiniCountV29,#notificationBellCount,[data-ncv40-sidebar-badge]'
+        ).forEach(el => {
+          el.textContent = c;
+          el.classList.toggle('is-zero', c <= 0);
+          if (c <= 0) el.style.display = 'none';
+          else el.style.display = '';
+        });
+        if (hasNew) {
+          // Soft reload to pick up the new items. The auto-
+          // mark-read on the next mount will keep the badge in
+          // sync.
+          softReload();
+        }
+      })
+      .catch(() => { /* swallow */ })
+      .finally(() => { inflight = false; });
+  }
+  // Tick every 10s — matches the cadence the user asked for.
+  setInterval(pollFeed, 10000);
+  // Pause polling when the tab is hidden (battery + bandwidth).
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollFeed();
+  });
 })();

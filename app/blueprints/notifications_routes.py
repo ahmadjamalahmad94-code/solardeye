@@ -741,6 +741,14 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             getattr(last, 'source_type', None),
             kind,
         )
+        # v93j — admin-perspective marker. Events fanned out per-admin
+        # use event_types suffixed with `_admin` and carry 3rd-person
+        # Arabic wording ("قام المشترك X بـ..."). Surface that as a
+        # data attribute + CSS class so the row can be visually
+        # distinct from subscriber-perspective ones (different accent
+        # color, "إدارة" chip in the bell).
+        ev_type_lower = (getattr(last, 'event_type', None) or '').strip().lower()
+        is_admin_perspective = ev_type_lower.endswith('_admin')
         # v93h — finer-grained category that drives the filter tabs
         # in the notification center toolbar. Splits the old
         # `system` bucket into `weather` + `energy` so the
@@ -771,6 +779,7 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             'has_source_link': has_meaningful_source,
             'notification_class': notification_class,  # v93f
             'notification_category': notification_category,  # v93h
+            'is_admin_perspective': is_admin_perspective,  # v93j
             'unread_count': unread_count,
             'events_count': len(events),
             'last_activity_at': last_at,

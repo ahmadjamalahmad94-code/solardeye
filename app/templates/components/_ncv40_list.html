@@ -18,11 +18,12 @@
     {# v93f — financial + support rows navigate directly to source;
        system rows open the floating modal. The CSS hook
        `ncv40-row--<class>` lets the theme color them differently. #}
-    <a class="ncv40-row ncv40-row--{{ item.notification_class or 'system' }} ncv40-row--cat-{{ item.notification_category or 'energy' }}{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
+    <a class="ncv40-row ncv40-row--{{ item.notification_class or 'system' }} ncv40-row--cat-{{ item.notification_category or 'energy' }}{% if item.is_admin_perspective %} ncv40-row--admin-view{% endif %}{% if item.unread_count > 0 %} is-unread{% endif %}{% if item.is_archived %} is-archived{% endif %}"
        href="{{ item.url }}"
        {% if (item.notification_class or 'system') == 'system' %}data-ncv40-modal{% endif %}
        data-notif-class="{{ item.notification_class or 'system' }}"
        data-notif-category="{{ item.notification_category or 'energy' }}"
+       data-admin-view="{{ '1' if item.is_admin_perspective else '0' }}"
        data-modal-title="{{ item.title|e }}"
        data-modal-details="{{ item.details|e }}"
        data-modal-sender="{{ (item.assignee or '')|e }}"
@@ -52,6 +53,12 @@
       <div class="ncv40-row-body">
         <div class="ncv40-row-top">
           <h3 class="ncv40-row-title">{{ item.title }}</h3>
+          {# v93j — admin-perspective chip lets the admin tell at
+             a glance which rows were authored for them (3rd-person
+             "قام المشترك X بـ...") vs which were subscriber-facing. #}
+          {% if item.is_admin_perspective %}
+          <span class="ncv40-chip admin-view">{{ 'Admin' if is_en else 'إدارة' }}</span>
+          {% endif %}
           <span class="ncv40-chip kind">{{ item.kind_label }}</span>
           <span class="ncv40-chip status-{{ item.status }}">{{ item.status_label }}</span>
           {% if item.priority in ['high','urgent'] %}
