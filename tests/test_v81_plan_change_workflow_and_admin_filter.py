@@ -455,6 +455,128 @@ def test_apply_plan_change_skips_ledger_when_diff_is_zero():
     assert ledger_entries == []
 
 
+def test_v87b_legacy_apply_path_refuses_downgrade_and_writes_no_ledger():
+    """v87b — POLICY GUARD. The legacy `support_ops.apply_plan_change_request`
+    used to delegate to `billing_engine.change_plan` which writes a
+    wallet credit on a downgrade. v87 forbids that semantics
+    (downgrades must convert remaining value to MORE days on the
+    cheaper plan, never refund). This test locks in the new policy
+    guard: a downgrade through the legacy path must raise ValueError
+    and write NO ledger row + leave the tenant/subscription unchanged."""
+    from app.services import support_ops
+
+    case = _fake_case(id_=55, user_id=11, tenant_id=7, subject='')
+    tenant = mock.Mock(); tenant.id = 7; tenant.plan_id = 1; tenant.status = 'active'
+    # Downgrade: current is $30/30d ($1/d), target is $10/30d ($0.333/d).
+    sub = _fake_subscription(plan_id=1)
+    current = _fake_plan(id_=1, name_ar='برو', price=30.0, duration_days=30)
+    target  = _fake_plan(id_=2, name_ar='أساسي', price=10.0, duration_days=30)
+
+    tenant_query = mock.Mock(); tenant_query.get.return_value = tenant
+    sub_query = mock.Mock()
+    sub_query.filter_by.return_value = sub_query
+    sub_query.order_by.return_value = sub_query
+    sub_query.first.return_value = sub
+    plan_query = mock.Mock(); plan_query.get.return_value = current
+    added: list = []
+
+    raised = False
+    with _ctx(), mock.patch.object(
+        support_ops.TenantAccount, 'query', tenant_query,
+    ), mock.patch.object(
+        support_ops.TenantSubscription, 'query', sub_query,
+    ), mock.patch.object(
+        support_ops.SubscriptionPlan, 'query', plan_query,
+    ), mock.patch(
+        'app.services.billing_engine.change_plan',
+    ) as change_plan_mock, mock.patch(
+        'app.services.quota_engine.apply_plan_quotas_to_tenant',
+    ), mock.patch.object(
+        support_ops, 'audit_case',
+    ), mock.patch.object(
+        support_ops, 'notify_user',
+    ), mock.patch.object(
+        support_ops.db.session, 'add', side_effect=added.append,
+    ), mock.patch.object(
+        support_ops.db.session, 'commit',
+    ):
+        try:
+            support_ops.apply_plan_change_request(
+                case, actor_user_id=42, target_plan=target,
+                now=datetime(2026, 5, 12),
+            )
+        except ValueError as exc:
+            raised = True
+            assert 'downgrade' in str(exc).lower() or 'refund' in str(exc).lower()
+    # Legacy path refused — and critically, billing_engine.change_plan
+    # was never reached, so no credit ledger row was written.
+    assert raised, 'legacy path must refuse downgrades under v87 policy'
+    change_plan_mock.assert_not_called()
+    # No state mutation either: tenant + sub untouched, no rows added.
+    assert tenant.plan_id == 1
+    assert sub.plan_id == 1
+    assert case.status == 'open'
+    assert added == []
+
+
+def test_v87b_legacy_apply_path_still_works_for_upgrades_and_laterals():
+    """The guard must NOT regress the legitimate upgrade flow.
+    Upgrades and lateral switches continue to delegate to
+    `billing_engine.change_plan` exactly as before; only the
+    downgrade combo is refused."""
+    from app.services import support_ops
+
+    case = _fake_case(id_=55, user_id=11, tenant_id=7, subject='')
+    tenant = mock.Mock(); tenant.id = 7
+    sub = _fake_subscription(plan_id=1)
+    # Upgrade: $10/30d → $30/30d.
+    current = _fake_plan(id_=1, name_ar='أساسي', price=10.0, duration_days=30)
+    target  = _fake_plan(id_=2, name_ar='برو',   price=30.0, duration_days=30)
+
+    tenant_query = mock.Mock(); tenant_query.get.return_value = tenant
+    sub_query = mock.Mock()
+    sub_query.filter_by.return_value = sub_query
+    sub_query.order_by.return_value = sub_query
+    sub_query.first.return_value = sub
+    plan_query = mock.Mock(); plan_query.get.return_value = current
+
+    fake_result = mock.Mock()
+    fake_result.action = 'change_plan'
+    fake_result.amount = 10.0
+    fake_result.currency = 'USD'
+    fake_result.ledger_entry_id = None
+    fake_result.to_dict.return_value = {'action': 'change_plan'}
+
+    with _ctx(), mock.patch.object(
+        support_ops.TenantAccount, 'query', tenant_query,
+    ), mock.patch.object(
+        support_ops.TenantSubscription, 'query', sub_query,
+    ), mock.patch.object(
+        support_ops.SubscriptionPlan, 'query', plan_query,
+    ), mock.patch(
+        'app.services.billing_engine.change_plan',
+        return_value=fake_result,
+    ) as change_plan_mock, mock.patch(
+        'app.services.quota_engine.apply_plan_quotas_to_tenant',
+    ), mock.patch.object(
+        support_ops, 'audit_case',
+    ), mock.patch.object(
+        support_ops, 'notify_user',
+    ), mock.patch.object(
+        support_ops.db.session, 'add',
+    ), mock.patch.object(
+        support_ops.db.session, 'commit',
+    ):
+        result = support_ops.apply_plan_change_request(
+            case, actor_user_id=42, target_plan=target,
+            now=datetime(2026, 5, 12),
+        )
+    # Upgrade reaches the engine unchanged.
+    change_plan_mock.assert_called_once()
+    assert case.status == 'resolved'
+    assert result.get('case_status') == 'resolved'
+
+
 def test_reject_plan_change_request_closes_case_and_notifies():
     """Reject path: status=closed, frozen, subscriber notified, no
     ledger entry, audit recorded."""

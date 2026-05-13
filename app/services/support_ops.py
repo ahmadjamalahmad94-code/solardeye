@@ -666,13 +666,25 @@ def compute_plan_change_quote(case: SupportCase, *, target_plan: SubscriptionPla
 def apply_plan_change_request(case: SupportCase, *, actor_user_id: int | None, target_plan: SubscriptionPlan | None = None, now: datetime | None = None, commit: bool = True) -> dict:
     """Apply an approved plan-change request.
 
-    v82: the financial + subscription side-effects are now delegated
-    to `billing_engine.change_plan(...)` so admin tools and the v81
+    v82: the financial + subscription side-effects are delegated to
+    `billing_engine.change_plan(...)` so admin tools and the v81
     plan-change workflow share one canonical path. The subscriber
     keeps their paid time (`ends_at` is preserved), the diff is
     written as one explicit `WalletLedger` row, and the
     case-specific concerns (audit row + subscriber notification +
     case status flip) stay here in `support_ops` where they belong.
+
+    v87b — POLICY GUARD: the underlying `billing_engine.change_plan`
+    writes a **wallet credit** whenever the target plan is cheaper
+    per-day than the current plan (i.e. a downgrade). v87 forbids
+    that exact semantics — downgrades must convert the remaining
+    value into more days, not refund money. To prevent this legacy
+    entry point from silently violating the new policy, this
+    function now classifies the change and **refuses downgrades**
+    with `ValueError`. Callers handling a downgrade must use the
+    v87 modern path (`plan_change_workbench.apply_request` with
+    `mode='reduced_days'` or the subscriber-driven
+    `subscriber_plan_change.confirm`).
     """
     if not case:
         return {}
@@ -681,6 +693,33 @@ def apply_plan_change_request(case: SupportCase, *, actor_user_id: int | None, t
     quote = compute_plan_change_quote(case, target_plan=target, now=now)
     target = quote['target_plan']
     tenant = TenantAccount.query.get(getattr(case, 'tenant_id', None)) if getattr(case, 'tenant_id', None) else None
+    # v87b — classify before mutating anything. The classifier is the
+    # same one used by the modern surfaces, so the policy line is
+    # drawn in exactly one place.
+    if tenant and target:
+        from .plan_change_workbench import (
+            classify_change, POLICY_DOWNGRADE,
+        )
+        sub_for_classify = (
+            TenantSubscription.query
+            .filter_by(tenant_id=tenant.id)
+            .order_by(TenantSubscription.created_at.desc())
+            .first()
+        )
+        current_for_classify = (
+            SubscriptionPlan.query.get(sub_for_classify.plan_id)
+            if sub_for_classify and sub_for_classify.plan_id else None
+        )
+        policy_kind = classify_change(current_for_classify, target)
+        if policy_kind == POLICY_DOWNGRADE:
+            raise ValueError(
+                'plan_change policy (v87): legacy apply_plan_change_request '
+                'cannot apply a downgrade because billing_engine.change_plan '
+                'would write a wallet credit, which the new policy forbids. '
+                'Use plan_change_workbench.apply_request with '
+                "mode='reduced_days' to convert remaining value into more "
+                'days on the cheaper plan.'
+            )
     ledger_entry = None
     if tenant and target:
         from .billing_engine import change_plan as _change_plan
