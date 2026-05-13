@@ -14,6 +14,7 @@ from ..services.energy_integrations import (
     support_tier_label,
 )
 from ..services.location_catalog import countries_for_template, phone_prefixes_for_template, timezones_for_template, timezones_grouped_for_template
+from ..services.quota_engine import record_usage_for_user as _record_usage_for_user
 from .main import *  # noqa: F401,F403 - transitional legacy dependency bridge
 from . import main as _legacy_main
 
@@ -322,6 +323,14 @@ def devices_manage():
             user.preferred_device_id = device.id
         session['current_device_id'] = user.preferred_device_id or device.id
         session['current_device_type'] = device.device_type or 'deye'
+        # v80: increment `devices_limit` usage when a real device is
+        # added through the web management form. Mirror of the
+        # mobile-create path; uses the unconditional
+        # `record_usage_for_user(...)` helper so a soft-exceeded
+        # quota row still tracks the new addition truthfully.
+        # Never raises; the stock-based ceiling already gates the
+        # actually disallowed cases elsewhere.
+        _record_usage_for_user(user, 'devices_limit', 1, commit=False)
         db.session.commit()
         flash('تمت إضافة الجهاز بنجاح.', 'success')
         return redirect(url_for('main.devices_manage', lang=_lang()))

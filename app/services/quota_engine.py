@@ -159,6 +159,42 @@ def effective_quota_rows(tenant_id: int | None, quota_key: str) -> list[TenantQu
     overrides = [q for q in rows if (getattr(q, 'source', None) or 'manual') != 'plan']
     return overrides or rows
 
+
+def effective_quota_rows_for_tenant(tenant_id: int | None) -> list[TenantQuota]:
+    """v80 — union of effective quota rows across every key.
+
+    Group active quotas by `quota_key`, then apply the same
+    "overrides win over plan rows" rule that `effective_quota_rows`
+    uses per key. Returns a flat list suitable for display surfaces
+    (admin profile quota tab, subscriber summary, mobile contract)
+    that previously read raw `TenantQuota` ORM rows and ended up
+    showing duplicate / contradictory pairs like a plan-row
+    (`used=85 limit=0`) AND an override-row (`used=20 limit=3`)
+    for the same key. The fix matches the enforcement helper so
+    display and enforcement no longer disagree.
+
+    Rows still in `paused` / `exhausted` status are filtered out
+    (they don't participate in enforcement either). When a quota
+    key has only plan rows, those plan rows are returned; when
+    there is at least one override / manual row for the key, the
+    plan rows for that key are hidden.
+    """
+    if not tenant_id:
+        return []
+    by_key: dict[str, list[TenantQuota]] = {}
+    for q in quotas_for_tenant(tenant_id):
+        if (q.status or 'active') != 'active':
+            continue
+        by_key.setdefault(q.quota_key, []).append(q)
+    out: list[TenantQuota] = []
+    for key_rows in by_key.values():
+        overrides = [
+            q for q in key_rows
+            if (getattr(q, 'source', None) or 'manual') != 'plan'
+        ]
+        out.extend(overrides or key_rows)
+    return out
+
 def quota_for_tenant(tenant_id: int | None, quota_key: str) -> TenantQuota | None:
     rows = [q for q in quotas_for_tenant(tenant_id, quota_key) if (q.status or 'active') == 'active']
     return rows[-1] if rows else None
@@ -203,6 +239,67 @@ def consume_quota_for_user(user: AppUser | None, quota_key: str, amount: float =
     if rows and commit:
         db.session.commit()
     return True, '', (rows[0] if rows else None)
+
+
+def record_usage_for_user(
+    user: AppUser | None,
+    quota_key: str,
+    amount: float = 1,
+    *,
+    commit: bool = False,
+) -> TenantQuota | None:
+    """v80 — unconditional usage tracker.
+
+    `consume_quota_for_user` is the right helper for *gated* writes
+    (e.g. Telegram / SMS sends) — it refuses to bump the counter
+    when the limit has been hit so the caller can short-circuit
+    the work. Device creation and `api_calls_limit` are different:
+    we want the counter to keep climbing past the limit so the
+    subscriber-facing summary shows a truthful "used > limit" red
+    state, while the hard ceiling (e.g. `allowed_device_limit`)
+    enforces the actual gate elsewhere.
+
+    Behaviour:
+      * No effective rows for the key → no-op, returns `None`.
+      * Effective rows present → bumps every non-unlimited row by
+        `amount` (clamped to non-negative). Unlimited rows are
+        skipped on purpose so the counter stays at zero.
+      * Admin users / users with no tenant → no-op.
+      * Never raises; quota bookkeeping failures must never block
+        the calling request.
+    """
+    try:
+        if not user or getattr(user, 'is_admin', False):
+            return None
+        amount_f = float(amount or 0)
+        if amount_f <= 0:
+            return None
+        tenant = tenant_for_user(user)
+        rows = effective_quota_rows(getattr(tenant, 'id', None), quota_key)
+        if not rows:
+            return None
+        now = datetime.utcnow()
+        for quota in rows:
+            if _quota_is_unlimited(quota):
+                continue
+            quota.used_value = float(quota.used_value or 0) + amount_f
+            quota.updated_at = now
+        if commit:
+            db.session.commit()
+        return rows[0]
+    except Exception:
+        return None
+
+
+def track_api_call_for_user(user: AppUser | None, *, commit: bool = False) -> TenantQuota | None:
+    """v80 — convenience wrapper for the centralized API-call hook.
+
+    Records one tick against `api_calls_limit` per request. Wraps
+    `record_usage_for_user(...)` so the hook stays a one-liner at
+    the call site and the helper signature matches the
+    `consume_quota_for_user` style used elsewhere.
+    """
+    return record_usage_for_user(user, 'api_calls_limit', 1, commit=commit)
 
 
 def consume_or_raise(user: AppUser | None, quota_key: str, amount: float = 1, *, lang: str = 'ar') -> TenantQuota | None:
@@ -353,8 +450,17 @@ def apply_plan_quotas_to_plan_subscribers(plan: SubscriptionPlan | None, *, comm
 
 
 def quota_summary_rows(tenant_id: int | None, lang: str = 'ar') -> list[dict[str, Any]]:
+    """Subscriber-facing quota summary.
+
+    v80 fix: previously iterated `quotas_for_tenant(...)` directly,
+    which surfaced BOTH plan rows AND override rows for the same
+    quota key — producing misleading display pairs like
+    "used=85 / limit=0" alongside "used=20 / limit=3". The summary
+    now reads through `effective_quota_rows_for_tenant(...)` so it
+    matches the enforcement engine's view of "the effective row".
+    """
     rows = []
-    for q in quotas_for_tenant(tenant_id):
+    for q in effective_quota_rows_for_tenant(tenant_id):
         limit = float(q.limit_value or 0)
         used = float(q.used_value or 0)
         unlimited = _quota_is_unlimited(q)

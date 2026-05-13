@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from flask import Blueprint, request, session
+from flask import Blueprint, g, request, session
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -18,7 +18,11 @@ from ..services.location_catalog import countries_for_template, find_country, ph
 from ..services.rbac import portal_pages, portal_page_visible, role_label
 from ..services.scope import get_current_device, get_user_permissions
 from ..services.security import csrf_token, sanitize_response_payload
-from ..services.quota_engine import quota_summary_rows
+from ..services.quota_engine import (
+    quota_summary_rows,
+    record_usage_for_user as _record_usage_for_user,
+    track_api_call_for_user as _track_api_call_for_user,
+)
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
 from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
 from ..services.api_responses import api_error, api_ok, page_meta, pagination_args
@@ -27,6 +31,69 @@ from .notifications import NOTIFICATION_SECTION_FIELDS, load_notification_rules
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
 mobile_core_api_bp = Blueprint('mobile_core_api', __name__, url_prefix='/api/mobile')
+
+
+# v80: ── api_calls_limit centralized tracking ──────────────────────────
+#
+# `api_calls_limit` previously existed only in the plan catalogue / quota
+# rows but had no real consumer — the card on the subscriber profile was
+# decorative. v80 wires a single `before_request` hook on the
+# `mobile_core_api_bp` blueprint (the `/api/mobile/*` namespace) that
+# resolves the bearer user, records one usage tick on the effective
+# `api_calls_limit` row, and short-circuits double-counting via a flag
+# on `flask.g`. The hook is intentionally narrow:
+#
+#   * Only the `mobile_core_api_bp` namespace participates (`/api/mobile/*`).
+#     Other API blueprints (`/api/v1/devices/*`, `/api/v1/notifications/*`,
+#     `/api/v1/support/*`) live in modules outside the v80 modification
+#     scope; extending coverage there is a follow-up.
+#   * `OPTIONS` (CORS preflight) is never counted.
+#   * Auth + health endpoints are never counted: a user can't pay quota
+#     just to learn whether the service is up, and login/refresh/me
+#     traffic must work even when the subscriber's quota is exhausted.
+#   * Failures are swallowed; quota bookkeeping never blocks an
+#     otherwise valid API request.
+_API_QUOTA_SKIP_PREFIXES = (
+    '/api/mobile/auth/',          # login / refresh / me / logout
+)
+_API_QUOTA_SKIP_PATHS = {
+    '/api/mobile/health',
+}
+
+
+@mobile_core_api_bp.before_request
+def _record_api_call_quota():
+    """Record one `api_calls_limit` tick per protected request.
+
+    Runs before every handler in `mobile_core_api_bp`. Skips auth
+    + health + CORS preflight (`OPTIONS`) so subscribers can never
+    be locked out of authentication by an exhausted quota. Tags
+    `flask.g._v80_api_call_counted` after a successful bump so any
+    re-entry inside the same request cycle doesn't double-count.
+    """
+    try:
+        method = (request.method or '').upper()
+        if method == 'OPTIONS':
+            return None
+        path = request.path or ''
+        if path in _API_QUOTA_SKIP_PATHS:
+            return None
+        if any(path.startswith(p) for p in _API_QUOTA_SKIP_PREFIXES):
+            return None
+        # Per-request idempotency. The flag is set on the very
+        # first successful bump; any later re-entry on the same
+        # request is a no-op.
+        if getattr(g, '_v80_api_call_counted', False):
+            return None
+        user = user_from_bearer_or_session()
+        if user is None or getattr(user, 'is_admin', False):
+            return None
+        _track_api_call_for_user(user, commit=False)
+        g._v80_api_call_counted = True
+    except Exception:
+        # Defensive: never let the tracker derail a real request.
+        pass
+    return None
 
 _MOBILE_CORE_ALLOWED_METHODS = {
     '/account': {'GET', 'PATCH', 'DELETE'},
@@ -1657,6 +1724,15 @@ def mobile_device_create():
     if not user.preferred_device_id:
         user.preferred_device_id = device.id
         user.preferred_device_type = device.device_type or user.preferred_device_type
+    # v80: increment `devices_limit` usage on real device creation.
+    # This is a usage-flow counter — `allowed_device_limit(user)` is
+    # the canonical stock-based ceiling and stays unchanged. We use
+    # `record_usage_for_user(...)` rather than the gated
+    # `consume_quota_for_user(...)` so the counter keeps climbing
+    # truthfully past the soft limit (the hard ceiling already
+    # blocked anything that would actually be over-stock). Never
+    # raises; never blocks the create on a quota bookkeeping error.
+    _record_usage_for_user(user, 'devices_limit', 1, commit=False)
     db.session.commit()
     return api_ok({
         'device': _mobile_device_detail_payload(device),

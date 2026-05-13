@@ -31,6 +31,7 @@ from ..services.utils import (
 )
 from ..services.weather_service import fetch_weather
 from ..services.subscriptions import ensure_user_tenant_and_subscription, current_subscription_for_user, user_has_active_subscription, activate_tenant_subscription, feature_enabled_for_user, plan_features
+from ..services.quota_engine import effective_quota_rows_for_tenant as _effective_quota_rows_for_tenant
 from ..services.access_state import account_access_state
 from ..services.security import preserve_secret_form_value, sanitize_response_payload
 from ..services.backup_service import backup_settings, create_backup, list_backups, restore_backup, set_setting, save_uploaded_backup
@@ -816,7 +817,17 @@ def _admin_user_payload(user: AppUser):
             'device': AppDevice.query.get(ticket.related_device_id) if ticket.related_device_id else None,
         })
     finance_rows = WalletLedger.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(WalletLedger.created_at.desc(), WalletLedger.id.desc()).all()
-    quota_rows = TenantQuota.query.filter_by(tenant_id=getattr(tenant, 'id', None)).order_by(TenantQuota.updated_at.desc(), TenantQuota.id.desc()).all()
+    # v80: the admin profile quota panel previously read raw
+    # `TenantQuota` rows directly, which surfaced both plan rows
+    # AND override rows for the same key — producing the misleading
+    # "used=85 / limit=0" pairs the operator team flagged. The
+    # effective helper applies the same "override wins" rule the
+    # enforcement engine uses, so display and enforcement agree.
+    quota_rows = sorted(
+        _effective_quota_rows_for_tenant(getattr(tenant, 'id', None)),
+        key=lambda q: (q.updated_at or datetime.min, q.id),
+        reverse=True,
+    )
     activity_rows = AdminActivityLog.query.order_by(
         AdminActivityLog.created_at.desc(),
         AdminActivityLog.id.desc(),
