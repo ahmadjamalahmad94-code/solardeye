@@ -423,11 +423,12 @@ def diagnostics_list_sessions():
         logger.exception('diagnostics: list failed')
         return jsonify({'ok': False, 'code': 'list_failed'}), 500
     raw_sessions = (getattr(listing, 'data', None) or [])
-    # v92l — also retrieve each session individually because
-    # Stripe's `list()` response sometimes returns a shallow view
-    # where `metadata` looks empty even when the server actually
-    # stored the keys. `retrieve()` returns the canonical record.
-    deep_retrieve = (request.args.get('deep') or '').strip() == '1'
+    # v92m — ALWAYS deep-retrieve each session because Stripe's
+    # `list()` response returns a shallow view that omits
+    # `metadata` (and other extension fields) even when the
+    # server stored them. The earlier `deep=1` opt-in was easy
+    # to miss in the URL → users got the misleading empty-metadata
+    # JSON. Now we always fetch the canonical record.
     rows = []
     raw_count = 0
     for sess in raw_sessions:
@@ -441,27 +442,27 @@ def diagnostics_list_sessions():
                     metadata = {}
             if not isinstance(metadata, dict):
                 metadata = {}
-            # Deep retrieve for diagnostic clarity.
-            retrieved_metadata = None
-            if deep_retrieve:
-                try:
-                    session_id = getattr(sess, 'id', None)
-                    if session_id:
-                        full = pkg.checkout.Session.retrieve(session_id)
-                        full_md = getattr(full, 'metadata', None) or {}
-                        if hasattr(full_md, 'to_dict_recursive'):
-                            try:
-                                full_md = full_md.to_dict_recursive()
-                            except Exception:
-                                full_md = {}
-                        if isinstance(full_md, dict):
-                            retrieved_metadata = full_md
-                            # Promote retrieved metadata into the
-                            # shallow one so filters see the truth.
-                            if not metadata and full_md:
-                                metadata = full_md
-                except Exception:
-                    pass
+            # Force a single retrieve per session.
+            retrieved_metadata: dict = {}
+            retrieve_error: str | None = None
+            try:
+                session_id = getattr(sess, 'id', None)
+                if session_id:
+                    full = pkg.checkout.Session.retrieve(session_id)
+                    full_md = getattr(full, 'metadata', None) or {}
+                    if hasattr(full_md, 'to_dict_recursive'):
+                        try:
+                            full_md = full_md.to_dict_recursive()
+                        except Exception:
+                            full_md = {}
+                    if isinstance(full_md, dict):
+                        retrieved_metadata = full_md
+                        # Promote retrieved metadata into the
+                        # shallow one so filters see the truth.
+                        if not metadata and full_md:
+                            metadata = full_md
+            except Exception as r_exc:
+                retrieve_error = type(r_exc).__name__
             sess_kind = str(metadata.get('kind') or '')
             # Apply optional kind filter (v92j default was hard-
             # filtered to plan_change_invoice — v92k makes the
@@ -481,10 +482,10 @@ def diagnostics_list_sessions():
                 'currency': getattr(sess, 'currency', None),
                 'created': getattr(sess, 'created', None),
                 'customer_email': getattr(sess, 'customer_email', None),
-                'metadata': metadata,
+                'metadata_from_list': metadata,
+                'metadata_from_retrieve': retrieved_metadata,
+                'retrieve_error': retrieve_error,
             }
-            if retrieved_metadata is not None:
-                row['retrieved_metadata'] = retrieved_metadata
             rows.append(row)
         except Exception:
             continue
