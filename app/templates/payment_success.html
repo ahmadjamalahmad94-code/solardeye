@@ -14,9 +14,16 @@
 {% set v = verification or {} %}
 {% set plan_applied = v.get('applied') == True or v.get('reason') == 'already_applied' %}
 {% set settled_pending = (v.get('settled') == True and not plan_applied) %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">
-  {% include '_sidebar.html' %}
-  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px;position:relative;overflow:hidden">
+{# v92g — payment result pages no longer include the sidebar:
+   security + UX rationale. When the page is rendered inside the
+   in-app browser the mobile app launches for Stripe Checkout,
+   showing the full website sidebar would let the subscriber
+   wander around a logged-in surface they were never meant to
+   navigate from the checkout flow. We render a standalone
+   centered card that auto-redirects mobile callers back to the
+   app, and offers a calm "ارجع لاشتراكي" anchor for web users. #}
+{% set is_mobile = (source == 'mobile') %}
+<main class="pay-result-shell" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px 20px;position:relative;overflow:hidden;background:linear-gradient(180deg,#f8fafc 0%,#eff6ff 100%)">
 
     {# ─── Confetti rain (decorative, no JS) ─────────────────────── #}
     <div class="pay-confetti" aria-hidden="true">
@@ -85,13 +92,43 @@
       </div>
 
       <div class="pay-result-card__actions">
-        <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
-          {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
-        </a>
+        {% if is_mobile %}
+          <a href="zynavolt://payment-result?status=success" class="pay-result-card__btn pay-result-card__btn--primary" id="pay-mobile-return">
+            {% if is_en %}Return to the app ←{% else %}ارجع للتطبيق ←{% endif %}
+          </a>
+        {% else %}
+          <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
+            {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
+          </a>
+        {% endif %}
       </div>
+      {% if is_mobile %}
+        <p class="pay-result-card__mobile-hint">
+          {{ 'You can safely close this browser window — the app refreshed automatically.' if is_en else 'يمكنك إغلاق نافذة المتصفّح بأمان — التطبيق حُدِّث تلقائياً.' }}
+        </p>
+      {% endif %}
     </article>
   </main>
-</div>
+
+{% if is_mobile %}
+<script>
+/* v92g — mobile redirect-fallback. After ~2.5s, attempt to hand
+   the user back to the app via the custom URL scheme. If the
+   scheme isn't registered (older app build, browser blocks it),
+   the visible "ارجع للتطبيق" button still works. */
+(function () {
+  var triggered = false;
+  function jumpBack() {
+    if (triggered) return;
+    triggered = true;
+    try {
+      window.location.href = 'zynavolt://payment-result?status=success';
+    } catch (e) { /* no-op */ }
+  }
+  setTimeout(jumpBack, 2500);
+})();
+</script>
+{% endif %}
 
 <style>
   /* v92e — celebratory confetti rain */
@@ -386,6 +423,14 @@
     .pay-result-card__ring-icon { font-size: 48px; }
     .pay-result-card__title { font-size: 1.35rem; }
     .pay-result-card__subtitle { font-size: .95rem; }
+  }
+  /* v92g — standalone payment-result shell (no sidebar). */
+  .pay-result-shell { width: 100%; }
+  .pay-result-card__mobile-hint {
+    margin: 14px 0 0 0;
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 600;
   }
 </style>
 {% endblock %}

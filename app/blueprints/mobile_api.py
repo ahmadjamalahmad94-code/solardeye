@@ -2085,16 +2085,28 @@ def mobile_account_plan_change_checkout():
             _txt('لا توجد فاتورة معلقة لهذا الطلب.', 'No pending invoice for this request.'),
             code='no_pending_invoice',
         )
-    # v92e — same placeholder-encoding fix as `payments.create_invoice_checkout`.
+    # v92e — same placeholder-encoding fix as
+    # `payments.create_invoice_checkout`. v92g — also stamp
+    # `source=mobile` on both URLs so the result template knows to
+    # render the back-to-app CTA + auto-redirect script. The web
+    # path leaves the flag off (defaults to web rendering).
     try:
         base_success = url_for('payments.checkout_success', _external=True)
-        success_url = base_success + '?session_id={CHECKOUT_SESSION_ID}'
+        success_url = (
+            base_success
+            + '?session_id={CHECKOUT_SESSION_ID}&source=mobile'
+        )
     except Exception:  # pragma: no cover
-        success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
+        success_url = (
+            '/payments/stripe/success?'
+            'session_id={CHECKOUT_SESSION_ID}&source=mobile'
+        )
     try:
-        cancel_url = url_for('payments.checkout_cancel', _external=True)
+        cancel_url = url_for(
+            'payments.checkout_cancel', _external=True,
+        ) + '?source=mobile'
     except Exception:  # pragma: no cover
-        cancel_url = '/payments/stripe/cancel'
+        cancel_url = '/payments/stripe/cancel?source=mobile'
     try:
         from ..services.stripe_gateway import (
             create_invoice_checkout_session, StripeNotReady,

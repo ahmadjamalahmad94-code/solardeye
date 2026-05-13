@@ -440,6 +440,10 @@ def checkout_success():
         mode=PROVIDER_MODE,
         ui_lang=session.get('ui_lang') or 'ar',
         verification=verification,
+        # v92g — `source=mobile` from the checkout URL flips the
+        # template into mobile mode (back-to-app CTA, auto-redirect
+        # to the `zynavolt://` scheme, no sidebar).
+        source=(request.args.get('source') or '').strip().lower(),
     )
 
 
@@ -453,6 +457,7 @@ def checkout_cancel():
         provider=PROVIDER_NAME,
         mode=PROVIDER_MODE,
         ui_lang=session.get('ui_lang') or 'ar',
+        source=(request.args.get('source') or '').strip().lower(),
     )
 
 

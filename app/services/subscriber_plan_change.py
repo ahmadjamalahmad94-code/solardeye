@@ -426,6 +426,35 @@ def confirm(
         status=wb.STATUS_UNDER_REVIEW,
         subject=f'طلب تغيير الخطة إلى {plan_label}',
     )
+    # v92g — subscriber + admin "تم استلام الطلب" notifications.
+    # Subscriber gets a calm "we received your request" event so
+    # they have a record of the submission in their bell even
+    # before the apply / payment-request step finishes. Admins
+    # get the standard plan-change fanout so the workbench queue
+    # surfaces the new request alongside the legacy mobile path.
+    # Both fanouts are wrapped defensively — a notification
+    # failure must never block the actual plan-change apply.
+    try:
+        wb._notify_subscriber(
+            case,
+            event_type='plan_change_request_received',
+            title='تم استلام طلب تغيير الخطة',
+            message=f'استلمنا طلبك لتغيير الخطة إلى {plan_label}. '
+                    'سنحدّثك فور إكمال الخطوة التالية (دفع أو تطبيق).',
+            actor_user_id=actor_user_id,
+        )
+    except Exception:
+        logger.exception('subscriber receipt notification failed')
+    try:
+        from .support_ops import notify_admins_of_plan_change_request
+        notify_admins_of_plan_change_request(
+            case,
+            requester=user,
+            target_plan=target_plan,
+            commit=False,
+        )
+    except Exception:
+        logger.exception('admin fanout for plan-change submission failed')
     # Compute the canonical scenario AFTER the case is anchored —
     # the workbench math is identical to the preview but now lives
     # in the audit trail.

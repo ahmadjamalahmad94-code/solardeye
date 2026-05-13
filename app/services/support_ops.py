@@ -483,6 +483,83 @@ def _plan_label(plan: SubscriptionPlan | None) -> str:
     )
 
 
+def notify_admins_of_plan_change_payment(case: SupportCase, *, requester: AppUser | None = None, target_plan: SubscriptionPlan | None = None, amount: float | None = None, currency: str | None = None, commit: bool = False) -> list[NotificationEvent]:
+    """v92g — fanout admin notifications for a plan-change PAYMENT
+    event (settlement). Fires from the redirect-fallback after
+    Stripe confirms payment + from the webhook path. Idempotent:
+    dedups against any unread admin event for the same case + the
+    same event_type so a webhook + redirect-fallback both firing
+    don't double-notify."""
+    if not case:
+        return []
+    admin_ids = _admin_user_ids()
+    if not admin_ids:
+        return []
+    requester_label = ''
+    if requester is not None:
+        requester_label = (
+            getattr(requester, 'full_name', None)
+            or getattr(requester, 'username', None)
+            or f'user #{getattr(requester, "id", "")}'
+        )
+    elif getattr(case, 'user_id', None):
+        # Lookup-by-case fallback for callers that don't have the
+        # requester object handy (e.g. the Stripe redirect path).
+        try:
+            req = AppUser.query.get(case.user_id)
+            if req is not None:
+                requester_label = (
+                    getattr(req, 'full_name', None)
+                    or getattr(req, 'username', None)
+                    or f'user #{getattr(req, "id", "")}'
+                )
+        except Exception:
+            requester_label = f'user #{case.user_id}'
+    target_label = _plan_label(target_plan)
+    amount_segment = ''
+    if amount is not None and currency:
+        try:
+            amount_segment = f' بمبلغ {float(amount):.2f} {currency}'
+        except (TypeError, ValueError):
+            amount_segment = ''
+    title = f'تم استلام دفعة تغيير خطة — {requester_label}'.strip()
+    message = (
+        f'تم استلام الدفعة{amount_segment} لطلب تغيير الخطة '
+        f'إلى {target_label}. يمكنك مراجعة التفاصيل في ورشة الطلب.'
+    )
+    event_type = 'plan_change_payment_settled_admin'
+    existing = NotificationEvent.query.filter_by(
+        event_type=event_type,
+        source_type=_PLAN_CHANGE_SOURCE_TYPE,
+        source_id=case.id,
+        is_read=False,
+    ).all()
+    already_notified = {ev.target_user_id for ev in existing if ev.target_user_id is not None}
+    out: list[NotificationEvent] = []
+    now = datetime.utcnow()
+    detail_path = f'/admin/plan-change-requests/{case.id}'
+    for admin_id in admin_ids:
+        if admin_id in already_notified:
+            continue
+        ev = NotificationEvent(
+            event_type=event_type,
+            target_user_id=admin_id,
+            tenant_id=getattr(case, 'tenant_id', None),
+            source_type=_PLAN_CHANGE_SOURCE_TYPE,
+            source_id=case.id,
+            title=title,
+            message=message,
+            direct_url=detail_path,
+            status='new',
+            created_at=now,
+        )
+        db.session.add(ev)
+        out.append(ev)
+    if commit and out:
+        db.session.commit()
+    return out
+
+
 def notify_admins_of_plan_change_request(case: SupportCase, *, requester: AppUser | None = None, target_plan: SubscriptionPlan | None = None, commit: bool = False) -> list[NotificationEvent]:
     """Fanout admin notifications for a freshly-submitted plan-change
     request. Each active admin gets one `NotificationEvent` keyed

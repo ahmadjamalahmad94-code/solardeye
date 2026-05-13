@@ -5,9 +5,11 @@
    without hunting. #}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
-<div class="app-shell has-layout-sidebar sidebar-collapsed">
-  {% include '_sidebar.html' %}
-  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px">
+{% set is_mobile = (source == 'mobile') %}
+{# v92g — standalone cancel page (no sidebar) for the same security
+   + UX reasons as payment_success. Mobile callers get a back-to-app
+   CTA + redirect; web users get a calm "ارجع لاشتراكي" link. #}
+<main class="pay-result-shell" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px 20px;background:linear-gradient(180deg,#f8fafc 0%,#eff6ff 100%)">
     <article class="pay-result-card pay-result-card--cancel">
       <span class="pay-result-card__badge">
         🧪 {{ 'Sandbox / test mode' if is_en else 'وضع تجريبي' }}
@@ -44,13 +46,39 @@
       </div>
 
       <div class="pay-result-card__actions">
-        <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
-          {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
-        </a>
+        {% if is_mobile %}
+          <a href="zynavolt://payment-result?status=cancelled" class="pay-result-card__btn pay-result-card__btn--primary">
+            {% if is_en %}Return to the app ←{% else %}ارجع للتطبيق ←{% endif %}
+          </a>
+        {% else %}
+          <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
+            {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
+          </a>
+        {% endif %}
       </div>
+      {% if is_mobile %}
+        <p style="margin:14px 0 0 0;color:#64748b;font-size:.82rem;font-weight:600">
+          {{ 'You can close this browser window safely.' if is_en else 'يمكنك إغلاق نافذة المتصفّح بأمان.' }}
+        </p>
+      {% endif %}
     </article>
   </main>
-</div>
+
+{% if is_mobile %}
+<script>
+(function () {
+  var triggered = false;
+  function jumpBack() {
+    if (triggered) return;
+    triggered = true;
+    try {
+      window.location.href = 'zynavolt://payment-result?status=cancelled';
+    } catch (e) { /* no-op */ }
+  }
+  setTimeout(jumpBack, 2500);
+})();
+</script>
+{% endif %}
 
 <style>
   .pay-result-card {
@@ -185,5 +213,7 @@
     .pay-result-card__ring-icon { font-size: 38px; }
     .pay-result-card__title { font-size: 1.3rem; }
   }
+  /* v92g — standalone payment-result shell (no sidebar). */
+  .pay-result-shell { width: 100%; }
 </style>
 {% endblock %}

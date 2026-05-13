@@ -465,6 +465,26 @@ def _settle_plan_change_invoice(case_id: int, *, auto_apply: bool = False, actor
                 commit=True,
             )
             settled_this_call = True
+            # v92g — admin fanout: "حد خلص دفع". Defensive try so a
+            # notification failure can't undo the settlement.
+            try:
+                from .support_ops import (
+                    notify_admins_of_plan_change_payment,
+                )
+                from .plan_change_workbench import find_pending_invoice
+                pending = find_pending_invoice(case)
+                # Pending may already be flipped to LEDGER_CATEGORY_APPLIED
+                # by mark_invoice_settled — fall back to the case for amount.
+                amount = float(getattr(pending, 'amount', 0) or 0) if pending else None
+                currency = (getattr(pending, 'currency', None) or 'USD') if pending else 'USD'
+                notify_admins_of_plan_change_payment(
+                    case, amount=amount, currency=currency, commit=True,
+                )
+            except Exception as notif_exc:
+                logger.warning(
+                    'admin_payment_notif_failed err_class=%s case_id=%s',
+                    type(notif_exc).__name__, case.id,
+                )
         elif current_status != wb.STATUS_PAYMENT_SETTLED:
             # Some other state (open / under_review / closed /
             # cancelled). The webhook ack must NOT silently flip
