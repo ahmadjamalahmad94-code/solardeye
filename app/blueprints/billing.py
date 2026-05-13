@@ -540,6 +540,7 @@ _PLAN_CHANGE_QUEUE_TABS = (
     ('under_review', 'قيد المراجعة', 'Under review'),
     ('awaiting_subscriber_reply', 'بانتظار المشترك', 'Awaiting subscriber'),
     ('payment_requested', 'دفع مطلوب', 'Payment requested'),
+    ('payment_settled', 'دُفع — بانتظار التطبيق', 'Settled / pending apply'),
     ('resolved', 'مطبَّقة', 'Applied'),
     ('closed', 'مرفوضة', 'Rejected'),
     ('cancelled', 'ملغاة', 'Cancelled'),
@@ -557,6 +558,7 @@ def _plan_change_summary_counts(rows):
         'under_review': counts.get('under_review', 0),
         'awaiting_subscriber_reply': counts.get('awaiting_subscriber_reply', 0),
         'payment_requested': counts.get('payment_requested', 0),
+        'payment_settled': counts.get('payment_settled', 0),
         'resolved': counts.get('resolved', 0),
         'closed': counts.get('closed', 0),
         'cancelled': counts.get('cancelled', 0),
@@ -569,7 +571,8 @@ def admin_plan_change_requests():
     if guard:
         return guard
     from ..services.plan_change_workbench import (
-        workbench_queue, quote_same_duration,
+        workbench_queue, quote_same_duration, quote_reduced_days,
+        classify_change, POLICY_DOWNGRADE,
     )
     from ..services.support_ops import extract_plan_change_target_plan
     status_filter = (request.args.get('status') or 'all').strip()
@@ -582,12 +585,31 @@ def admin_plan_change_requests():
     for c in filtered:
         user = AppUser.query.get(c.user_id) if c.user_id else None
         target = extract_plan_change_target_plan(c)
+        # The scenario object also carries `policy_kind` post-v87, but
+        # we surface it explicitly on the row so the template can
+        # branch on a single field without inspecting both scenarios.
         scenario = quote_same_duration(c, target_plan=target)
+        policy_kind = scenario.policy_kind
+        # v87 — display a one-line "what was chosen / what is owed"
+        # so the queue tells the operator at a glance which path the
+        # subscriber picked. Falls back to the recommended scenario
+        # when the subscriber hasn't confirmed yet.
+        chosen_summary = None
+        if policy_kind == POLICY_DOWNGRADE:
+            red = quote_reduced_days(c, target_plan=target)
+            chosen_summary = (
+                f'{red.current_remaining_value:.2f} {red.currency} → '
+                f'{red.target_days}d'
+            )
+        elif scenario.is_eligible and scenario.amount > 0:
+            chosen_summary = f'+{scenario.amount:.2f} {scenario.currency}'
         rows.append({
             'case': c,
             'user': user,
             'target_plan': target,
             'scenario': scenario,
+            'policy_kind': policy_kind,
+            'chosen_summary': chosen_summary,
         })
     return render_template(
         'admin_plan_change_requests.html',
@@ -721,6 +743,12 @@ def admin_plan_change_request_invoice(case_id: int):
     except ValueError as exc:
         flash(f'وضع التسعير غير معروف: {exc}', 'danger')
         return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
+    if not getattr(scenario, 'is_eligible', True):
+        flash(
+            'هذا السيناريو غير مسموح به وفق سياسة v87 (لا يوجد إرجاع للمبالغ عند النزول).',
+            'danger',
+        )
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
     if scenario.amount <= 0:
         flash('لا يوجد مبلغ مستحق على المشترك لهذا السيناريو.', 'warning')
         return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
@@ -760,12 +788,22 @@ def admin_plan_change_request_approve(case_id: int):
     except ValueError as exc:
         flash(f'وضع التسعير غير معروف: {exc}', 'danger')
         return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
-    result = apply_request(
-        case,
-        actor_user_id=getattr(actor, 'id', None),
-        scenario=scenario,
-        commit=True,
-    )
+    try:
+        result = apply_request(
+            case,
+            actor_user_id=getattr(actor, 'id', None),
+            scenario=scenario,
+            commit=True,
+        )
+    except ValueError as exc:
+        # v87 — policy guard: same_duration on a downgrade case raises
+        # because the would-be refund is forbidden. Surface a clear
+        # admin message instead of letting it 500.
+        flash(
+            f'تعذّر تطبيق هذا السيناريو وفق سياسة v87: {exc}',
+            'danger',
+        )
+        return redirect(url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=_lang()))
     amount = float(result.get('amount') or 0)
     currency = result.get('currency') or scenario.currency
     if abs(amount) >= 0.01:

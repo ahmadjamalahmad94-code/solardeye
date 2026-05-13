@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{# v82 — admin plan-change requests queue (financial operations desk).
-
-   Reuses the existing admin_shell-v2 / admin-kpi-grid-v2 / admin-table-v2
-   visual language. Each row is a clear pointer into the workbench
-   detail page where the operator runs the financial scenarios and
-   decides the outcome. The page is intentionally just the queue —
-   the workbench detail lives at /admin/plan-change-requests/<id>. #}
+{# v87 — admin plan-change requests queue, redrawn as a scannable
+   operations list. The previous version was a dense 8-column table
+   that forced horizontal scrolling. The new layout uses a hybrid
+   row-card pattern so each row stays glanceable but exposes the
+   key operational facts (policy direction, money status, subscriber
+   choice) at first sight. Filters live in a chip rail above the
+   queue and the workbench detail page is still the action surface. #}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
@@ -15,12 +15,17 @@
       <div>
         <span class="eyebrow">{{ 'Billing operations' if is_en else 'العمليات المالية' }}</span>
         <h1>{{ 'Plan-change requests' if is_en else 'طلبات تغيير الخطة' }}</h1>
-        <p>{{ 'Internal financial workbench for subscriber-initiated plan changes. Open a request to compute scenarios, propose terms, issue an invoice, or apply the change.' if is_en else 'مكتب العمليات المالية لتغيير خطط المشتركين. افتح أي طلب لحساب السيناريوهات، طرح المقترحات، إصدار طلب دفع، أو تطبيق التغيير.' }}</p>
+        <p>{{ 'Monitor, audit, and handle exceptions. Subscribers drive the financial choice; admin confirms settlement and resolves edge cases.' if is_en else 'متابعة وتدقيق ومعالجة الاستثناءات. المشترك يختار، والإدارة تؤكد الاستلام وتعالج الحالات الخاصة.' }}</p>
+      </div>
+      <div class="admin-head-actions">
+        <a href="{{ url_for('billing.admin_subscriptions', lang=ui_lang) }}" class="btn btn-outline-primary" style="text-decoration:none">
+          {{ '← Subscriptions' if is_en else '← الاشتراكات' }}
+        </a>
       </div>
     </header>
 
-    {# ─── KPI band — visible state count grid ───────────────────── #}
-    <section class="admin-kpi-grid-v2">
+    {# ─── KPI band — six tiles ─────────────────────────────────────── #}
+    <section class="admin-kpi-grid-v2" style="margin-top:14px">
       <article class="admin-kpi-card">
         <small>{{ 'Total' if is_en else 'الإجمالي' }}</small>
         <strong>{{ counts.total }}</strong>
@@ -29,36 +34,36 @@
       <article class="admin-kpi-card">
         <small>{{ 'New' if is_en else 'جديدة' }}</small>
         <strong>{{ counts.open }}</strong>
-        <span>{{ 'Awaiting first admin touch' if is_en else 'بانتظار أول مراجعة' }}</span>
+        <span>{{ 'Awaiting first review' if is_en else 'بانتظار أول مراجعة' }}</span>
       </article>
       <article class="admin-kpi-card">
         <small>{{ 'Under review' if is_en else 'قيد المراجعة' }}</small>
         <strong>{{ counts.under_review }}</strong>
-        <span>{{ 'Admin actively working' if is_en else 'مراجعة جارية من الإدارة' }}</span>
-      </article>
-      <article class="admin-kpi-card">
-        <small>{{ 'Awaiting subscriber' if is_en else 'بانتظار المشترك' }}</small>
-        <strong>{{ counts.awaiting_subscriber_reply }}</strong>
-        <span>{{ 'Proposal sent, waiting for reply' if is_en else 'تم إرسال المقترح وننتظر الرد' }}</span>
+        <span>{{ 'Admin holding' if is_en else 'مراجعة جارية' }}</span>
       </article>
       <article class="admin-kpi-card">
         <small>{{ 'Payment requested' if is_en else 'دفع مطلوب' }}</small>
         <strong>{{ counts.payment_requested }}</strong>
-        <span>{{ 'Invoice issued; awaiting payment' if is_en else 'تم إصدار طلب الدفع، ننتظر السداد' }}</span>
+        <span>{{ 'Invoice issued, unpaid' if is_en else 'تم إصدار طلب الدفع' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Settled / pending apply' if is_en else 'دُفع — بانتظار التطبيق' }}</small>
+        <strong>{{ counts.payment_settled }}</strong>
+        <span>{{ 'Money received, not yet applied' if is_en else 'تم استلام المبلغ ولم يُطبَّق' }}</span>
       </article>
       <article class="admin-kpi-card">
         <small>{{ 'Applied' if is_en else 'مطبَّقة' }}</small>
         <strong>{{ counts.resolved }}</strong>
-        <span>{{ 'Plan switched successfully' if is_en else 'تم تطبيق التحويل' }}</span>
+        <span>{{ 'Plan switched' if is_en else 'تم التطبيق' }}</span>
       </article>
     </section>
 
-    {# ─── Status filter tabs ────────────────────────────────────── #}
-    <section class="admin-card-v2" style="margin-bottom:14px">
+    {# ─── Filter chip rail ─────────────────────────────────────────── #}
+    <section class="admin-card-v2" style="margin-top:14px;margin-bottom:14px">
       <div class="section-heading-inline">
         <div>
           <small>{{ 'Filter' if is_en else 'تصفية' }}</small>
-          <h3>{{ 'Queue segments' if is_en else 'تقسيم الطابور' }}</h3>
+          <h3>{{ 'Queue segments' if is_en else 'تقسيمات الطابور' }}</h3>
         </div>
       </div>
       <div class="filter-pills" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 4px 0 4px">
@@ -77,102 +82,115 @@
       </div>
     </section>
 
-    {# ─── Queue table — pointers into the workbench ─────────────── #}
+    {# ─── Queue — row-card hybrid ───────────────────────────────────── #}
     <section class="admin-card-v2">
       <div class="section-heading-inline">
         <div>
           <small>{{ 'Queue' if is_en else 'الطابور' }}</small>
-          <h3>{{ 'Plan-change requests' if is_en else 'طلبات تغيير الخطة' }}</h3>
+          <h3>{{ rows|length }} {{ 'request(s) shown' if is_en else 'طلب معروض' }}</h3>
         </div>
       </div>
-      <div class="table-shell-v2">
-        <table class="admin-table-v2">
-          <thead>
-            <tr>
-              <th>{{ '#' }}</th>
-              <th>{{ 'Subscriber' if is_en else 'المشترك' }}</th>
-              <th>{{ 'Current → Target' if is_en else 'الحالية ← المطلوبة' }}</th>
-              <th>{{ 'Remaining' if is_en else 'متبقّي' }}</th>
-              <th>{{ 'Recommended diff' if is_en else 'الفرق المقترح' }}</th>
-              <th>{{ 'Status' if is_en else 'الحالة' }}</th>
-              <th>{{ 'Last activity' if is_en else 'آخر نشاط' }}</th>
-              <th>{{ 'Open' if is_en else 'فتح' }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-              {% set case = row.case %}
-              {% set scenario = row.scenario %}
-              {% set is_focused = focus_case_id and case.id == focus_case_id %}
-              <tr class="{% if is_focused %}row-highlight{% endif %}" id="req-{{ case.id }}">
-                <td><strong dir="ltr">#{{ case.id }}</strong></td>
-                <td>
-                  <strong>{{ row.user.full_name or row.user.username if row.user else '—' }}</strong>
-                  <div class="table-sub">
-                    {{ mask_email(row.user.email) if row.user and row.user.email else (row.user.username if row.user else '—') }}
-                  </div>
-                </td>
-                <td>
-                  <strong>{{ (scenario.current_plan_price and ((scenario.current_plan_price | round(2)) ~ ' ' ~ scenario.currency)) or '—' }}</strong>
-                  →
-                  <strong>{% if row.target_plan %}{{ row.target_plan.name_ar or row.target_plan.name_en or row.target_plan.code }}{% else %}<span class="status-pill warning">{{ 'Unresolved' if is_en else 'غير معروفة' }}</span>{% endif %}</strong>
-                  <div class="table-sub">
-                    {{ scenario.cycle_days_current }}{{ 'd → ' if is_en else 'ي ← ' }}{{ scenario.cycle_days_target }}{{ 'd' if is_en else 'ي' }}
-                  </div>
-                </td>
-                <td>
-                  <strong dir="ltr">{{ scenario.remaining_days }}</strong>
-                  <div class="table-sub">{{ 'days' if is_en else 'يوم' }}</div>
-                </td>
-                <td>
-                  {% if scenario.amount > 0 %}
-                    <span class="status-pill warning" dir="ltr">+{{ '%.2f'|format(scenario.amount) }} {{ scenario.currency }}</span>
-                    <div class="table-sub">{{ 'Charge subscriber' if is_en else 'يُحمَّل على المشترك' }}</div>
-                  {% elif scenario.amount < 0 %}
-                    <span class="status-pill success" dir="ltr">{{ '%.2f'|format(scenario.amount) }} {{ scenario.currency }}</span>
-                    <div class="table-sub">{{ 'Credit subscriber' if is_en else 'رصيد للمشترك' }}</div>
-                  {% else %}
-                    <span class="status-pill" dir="ltr">0.00 {{ scenario.currency }}</span>
-                    <div class="table-sub">{{ 'Same-duration' if is_en else 'نفس المدة' }}</div>
-                  {% endif %}
-                </td>
-                <td>
-                  {% set st = case.status or 'open' %}
-                  <span class="status-pill {% if st in ['resolved'] %}success{% elif st in ['closed','cancelled'] %}danger{% elif st in ['payment_requested','awaiting_subscriber_reply'] %}warning{% else %}{% endif %}">
-                    {{ ui_label(st, 'status', ui_lang) }}
+
+      <div class="plan-change-queue" style="display:flex;flex-direction:column;gap:10px;padding:8px">
+        {% for row in rows %}
+          {% set case = row.case %}
+          {% set scenario = row.scenario %}
+          {% set policy = row.policy_kind or scenario.policy_kind or 'lateral' %}
+          {% set is_focused = focus_case_id and case.id == focus_case_id %}
+          {% set st = case.status or 'open' %}
+          <a href="{{ url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=ui_lang) }}"
+             id="req-{{ case.id }}"
+             class="plan-change-row {% if is_focused %}row-highlight{% endif %}"
+             style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;padding:14px 16px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;text-decoration:none;color:inherit;transition:transform .15s ease,box-shadow .15s ease">
+
+            {# Policy direction column #}
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:80px">
+              <strong dir="ltr" style="font-size:1.4rem;font-weight:900;color:{% if policy == 'upgrade' %}#d97706{% elif policy == 'downgrade' %}#059669{% else %}#6366f1{% endif %}">
+                {% if policy == 'upgrade' %}↑{% elif policy == 'downgrade' %}↓{% else %}↔{% endif %}
+              </strong>
+              <span class="status-pill {% if policy == 'upgrade' %}warning{% elif policy == 'downgrade' %}success{% endif %}" style="font-size:.65rem">
+                {% if policy == 'upgrade' %}{{ 'Upgrade' if is_en else 'ترقية' }}
+                {% elif policy == 'downgrade' %}{{ 'Downgrade' if is_en else 'نزول' }}
+                {% else %}{{ 'Lateral' if is_en else 'مكافئ' }}{% endif %}
+              </span>
+            </div>
+
+            {# Subscriber + plans column #}
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <strong>#{{ case.id }}</strong>
+                <strong style="font-weight:700">{{ row.user.full_name or row.user.username if row.user else '—' }}</strong>
+                <span class="table-sub">{{ mask_email(row.user.email) if row.user and row.user.email else (row.user.username if row.user else '—') }}</span>
+              </div>
+              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span class="status-pill" dir="ltr" style="background:#f1f5f9;color:#0f172a">
+                  {{ '%.0f'|format(scenario.current_plan_price) }} {{ scenario.currency }} / {{ scenario.cycle_days_current }}{{ 'd' if is_en else 'ي' }}
+                </span>
+                <span style="color:#94a3b8">→</span>
+                {% if row.target_plan %}
+                  <strong>{{ row.target_plan.name_ar or row.target_plan.name_en or row.target_plan.code }}</strong>
+                  <span class="status-pill" dir="ltr" style="background:#f1f5f9;color:#0f172a">
+                    {{ '%.0f'|format(scenario.target_plan_price) }} {{ scenario.currency }} / {{ scenario.cycle_days_target }}{{ 'd' if is_en else 'ي' }}
                   </span>
-                </td>
-                <td>
-                  <span class="table-sub" dir="ltr">{{ case.updated_at.strftime('%Y-%m-%d %H:%M') if case.updated_at else '—' }}</span>
-                </td>
-                <td>
-                  <a href="{{ url_for('billing.admin_plan_change_request_detail', case_id=case.id, lang=ui_lang) }}"
-                     class="btn-pill" style="text-decoration:none">
-                    {{ 'Open workbench →' if is_en else 'فتح الورشة ←' }}
-                  </a>
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="8" style="text-align:center;padding:18px 8px">
-                {{ 'No plan-change requests in this segment.' if is_en else 'لا توجد طلبات في هذا التقسيم.' }}
-              </td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+                {% else %}
+                  <span class="status-pill warning">{{ 'Unresolved' if is_en else 'غير معروفة' }}</span>
+                {% endif %}
+              </div>
+              <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.85rem;color:#475569">
+                <span>⏱ {{ scenario.remaining_days }} {{ 'days left' if is_en else 'يوم متبقٍ' }}</span>
+                <span>💰 {{ '%.2f'|format(scenario.current_remaining_value) }} {{ scenario.currency }} {{ 'remaining value' if is_en else 'قيمة المتبقّي' }}</span>
+                {% if row.chosen_summary %}
+                  <span style="color:#0f172a">·</span>
+                  <span>🎯 {{ row.chosen_summary }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            {# Status + action column #}
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:160px">
+              <span class="status-pill {% if st == 'resolved' %}success{% elif st in ['closed','cancelled'] %}danger{% elif st in ['payment_requested','awaiting_subscriber_reply'] %}warning{% elif st == 'payment_settled' %}success{% endif %}">
+                {{ ui_label(st, 'status', ui_lang) }}
+              </span>
+              <span class="table-sub" dir="ltr">{{ case.updated_at.strftime('%Y-%m-%d %H:%M') if case.updated_at else '—' }}</span>
+              <span class="btn-pill" style="font-size:.75rem;padding:4px 10px">
+                {{ 'Open →' if is_en else 'فتح ←' }}
+              </span>
+            </div>
+          </a>
+        {% else %}
+          <div style="padding:30px;text-align:center;color:#94a3b8">
+            {{ 'No plan-change requests in this segment.' if is_en else 'لا توجد طلبات في هذا التقسيم.' }}
+          </div>
+        {% endfor %}
       </div>
+    </section>
+
+    {# ─── Side guidance ──────────────────────────────────────────── #}
+    <section class="admin-card-v2" style="margin-top:14px;border-left:4px solid #6366f1">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Operations reminder' if is_en else 'تذكير تشغيلي' }}</small>
+          <h3>{{ 'Admin role on this queue' if is_en else 'دور الإدارة في هذا الطابور' }}</h3>
+        </div>
+      </div>
+      <ul style="margin:0;padding-{{ 'left' if is_en else 'right' }}:20px;color:#475569;font-size:.9rem;line-height:1.7">
+        <li>{{ 'Subscribers choose their own scenario. Admin acts as monitor, auditor, and exception handler.' if is_en else 'المشترك يختار سيناريوه. دور الإدارة هو المراقبة والتدقيق ومعالجة الاستثناءات.' }}</li>
+        <li>{{ 'Downgrades NEVER produce a refund or wallet credit. The remaining value is converted into more days on the cheaper plan.' if is_en else 'النزول إلى خطة أرخص لا يُنتج إرجاعاً للمبلغ ولا رصيداً في المحفظة، بل يُحوَّل المتبقي إلى أيام أكثر.' }}</li>
+        <li>{{ 'Upgrades expose two clear choices: keep days + pay difference, or accept fewer days with no payment.' if is_en else 'الترقية تُتيح خيارين: الإبقاء على الأيام مع دفع الفرق، أو قبول أيام أقل دون دفع.' }}</li>
+        <li>{{ 'A payment_settled row needs admin confirmation that the money was received; the plan apply is a separate explicit step.' if is_en else 'حالة "دُفع — بانتظار التطبيق" تحتاج تأكيد الاستلام من الإدارة، ثم خطوة تطبيق منفصلة.' }}</li>
+      </ul>
     </section>
   </main>
 </div>
 
 <style>
-  .row-highlight { background: rgba(124,58,237,0.08); transition: background 200ms ease; }
+  .plan-change-row:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(15,23,42,.08); }
+  .row-highlight { background: rgba(124,58,237,0.06) !important; box-shadow: 0 0 0 2px rgba(124,58,237,0.25); }
 </style>
 
 <script>
 (function () {
-  // v82: deep-link focus — when the page is opened with ?case=<id>,
-  // scroll to that row so an admin who clicked a notification lands
-  // right next to the request that fired it.
+  // v82: deep-link focus.
   var focusId = {{ focus_case_id|default(0)|tojson }};
   if (focusId) {
     var el = document.getElementById('req-' + focusId);

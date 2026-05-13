@@ -109,6 +109,21 @@ LEDGER_CATEGORY_REVERSAL = 'plan_change_reversal'
 PRICING_MODE_SAME_DURATION = 'same_duration'
 PRICING_MODE_REDUCED_DAYS = 'reduced_days'
 
+# v87 — policy classification. The plan-change policy is asymmetric:
+# downgrades MUST NOT generate a refund/wallet credit (the remaining
+# value is converted to more days on the cheaper plan), upgrades offer
+# two valid choices (keep days + pay diff, or accept fewer days + no
+# payment), and a lateral switch is a clean move with no money or day
+# loss. The classifier compares per-day prices.
+POLICY_DOWNGRADE = 'downgrade'
+POLICY_UPGRADE = 'upgrade'
+POLICY_LATERAL = 'lateral'
+
+# Eligibility reason strings. Stable so tests and the UI can branch on
+# them without parsing free-text summaries.
+ELIGIBILITY_DOWNGRADE_NO_REFUND = 'downgrade_no_refund_policy'
+ELIGIBILITY_OK = 'ok'
+
 
 # ── Audit / scenario shape ──────────────────────────────────────────
 
@@ -134,10 +149,22 @@ class Scenario:
     target_plan_price: float
     current_remaining_value: float
     target_remaining_value: float
-    amount: float  # signed: + → subscriber owes; − → subscriber credited
+    amount: float  # signed: + → subscriber owes; 0 → no money moves.
+    #                 Under v87 policy this is NEVER negative for a
+    #                 subscriber-driven path (downgrade does not refund).
     currency: str
     summary_ar: str
     summary_en: str
+    # v87 — policy fields. `policy_kind` is the upgrade/downgrade/
+    # lateral classification. `is_eligible` is False when this scenario
+    # is refused by policy (e.g. downgrade same-duration would imply a
+    # refund). `is_recommended` flags the primary path the subscriber
+    # UI should default to. `eligibility_reason` is a stable string the
+    # UI/mobile clients can branch on.
+    policy_kind: str = POLICY_LATERAL
+    is_eligible: bool = True
+    is_recommended: bool = False
+    eligibility_reason: str = ELIGIBILITY_OK
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -224,6 +251,39 @@ def _notify_subscriber(
 # ── Scenarios ────────────────────────────────────────────────────────
 
 
+def classify_change(
+    current_plan: SubscriptionPlan | None,
+    target_plan: SubscriptionPlan | None,
+    *,
+    cycle_days_current: int | None = None,
+    cycle_days_target: int | None = None,
+) -> str:
+    """v87 — classify a (current, target) pair as upgrade/downgrade/
+    lateral based on **per-day price**. Returns one of
+    `POLICY_UPGRADE`, `POLICY_DOWNGRADE`, `POLICY_LATERAL`.
+
+    The policy considers per-day value (not headline price) so a
+    20 USD / 90 day plan vs a 10 USD / 30 day plan correctly classifies
+    as an upgrade (target per-day is higher) regardless of the
+    headline difference. Missing plans default to lateral so the
+    caller never gets a surprise classification.
+    """
+    if not current_plan or not target_plan:
+        return POLICY_LATERAL
+    cur_cycle = max(int(cycle_days_current or _floor_cycle(current_plan)), 1)
+    tgt_cycle = max(int(cycle_days_target or _floor_cycle(target_plan)), 1)
+    cur_price = float(getattr(current_plan, 'price', 0) or 0)
+    tgt_price = float(getattr(target_plan, 'price', 0) or 0)
+    cur_per_day = cur_price / cur_cycle
+    tgt_per_day = tgt_price / tgt_cycle
+    # Cents tolerance — anything within 0.01 per-day is treated as
+    # lateral so two plans priced "the same" don't bounce between
+    # categories on rounding.
+    if abs(tgt_per_day - cur_per_day) < 0.01 / max(cur_cycle, tgt_cycle):
+        return POLICY_LATERAL
+    return POLICY_UPGRADE if tgt_per_day > cur_per_day else POLICY_DOWNGRADE
+
+
 def _resolve_request_context(case: SupportCase, *, target_plan: SubscriptionPlan | None, now: datetime | None) -> dict:
     """Common context shared by every scenario: tenant, current sub,
     current plan, target plan, remaining days, and the two cycle
@@ -278,13 +338,22 @@ def _resolve_request_context(case: SupportCase, *, target_plan: SubscriptionPlan
 
 
 def quote_same_duration(case: SupportCase, *, target_plan: SubscriptionPlan | None = None, now: datetime | None = None) -> Scenario:
-    """Scenario A — preserve the remaining period; charge or credit
-    the prorated difference.
+    """Scenario A — keep the same remaining days.
 
-    Formula (identical to v81 / billing_engine.change_plan):
+    Math:
         current_remaining_value = (remaining/cycle_current) × current_price
         target_remaining_value  = (remaining/cycle_target)  × target_price
         amount = target_remaining_value - current_remaining_value
+
+    v87 policy:
+      * **upgrade** → eligible. ``amount > 0``: subscriber owes the
+        difference. This is one of two valid upgrade paths.
+      * **lateral** → eligible. ``amount ≈ 0``: clean switch.
+      * **downgrade** → **NOT eligible**. The would-be negative diff
+        is NOT shown as a credit/refund. The scenario is returned with
+        ``is_eligible=False`` and ``amount=0`` so the subscriber never
+        sees "same days + credit". The conversion-to-more-days path
+        (``quote_reduced_days``) is the only offered downgrade path.
     """
     ctx = _resolve_request_context(case, target_plan=target_plan, now=now)
     remaining = ctx['remaining_days']
@@ -296,8 +365,35 @@ def quote_same_duration(case: SupportCase, *, target_plan: SubscriptionPlan | No
         round((remaining / ctx['cycle_days_target']) * ctx['target_plan_price'], 2)
         if remaining > 0 and ctx['target_plan'] else 0.0
     )
-    amount = round(tgt_rv - cur_rv, 2)
-    if amount > 0:
+    raw_amount = round(tgt_rv - cur_rv, 2)
+    policy_kind = classify_change(
+        ctx['current_plan'], ctx['target_plan'],
+        cycle_days_current=ctx['cycle_days_current'],
+        cycle_days_target=ctx['cycle_days_target'],
+    )
+    if policy_kind == POLICY_DOWNGRADE:
+        # Refuse: this path would imply a refund/credit which v87
+        # policy forbids. Zero the amount out so no caller can
+        # accidentally use it to write a credit.
+        amount = 0.0
+        is_eligible = False
+        is_recommended = False
+        eligibility_reason = ELIGIBILITY_DOWNGRADE_NO_REFUND
+        summary_ar = (
+            'هذا المسار غير مُتاح للنزول إلى خطة أرخص. '
+            'بدلاً من إرجاع المبلغ، تُحوَّل قيمتك المتبقّية إلى '
+            'أيام إضافية على الخطة الجديدة.'
+        )
+        summary_en = (
+            'This path is not offered when moving to a cheaper plan. '
+            'Your remaining value is converted into more days on the '
+            'new plan instead of being refunded.'
+        )
+    elif raw_amount > 0:
+        amount = raw_amount
+        is_eligible = True
+        is_recommended = True
+        eligibility_reason = ELIGIBILITY_OK
         summary_ar = (
             f'يحتفظ المشترك بنفس عدد الأيام المتبقّية ({remaining}). '
             f'فرق السعر المستحق: {amount:.2f} {ctx["currency"]}.'
@@ -306,16 +402,12 @@ def quote_same_duration(case: SupportCase, *, target_plan: SubscriptionPlan | No
             f'Subscriber keeps the same remaining days ({remaining}). '
             f'Extra due: {amount:.2f} {ctx["currency"]}.'
         )
-    elif amount < 0:
-        summary_ar = (
-            f'يحتفظ المشترك بنفس عدد الأيام المتبقّية ({remaining}). '
-            f'رصيد للمشترك: {abs(amount):.2f} {ctx["currency"]}.'
-        )
-        summary_en = (
-            f'Subscriber keeps the same remaining days ({remaining}). '
-            f'Credit due: {abs(amount):.2f} {ctx["currency"]}.'
-        )
     else:
+        # Lateral — amount is effectively zero.
+        amount = 0.0
+        is_eligible = True
+        is_recommended = True
+        eligibility_reason = ELIGIBILITY_OK
         summary_ar = (
             f'لا يوجد فرق مالي مستحق. الأيام المتبقّية: {remaining}.'
         )
@@ -338,22 +430,48 @@ def quote_same_duration(case: SupportCase, *, target_plan: SubscriptionPlan | No
         currency=ctx['currency'],
         summary_ar=summary_ar,
         summary_en=summary_en,
+        policy_kind=policy_kind,
+        is_eligible=is_eligible,
+        is_recommended=is_recommended,
+        eligibility_reason=eligibility_reason,
     )
 
 
 def quote_reduced_days(case: SupportCase, *, target_plan: SubscriptionPlan | None = None, desired_target_days: int | None = None, now: datetime | None = None) -> Scenario:
-    """Scenario B — keep the same remaining VALUE but on the target
-    plan. The operator can optionally choose a specific number of
-    target days (``desired_target_days``); when omitted, we compute
-    the largest free swap.
+    """Scenario B — convert the remaining VALUE into target-plan days.
 
     Math:
-        target_per_day = target_price / cycle_days_target
-        free_target_days = round(current_remaining_value / target_per_day)
-        amount = (chosen_target_days - free_target_days) × target_per_day
+        target_per_day   = target_price / cycle_days_target
+        free_target_days = floor(current_remaining_value / target_per_day)
+        chosen           = desired_target_days or free_target_days
+        amount           = (chosen − free_target_days) × target_per_day
 
-    ``amount > 0`` → subscriber owes more (asked for more days).
-    ``amount < 0`` → subscriber refunded (asked for fewer days).
+    Under v87 policy this single math is reframed by `policy_kind`:
+
+      * **downgrade** — `free_target_days` is GREATER than the
+        remaining days (the cheaper plan stretches further). The
+        scenario is **recommended and the only offered downgrade
+        path**. ``amount = 0`` always for the default path; the
+        subscriber receives MORE days on the new plan.
+      * **upgrade** — `free_target_days` is LESS than the remaining
+        days (the more expensive plan burns through value faster).
+        The scenario is **recommended as option B**: the subscriber
+        accepts fewer days and pays nothing extra. ``amount = 0`` for
+        the default path.
+      * **lateral** — `free_target_days ≈ remaining_days`. Not the
+        recommended path (the same-duration scenario is); still
+        eligible for completeness.
+
+    `desired_target_days` is preserved for the admin workbench so
+    operators can shape exceptional outcomes. When the operator
+    requests **more** days than the free swap (`amount > 0`) the
+    subscriber owes money. The subscriber-facing UI does NOT expose
+    this knob — the free swap is the only offered option from that
+    surface.
+
+    Floor (not round) for `free_target_days` so the conversion never
+    over-credits the subscriber: if the math says 73.6 days, the
+    subscriber gets 73 days, never 74.
     """
     ctx = _resolve_request_context(case, target_plan=target_plan, now=now)
     remaining = ctx['remaining_days']
@@ -365,8 +483,13 @@ def quote_reduced_days(case: SupportCase, *, target_plan: SubscriptionPlan | Non
         ctx['target_plan_price'] / ctx['cycle_days_target']
         if ctx['target_plan'] else 0.0
     )
+    # Floor so we never quietly over-credit the subscriber on the
+    # conversion. The leftover sub-day fraction is intentionally
+    # forfeited (matches "deterministic and transparent" in the
+    # policy spec; a future wave can add a wallet-credit line for
+    # the leftover sliver if accounting decides to capture it).
     free_target_days = (
-        int(round(cur_rv / target_per_day)) if target_per_day > 0 else 0
+        int(cur_rv // target_per_day) if target_per_day > 0 else 0
     )
     chosen = (
         int(desired_target_days)
@@ -375,36 +498,93 @@ def quote_reduced_days(case: SupportCase, *, target_plan: SubscriptionPlan | Non
     )
     chosen = max(chosen, 0)
     tgt_rv = round(chosen * target_per_day, 2)
-    amount = round(tgt_rv - cur_rv, 2)
-    if amount > 0:
-        summary_ar = (
-            f'الباقة الجديدة على {chosen} يوماً. مبلغ إضافي مستحق: '
-            f'{amount:.2f} {ctx["currency"]}.'
-        )
-        summary_en = (
-            f'Target plan for {chosen} day(s). Extra due: '
-            f'{amount:.2f} {ctx["currency"]}.'
-        )
-    elif amount < 0:
-        summary_ar = (
-            f'الباقة الجديدة على {chosen} يوماً. رصيد للمشترك: '
-            f'{abs(amount):.2f} {ctx["currency"]}.'
-        )
-        summary_en = (
-            f'Target plan for {chosen} day(s). Credit due: '
-            f'{abs(amount):.2f} {ctx["currency"]}.'
-        )
+    raw_amount = round(tgt_rv - cur_rv, 2)
+    policy_kind = classify_change(
+        ctx['current_plan'], ctx['target_plan'],
+        cycle_days_current=ctx['cycle_days_current'],
+        cycle_days_target=ctx['cycle_days_target'],
+    )
+    # The subscriber-facing path never asks the subscriber to pay for
+    # extra days on the reduced-days scenario. When the operator's
+    # `desired_target_days` would imply a debit (amount > 0) we still
+    # surface it for the workbench, but `is_recommended` flips off.
+    # When `amount < 0` (operator asked for fewer days than the free
+    # swap) we clamp at zero in the surfaced amount so we never write
+    # a refund through this path.
+    amount = raw_amount if raw_amount > 0 else 0.0
+    if policy_kind == POLICY_DOWNGRADE:
+        is_recommended = (raw_amount <= 0)
+        is_eligible = True
+        eligibility_reason = ELIGIBILITY_OK
+        if raw_amount > 0:
+            summary_ar = (
+                f'الباقة الجديدة على {chosen} يوماً '
+                f'(أكثر من التحويل الافتراضي {free_target_days} يوم). '
+                f'فرق إضافي مستحق: {amount:.2f} {ctx["currency"]}.'
+            )
+            summary_en = (
+                f'Target plan for {chosen} day(s) '
+                f'(more than the default conversion of {free_target_days}). '
+                f'Extra due: {amount:.2f} {ctx["currency"]}.'
+            )
+        else:
+            summary_ar = (
+                f'يتم تحويل قيمتك المتبقّية ({cur_rv:.2f} {ctx["currency"]}) '
+                f'إلى {chosen} يوماً على الخطة الجديدة. لا تُسترد أي مبالغ.'
+            )
+            summary_en = (
+                f'Your remaining value ({cur_rv:.2f} {ctx["currency"]}) '
+                f'is converted into {chosen} day(s) on the new plan. '
+                f'No refund is issued.'
+            )
+    elif policy_kind == POLICY_UPGRADE:
+        is_recommended = (raw_amount <= 0)
+        is_eligible = True
+        eligibility_reason = ELIGIBILITY_OK
+        if raw_amount > 0:
+            summary_ar = (
+                f'الباقة الجديدة على {chosen} يوماً '
+                f'(أكثر من التحويل المجاني {free_target_days} يوم). '
+                f'فرق إضافي مستحق: {amount:.2f} {ctx["currency"]}.'
+            )
+            summary_en = (
+                f'Target plan for {chosen} day(s) '
+                f'(more than the free conversion of {free_target_days}). '
+                f'Extra due: {amount:.2f} {ctx["currency"]}.'
+            )
+        else:
+            summary_ar = (
+                f'الانتقال إلى الخطة الأعلى بـ {chosen} يوماً بدلاً من '
+                f'{remaining} يوماً، دون أي مبلغ إضافي.'
+            )
+            summary_en = (
+                f'Move to the more expensive plan with {chosen} day(s) '
+                f'instead of {remaining}, with no extra payment.'
+            )
     else:
+        # lateral
+        is_recommended = False
+        is_eligible = True
+        eligibility_reason = ELIGIBILITY_OK
         summary_ar = (
-            f'تبادل مجاني — {chosen} يوماً على الباقة الجديدة دون مبلغ إضافي.'
+            f'تحويل مكافئ — {chosen} يوماً على الخطة الجديدة دون فرق مالي.'
         )
         summary_en = (
-            f'Even swap — {chosen} day(s) on the target plan, no extra charge.'
+            f'Equivalent swap — {chosen} day(s) on the new plan, '
+            f'no financial difference.'
         )
     return Scenario(
         mode=PRICING_MODE_REDUCED_DAYS,
-        label_ar='تقليل الأيام على الباقة الجديدة',
-        label_en='Reduce days on target plan',
+        label_ar=(
+            'تحويل القيمة إلى أيام أكثر'
+            if policy_kind == POLICY_DOWNGRADE
+            else 'تقليل الأيام على الباقة الجديدة'
+        ),
+        label_en=(
+            'Convert value into more days'
+            if policy_kind == POLICY_DOWNGRADE
+            else 'Reduce days on target plan'
+        ),
         remaining_days=remaining,
         target_days=chosen,
         cycle_days_current=ctx['cycle_days_current'],
@@ -417,7 +597,15 @@ def quote_reduced_days(case: SupportCase, *, target_plan: SubscriptionPlan | Non
         currency=ctx['currency'],
         summary_ar=summary_ar,
         summary_en=summary_en,
-        extra={'free_target_days': free_target_days, 'target_per_day_price': round(target_per_day, 4)},
+        policy_kind=policy_kind,
+        is_eligible=is_eligible,
+        is_recommended=is_recommended,
+        eligibility_reason=eligibility_reason,
+        extra={
+            'free_target_days': free_target_days,
+            'target_per_day_price': round(target_per_day, 4),
+            'days_delta_vs_remaining': chosen - remaining,
+        },
     )
 
 
@@ -662,18 +850,30 @@ def _reverse_pending_invoice(case: SupportCase, actor_user_id: int | None, reaso
 
 
 def apply_request(case: SupportCase, *, actor_user_id: int | None, scenario: Scenario | None = None, now: datetime | None = None, commit: bool = True) -> dict:
-    """Apply an approved plan-change request through the canonical
-    billing engine.
+    """Apply an approved plan-change request.
 
-    The scenario passed in determines the financial effect:
-      * ``mode=same_duration`` → reuses ``billing_engine.change_plan``
-        with the v81 reference token.
-      * ``mode=reduced_days`` → applies the plan switch in-place
-        but ALSO shortens the subscription's ``ends_at`` to
-        ``now + scenario.target_days``.
+    v87 policy: the financial side-effect is **exactly** the scenario
+    amount, never anything else. We no longer let `billing_engine.
+    change_plan` compute the ledger entry implicitly — that would
+    re-introduce the wallet-credit on downgrade we explicitly forbade.
+    Instead we:
+
+      1. Mutate `tenant.plan_id`, `tenant.status`, `sub.plan_id`,
+         `sub.status` directly so quota / "which plan am I on?" reads
+         instantly reflect the switch.
+      2. For `reduced_days` mode, set `sub.ends_at = now + target_days`
+         (more days on cheaper plan / fewer days on expensive plan).
+         For `same_duration` mode, leave `ends_at` alone.
+      3. Write exactly one `WalletLedger` row with `amount = scenario.
+         amount` (which is ≥ 0 under v87 policy). For zero amount we
+         write no ledger entry at all.
+      4. Apply the plan's new quotas via `_apply_quotas`.
 
     Any pending invoice for the case is flipped to settled
     automatically. The subscriber receives an `applied` notification.
+
+    Refuses (raises `ValueError`) if a downgrade is requested via
+    `same_duration` mode — that combo is forbidden by policy.
     """
     if not case:
         return {}
@@ -686,32 +886,87 @@ def apply_request(case: SupportCase, *, actor_user_id: int | None, scenario: Sce
     )
     if not (tenant and target):
         raise ValueError('apply_request requires resolvable tenant + target plan')
-    from .billing_engine import change_plan as _change_plan, extend as _extend
-    from datetime import timedelta
-    result = _change_plan(
-        tenant, target,
-        actor_user_id=actor_user_id,
-        reference_token=f'PCH-{tenant.id}-{case.id}',
-        now=now,
-        commit=False,
-    )
-    # Reduced-days mode: shrink the surviving cycle to the chosen
-    # target_days. Use the latest subscription row (which `change_plan`
-    # mutated in-place) to set the new ``ends_at``.
-    if scenario.mode == PRICING_MODE_REDUCED_DAYS:
-        sub = (
-            TenantSubscription.query
-            .filter_by(tenant_id=tenant.id)
-            .order_by(TenantSubscription.created_at.desc())
-            .first()
+    # v87 — refuse the forbidden combo defensively. The subscriber UI
+    # already hides this option, but a stale form post or a future
+    # mobile client must not be able to bypass it.
+    if (
+        scenario.mode == PRICING_MODE_SAME_DURATION
+        and scenario.policy_kind == POLICY_DOWNGRADE
+    ):
+        raise ValueError(
+            'plan_change policy: same_duration downgrade is not allowed '
+            '(would imply a refund). Use reduced_days conversion path.'
         )
-        if sub:
-            sub.ends_at = now + timedelta(days=int(scenario.target_days))
-            sub.updated_at = now
-    # Settle any pending invoice tied to this case (flip category +
-    # write a settlement audit row).
+    from .billing_engine import (
+        _latest_subscription, _apply_quotas, _write_ledger,
+        _append_note, _plan_label as _be_plan_label, _resolve_currency,
+        REF_PLAN_CHANGE,
+    )
+    from datetime import timedelta
+    sub = _latest_subscription(tenant)
+    if not sub:
+        # Edge case: no prior sub. Defer to billing_engine.activate
+        # which writes the inception ledger entry.
+        from .billing_engine import activate as _activate
+        be_result = _activate(
+            tenant, target, actor_user_id=actor_user_id,
+            now=now, commit=False,
+        )
+        _settle_pending_invoice(case, actor_user_id, scenario)
+        case.status = STATUS_RESOLVED
+        case.is_frozen = True
+        case.updated_at = now
+        if commit:
+            db.session.commit()
+        out = be_result.to_dict()
+        out['scenario'] = scenario.to_dict()
+        out['case_status'] = case.status
+        return out
+    current_plan = SubscriptionPlan.query.get(sub.plan_id) if sub.plan_id else None
+    # Apply the plan switch directly.
+    tenant.plan_id = target.id
+    tenant.status = 'active'
+    sub.plan_id = target.id
+    sub.status = 'active'
+    sub.updated_at = now
+    if scenario.mode == PRICING_MODE_REDUCED_DAYS:
+        # Conversion path — `target_days` is authoritative regardless
+        # of upgrade/downgrade direction.
+        sub.ends_at = now + timedelta(days=int(scenario.target_days))
+    # For same_duration mode we deliberately leave `ends_at` alone.
+    _append_note(
+        sub,
+        f'Plan changed (v87 policy): {_be_plan_label(current_plan)} → '
+        f'{_be_plan_label(target)} (mode={scenario.mode}, '
+        f'days={scenario.target_days}, policy={scenario.policy_kind}, '
+        f'amount={scenario.amount:+.2f})',
+    )
+    _apply_quotas(tenant, target)
+    currency = _resolve_currency(
+        getattr(target, 'currency', None),
+        getattr(current_plan, 'currency', None),
+    )
+    ledger = None
+    ledger_amount = round(float(scenario.amount or 0.0), 2)
+    if ledger_amount >= 0.01:
+        # Subscriber owes money — write a debit ledger row that
+        # matches the scenario exactly. Settled when the invoice is
+        # settled or paid through Stripe.
+        ledger = _write_ledger(
+            tenant_id=tenant.id, actor_user_id=actor_user_id,
+            amount=ledger_amount, entry_type='debit', currency=currency,
+            note=(
+                f'Plan change applied (v87): '
+                f'{_be_plan_label(current_plan)} → {_be_plan_label(target)} '
+                f'(mode={scenario.mode}, days={scenario.target_days})'
+            ),
+            reference=f'{REF_PLAN_CHANGE}-{tenant.id}-{case.id}',
+            category='plan_change',
+        )
+    # Zero-amount paths intentionally skip the ledger — there's no
+    # money movement to record. The audit row below carries the full
+    # scenario for traceability.
     _settle_pending_invoice(case, actor_user_id, scenario)
-    # Mark resolved + notify subscriber.
     case.status = STATUS_RESOLVED
     case.is_frozen = True
     case.updated_at = now
@@ -727,19 +982,29 @@ def apply_request(case: SupportCase, *, actor_user_id: int | None, scenario: Sce
     )
     _audit(
         case, 'plan_change.apply',
-        f'Applied via {scenario.mode} → {_plan_label(target)}',
+        f'Applied via {scenario.mode}/{scenario.policy_kind} → '
+        f'{_plan_label(target)}',
         actor_user_id=actor_user_id,
         details={
             'scenario': scenario.to_dict(),
-            'billing_result': result.to_dict(),
+            'ledger_entry_id': getattr(ledger, 'id', None),
+            'final_ends_at': sub.ends_at.isoformat() if sub.ends_at else None,
         },
     )
+    db.session.flush()
     if commit:
         db.session.commit()
-    out = result.to_dict()
-    out['scenario'] = scenario.to_dict()
-    out['case_status'] = case.status
-    return out
+    return {
+        'action': 'change_plan',
+        'tenant_id': tenant.id,
+        'plan_id': target.id,
+        'subscription_id': sub.id,
+        'amount': ledger_amount,
+        'currency': currency,
+        'ledger_entry_id': getattr(ledger, 'id', None),
+        'scenario': scenario.to_dict(),
+        'case_status': case.status,
+    }
 
 
 def mark_invoice_settled(case: SupportCase, *, actor_user_id: int | None, note: str = '', commit: bool = True) -> dict:

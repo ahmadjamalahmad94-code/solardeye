@@ -1,14 +1,32 @@
 {% extends "base.html" %}
-{# v85 — subscriber-facing plan-change preview + confirm page.
-   Two scenario cards side-by-side, plain Arabic+English copy
-   explaining the trade-off, exact numbers before confirmation. #}
+{# v87 — subscriber plan-change preview, fully redrawn.
+
+   Policy:
+     • Cheaper plan  → remaining VALUE is converted into MORE days
+                       on the new plan. No refund. No wallet credit.
+     • Expensive plan → two options:
+                          A. Keep same remaining days, pay the diff.
+                          B. Keep same value, fewer days on new plan.
+     • Equal plan    → seamless lateral move.
+
+   The page is structured as:
+     1. Adopted hero (admin-page-head gradient)
+     2. Decision explainer rail (policy-aware copy)
+     3. Current situation summary (KPI band)
+     4. Choice cards (policy-driven; ineligible paths are visibly
+        disabled with their reason, never presented as a CTA)
+     5. Strong confirmation modal-style copy on each submit. #}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 {% set p = preview %}
+{% set policy = p.policy_kind or 'lateral' %}
+{% set same = p.same_duration %}
+{% set reduced = p.reduced_days %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area admin-shell-v2" style="max-width:1100px">
+  <main class="app-main content-area admin-shell-v2" style="max-width:1180px">
 
+    {# ─── 1. Adopted hero ─────────────────────────────────────────── #}
     <header class="admin-page-head">
       <div>
         <span class="eyebrow">
@@ -18,13 +36,36 @@
           ·
           {{ 'Plan change' if is_en else 'تغيير الخطة' }}
         </span>
-        <h1>{{ 'Choose how you want to change your plan' if is_en else 'اختر طريقة تغيير الخطة' }}</h1>
-        <p>{{ 'Two clear options. Pick the one that fits — the exact numbers are shown below.' if is_en else 'خياران واضحان. اختر الأنسب لك — الأرقام التفصيلية أدناه.' }}</p>
+        <h1>
+          {% if policy == 'downgrade' %}
+            {{ 'Move to a cheaper plan — and gain more days' if is_en else 'الانتقال إلى خطة أرخص مع الحصول على أيام إضافية' }}
+          {% elif policy == 'upgrade' %}
+            {{ 'Move to a higher plan — pick how you want to switch' if is_en else 'الانتقال إلى خطة أعلى — اختر طريقة الانتقال' }}
+          {% else %}
+            {{ 'Change your plan' if is_en else 'تغيير الخطة' }}
+          {% endif %}
+        </h1>
+        <p>
+          {% if policy == 'downgrade' %}
+            {{ 'Your remaining value will be converted into more days on the new plan. We never refund money on a downgrade.' if is_en else 'تُحوَّل قيمتك المتبقّية إلى أيام إضافية على الخطة الجديدة. لا نقوم بإرجاع المبالغ عند النزول.' }}
+          {% elif policy == 'upgrade' %}
+            {{ 'Keep your remaining days and pay the difference — or accept fewer days on the new plan with no extra payment.' if is_en else 'احتفظ بأيامك المتبقّية وادفع فرق السعر — أو خذ أياماً أقل على الخطة الجديدة دون أي مبلغ إضافي.' }}
+          {% else %}
+            {{ 'Two systems exist: keep the same days, or convert your value into target-plan days. The exact numbers are shown below.' if is_en else 'خياران واضحان: الإبقاء على نفس عدد الأيام، أو تحويل القيمة إلى أيام الخطة الجديدة. الأرقام الدقيقة موضحة أدناه.' }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="admin-head-actions">
+        <span class="status-pill {% if policy == 'upgrade' %}warning{% elif policy == 'downgrade' %}success{% endif %}">
+          {% if policy == 'downgrade' %}↓ {{ 'Downgrade' if is_en else 'نزول إلى خطة أرخص' }}
+          {% elif policy == 'upgrade' %}↑ {{ 'Upgrade' if is_en else 'ترقية إلى خطة أعلى' }}
+          {% else %}↔ {{ 'Lateral change' if is_en else 'تغيير مكافئ' }}{% endif %}
+        </span>
       </div>
     </header>
 
     {% if p.blocked_reason %}
-      <section class="admin-card-v2" style="border:1px solid #ef4444;background:rgba(239,68,68,0.04)">
+      <section class="admin-card-v2" style="border:1px solid #ef4444;background:rgba(239,68,68,0.04);margin-top:14px">
         <div class="section-heading-inline">
           <div>
             <small>⚠ {{ 'Cannot proceed' if is_en else 'تعذّر إكمال الطلب' }}</small>
@@ -50,17 +91,75 @@
 
     {% else %}
 
-    {# ─── Context band ──────────────────────────────────────────── #}
-    <section class="admin-kpi-grid-v2">
+    {# ─── 2. Decision explainer — policy-aware narrative ───────────── #}
+    <section class="admin-card-v2" style="margin-top:14px;border-left:4px solid {% if policy == 'downgrade' %}#10b981{% elif policy == 'upgrade' %}#d97706{% else %}#6366f1{% endif %}">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'How this works' if is_en else 'كيف تعمل هذه العملية' }}</small>
+          <h3>
+            {% if policy == 'downgrade' %}
+              {{ 'Cheaper plan = more days (no refund)' if is_en else 'الخطة الأرخص = أيام أكثر (دون إرجاع مبالغ)' }}
+            {% elif policy == 'upgrade' %}
+              {{ 'Two valid choices for an upgrade' if is_en else 'خياران صحيحان للترقية' }}
+            {% else %}
+              {{ 'A clean, equivalent switch' if is_en else 'تحويل مكافئ ومباشر' }}
+            {% endif %}
+          </h3>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:8px">
+        {% if policy == 'downgrade' %}
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #10b981">
+            <h4 style="margin-top:0">✓ {{ 'What happens to your money' if is_en else 'ماذا يحدث لمالك' }}</h4>
+            <p>{{ 'Your remaining value is kept and re-priced against the cheaper daily rate, so you receive more days on the new plan. Nothing is refunded to your wallet, and nothing is returned to your card.' if is_en else 'تُحفَظ قيمتك المتبقّية ويُعاد تسعيرها وفق السعر اليومي الأقل، فتحصل على أيام أكثر على الخطة الجديدة. لا يُرجَع شيء للمحفظة ولا لبطاقتك.' }}</p>
+          </div>
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #94a3b8">
+            <h4 style="margin-top:0">✕ {{ 'What does NOT happen' if is_en else 'ما الذي لن يحدث' }}</h4>
+            <p>{{ 'You will not see "same days + credit". A money refund or wallet credit is never the outcome of a downgrade.' if is_en else 'لن تجد خيار "نفس الأيام + رصيد". لا يوجد إرجاع للمبلغ ولا رصيد للمحفظة عند النزول إلى خطة أرخص.' }}</p>
+          </div>
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #6366f1">
+            <h4 style="margin-top:0">∑ {{ 'The math' if is_en else 'طريقة الحساب' }}</h4>
+            <p dir="ltr" style="font-family:ui-monospace,monospace;font-size:.85rem">
+              remaining_value = (remaining_days ÷ current_cycle_days) × current_plan_price<br>
+              new_days = remaining_value ÷ (target_price ÷ target_cycle_days)
+            </p>
+          </div>
+        {% elif policy == 'upgrade' %}
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #d97706">
+            <h4 style="margin-top:0">A · {{ 'Keep my days, pay the difference' if is_en else 'إبقاء أيامي ودفع الفرق' }}</h4>
+            <p>{{ 'You stay on the same number of remaining days. We generate a payment request for the proportional price difference. The new plan applies the moment your payment is confirmed.' if is_en else 'تبقى أيامك المتبقّية كما هي. نُصدر طلب دفع لفرق السعر النسبي. تنتقل تلقائياً إلى الخطة الجديدة فور تأكيد الدفع.' }}</p>
+          </div>
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #10b981">
+            <h4 style="margin-top:0">B · {{ 'Same value, fewer days, no payment' if is_en else 'نفس القيمة، أيام أقل، بلا دفع' }}</h4>
+            <p>{{ 'Your remaining value is kept, but converted into the higher daily rate. You receive fewer days on the new plan and pay nothing extra.' if is_en else 'تُحفَظ قيمتك المتبقّية ويُعاد تسعيرها وفق السعر اليومي الأعلى، فتحصل على أيام أقل على الخطة الجديدة دون أي مبلغ إضافي.' }}</p>
+          </div>
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #6366f1">
+            <h4 style="margin-top:0">∑ {{ 'The math' if is_en else 'طريقة الحساب' }}</h4>
+            <p dir="ltr" style="font-family:ui-monospace,monospace;font-size:.85rem">
+              A: amount_due = target_remaining_value − current_remaining_value<br>
+              B: new_days   = current_remaining_value ÷ target_per_day
+            </p>
+          </div>
+        {% else %}
+          <div class="admin-card-v2" style="margin:0;border:1px dashed #6366f1">
+            <h4 style="margin-top:0">↔ {{ 'Equivalent switch' if is_en else 'تحويل مكافئ' }}</h4>
+            <p>{{ 'The two plans cost about the same per day, so the switch is clean: no extra payment, no day adjustment.' if is_en else 'الخطتان متقاربتان في السعر اليومي، فالتحويل مباشر بلا دفع إضافي وبلا تعديل في الأيام.' }}</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ─── 3. Current situation summary ─────────────────────────────── #}
+    <section class="admin-kpi-grid-v2" style="margin-top:14px">
       <article class="admin-kpi-card">
         <small>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</small>
         <strong>{{ p.current_plan_label }}</strong>
-        <span dir="ltr">{{ '%.2f'|format(p.same_duration.current_plan_price) }} {{ p.currency }}</span>
+        <span dir="ltr">{{ '%.2f'|format(same.current_plan_price) }} {{ p.currency }} · {{ same.cycle_days_current }}{{ 'd' if is_en else 'ي' }}</span>
       </article>
       <article class="admin-kpi-card">
         <small>{{ 'Target plan' if is_en else 'الخطة المطلوبة' }}</small>
         <strong>{{ p.target_plan_label }}</strong>
-        <span dir="ltr">{{ '%.2f'|format(p.same_duration.target_plan_price) }} {{ p.currency }}</span>
+        <span dir="ltr">{{ '%.2f'|format(same.target_plan_price) }} {{ p.currency }} · {{ same.cycle_days_target }}{{ 'd' if is_en else 'ي' }}</span>
       </article>
       <article class="admin-kpi-card">
         <small>{{ 'Remaining days' if is_en else 'الأيام المتبقّية' }}</small>
@@ -68,38 +167,48 @@
         <span>{{ 'on current plan' if is_en else 'على الخطة الحالية' }}</span>
       </article>
       <article class="admin-kpi-card">
-        <small>{{ 'Current value left' if is_en else 'قيمة المتبقّي الحالية' }}</small>
-        <strong dir="ltr">{{ '%.2f'|format(p.same_duration.current_remaining_value) }} {{ p.currency }}</strong>
+        <small>{{ 'Remaining value' if is_en else 'قيمة المتبقّي' }}</small>
+        <strong dir="ltr">{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong>
         <span>{{ 'pro-rated' if is_en else 'محسوبة بالتناسب' }}</span>
       </article>
     </section>
 
-    {# ─── Two scenario cards ────────────────────────────────────── #}
+    {# ─── 4. Choice flow ──────────────────────────────────────────── #}
     <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:14px">
 
-      {# Scenario A — Same duration #}
+      {# ── Path A — Same duration ──────────────────────────────────── #}
+      {% if same.is_eligible %}
       <form method="post" action="{{ url_for('billing.account_subscription_change_confirm', lang=ui_lang) }}"
-            class="admin-card-v2" style="border:1px solid #6366f1;background:rgba(99,102,241,0.04)"
-            onsubmit="return confirm('{{ 'Confirm: keep the same remaining days and proceed?' if is_en else 'هل تريد الاستمرار بنفس عدد الأيام المتبقّية؟' }}');">
+            class="admin-card-v2"
+            style="border:1px solid {% if same.is_recommended and policy != 'downgrade' %}#d97706{% else %}#cbd5e1{% endif %};background:{% if same.is_recommended and policy != 'downgrade' %}rgba(217,119,6,0.04){% else %}#fff{% endif %};position:relative"
+            onsubmit="return confirmPlanChange(event, {{ ('A' if policy == 'upgrade' else 'lateral') | tojson }}, {{ p.target_plan_label | tojson }}, {{ ('%.2f' % same.amount) | tojson }}, {{ p.currency | tojson }}, {{ same.target_days | tojson }}, {{ ('en' if is_en else 'ar') | tojson }});">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="plan_id" value="{{ p.target_plan_id }}">
         <input type="hidden" name="mode" value="same_duration">
 
+        {% if same.is_recommended and policy == 'upgrade' %}
+          <span class="status-pill warning" style="position:absolute;top:-12px;{{ 'left' if is_en else 'right' }}:14px;font-size:.65rem">{{ 'Option A' if is_en else 'الخيار أ' }}</span>
+        {% endif %}
+
         <div class="section-heading-inline">
           <div>
-            <small>{{ 'Option A' if is_en else 'الخيار أ' }}</small>
-            <h3>{{ 'Keep my remaining days, pay the difference' if is_en else 'إبقاء أيامي والدفع للفرق' }}</h3>
+            <small>{% if policy == 'upgrade' %}{{ 'Option A' if is_en else 'الخيار أ' }}{% else %}{{ 'Equivalent switch' if is_en else 'تحويل مكافئ' }}{% endif %}</small>
+            <h3>
+              {% if same.amount > 0 %}
+                {{ 'Keep my days, pay the difference' if is_en else 'إبقاء أيامي ودفع الفرق' }}
+              {% else %}
+                {{ 'Switch with the same remaining days' if is_en else 'التحويل مع نفس الأيام المتبقّية' }}
+              {% endif %}
+            </h3>
           </div>
-          <strong dir="ltr" style="font-size:1.4rem;{% if p.same_duration.amount > 0 %}color:#d97706{% elif p.same_duration.amount < 0 %}color:#059669{% endif %}">
-            {{ '%+.2f'|format(p.same_duration.amount) }} {{ p.currency }}
+          <strong dir="ltr" style="font-size:1.4rem;color:{% if same.amount > 0 %}#d97706{% else %}#0f172a{% endif %}">
+            {% if same.amount > 0 %}+{{ '%.2f'|format(same.amount) }}{% else %}0.00{% endif %} {{ p.currency }}
           </strong>
         </div>
 
         <p style="margin:8px 0">
-          {% if p.same_duration.amount > 0 %}
-            {{ 'You keep all of your remaining %d day(s). The system will generate a payment request for the difference. The plan change is applied once payment is confirmed.'|format(p.remaining_days) if is_en else 'تحتفظ بكل أيامك المتبقّية (%d يوماً). سيتم إنشاء طلب دفع للفرق، ويُطبَّق التغيير فور تأكيد الدفع.'|format(p.remaining_days) }}
-          {% elif p.same_duration.amount < 0 %}
-            {{ 'You keep all of your remaining %d day(s) and receive a wallet credit for the difference. The plan change is applied immediately.'|format(p.remaining_days) if is_en else 'تحتفظ بكل أيامك المتبقّية (%d يوماً) ويُسجَّل لك رصيد بالفرق في المحفظة. يتم تطبيق التغيير مباشرة.'|format(p.remaining_days) }}
+          {% if same.amount > 0 %}
+            {{ 'You keep all of your remaining %d day(s). The system generates a payment request for the proportional difference. The plan change is applied as soon as your payment is confirmed.'|format(p.remaining_days) if is_en else 'تحتفظ بكل أيامك المتبقّية (%d يوماً). يُنشِئ النظام طلب دفع للفرق النسبي، ويُطبَّق التغيير فور تأكيد الدفع.'|format(p.remaining_days) }}
           {% else %}
             {{ 'No financial difference. The plan change is applied immediately and your remaining days stay the same.' if is_en else 'لا فرق مالي. يتم تطبيق التغيير مباشرة وتبقى أيامك كما هي.' }}
           {% endif %}
@@ -109,93 +218,216 @@
           <tbody>
             <tr>
               <td>{{ 'Remaining days' if is_en else 'الأيام المتبقّية' }}</td>
-              <td dir="ltr"><strong>{{ p.same_duration.remaining_days }}</strong></td>
+              <td dir="ltr"><strong>{{ same.remaining_days }}</strong></td>
             </tr>
             <tr>
-              <td>{{ 'Days on target plan' if is_en else 'الأيام على الخطة الجديدة' }}</td>
-              <td dir="ltr"><strong>{{ p.same_duration.target_days }}</strong></td>
+              <td>{{ 'Days after switch' if is_en else 'الأيام بعد التحويل' }}</td>
+              <td dir="ltr"><strong>{{ same.target_days }}</strong> <span class="table-sub">{{ '(unchanged)' if is_en else '(دون تغيير)' }}</span></td>
             </tr>
             <tr>
               <td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td>
-              <td dir="ltr"><strong>{{ '%.2f'|format(p.same_duration.current_remaining_value) }} {{ p.currency }}</strong></td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(same.current_remaining_value) }} {{ p.currency }}</strong></td>
             </tr>
             <tr>
               <td>{{ 'Target equivalent value' if is_en else 'القيمة المكافئة على الخطة الجديدة' }}</td>
-              <td dir="ltr"><strong>{{ '%.2f'|format(p.same_duration.target_remaining_value) }} {{ p.currency }}</strong></td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(same.target_remaining_value) }} {{ p.currency }}</strong></td>
             </tr>
+            {% if same.amount > 0 %}
+            <tr>
+              <td><strong>{{ 'Amount due' if is_en else 'المبلغ المستحق' }}</strong></td>
+              <td dir="ltr"><strong style="color:#d97706">+{{ '%.2f'|format(same.amount) }} {{ p.currency }}</strong></td>
+            </tr>
+            {% endif %}
           </tbody>
         </table>
 
-        <button type="submit" class="btn-pill {% if p.same_duration.amount > 0 %}warning{% else %}success{% endif %}" style="margin-top:12px;width:100%">
-          {% if p.same_duration.amount > 0 %}
+        <button type="submit" class="btn-pill {% if same.amount > 0 %}warning{% else %}{% endif %}" style="margin-top:12px;width:100%">
+          {% if same.amount > 0 %}
             🧾 {{ 'Create payment request' if is_en else 'إنشاء طلب دفع' }}
-          {% elif p.same_duration.amount < 0 %}
-            ✅ {{ 'Apply with wallet credit' if is_en else 'تطبيق مع تسجيل رصيد' }}
           {% else %}
             ✅ {{ 'Apply now' if is_en else 'تطبيق الآن' }}
           {% endif %}
         </button>
       </form>
+      {% else %}
+      {# Ineligible — show a clear disabled card that EXPLAINS why,
+         per policy never present this as a CTA on downgrades. #}
+      <article class="admin-card-v2"
+               style="border:1px dashed #cbd5e1;background:#f8fafc;opacity:.92;position:relative">
+        <div class="section-heading-inline">
+          <div>
+            <small>{{ 'Not offered' if is_en else 'غير متاح' }}</small>
+            <h3 style="color:#64748b">{{ 'Same days + credit' if is_en else 'نفس الأيام مع رصيد' }}</h3>
+          </div>
+          <strong dir="ltr" style="font-size:1.2rem;color:#64748b">—</strong>
+        </div>
+        <p style="margin:8px 0;color:#475569">
+          {{ same.summary_en if is_en else same.summary_ar }}
+        </p>
+        <p style="margin:8px 0 0 0;color:#64748b;font-size:.85rem">
+          ↓ {{ 'Use the conversion option below instead.' if is_en else 'استخدم خيار التحويل أدناه بدلاً من ذلك.' }}
+        </p>
+      </article>
+      {% endif %}
 
-      {# Scenario B — Reduced days #}
+      {# ── Path B — Reduced / converted days ──────────────────────── #}
       <form method="post" action="{{ url_for('billing.account_subscription_change_confirm', lang=ui_lang) }}"
-            class="admin-card-v2" style="border:1px solid #10b981;background:rgba(16,185,129,0.04)"
-            onsubmit="return confirm('{{ 'Confirm: switch to the new plan with fewer days, no extra payment?' if is_en else 'هل تريد الانتقال للخطة الجديدة بأيام أقل دون دفع إضافي؟' }}');">
+            class="admin-card-v2"
+            style="border:1px solid {% if reduced.is_recommended %}#10b981{% else %}#cbd5e1{% endif %};background:{% if reduced.is_recommended %}rgba(16,185,129,0.04){% else %}#fff{% endif %};position:relative"
+            onsubmit="return confirmPlanChange(event, {{ ('downgrade' if policy == 'downgrade' else 'B') | tojson }}, {{ p.target_plan_label | tojson }}, {{ ('%.2f' % reduced.amount) | tojson }}, {{ p.currency | tojson }}, {{ reduced.target_days | tojson }}, {{ ('en' if is_en else 'ar') | tojson }});">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="plan_id" value="{{ p.target_plan_id }}">
         <input type="hidden" name="mode" value="reduced_days">
-        {# desired_target_days is intentionally omitted on the
-           subscriber form — the free-swap value is the honest
-           "no extra charge" baseline. Admin override remains
-           available in the admin workbench. #}
+
+        {% if reduced.is_recommended and policy == 'downgrade' %}
+          <span class="status-pill success" style="position:absolute;top:-12px;{{ 'left' if is_en else 'right' }}:14px;font-size:.65rem">{{ 'Recommended' if is_en else 'الموصى به' }}</span>
+        {% elif reduced.is_recommended and policy == 'upgrade' %}
+          <span class="status-pill success" style="position:absolute;top:-12px;{{ 'left' if is_en else 'right' }}:14px;font-size:.65rem">{{ 'Option B' if is_en else 'الخيار ب' }}</span>
+        {% endif %}
 
         <div class="section-heading-inline">
           <div>
-            <small>{{ 'Option B' if is_en else 'الخيار ب' }}</small>
-            <h3>{{ 'Switch now, fewer days, no extra payment' if is_en else 'التحويل بأقل أيام بدون دفع إضافي' }}</h3>
+            <small>
+              {% if policy == 'downgrade' %}{{ 'Value → days' if is_en else 'القيمة إلى أيام' }}
+              {% elif policy == 'upgrade' %}{{ 'Option B' if is_en else 'الخيار ب' }}
+              {% else %}{{ 'Alternative' if is_en else 'بديل' }}{% endif %}
+            </small>
+            <h3>
+              {% if policy == 'downgrade' %}
+                {{ 'Convert my remaining value into more days' if is_en else 'تحويل قيمتي المتبقّية إلى أيام أكثر' }}
+              {% elif policy == 'upgrade' %}
+                {{ 'Accept fewer days, no extra payment' if is_en else 'قبول أيام أقل بدون دفع إضافي' }}
+              {% else %}
+                {{ 'Convert value into target-plan days' if is_en else 'تحويل القيمة إلى أيام على الخطة الجديدة' }}
+              {% endif %}
+            </h3>
           </div>
-          <strong dir="ltr" style="font-size:1.4rem;color:#059669">
-            {{ p.reduced_days.target_days }} {{ 'days' if is_en else 'يوم' }}
+          <strong dir="ltr" style="font-size:1.4rem;color:{% if policy == 'downgrade' %}#059669{% else %}#0f172a{% endif %}">
+            {{ reduced.target_days }} {{ 'days' if is_en else 'يوم' }}
           </strong>
         </div>
 
         <p style="margin:8px 0">
-          {{ 'Your current value transfers to the new plan as %d day(s). No extra payment is required and the plan change is applied immediately.'|format(p.reduced_days.target_days) if is_en else 'تنتقل قيمتك الحالية إلى الخطة الجديدة على شكل %d يوماً. لا حاجة لأي دفعة إضافية، ويتم التطبيق مباشرة.'|format(p.reduced_days.target_days) }}
+          {% if policy == 'downgrade' %}
+            {{ 'Your remaining value (%.2f %s) converts into %d day(s) on the cheaper plan. No money moves, no refund issued, the change applies immediately.'|format(reduced.current_remaining_value, p.currency, reduced.target_days) if is_en else 'تتحوّل قيمتك المتبقّية (%.2f %s) إلى %d يوماً على الخطة الأرخص. لا تتحرك أي مبالغ ولا يتم إرجاع شيء، والتغيير يُطبَّق مباشرة.'|format(reduced.current_remaining_value, p.currency, reduced.target_days) }}
+          {% elif policy == 'upgrade' %}
+            {{ 'Your remaining value (%.2f %s) is kept and re-priced on the more expensive plan. You receive %d day(s) and pay nothing extra. The change applies immediately.'|format(reduced.current_remaining_value, p.currency, reduced.target_days) if is_en else 'تُحفَظ قيمتك المتبقّية (%.2f %s) ويُعاد تسعيرها على الخطة الأعلى، فتحصل على %d يوماً دون أي مبلغ إضافي. التغيير يُطبَّق مباشرة.'|format(reduced.current_remaining_value, p.currency, reduced.target_days) }}
+          {% else %}
+            {{ 'Your remaining value transfers to the new plan as %d day(s). No extra payment is required.'|format(reduced.target_days) if is_en else 'تنتقل قيمتك إلى الخطة الجديدة على شكل %d يوماً، دون دفع إضافي.'|format(reduced.target_days) }}
+          {% endif %}
         </p>
 
         <table class="admin-table-v2" style="margin:0">
           <tbody>
             <tr>
               <td>{{ 'Remaining days on current plan' if is_en else 'الأيام المتبقّية حالياً' }}</td>
-              <td dir="ltr"><strong>{{ p.reduced_days.remaining_days }}</strong></td>
+              <td dir="ltr"><strong>{{ reduced.remaining_days }}</strong></td>
             </tr>
             <tr>
-              <td>{{ 'Free target days (no extra payment)' if is_en else 'أيام مجانية على الخطة الجديدة' }}</td>
-              <td dir="ltr"><strong>{{ p.reduced_days.extra.free_target_days }}</strong></td>
+              <td>
+                {% if policy == 'downgrade' %}{{ 'Days after conversion' if is_en else 'الأيام بعد التحويل' }}
+                {% elif policy == 'upgrade' %}{{ 'Days on new plan' if is_en else 'الأيام على الخطة الجديدة' }}
+                {% else %}{{ 'Days on new plan' if is_en else 'الأيام على الخطة الجديدة' }}{% endif %}
+              </td>
+              <td dir="ltr">
+                <strong>{{ reduced.target_days }}</strong>
+                {% if reduced.extra.days_delta_vs_remaining is not none %}
+                  {% set delta = reduced.extra.days_delta_vs_remaining %}
+                  <span class="status-pill {% if delta > 0 %}success{% elif delta < 0 %}warning{% endif %}" style="font-size:.7rem;margin-{{ 'right' if is_en else 'left' }}:6px">
+                    {% if delta > 0 %}+{{ delta }}{% elif delta < 0 %}{{ delta }}{% else %}±0{% endif %}
+                  </span>
+                {% endif %}
+              </td>
             </tr>
             <tr>
               <td>{{ 'Target per-day price' if is_en else 'سعر اليوم على الخطة الجديدة' }}</td>
-              <td dir="ltr"><strong>{{ '%.4f'|format(p.reduced_days.extra.target_per_day_price) }} {{ p.currency }}</strong></td>
+              <td dir="ltr"><strong>{{ '%.4f'|format(reduced.extra.target_per_day_price) }} {{ p.currency }}</strong></td>
             </tr>
             <tr>
-              <td>{{ 'Current remaining value' if is_en else 'قيمة المتبقّي الحالية' }}</td>
-              <td dir="ltr"><strong>{{ '%.2f'|format(p.reduced_days.current_remaining_value) }} {{ p.currency }}</strong></td>
+              <td>{{ 'Remaining value (kept)' if is_en else 'القيمة المتبقّية (محفوظة)' }}</td>
+              <td dir="ltr"><strong>{{ '%.2f'|format(reduced.current_remaining_value) }} {{ p.currency }}</strong></td>
+            </tr>
+            <tr>
+              <td><strong>{{ 'Amount due' if is_en else 'المبلغ المستحق' }}</strong></td>
+              <td dir="ltr"><strong style="color:#059669">0.00 {{ p.currency }}</strong></td>
             </tr>
           </tbody>
         </table>
 
         <button type="submit" class="btn-pill success" style="margin-top:12px;width:100%">
-          ✅ {{ 'Apply with reduced days' if is_en else 'تطبيق مع تقليل الأيام' }}
+          {% if policy == 'downgrade' %}
+            ✅ {{ 'Convert to more days' if is_en else 'تحويل إلى أيام أكثر' }}
+          {% elif policy == 'upgrade' %}
+            ✅ {{ 'Apply with fewer days' if is_en else 'تطبيق مع أيام أقل' }}
+          {% else %}
+            ✅ {{ 'Apply with converted days' if is_en else 'تطبيق مع الأيام المحوَّلة' }}
+          {% endif %}
         </button>
       </form>
+
     </section>
 
-    <p style="margin:16px 0 0 0;color:#64748b;font-size:0.85rem">
-      {{ 'Need help choosing? Contact support before applying — the team is happy to walk you through both options.' if is_en else 'لست متأكداً؟ تواصل مع الدعم قبل التأكيد — الفريق يرحب بمساعدتك في اختيار الأنسب.' }}
+    <p style="margin:18px 0 0 0;color:#64748b;font-size:.85rem">
+      💬 {{ 'Need help choosing? Contact support before applying — the team is happy to walk you through both options.' if is_en else 'لست متأكداً؟ تواصل مع الدعم قبل التأكيد — الفريق يرحب بمساعدتك في اختيار الأنسب.' }}
     </p>
 
     {% endif %}
 
   </main>
 </div>
+
+<script>
+/* v87 — strong confirmation guard. Before the form submits we show
+   a single explicit confirm prompt that names the choice (A/B/etc.),
+   the target plan, the amount due, and the resulting days. This is
+   intentionally a single-prompt UX (modal would need additional CSS)
+   so the change is undeniable at the moment of click. */
+function confirmPlanChange(ev, choice, planLabel, amount, currency, days, lang) {
+  var msg;
+  if (lang === 'en') {
+    if (choice === 'A') {
+      msg = '⚠ You are switching to ' + planLabel + '.\n\n' +
+            'A payment request for ' + amount + ' ' + currency + ' will be created.\n' +
+            'Your remaining days will stay at ' + days + '.\n\n' +
+            'Confirm?';
+    } else if (choice === 'B') {
+      msg = '⚠ You are switching to ' + planLabel + ' with FEWER days.\n\n' +
+            'No payment required.\n' +
+            'Resulting days on the new plan: ' + days + '.\n\n' +
+            'Confirm?';
+    } else if (choice === 'downgrade') {
+      msg = '✓ Converting your remaining value into MORE days on ' + planLabel + '.\n\n' +
+            'No refund is issued.\n' +
+            'Resulting days on the new plan: ' + days + '.\n\n' +
+            'Confirm?';
+    } else {
+      msg = '✓ Switching to ' + planLabel + ' with the same number of remaining days.\n\nConfirm?';
+    }
+  } else {
+    if (choice === 'A') {
+      msg = '⚠ سيتم التحويل إلى ' + planLabel + '.\n\n' +
+            'سيتم إنشاء طلب دفع بمبلغ ' + amount + ' ' + currency + '.\n' +
+            'تبقى أيامك المتبقّية ' + days + ' يوماً.\n\n' +
+            'هل تريد المتابعة؟';
+    } else if (choice === 'B') {
+      msg = '⚠ سيتم التحويل إلى ' + planLabel + ' بعدد أيام أقل.\n\n' +
+            'لا يوجد مبلغ مستحق.\n' +
+            'الأيام الناتجة على الخطة الجديدة: ' + days + '.\n\n' +
+            'هل تريد المتابعة؟';
+    } else if (choice === 'downgrade') {
+      msg = '✓ سيتم تحويل قيمتك المتبقّية إلى أيام أكثر على ' + planLabel + '.\n\n' +
+            'لا يوجد إرجاع للمبلغ.\n' +
+            'الأيام الناتجة: ' + days + ' يوماً.\n\n' +
+            'هل تريد المتابعة؟';
+    } else {
+      msg = '✓ التحويل إلى ' + planLabel + ' مع الإبقاء على نفس عدد الأيام.\n\nهل تريد المتابعة؟';
+    }
+  }
+  if (!confirm(msg)) {
+    ev.preventDefault();
+    return false;
+  }
+  return true;
+}
+</script>
 {% endblock %}

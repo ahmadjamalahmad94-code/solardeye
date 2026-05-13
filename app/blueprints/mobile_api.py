@@ -1590,6 +1590,128 @@ def mobile_account_request_plan_change():
     )
 
 
+# v87 — mobile-native plan-change preview/confirm endpoints.
+# Keeps the backend contract clean for future mobile UI parity. The
+# web flow already supports JSON output, but a dedicated mobile
+# namespace gives clients a stable, named endpoint without forcing
+# them to negotiate Accept headers against a web route.
+
+@mobile_core_api_bp.get('/account/plan-change/preview')
+def mobile_account_plan_change_preview():
+    """Return both scenarios + the v87 policy classification for a
+    selected target plan.
+
+    Query string:
+      * `plan_id` (int, required)
+
+    Response body mirrors `subscriber_plan_change.PreviewResult` —
+    in particular the top-level `policy_kind` plus per-scenario
+    `is_eligible`, `is_recommended`, `eligibility_reason`. The mobile
+    client must branch on `policy_kind`:
+
+      * `downgrade` → only render the `reduced_days` card; the
+        `same_duration` card has `is_eligible=False` with
+        `eligibility_reason='downgrade_no_refund_policy'` and MUST
+        NOT be offered as a CTA.
+      * `upgrade`   → both eligible; offer A=same_duration (pay diff)
+                      and B=reduced_days (fewer days, no payment).
+      * `lateral`   → same_duration is the primary path.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    raw_plan_id = request.args.get('plan_id', '').strip()
+    if not raw_plan_id:
+        return _json_error(
+            'Plan id is required.', code='plan_id_required',
+            field='plan_id',
+        )
+    try:
+        plan_id = int(raw_plan_id)
+    except (TypeError, ValueError):
+        return _json_error(
+            'Plan id must be an integer.', code='plan_id_invalid',
+            field='plan_id',
+        )
+    from ..services.subscriber_plan_change import preview as _preview
+    result = _preview(user, plan_id)
+    return api_ok(
+        result.to_dict(),
+        meta={'api_version': 'v1', 'namespace': 'api/mobile'},
+    )
+
+
+@mobile_core_api_bp.post('/account/plan-change/confirm')
+def mobile_account_plan_change_confirm():
+    """Commit to a scenario from a mobile client.
+
+    Body (JSON object):
+      * `plan_id`              (int,  required) — target plan
+      * `mode`                 (str,  required) — 'same_duration' or
+                                                  'reduced_days'
+      * `desired_target_days`  (int,  optional) — admin-style override
+                                                  (mobile UI does NOT
+                                                  expose this; reserved
+                                                  for future)
+
+    Response on success: `{ ok: true, data: ConfirmResult.to_dict() }`.
+    On a v87 policy refusal (downgrade same_duration) the response
+    is `400` with `data.outcome == 'blocked'` and
+    `data.blocked_reason == 'downgrade_same_duration_not_allowed'`.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    raw_plan_id = data.get('plan_id')
+    if raw_plan_id is None:
+        return _json_error(
+            'Plan id is required.', code='plan_id_required',
+            field='plan_id',
+        )
+    try:
+        plan_id = int(raw_plan_id)
+    except (TypeError, ValueError):
+        return _json_error(
+            'Plan id must be an integer.', code='plan_id_invalid',
+            field='plan_id',
+        )
+    mode = (data.get('mode') or '').strip()
+    if mode not in ('same_duration', 'reduced_days'):
+        return _json_error(
+            'Unknown pricing mode.', code='unknown_mode', field='mode',
+        )
+    desired_days = data.get('desired_target_days')
+    if desired_days is not None:
+        try:
+            desired_days = int(desired_days)
+        except (TypeError, ValueError):
+            return _json_error(
+                'desired_target_days must be an integer.',
+                code='desired_target_days_invalid',
+                field='desired_target_days',
+            )
+    from ..services.subscriber_plan_change import confirm as _confirm
+    result = _confirm(
+        user, plan_id, mode=mode, desired_target_days=desired_days,
+        commit=True,
+    )
+    payload = result.to_dict()
+    if result.outcome == 'blocked':
+        return api_error(
+            payload.get('blocked_reason') or 'Plan change blocked.',
+            code=payload.get('blocked_reason') or 'blocked',
+            status=400,
+            data=payload,
+        )
+    return api_ok(
+        payload,
+        meta={'api_version': 'v1', 'namespace': 'api/mobile'},
+    )
+
+
 @mobile_core_api_bp.get('/onboarding')
 def mobile_onboarding_get():
     user, err = _require_bearer_user()

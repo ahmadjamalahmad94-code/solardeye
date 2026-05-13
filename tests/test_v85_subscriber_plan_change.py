@@ -317,9 +317,14 @@ def test_preview_blocks_when_no_active_subscription():
 
 
 def test_confirm_reduced_days_applies_directly():
-    """reduced-days is the spec's preferred direct-execute path:
-    no payment required, plan switched immediately, ledger reflects
-    any incidental credit/debit."""
+    """v87 — reduced_days is the direct-execute path: no payment
+    required, plan switched immediately. Under the new policy we
+    DO NOT call billing_engine.change_plan (that path implicitly
+    wrote a credit on downgrades); the workbench's apply_request
+    writes its own ledger (or none, for a zero-amount free swap).
+
+    Upgrade reduced_days with default `desired_target_days` → free
+    swap (amount=0) → no ledger row written."""
     from app.services import subscriber_plan_change as spc
     user = _fake_user(id_=11, tenant_id=7)
     tenant = _fake_tenant(id_=7, plan_id=1)
@@ -331,11 +336,6 @@ def test_confirm_reduced_days_applies_directly():
     current = _fake_plan(id_=1, price=10.0, duration_days=30)
     target = _fake_plan(id_=2, price=30.0, duration_days=30, name_ar='برو')
     added, _add = _capture_session()
-    fake_engine_result = mock.Mock()
-    fake_engine_result.amount = 0.0
-    fake_engine_result.currency = 'USD'
-    fake_engine_result.ledger_entry_id = None
-    fake_engine_result.to_dict.return_value = {'amount': 0.0}
     patches = _patch_models(
         tenant=tenant, sub=sub, current_plan=current, target_plan=target,
     )
@@ -350,8 +350,14 @@ def test_confirm_reduced_days_applies_directly():
             ), mock.patch.object(
                 spc.db.session, 'commit',
             ), mock.patch(
+                'app.services.billing_engine._latest_subscription',
+                return_value=sub,
+            ), mock.patch(
+                'app.services.billing_engine._apply_quotas',
+            ), mock.patch(
+                'app.services.billing_engine._write_ledger',
+            ) as write_ledger_mock, mock.patch(
                 'app.services.billing_engine.change_plan',
-                return_value=fake_engine_result,
             ) as change_plan_mock:
                 result = spc.confirm(
                     user, target_plan_id=2,
@@ -366,11 +372,10 @@ def test_confirm_reduced_days_applies_directly():
     assert result.scenario_mode == 'reduced_days'
     assert result.case_status == 'resolved'
     assert result.extra.get('target_days') == 5
-    # billing_engine was called with the case-bound reference token.
-    change_plan_mock.assert_called_once()
-    _, kwargs = change_plan_mock.call_args
-    assert kwargs['actor_user_id'] == 11
-    assert kwargs['reference_token'].startswith('PCH-7-')
+    # v87 — billing_engine.change_plan must NOT be invoked.
+    change_plan_mock.assert_not_called()
+    # Zero-amount free swap → no ledger entry either.
+    write_ledger_mock.assert_not_called()
 
 
 def test_confirm_same_duration_with_positive_amount_creates_invoice():
@@ -485,27 +490,26 @@ def test_confirm_same_duration_with_zero_amount_applies_directly():
     assert pending_rows == []
 
 
-def test_confirm_same_duration_with_credit_applies_directly():
-    """Downgrading mid-cycle produces a credit (negative diff). Per
-    spec, the subscriber keeps their remaining days and gets a
-    wallet credit — applied directly, no payment gate."""
+def test_confirm_same_duration_on_downgrade_is_blocked_under_v87_policy():
+    """v87 — downgrading via `same_duration` is FORBIDDEN. The path
+    would have produced a refund/wallet credit; v87 policy explicitly
+    bans that semantics. The subscriber must use `reduced_days`
+    (value-to-more-days conversion) instead.
+
+    The block happens BEFORE any case row is created, so no admin
+    queue rows are left behind."""
     from app.services import subscriber_plan_change as spc
     user = _fake_user(id_=11, tenant_id=7)
     tenant = _fake_tenant(id_=7, plan_id=1)
-    # Current Pro ($30), target Basic ($10).
     sub = _fake_sub(
         plan_id=1,
         starts_at=datetime(2026, 4, 27),
         ends_at=datetime(2026, 5, 27),
     )
+    # Downgrade: current is $30/30d ($1/d), target is $10/30d ($0.33/d).
     current = _fake_plan(id_=1, price=30.0, duration_days=30)
     target = _fake_plan(id_=2, price=10.0, duration_days=30, name_ar='أساسي')
     added, _add = _capture_session()
-    fake_engine_result = mock.Mock()
-    fake_engine_result.amount = -10.0
-    fake_engine_result.currency = 'USD'
-    fake_engine_result.ledger_entry_id = 4242
-    fake_engine_result.to_dict.return_value = {'amount': -10.0, 'ledger_entry_id': 4242}
     patches = _patch_models(
         tenant=tenant, sub=sub, current_plan=current, target_plan=target,
     )
@@ -521,7 +525,6 @@ def test_confirm_same_duration_with_credit_applies_directly():
                 spc.db.session, 'commit',
             ), mock.patch(
                 'app.services.billing_engine.change_plan',
-                return_value=fake_engine_result,
             ) as change_plan_mock:
                 result = spc.confirm(
                     user, target_plan_id=2,
@@ -531,11 +534,14 @@ def test_confirm_same_duration_with_credit_applies_directly():
         finally:
             for p in patches:
                 p.stop()
-    assert result.outcome == 'applied'
-    assert result.case_status == 'resolved'
-    assert result.amount == -10.0
-    # billing_engine wrote the credit entry (its job, not ours).
-    change_plan_mock.assert_called_once()
+    # Policy block before any case row is created.
+    assert result.outcome == 'blocked'
+    assert result.blocked_reason == 'downgrade_same_duration_not_allowed'
+    assert result.case_id is None
+    # billing_engine.change_plan must NOT be reached.
+    change_plan_mock.assert_not_called()
+    # No case row was added to the session.
+    assert [x for x in added if x.__class__.__name__ == 'SupportCase'] == []
 
 
 def test_confirm_blocks_on_unknown_mode():

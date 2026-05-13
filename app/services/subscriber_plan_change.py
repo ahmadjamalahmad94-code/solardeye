@@ -73,7 +73,19 @@ class PreviewResult:
     returned even when one would be ineligible — the UI decides
     what to show. Carries the resolved target plan + current plan
     + current subscription identifiers so the template can render
-    the full breakdown without a second query."""
+    the full breakdown without a second query.
+
+    v87 — `policy_kind` is one of `upgrade`/`downgrade`/`lateral`
+    and tells the UI which path is primary:
+      * `downgrade` → reduced_days (conversion to more days) is the
+        only offered subscriber path; same_duration is marked
+        `is_eligible=False` and must not be shown as a CTA.
+      * `upgrade` → both scenarios are eligible; same_duration is
+        option A (keep days + pay), reduced_days is option B
+        (accept fewer days + no payment).
+      * `lateral` → same_duration is the primary path; reduced_days
+        is shown only for completeness.
+    """
     target_plan_id: int
     target_plan_label: str
     current_plan_id: Optional[int]
@@ -84,6 +96,7 @@ class PreviewResult:
     reduced_days: dict[str, Any]
     can_apply_directly: bool
     blocked_reason: Optional[str] = None
+    policy_kind: str = 'lateral'
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -97,6 +110,7 @@ class PreviewResult:
             'reduced_days': self.reduced_days,
             'can_apply_directly': self.can_apply_directly,
             'blocked_reason': self.blocked_reason,
+            'policy_kind': self.policy_kind,
         }
 
 
@@ -276,6 +290,9 @@ def preview(user: AppUser, target_plan_id: int, *, now: Optional[datetime] = Non
     )
     same = wb.quote_same_duration(transient_case, target_plan=target_plan, now=now)
     reduced = wb.quote_reduced_days(transient_case, target_plan=target_plan, now=now)
+    # Both scenarios carry the same `policy_kind`; surface it at the
+    # top level so client code (HTML/JSON) doesn't need to peek
+    # inside either dict to branch on policy.
     return PreviewResult(
         target_plan_id=target_plan.id,
         target_plan_label=_label(target_plan),
@@ -286,6 +303,7 @@ def preview(user: AppUser, target_plan_id: int, *, now: Optional[datetime] = Non
         same_duration=same.to_dict(),
         reduced_days=reduced.to_dict(),
         can_apply_directly=True,
+        policy_kind=same.policy_kind,
     )
 
 
@@ -337,6 +355,21 @@ def confirm(
             target_plan_id=target_plan.id, scenario_mode=mode,
             amount=0.0, currency=_currency(current_plan),
             blocked_reason='unknown_pricing_mode',
+        )
+    # v87 — policy preflight. We classify the change before creating
+    # a case so we can refuse a forbidden combo without polluting the
+    # admin queue with cancelled rows.
+    policy_kind = wb.classify_change(current_plan, target_plan)
+    if (
+        mode == wb.PRICING_MODE_SAME_DURATION
+        and policy_kind == wb.POLICY_DOWNGRADE
+    ):
+        return ConfirmResult(
+            outcome='blocked', case_id=None, case_status=None,
+            target_plan_id=target_plan.id, scenario_mode=mode,
+            amount=0.0, currency=_currency(current_plan),
+            blocked_reason='downgrade_same_duration_not_allowed',
+            extra={'policy_kind': policy_kind},
         )
     # Cancel prior open subscriber-side cases so the queue stays
     # clean. The new confirm gets its own fresh case.

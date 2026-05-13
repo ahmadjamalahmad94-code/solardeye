@@ -289,9 +289,14 @@ def test_quote_reduced_days_with_manual_adjustment_charges_extra():
     assert 'يوماً' in sc.summary_ar
 
 
-def test_quote_reduced_days_with_manual_adjustment_credits_when_smaller():
-    """Admin overrides target days below the free swap → subscriber
-    gets a refund/credit."""
+def test_quote_reduced_days_with_manual_adjustment_clamps_credit_to_zero_under_v87():
+    """v87 — under the new policy, the reduced_days scenario NEVER
+    produces a negative amount (no refund semantics). Admin overrides
+    that would historically have credited the subscriber are now
+    clamped to zero. The original quote (target_days=3 on a $30/30d
+    target plan after a $5 remaining value would historically have
+    been −2.00) is now surfaced with amount=0 and the chosen-day
+    count preserved for transparency."""
     from app.services import plan_change_workbench as wb
     case = _fake_case(tenant_id=7)
     tenant = _fake_tenant(id_=7)
@@ -315,9 +320,13 @@ def test_quote_reduced_days_with_manual_adjustment_credits_when_smaller():
         finally:
             for p in patches:
                 p.stop()
-    # 3 × $1 − $5 = −2.00.
+    # v87 policy: chosen days preserved, amount floored at zero so we
+    # never write a wallet credit on a downward day override.
     assert sc.target_days == 3
-    assert sc.amount == -2.0
+    assert sc.amount == 0.0
+    # And it is correctly classified as an upgrade (target is more
+    # expensive per day).
+    assert sc.policy_kind == wb.POLICY_UPGRADE
 
 
 def test_scenario_preview_does_not_mutate_balances():
@@ -676,16 +685,17 @@ def test_mark_under_review_is_idempotent_on_already_reviewed_cases():
     ] == []
 
 
-def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
-    """Final apply must:
-      * call billing_engine.change_plan with the case-bound reference,
-      * flip any pending invoice's category to 'plan_change' (settled),
-      * mark the case resolved,
-      * push a subscriber 'plan_change_applied' notification.
+def test_apply_request_writes_explicit_debit_and_settles_invoice():
+    """v87 — final apply on an upgrade same_duration scenario must:
+      * NOT delegate to billing_engine.change_plan (that path implicitly
+        wrote a credit on downgrades — explicitly forbidden by v87
+        policy);
+      * write its own debit ledger row via billing_engine._write_ledger
+        with the case-bound reference token (PCH-<tenant>-<case>);
+      * flip any pending invoice's category to 'plan_change' (settled);
+      * mark the case resolved + push a subscriber notification.
     """
     from app.services import plan_change_workbench as wb
-    # Subject carries the target plan name so
-    # `extract_plan_change_target_plan` parses it cleanly.
     case = _fake_case(
         id_=55, user_id=11, tenant_id=7,
         subject='طلب تغيير الخطة إلى برو',
@@ -699,10 +709,12 @@ def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
         current_remaining_value=5.0, target_remaining_value=15.0,
         amount=10.0, currency='USD',
         summary_ar='ملخص', summary_en='Summary',
+        policy_kind=wb.POLICY_UPGRADE,
+        is_eligible=True, is_recommended=True,
     )
     tenant = _fake_tenant(id_=7)
     target = _fake_plan(id_=2, name_ar='برو')
-    # Pending invoice that should be settled by apply.
+    sub = _fake_sub(plan_id=1, ends_at=datetime(2026, 5, 27))
     pending = mock.Mock()
     pending.id = 999
     pending.amount = 10.0
@@ -716,22 +728,12 @@ def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
     ledger_query = mock.Mock()
     ledger_query.filter_by.return_value = ledger_query
     ledger_query.first.return_value = pending
-    # Target plan resolves via `extract_plan_change_target_plan`.
     from app.services import support_ops
     target_query = mock.Mock()
     target_query.filter_by.return_value = target_query
     target_query.first.return_value = target
 
     added, _add = _capture_session()
-
-    # `billing_engine.change_plan` is a tested helper — stub it so
-    # this test stays focused on the orchestration layer.
-    fake_result = mock.Mock()
-    fake_result.action = 'change_plan'
-    fake_result.amount = 10.0
-    fake_result.currency = 'USD'
-    fake_result.ledger_entry_id = 1234
-    fake_result.to_dict.return_value = {'action': 'change_plan', 'amount': 10.0}
 
     with _ctx():
         with mock.patch.object(
@@ -741,10 +743,19 @@ def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
         ), mock.patch.object(
             support_ops.SubscriptionPlan, 'query', target_query,
         ), mock.patch(
+            'app.services.billing_engine._latest_subscription',
+            return_value=sub,
+        ), mock.patch(
+            'app.services.billing_engine._apply_quotas',
+        ), mock.patch(
+            'app.services.billing_engine._write_ledger',
+            return_value=mock.Mock(id=1234),
+        ) as write_ledger_mock, mock.patch(
             'app.services.billing_engine.change_plan',
-            return_value=fake_result,
         ) as change_plan_mock, mock.patch.object(
             wb.db.session, 'add', side_effect=_add,
+        ), mock.patch.object(
+            wb.db.session, 'flush',
         ), mock.patch.object(
             wb.db.session, 'commit',
         ):
@@ -753,14 +764,19 @@ def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
                 now=datetime(2026, 5, 12),
             )
 
-    # billing_engine called with the case-bound reference token.
-    change_plan_mock.assert_called_once()
-    _, kwargs = change_plan_mock.call_args
-    assert kwargs['reference_token'] == 'PCH-7-55'
+    # v87 — billing_engine.change_plan must NOT be called from the
+    # workbench apply path anymore (that was the implicit-credit hole).
+    change_plan_mock.assert_not_called()
+    # We write the debit ourselves with the case-bound reference.
+    write_ledger_mock.assert_called_once()
+    _, kwargs = write_ledger_mock.call_args
+    assert kwargs['reference'] == 'PCH-7-55'
+    assert kwargs['entry_type'] == 'debit'
+    assert kwargs['amount'] == 10.0
     assert kwargs['actor_user_id'] == 42
     # Pending invoice category flipped to settled.
     assert pending.category == 'plan_change'
-    # Subscriber notified + case resolved.
+    # Subscriber notified + case resolved + tenant moved to target plan.
     notif_events = [
         x for x in added if x.__class__.__name__ == 'NotificationEvent'
     ]
@@ -769,12 +785,15 @@ def test_apply_request_delegates_to_billing_engine_and_settles_invoice():
     assert case.status == 'resolved'
     assert case.is_frozen is True
     assert out['case_status'] == 'resolved'
+    assert tenant.plan_id == 2
+    assert sub.plan_id == 2
 
 
 def test_apply_request_in_reduced_days_mode_shortens_sub():
     """Reduced-days scenario must shorten the surviving subscription
     to `now + target_days` so the wallet entry stays consistent with
-    the actual access window."""
+    the actual access window. Under v87 we also assert no ledger
+    row is written when amount=0 (free swap = no money movement)."""
     from app.services import plan_change_workbench as wb
     from datetime import timedelta
     case = _fake_case(
@@ -790,14 +809,12 @@ def test_apply_request_in_reduced_days_mode_shortens_sub():
         current_remaining_value=5.0, target_remaining_value=5.0,
         amount=0.0, currency='USD',
         summary_ar='', summary_en='',
+        policy_kind=wb.POLICY_UPGRADE,
+        is_eligible=True, is_recommended=True,
     )
     tenant = _fake_tenant(id_=7)
     target = _fake_plan(id_=2, name_ar='برو')
     sub = _fake_sub(plan_id=2, ends_at=datetime(2026, 5, 27))
-    sub_query = mock.Mock()
-    sub_query.filter_by.return_value = sub_query
-    sub_query.order_by.return_value = sub_query
-    sub_query.first.return_value = sub
     tenant_query = mock.Mock(); tenant_query.get.return_value = tenant
     ledger_query = mock.Mock()
     ledger_query.filter_by.return_value = ledger_query
@@ -806,26 +823,25 @@ def test_apply_request_in_reduced_days_mode_shortens_sub():
     target_query = mock.Mock()
     target_query.filter_by.return_value = target_query
     target_query.first.return_value = target
-    fake_result = mock.Mock()
-    fake_result.amount = 0.0
-    fake_result.currency = 'USD'
-    fake_result.ledger_entry_id = None
-    fake_result.to_dict.return_value = {'amount': 0.0}
     added, _add = _capture_session()
     with _ctx():
         with mock.patch.object(
             wb.TenantAccount, 'query', tenant_query,
         ), mock.patch.object(
-            wb.TenantSubscription, 'query', sub_query,
-        ), mock.patch.object(
             wb.WalletLedger, 'query', ledger_query,
         ), mock.patch.object(
             support_ops.SubscriptionPlan, 'query', target_query,
         ), mock.patch(
-            'app.services.billing_engine.change_plan',
-            return_value=fake_result,
-        ), mock.patch.object(
+            'app.services.billing_engine._latest_subscription',
+            return_value=sub,
+        ), mock.patch(
+            'app.services.billing_engine._apply_quotas',
+        ), mock.patch(
+            'app.services.billing_engine._write_ledger',
+        ) as write_ledger_mock, mock.patch.object(
             wb.db.session, 'add', side_effect=_add,
+        ), mock.patch.object(
+            wb.db.session, 'flush',
         ), mock.patch.object(
             wb.db.session, 'commit',
         ):
@@ -835,6 +851,8 @@ def test_apply_request_in_reduced_days_mode_shortens_sub():
             )
     # Sub's end-date shortened to now + 5 days.
     assert sub.ends_at == datetime(2026, 5, 12) + timedelta(days=5)
+    # v87 — zero-amount path writes no ledger row.
+    write_ledger_mock.assert_not_called()
 
 
 # ═══════════════════════════════════════════════════════════════════════
