@@ -602,6 +602,12 @@ def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, ac
         sessions = list(getattr(listing, 'data', None) or [])
     except Exception:
         sessions = []
+    # v92j — diagnostic trail: log a compact summary of every
+    # session we see + decide on. This is the only way to debug
+    # "I paid but reconcile says no paid session found" without
+    # storing the session_id on our side.
+    inspected_count = 0
+    candidate_case_ids: list[str] = []
     for sess in sessions:
         try:
             metadata = getattr(sess, 'metadata', None) or {}
@@ -615,12 +621,24 @@ def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, ac
                     metadata = dict(metadata)
                 except Exception:
                     metadata = {}
-            if str(metadata.get('case_id') or '') != target_case_id_str:
+            sess_case_id = str(metadata.get('case_id') or '')
+            sess_kind = str(metadata.get('kind') or '')
+            sess_payment_status = str(
+                getattr(sess, 'payment_status', '') or ''
+            ).lower()
+            inspected_count += 1
+            # Build a short id list so the log shows what case_ids
+            # were actually visible to us. Capped to first 20 so a
+            # long account history doesn't bloat the log line.
+            if sess_kind == 'plan_change_invoice' and len(candidate_case_ids) < 20:
+                candidate_case_ids.append(
+                    f'{sess_case_id}:{sess_payment_status}',
+                )
+            if sess_case_id != target_case_id_str:
                 continue
-            if str(metadata.get('kind') or '') != 'plan_change_invoice':
+            if sess_kind != 'plan_change_invoice':
                 continue
-            payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
-            if payment_status == 'paid':
+            if sess_payment_status == 'paid':
                 paid_session = sess
                 break
         except Exception as inner_exc:
@@ -629,6 +647,12 @@ def reconcile_paid_session_for_case(case_id: int, *, auto_apply: bool = True, ac
                 type(inner_exc).__name__,
             )
             continue
+    logger.info(
+        'stripe_reconcile_scan case_id=%s target_match=%s '
+        'sessions_seen=%s plan_change_candidates=%s',
+        case_id, paid_session is not None,
+        inspected_count, candidate_case_ids,
+    )
     if paid_session is None:
         result['reason'] = 'no_paid_session_found'
         return result

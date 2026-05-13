@@ -383,6 +383,62 @@ def create_invoice_checkout():
     return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
 
 
+# ── Diagnostic: list Stripe sessions for plan-change debugging ──
+
+@payments_bp.route('/payments/stripe/diagnostics/sessions', methods=['GET'])
+def diagnostics_list_sessions():
+    """v92j — admin/diagnostic endpoint. Lists the most recent
+    Stripe Checkout Sessions tagged with `kind='plan_change_invoice'`
+    so an operator (or the user during debugging) can confirm
+    which case_id each paid session was tagged with. Useful when a
+    user paid but their CURRENT pending invoice is a different
+    case_id (the original got replaced/recreated).
+
+    Returns JSON with up to 50 sessions. Requires login; no
+    user-specific filtering — this is a debug surface, not a
+    customer feature."""
+    user = _active_user()
+    if user is None:
+        return jsonify({'ok': False, 'code': 'auth_required'}), 401
+    try:
+        from ..services.stripe_gateway import _configure_stripe, StripeNotReady
+        pkg = _configure_stripe()
+    except StripeNotReady:
+        return jsonify({'ok': False, 'code': 'stripe_not_ready'}), 503
+    except Exception:
+        logger.exception('diagnostics: configure failed')
+        return jsonify({'ok': False, 'code': 'internal_error'}), 500
+    try:
+        listing = pkg.checkout.Session.list(limit=50)
+    except Exception:
+        logger.exception('diagnostics: list failed')
+        return jsonify({'ok': False, 'code': 'list_failed'}), 500
+    rows = []
+    for sess in (getattr(listing, 'data', None) or []):
+        try:
+            metadata = getattr(sess, 'metadata', None) or {}
+            if hasattr(metadata, 'to_dict_recursive'):
+                try:
+                    metadata = metadata.to_dict_recursive()
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            if str(metadata.get('kind') or '') != 'plan_change_invoice':
+                continue
+            rows.append({
+                'session_id': getattr(sess, 'id', None),
+                'payment_status': getattr(sess, 'payment_status', None),
+                'amount_total': getattr(sess, 'amount_total', None),
+                'currency': getattr(sess, 'currency', None),
+                'created': getattr(sess, 'created', None),
+                'metadata': metadata,
+            })
+        except Exception:
+            continue
+    return jsonify({'ok': True, 'data': {'sessions': rows, 'count': len(rows)}})
+
+
 # ── Reconcile path — subscriber-triggered payment verification ───
 
 
