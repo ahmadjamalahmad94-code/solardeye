@@ -431,20 +431,24 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     modalRoot = document.createElement('div');
     modalRoot.id = 'notifModalRoot';
     modalRoot.className = 'notif-modal';
+    // v93i — cap the card height to the viewport so the header
+    // (close button) and footer (Close action) stay on-screen even
+    // when the notification body is very tall (periodic status
+    // snapshot etc.). The body itself scrolls inside the card.
     modalRoot.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px;backdrop-filter:blur(4px)';
     modalRoot.innerHTML = `
-      <div class="notif-modal__card" style="background:#fff;border-radius:22px;max-width:520px;width:100%;box-shadow:0 30px 80px rgba(15,23,42,0.28);overflow:hidden;direction:rtl;font-family:inherit">
-        <div class="notif-modal__head" style="padding:18px 20px;background:linear-gradient(135deg,#0e3b86,#3aa7ff);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div class="notif-modal__card" style="background:#fff;border-radius:22px;max-width:520px;width:100%;max-height:calc(100vh - 36px);box-shadow:0 30px 80px rgba(15,23,42,0.28);overflow:hidden;direction:rtl;font-family:inherit;display:flex;flex-direction:column">
+        <div class="notif-modal__head" style="padding:18px 20px;background:linear-gradient(135deg,#0e3b86,#3aa7ff);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px;flex:0 0 auto;position:sticky;top:0;z-index:2">
           <strong id="notifModalTitle" style="font-size:1.05rem;font-weight:900;line-height:1.35"></strong>
-          <button type="button" id="notifModalClose" aria-label="Close" style="background:rgba(255,255,255,0.18);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+          <button type="button" id="notifModalClose" aria-label="Close" style="background:rgba(255,255,255,0.22);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:1.25rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto">✕</button>
         </div>
-        <div class="notif-modal__body" style="padding:20px;color:#1e293b;line-height:1.7;font-size:.95rem">
+        <div class="notif-modal__body" style="padding:20px;color:#1e293b;line-height:1.7;font-size:.95rem;overflow-y:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch">
           <p id="notifModalMessage" style="margin:0 0 14px 0;white-space:pre-wrap;word-wrap:break-word"></p>
           <div id="notifModalMeta" style="margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0;color:#64748b;font-size:.82rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"></div>
         </div>
-        <div class="notif-modal__actions" style="padding:14px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+        <div class="notif-modal__actions" style="padding:14px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;flex:0 0 auto;position:sticky;bottom:0;z-index:2">
           <a id="notifModalGoto" href="#" style="display:none;padding:10px 18px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:12px;text-decoration:none;font-weight:800;font-size:.9rem">${lang()==='en'?'Open source →':'فتح المصدر ←'}</a>
-          <button type="button" id="notifModalCloseBtn" style="padding:10px 18px;background:#e2e8f0;color:#0f172a;border:none;border-radius:12px;cursor:pointer;font-weight:800;font-size:.9rem">${lang()==='en'?'Close':'إغلاق'}</button>
+          <button type="button" id="notifModalCloseBtn" style="padding:10px 22px;background:#0e3b86;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:800;font-size:.95rem;box-shadow:0 4px 12px rgba(14,59,134,0.25)">${lang()==='en'?'Close':'إغلاق'}</button>
         </div>
       </div>
     `;
@@ -456,8 +460,11 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
     });
     modalRoot.querySelector('#notifModalClose').addEventListener('click', close);
     modalRoot.querySelector('#notifModalCloseBtn').addEventListener('click', close);
+    // v93i — match the new display value used by the modal root
+    // (we now use 'flex' WITH align-items:flex-start so the close
+    // button can never scroll off-screen).
     document.addEventListener('keydown', function(ev){
-      if(ev.key === 'Escape' && modalRoot.style.display === 'flex') close();
+      if(ev.key === 'Escape' && modalRoot.style.display && modalRoot.style.display !== 'none') close();
     });
     return modalRoot;
   }
