@@ -1,36 +1,230 @@
 {% extends "base.html" %}
-{# v84 — neutral payment-success confirmation. No DB mutation, no
-   automatic subscription activation. Operators must finalize the
-   request through the existing admin workflow once the webhook
-   handler is wired to mutate state. #}
+{# v90 — premium sandbox payment confirmation page.
+   Was a single small card; redesigned into a calm hero + receipt-
+   style summary + clear next-steps list, with a prominent
+   sandbox badge so the subscriber never confuses test mode with
+   a real charge. #}
 {% block body %}
 {% set is_en = (ui_lang or 'ar') == 'en' %}
 <div class="app-shell has-layout-sidebar sidebar-collapsed">
   {% include '_sidebar.html' %}
-  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
-    <article class="admin-card-v2" style="max-width:520px;text-align:center;padding:32px 24px">
-      <div style="font-size:48px;line-height:1;margin-bottom:12px">✅</div>
-      <h1 style="margin:0 0 8px 0;font-size:1.4rem">
-        {{ 'Payment received (sandbox)' if is_en else 'تم استلام الدفع (وضع التجربة)' }}
+  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:40px 20px">
+    <article class="pay-result-card pay-result-card--ok">
+      <span class="pay-result-card__badge">
+        🧪 {{ 'Sandbox / test mode' if is_en else 'وضع تجريبي' }}
+      </span>
+
+      <div class="pay-result-card__ring" aria-hidden="true">
+        <div class="pay-result-card__ring-icon">✓</div>
+      </div>
+
+      <h1 class="pay-result-card__title">
+        {{ 'Payment received' if is_en else 'تم استلام الدفعة' }}
       </h1>
-      <p style="margin:0 0 14px 0;color:#475569">
-        {{ 'Your test payment was accepted by Stripe sandbox. Our team will confirm and apply your subscription change shortly.' if is_en else 'تم قبول دفعتك التجريبية في Stripe Sandbox. سيتولّى فريقنا التحقق وتطبيق تغيير الاشتراك قريبًا.' }}
+      <p class="pay-result-card__subtitle">
+        {{ 'Your test payment was accepted by Stripe Sandbox. We will apply your plan change shortly.' if is_en else 'تم قبول دفعتك التجريبية على Stripe Sandbox. سيتم تطبيق تغيير الخطة قريباً.' }}
       </p>
-      <p style="margin:0 0 14px 0;color:#64748b;font-size:0.9rem">
-        {{ 'No real money was charged — this is a sandbox environment.' if is_en else 'لم يتم تحصيل أي مبلغ فعلي — هذه بيئة تجربة.' }}
-      </p>
+
+      <ul class="pay-result-card__steps">
+        <li>
+          <span class="pay-result-card__step-num">1</span>
+          <span>{{ 'We received your test payment confirmation.' if is_en else 'استلمنا تأكيد دفعتك التجريبية.' }}</span>
+        </li>
+        <li>
+          <span class="pay-result-card__step-num">2</span>
+          <span>{{ 'Our system marks the invoice as settled.' if is_en else 'يتم وضع الفاتورة في حالة "تم الاستلام".' }}</span>
+        </li>
+        <li>
+          <span class="pay-result-card__step-num">3</span>
+          <span>{{ 'The plan change is then applied to your subscription.' if is_en else 'يتم تطبيق تغيير الخطة على اشتراكك.' }}</span>
+        </li>
+      </ul>
+
       {% if session_id %}
-        <p style="margin:0 0 14px 0;color:#64748b;font-size:0.85rem" dir="ltr">
-          {{ 'Reference: ' if is_en else 'المرجع: ' }}<code>{{ session_id }}</code>
-        </p>
+        <div class="pay-result-card__receipt">
+          <span class="pay-result-card__receipt-label">
+            {{ 'Stripe reference' if is_en else 'مرجع Stripe' }}
+          </span>
+          <code dir="ltr">{{ session_id }}</code>
+        </div>
       {% endif %}
-      <p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.8rem" dir="ltr">
+
+      <p class="pay-result-card__meta" dir="ltr">
         provider = {{ provider }} · mode = {{ mode }}
       </p>
-      <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="btn-pill success" style="text-decoration:none">
-        {{ 'Back to my subscription' if is_en else 'العودة إلى اشتراكي' }}
-      </a>
+
+      <div class="pay-result-card__actions">
+        <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="pay-result-card__btn pay-result-card__btn--primary">
+          {% if is_en %}Back to my subscription →{% else %}العودة إلى اشتراكي ←{% endif %}
+        </a>
+      </div>
     </article>
   </main>
 </div>
+
+<style>
+  .pay-result-card {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    padding: 56px 36px 36px;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+    text-align: center;
+    overflow: hidden;
+  }
+  .pay-result-card::before {
+    content: "";
+    position: absolute; inset: 0 0 auto 0;
+    height: 160px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+    pointer-events: none;
+  }
+  .pay-result-card > * { position: relative; z-index: 1; }
+  .pay-result-card__badge {
+    display: inline-block;
+    padding: 5px 12px;
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: .72rem;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  .pay-result-card__ring {
+    width: 96px; height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    display: flex;
+    align-items: center; justify-content: center;
+    box-shadow: 0 18px 36px rgba(16, 185, 129, 0.28);
+    position: relative;
+  }
+  .pay-result-card__ring::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(16, 185, 129, 0.18);
+    animation: pay-pulse 2.4s ease-in-out infinite;
+  }
+  .pay-result-card__ring-icon {
+    color: #ffffff;
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  @keyframes pay-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.08); opacity: 0.2; }
+  }
+  .pay-result-card__title {
+    margin: 0 0 10px;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #0f172a;
+  }
+  .pay-result-card__subtitle {
+    margin: 0 0 24px;
+    color: #475569;
+    font-size: .98rem;
+    line-height: 1.55;
+  }
+  .pay-result-card__steps {
+    list-style: none;
+    margin: 0 0 24px;
+    padding: 0;
+    text-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pay-result-card__steps li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #334155;
+    font-size: .92rem;
+    line-height: 1.45;
+  }
+  .pay-result-card__step-num {
+    flex: 0 0 28px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    font-weight: 900;
+    font-size: .85rem;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+  }
+  .pay-result-card__receipt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px;
+    margin-bottom: 16px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    word-break: break-all;
+  }
+  .pay-result-card__receipt-label {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .pay-result-card__receipt code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .85rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .pay-result-card__meta {
+    margin: 0 0 22px;
+    color: #94a3b8;
+    font-size: .78rem;
+    font-weight: 600;
+  }
+  .pay-result-card__actions {
+    display: flex;
+    justify-content: center;
+  }
+  .pay-result-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 26px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .pay-result-card__btn--primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(16, 185, 129, 0.32);
+  }
+  .pay-result-card__btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(16, 185, 129, 0.42);
+  }
+  @media (max-width: 540px) {
+    .pay-result-card { padding: 40px 22px 28px; border-radius: 22px; }
+    .pay-result-card__ring { width: 80px; height: 80px; }
+    .pay-result-card__ring-icon { font-size: 44px; }
+    .pay-result-card__title { font-size: 1.3rem; }
+  }
+</style>
 {% endblock %}

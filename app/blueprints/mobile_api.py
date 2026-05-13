@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from flask import Blueprint, current_app, g, request, session
+from flask import Blueprint, current_app, g, request, session, url_for
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -110,6 +110,9 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     # 404 the mobile shell would render as "connection failed").
     '/account/plan-change/preview': {'GET'},
     '/account/plan-change/confirm': {'POST'},
+    # v91 — mobile-native Stripe checkout-session creator. Returns
+    # the hosted-checkout URL the app opens via url_launcher.
+    '/account/plan-change/checkout': {'POST'},
     '/profile': {'GET', 'PATCH'},
     '/onboarding': {'GET', 'POST', 'PATCH'},
     '/location-catalog': {'GET'},
@@ -154,20 +157,64 @@ def _lang() -> str:
     return 'en' if str(raw).lower().startswith('en') else 'ar'
 
 
+def _txt(ar: str, en: str) -> str:
+    return en if _lang() == 'en' else ar
+
+
+_FIELD_TITLES = {
+    'name': ('اسم الجهاز', 'device name'),
+    'provider_code': ('موفّر الجهاز', 'device provider'),
+    'timezone': ('المنطقة الزمنية', 'timezone'),
+    'device_id': ('معرّف الجهاز', 'device id'),
+    'power_w': ('القدرة', 'power'),
+    'wattage': ('القدرة', 'power'),
+    'watts': ('القدرة', 'power'),
+    'power': ('القدرة', 'power'),
+    'priority': ('الأولوية', 'priority'),
+    'rules': ('قواعد الإشعارات', 'notification rules'),
+    'settings': ('إعدادات الإشعارات', 'notification settings'),
+    'email': ('البريد الإلكتروني', 'email address'),
+    'phone_country_code': ('مفتاح الدولة', 'country calling code'),
+    'phone_number': ('رقم الهاتف', 'phone number'),
+    'country': ('الدولة', 'country'),
+    'preferred_language': ('اللغة المفضلة', 'preferred language'),
+    'current_password': ('كلمة المرور الحالية', 'current password'),
+    'new_password': ('كلمة المرور الجديدة', 'new password'),
+    'plan_id': ('رقم الباقة', 'plan id'),
+    'mode': ('طريقة التحويل', 'pricing mode'),
+    'desired_target_days': ('عدد الأيام المقترح', 'desired target days'),
+    'case_id': ('رقم الطلب', 'case id'),
+    'onboarding_step': ('خطوة الإعداد', 'onboarding step'),
+    'selected_device_id': ('معرّف الجهاز المختار', 'selected device id'),
+    'fields': ('الحقول', 'fields'),
+    'is_enabled': ('حالة التفعيل', 'enabled state'),
+}
+
+
+def _field_title(field: str | None) -> str:
+    if not field:
+        return _txt('الحقل', 'field')
+    pair = _FIELD_TITLES.get(field)
+    if pair:
+        return pair[1] if _lang() == 'en' else pair[0]
+    text = str(field).replace('_', ' ').strip()
+    return text or _txt('الحقل', 'field')
+
+
 def _require_login():
     user = user_from_bearer_or_session()
     if not user:
-        return None, api_error('Authentication required.', code='auth_required', status=401), 401
+        return None, api_error(_txt('يلزم تسجيل الدخول أولًا.', 'Authentication required.'), code='auth_required', status=401), 401
     return user, None, None
 
 
 def _require_bearer_user():
     auth = request.headers.get('Authorization', '')
     if not auth.lower().startswith('bearer '):
-        return None, api_error('Bearer token is required.', code='auth_required', status=401)
+        return None, api_error(_txt('يلزم إرسال رمز الدخول في ترويسة Bearer.', 'Bearer token is required.'), code='auth_required', status=401)
     user = verify_access_token(auth.split(' ', 1)[1])
     if not user:
-        return None, api_error('Authentication token is invalid or expired.', code='invalid_token', status=401)
+        return None, api_error(_txt('رمز الدخول غير صالح أو انتهت صلاحيته.', 'Authentication token is invalid or expired.'), code='invalid_token', status=401)
     return user, None
 
 
@@ -177,11 +224,11 @@ def _strict_json_object():
     try:
         data = request.get_json(silent=False)
     except (BadRequest, UnsupportedMediaType):
-        return None, _json_error('Request body must be valid JSON.', code='invalid_json')
+        return None, _json_error(_txt('يجب أن يكون جسم الطلب JSON صالحًا.', 'Request body must be valid JSON.'), code='invalid_json')
     if data is None:
         return {}, None
     if not isinstance(data, dict):
-        return None, _json_error('JSON object is required.', code='invalid_json')
+        return None, _json_error(_txt('يجب إرسال كائن JSON صالح.', 'JSON object is required.'), code='invalid_json')
     return data, None
 
 
@@ -194,7 +241,7 @@ def _boolean_or_error(value, field: str):
             return True, None
         if normalized in {'false', '0', 'no'}:
             return False, None
-    return None, _json_error('Boolean value is invalid.', code='invalid_boolean', field=field)
+    return None, _json_error(_txt(f'قيمة {_field_title(field)} غير صحيحة.', 'Boolean value is invalid.'), code='invalid_boolean', field=field)
 
 
 def _setting_bool(value) -> bool:
@@ -213,9 +260,12 @@ def _safe_json_loads(raw_value):
         return {}
 
 
-def _json_error(message: str, *, code: str, status: int = 400, field: str | None = None):
+def _json_error(message: str, *, code: str, status: int = 400, field: str | None = None, **extra):
+    """v91 — forward arbitrary extra fields through to `api_error` so
+    callers can attach context like `current_status=...` or
+    `detail=...` without inventing a parallel response shape."""
     errors = [{'field': field, 'message': message}] if field else []
-    return api_error(message, code=code, status=status, errors=errors)
+    return api_error(message, code=code, status=status, errors=errors, **extra)
 
 
 def _normalize_language(value: str | None):
@@ -236,25 +286,25 @@ def _float_or_error(value, field: str, *, minimum: float | None = None, maximum:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        return None, _json_error(f'{field} must be a number.', code='invalid_number', field=field)
+        return None, _json_error(_txt(f'يجب أن تكون قيمة {_field_title(field)} رقمًا.', f'{_field_title(field)} must be a number.'), code='invalid_number', field=field)
     if minimum is not None and number < minimum:
-        return None, _json_error(f'{field} is below the allowed range.', code='number_too_low', field=field)
+        return None, _json_error(_txt(f'قيمة {_field_title(field)} أقل من الحد المسموح.', f'{_field_title(field)} is below the allowed range.'), code='number_too_low', field=field)
     if maximum is not None and number > maximum:
-        return None, _json_error(f'{field} is above the allowed range.', code='number_too_high', field=field)
+        return None, _json_error(_txt(f'قيمة {_field_title(field)} أعلى من الحد المسموح.', f'{_field_title(field)} is above the allowed range.'), code='number_too_high', field=field)
     return number, None
 
 
 def _int_or_error(value, field: str, *, minimum: int | None = None, maximum: int | None = None):
     if isinstance(value, bool):
-        return None, _json_error(f'{field} must be a whole number.', code='invalid_number', field=field)
+        return None, _json_error(_txt(f'يجب أن تكون قيمة {_field_title(field)} عددًا صحيحًا.', f'{_field_title(field)} must be a whole number.'), code='invalid_number', field=field)
     try:
         number = int(str(value).strip())
     except (TypeError, ValueError):
-        return None, _json_error(f'{field} must be a whole number.', code='invalid_number', field=field)
+        return None, _json_error(_txt(f'يجب أن تكون قيمة {_field_title(field)} عددًا صحيحًا.', f'{_field_title(field)} must be a whole number.'), code='invalid_number', field=field)
     if minimum is not None and number < minimum:
-        return None, _json_error(f'{field} is below the allowed range.', code='number_too_low', field=field)
+        return None, _json_error(_txt(f'قيمة {_field_title(field)} أقل من الحد المسموح.', f'{_field_title(field)} is below the allowed range.'), code='number_too_low', field=field)
     if maximum is not None and number > maximum:
-        return None, _json_error(f'{field} is above the allowed range.', code='number_too_high', field=field)
+        return None, _json_error(_txt(f'قيمة {_field_title(field)} أعلى من الحد المسموح.', f'{_field_title(field)} is above the allowed range.'), code='number_too_high', field=field)
     return number, None
 
 
@@ -421,9 +471,9 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
     if 'name' in data or creating:
         name = (data.get('name') or '').strip()
         if not name:
-            return _json_error('Device name is required.', code='missing_device_name', field='name')
+            return _json_error(_txt('اسم الجهاز مطلوب.', 'Device name is required.'), code='missing_device_name', field='name')
         if len(name) > 120:
-            return _json_error('Device name is too long.', code='device_name_too_long', field='name')
+            return _json_error(_txt('اسم الجهاز أطول من المسموح.', 'Device name is too long.'), code='device_name_too_long', field='name')
         device.name = name
 
     provider_requested = any(key in data for key in ('device_type', 'provider_code', 'provider', 'api_provider'))
@@ -431,7 +481,7 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
         provider_code = data.get('device_type') or data.get('provider_code') or data.get('provider') or data.get('api_provider') or device.device_type or 'deye'
         spec = _mobile_provider_spec(provider_code)
         if not spec:
-            return _json_error('Device provider is not supported.', code='invalid_provider', field='provider_code')
+            return _json_error(_txt('موفّر الجهاز غير مدعوم.', 'Device provider is not supported.'), code='invalid_provider', field='provider_code')
         device.device_type = spec.code
         device.api_provider = (spec.provider or spec.code).strip().lower()
         device.api_base_url = spec.base_url or device.api_base_url or None
@@ -440,7 +490,7 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
     if 'timezone' in data:
         timezone = (data.get('timezone') or '').strip()
         if timezone and timezone not in timezones_for_template():
-            return _json_error('Timezone is not supported.', code='invalid_timezone', field='timezone')
+            return _json_error(_txt('المنطقة الزمنية غير مدعومة.', 'Timezone is not supported.'), code='invalid_timezone', field='timezone')
         device.timezone = timezone or user.timezone or 'Asia/Hebron'
     elif creating:
         device.timezone = device.timezone or user.timezone or 'Asia/Hebron'
@@ -453,7 +503,7 @@ def _mobile_apply_device_fields(device, user, data: dict, *, creating: bool = Fa
 
     if 'is_active' in data:
         return _json_error(
-            'Device active status can only be changed through the device deactivate endpoint.',
+            _txt('لا يمكن تغيير حالة تفعيل الجهاز من هنا. استخدم إجراء تعطيل الجهاز المخصص.', 'Device active status can only be changed through the device deactivate endpoint.'),
             code='unsupported_field',
             field='is_active',
         )
@@ -609,7 +659,10 @@ def _mobile_load_payload(load: UserLoad) -> dict:
         'device_id': load.device_id,
         'created_at': load.created_at.isoformat() if load.created_at else None,
         'control_type': 'persisted_preference',
-        'execution_note': 'Toggling a load only changes the saved preference. It does not send commands to an inverter, relay, scheduler, or hardware device.',
+        'execution_note': _txt(
+            'تغيير حالة الحمل هنا يبدّل التفضيل المحفوظ فقط، ولا يرسل أوامر مباشرة إلى الإنفرتر أو المرحّل أو الجدولة أو أي جهاز فعلي.',
+            'Toggling a load only changes the saved preference. It does not send commands to an inverter, relay, scheduler, or hardware device.',
+        ),
     })
 
 
@@ -621,14 +674,14 @@ def _mobile_load_device_from_payload(user, data: dict, *, required: bool = False
         selected = _selected_device_for_user(user)
         if selected:
             return selected, None
-        return None, _json_error('A target device is required before creating a load.', code='device_required', field='device_id')
+        return None, _json_error(_txt('يجب اختيار جهاز قبل إنشاء حمل جديد.', 'A target device is required before creating a load.'), code='device_required', field='device_id')
     try:
         device_id = int(str(raw_device_id).strip())
     except (TypeError, ValueError):
-        return None, _json_error('Device id is invalid.', code='invalid_device_id', field='device_id')
+        return None, _json_error(_txt('معرّف الجهاز غير صالح.', 'Device id is invalid.'), code='invalid_device_id', field='device_id')
     device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
     if not device:
-        return None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return None, api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
     return device, None
 
 
@@ -640,10 +693,10 @@ def _mobile_loads_query(user):
     try:
         device_id = int(raw_device_id)
     except (TypeError, ValueError):
-        return None, None, api_error('Device id is invalid.', code='invalid_device_id', status=400)
+        return None, None, api_error(_txt('معرّف الجهاز غير صالح.', 'Device id is invalid.'), code='invalid_device_id', status=400)
     device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
     if not device:
-        return None, None, api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return None, None, api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
     return query.filter_by(device_id=device.id), device, None
 
 
@@ -654,7 +707,7 @@ def _mobile_load_for_user(user, load_id: int):
 def _mobile_validate_load_fields(data: dict):
     for key in data:
         if key not in _MOBILE_LOAD_ALLOWED_FIELDS:
-            return _json_error('Load field is not supported by the mobile API.', code='unsupported_field', field=key)
+            return _json_error(_txt('هذا الحقل غير مدعوم في واجهة الجوال.', 'Load field is not supported by the mobile API.'), code='unsupported_field', field=key)
     return None
 
 
@@ -673,9 +726,9 @@ def _mobile_apply_load_fields(load: UserLoad, user, data: dict, *, creating: boo
     if creating or 'name' in data:
         name = (data.get('name') or '').strip()
         if not name:
-            return _json_error('Load name is required.', code='missing_load_name', field='name')
+            return _json_error(_txt('اسم الحمل مطلوب.', 'Load name is required.'), code='missing_load_name', field='name')
         if len(name) > 120:
-            return _json_error('Load name is too long.', code='load_name_too_long', field='name')
+            return _json_error(_txt('اسم الحمل أطول من المسموح.', 'Load name is too long.'), code='load_name_too_long', field='name')
         load.name = name
 
     if creating or any(key in data for key in ('power_w', 'wattage', 'watts', 'power')):
@@ -766,7 +819,10 @@ def _mobile_notification_settings_payload() -> dict:
     settings = load_settings()
     return sanitize_response_payload({
         'scope': 'global',
-        'scope_note': 'Notification settings are currently global for the account/platform. Per-device notification rules are not enabled by the current database schema.',
+        'scope_note': _txt(
+            'إعدادات الإشعارات تُطبَّق حاليًا على مستوى الحساب بالكامل، ولا يدعم النظام الآن قواعد إشعارات مستقلة لكل جهاز.',
+            'Notification settings are currently global for the account/platform. Per-device notification rules are not enabled by the current database schema.',
+        ),
         'channels': _mobile_channels_status(settings),
         'sections': _mobile_notification_sections_payload(settings),
         'rules': _mobile_notification_rules_payload(settings),
@@ -798,27 +854,27 @@ def _mobile_normalize_channel(value, field: str):
     if normalized == 'disabled':
         normalized = 'none'
     if normalized not in _MOBILE_NOTIFICATION_CHANNEL_VALUES:
-        return None, _json_error('Notification channel value is not supported.', code='invalid_channel', field=field)
+        return None, _json_error(_txt('قيمة قناة الإشعار غير مدعومة.', 'Notification channel value is not supported.'), code='invalid_channel', field=field)
     return normalized or 'none', None
 
 
 def _mobile_normalize_threshold_key(group: str, raw_key):
     field = f'rules.{group}.{raw_key}'
     if isinstance(raw_key, bool):
-        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+        return None, _json_error(_txt('يجب أن تكون قيمة حد الإشعار عددًا صحيحًا.', 'Notification threshold must be a whole number.'), code='invalid_threshold', field=field)
     raw_text = str(raw_key).strip()
     if not raw_text:
-        return None, _json_error('Notification threshold is required.', code='invalid_threshold', field=f'rules.{group}')
+        return None, _json_error(_txt('حد الإشعار مطلوب.', 'Notification threshold is required.'), code='invalid_threshold', field=f'rules.{group}')
     try:
         threshold = int(raw_text)
     except (TypeError, ValueError):
-        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+        return None, _json_error(_txt('يجب أن تكون قيمة حد الإشعار عددًا صحيحًا.', 'Notification threshold must be a whole number.'), code='invalid_threshold', field=field)
     if str(threshold) != raw_text:
-        return None, _json_error('Notification threshold must be a whole number.', code='invalid_threshold', field=field)
+        return None, _json_error(_txt('يجب أن تكون قيمة حد الإشعار عددًا صحيحًا.', 'Notification threshold must be a whole number.'), code='invalid_threshold', field=field)
     if group in {'charge', 'discharge'} and not (0 <= threshold <= 100):
-        return None, _json_error('Notification percentage threshold must be between 0 and 100.', code='invalid_threshold', field=field)
+        return None, _json_error(_txt('يجب أن تكون النسبة بين 0 و100.', 'Notification percentage threshold must be between 0 and 100.'), code='invalid_threshold', field=field)
     if group == 'night_thresholds' and threshold < 0:
-        return None, _json_error('Night load threshold must be zero or higher.', code='invalid_threshold', field=field)
+        return None, _json_error(_txt('يجب أن تكون عتبة الحمل الليلي صفرًا أو أعلى.', 'Night load threshold must be zero or higher.'), code='invalid_threshold', field=field)
     return str(threshold), None
 
 
@@ -826,14 +882,14 @@ def _mobile_validate_notification_rules(raw_rules):
     if raw_rules is None:
         return None, None
     if not isinstance(raw_rules, dict):
-        return None, _json_error('Notification rules must be a JSON object.', code='invalid_rules', field='rules')
+        return None, _json_error(_txt('يجب إرسال قواعد الإشعارات على هيئة كائن JSON.', 'Notification rules must be a JSON object.'), code='invalid_rules', field='rules')
     current = load_notification_rules(load_settings())
     allowed_groups = {'charge', 'discharge', 'night_thresholds', 'day_deficit'}
     for group, value in raw_rules.items():
         if group not in allowed_groups:
-            return None, _json_error('Notification rule group is not supported.', code='unsupported_field', field=f'rules.{group}')
+            return None, _json_error(_txt('مجموعة قواعد الإشعارات غير مدعومة.', 'Notification rule group is not supported.'), code='unsupported_field', field=f'rules.{group}')
         if not isinstance(value, dict):
-            return None, _json_error('Notification rule group must be a JSON object.', code='invalid_rules', field=f'rules.{group}')
+            return None, _json_error(_txt('يجب أن تكون مجموعة القواعد كائن JSON.', 'Notification rule group must be a JSON object.'), code='invalid_rules', field=f'rules.{group}')
         if group in {'charge', 'discharge', 'night_thresholds'}:
             target = dict(current.get(group) or {})
             for level, channel in value.items():
@@ -859,7 +915,7 @@ def _mobile_validate_notification_rules(raw_rules):
                         return None, error
                     target['channel'] = normalized
                 else:
-                    return None, _json_error('Notification rule field is not supported.', code='unsupported_field', field=f'rules.day_deficit.{key}')
+                    return None, _json_error(_txt('حقل قاعدة الإشعارات غير مدعوم.', 'Notification rule field is not supported.'), code='unsupported_field', field=f'rules.day_deficit.{key}')
             current['day_deficit'] = target
     return current, None
 
@@ -1329,25 +1385,25 @@ def _apply_mobile_profile_fields(user, data):
     if 'email' in data:
         email = (data.get('email') or '').strip().lower()
         if email and '@' not in email:
-            return _json_error('Email address is invalid.', code='invalid_email', field='email')
+            return _json_error(_txt('عنوان البريد الإلكتروني غير صالح.', 'Email address is invalid.'), code='invalid_email', field='email')
         if email:
             other = AppUser.query.filter(db.func.lower(AppUser.email) == email, AppUser.id != user.id).first()
             if other:
-                return _json_error('Email is already in use.', code='email_taken', status=409, field='email')
+                return _json_error(_txt('عنوان البريد الإلكتروني مستخدم بالفعل.', 'Email is already in use.'), code='email_taken', status=409, field='email')
         user.email = email or None
 
     if 'phone_country_code' in data:
         prefix = (data.get('phone_country_code') or '').strip()
         valid_prefixes = {row.get('dial') for row in phone_prefixes_for_template()}
         if prefix and prefix not in valid_prefixes:
-            return _json_error('Phone country code is not supported.', code='invalid_phone_country_code', field='phone_country_code')
+            return _json_error(_txt('مفتاح الدولة غير مدعوم.', 'Phone country code is not supported.'), code='invalid_phone_country_code', field='phone_country_code')
         user.phone_country_code = prefix or None
 
     if 'phone_number' in data:
         phone = _clean_phone(data.get('phone_number'))
         digits = ''.join(ch for ch in phone if ch.isdigit())
         if phone and len(digits) < 6:
-            return _json_error('Phone number is too short.', code='invalid_phone_number', field='phone_number')
+            return _json_error(_txt('رقم الهاتف أقصر من الحد المسموح.', 'Phone number is too short.'), code='invalid_phone_number', field='phone_number')
         user.phone_number = phone or None
 
     country_changed = any(key in data for key in ('country', 'country_code'))
@@ -1355,7 +1411,7 @@ def _apply_mobile_profile_fields(user, data):
         lang = _normalize_language(data.get('preferred_language')) or user.preferred_language or _lang()
         selected_country = find_country(data.get('country_code') or data.get('country'))
         if not selected_country and (data.get('country') or data.get('country_code')):
-            return _json_error('Country is not supported.', code='invalid_country', field='country')
+            return _json_error(_txt('الدولة غير مدعومة.', 'Country is not supported.'), code='invalid_country', field='country')
         if selected_country:
             user.country = selected_country.get('name_en') if lang == 'en' else selected_country.get('name_ar')
             if not user.phone_country_code:
@@ -1371,13 +1427,13 @@ def _apply_mobile_profile_fields(user, data):
     if 'timezone' in data:
         timezone = (data.get('timezone') or '').strip()
         if timezone and timezone not in timezones_for_template():
-            return _json_error('Timezone is not supported.', code='invalid_timezone', field='timezone')
+            return _json_error(_txt('المنطقة الزمنية غير مدعومة.', 'Timezone is not supported.'), code='invalid_timezone', field='timezone')
         user.timezone = timezone or None
 
     if 'preferred_language' in data:
         lang = _normalize_language(data.get('preferred_language'))
         if not lang:
-            return _json_error('Preferred language must be ar or en.', code='invalid_language', field='preferred_language')
+            return _json_error(_txt('اللغة المفضلة يجب أن تكون العربية أو الإنجليزية.', 'Preferred language must be ar or en.'), code='invalid_language', field='preferred_language')
         user.preferred_language = lang
 
     return None
@@ -1435,7 +1491,7 @@ def mobile_account_update():
 
     for key in data:
         if key not in _MOBILE_ACCOUNT_ALLOWED_FIELDS:
-            return _json_error('Account field is not supported by the mobile API.', code='unsupported_field', field=key)
+            return _json_error(_txt('هذا الحقل غير مدعوم في حساب الجوال.', 'Account field is not supported by the mobile API.'), code='unsupported_field', field=key)
 
     error = _apply_mobile_profile_fields(user, data)
     if error:
@@ -1457,13 +1513,13 @@ def mobile_account_change_password():
     current_password = data.get('current_password')
     new_password = data.get('new_password')
     if not isinstance(current_password, str) or not current_password:
-        return _json_error('Current password is required.', code='missing_field', field='current_password')
+        return _json_error(_txt('كلمة المرور الحالية مطلوبة.', 'Current password is required.'), code='missing_field', field='current_password')
     if not isinstance(new_password, str) or not new_password:
-        return _json_error('New password is required.', code='missing_field', field='new_password')
+        return _json_error(_txt('كلمة المرور الجديدة مطلوبة.', 'New password is required.'), code='missing_field', field='new_password')
     if not check_password_hash(user.password_hash or '', current_password):
-        return _json_error('Current password is incorrect.', code='invalid_current_password', status=401, field='current_password')
+        return _json_error(_txt('كلمة المرور الحالية غير صحيحة.', 'Current password is incorrect.'), code='invalid_current_password', status=401, field='current_password')
     if len(new_password) < 6:
-        return _json_error('New password must be at least 6 characters.', code='weak_password', field='new_password')
+        return _json_error(_txt('يجب ألا تقل كلمة المرور الجديدة عن 6 أحرف.', 'New password must be at least 6 characters.'), code='weak_password', field='new_password')
 
     user.password_hash = generate_password_hash(new_password)
     user.updated_at = datetime.utcnow()
@@ -1491,7 +1547,10 @@ def mobile_account_logout_all():
         'supported': True,
         'revoked_refresh_tokens': int(revoked_count or 0),
         'access_tokens_revoked': False,
-        'access_token_note': 'Access tokens are stateless and expire automatically.',
+        'access_token_note': _txt(
+            'رموز الدخول الحالية لا تُلغى فورًا، لكنها تنتهي تلقائيًا عند انتهاء مدتها.',
+            'Access tokens are stateless and expire automatically.',
+        ),
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
@@ -1501,7 +1560,7 @@ def mobile_account_delete():
     if err:
         return err
     return api_error(
-        'Account deletion is not supported by the mobile API.',
+        _txt('حذف الحساب غير متاح حاليًا من تطبيق الجوال.', 'Account deletion is not supported by the mobile API.'),
         code='account_deletion_not_supported',
         status=501,
         supported=False,
@@ -1564,7 +1623,7 @@ def mobile_account_request_plan_change():
     def _plan_id_error():
         if raw_plan_id is None or (isinstance(raw_plan_id, str) and not raw_plan_id.strip()):
             return _json_error(
-                'Plan id is required.',
+                _txt('رقم الباقة مطلوب.', 'Plan id is required.'),
                 code='plan_id_required',
                 field='plan_id',
             )
@@ -1578,13 +1637,13 @@ def mobile_account_request_plan_change():
             plan_id = int(raw_plan_id)
         except (TypeError, ValueError):
             return _json_error(
-                'Plan id must be an integer.',
+                _txt('رقم الباقة يجب أن يكون عددًا صحيحًا.', 'Plan id must be an integer.'),
                 code='plan_id_invalid',
                 field='plan_id',
             )
         if mode not in ('same_duration', 'reduced_days'):
             return _json_error(
-                'Unknown pricing mode.',
+                _txt('طريقة التحويل غير معروفة.', 'Unknown pricing mode.'),
                 code='unknown_mode',
                 field='mode',
             )
@@ -1594,13 +1653,13 @@ def mobile_account_request_plan_change():
                 desired_days = int(desired_days)
             except (TypeError, ValueError):
                 return _json_error(
-                    'desired_target_days must be an integer.',
+                    _txt('عدد الأيام المقترح يجب أن يكون عددًا صحيحًا.', 'desired_target_days must be an integer.'),
                     code='desired_target_days_invalid',
                     field='desired_target_days',
                 )
             if desired_days < 0 or desired_days > 10_000:
                 return _json_error(
-                    'desired_target_days is outside the supported range.',
+                    _txt('عدد الأيام المقترح خارج النطاق المسموح.', 'desired_target_days is outside the supported range.'),
                     code='desired_target_days_invalid',
                     field='desired_target_days',
                 )
@@ -1618,7 +1677,7 @@ def mobile_account_request_plan_change():
                 getattr(user, 'id', None), raw_plan_id, mode,
             )
             return api_error(
-                'Unexpected error while confirming the plan change.',
+                _txt('حدث خطأ غير متوقع أثناء تأكيد تغيير الباقة.', 'Unexpected error while confirming the plan change.'),
                 code='internal_error', status=500,
             )
         payload = _mobile_account_payload_with_plan_change(
@@ -1634,7 +1693,7 @@ def mobile_account_request_plan_change():
                     getattr(user, 'id', None), plan_id,
                 )
             return api_error(
-                result.blocked_reason or 'Plan change blocked.',
+                result.blocked_reason or _txt('تعذّر تنفيذ تغيير الباقة.', 'Plan change blocked.'),
                 code=result.blocked_reason or 'blocked',
                 status=400,
                 data=payload,
@@ -1650,14 +1709,14 @@ def mobile_account_request_plan_change():
             plan_id = int(raw_plan_id)
         except (TypeError, ValueError):
             return _json_error(
-                'Plan id must be an integer.',
+                _txt('رقم الباقة يجب أن يكون عددًا صحيحًا.', 'Plan id must be an integer.'),
                 code='plan_id_invalid',
                 field='plan_id',
             )
         target_plan = SubscriptionPlan.query.get(plan_id)
         if target_plan is None or not target_plan.is_active:
             return _json_error(
-                'Subscription plan was not found or is not active.',
+                _txt('الباقة المطلوبة غير موجودة أو غير مفعلة.', 'Subscription plan was not found or is not active.'),
                 code='plan_not_found',
                 status=404,
                 field='plan_id',
@@ -1672,7 +1731,7 @@ def mobile_account_request_plan_change():
                 getattr(user, 'id', None), plan_id,
             )
             return api_error(
-                'Unexpected error while building the plan-change preview.',
+                _txt('حدث خطأ غير متوقع أثناء تجهيز معاينة تغيير الباقة.', 'Unexpected error while building the plan-change preview.'),
                 code='internal_error', status=500,
             )
         payload = _mobile_account_payload_with_plan_change(
@@ -1698,7 +1757,7 @@ def mobile_account_request_plan_change():
         plan_id = int(raw_plan_id)
     except (TypeError, ValueError):
         return _json_error(
-            'Plan id must be an integer.',
+            _txt('رقم الباقة يجب أن يكون عددًا صحيحًا.', 'Plan id must be an integer.'),
             code='plan_id_invalid',
             field='plan_id',
         )
@@ -1706,7 +1765,7 @@ def mobile_account_request_plan_change():
     target_plan = SubscriptionPlan.query.get(plan_id)
     if target_plan is None or not target_plan.is_active:
         return _json_error(
-            'Subscription plan was not found or is not active.',
+            _txt('الباقة المطلوبة غير موجودة أو غير مفعلة.', 'Subscription plan was not found or is not active.'),
             code='plan_not_found',
             status=404,
             field='plan_id',
@@ -1808,14 +1867,14 @@ def mobile_account_plan_change_preview():
     raw_plan_id = request.args.get('plan_id', '').strip()
     if not raw_plan_id:
         return _json_error(
-            'Plan id is required.', code='plan_id_required',
+            _txt('رقم الباقة مطلوب.', 'Plan id is required.'), code='plan_id_required',
             field='plan_id',
         )
     try:
         plan_id = int(raw_plan_id)
     except (TypeError, ValueError):
         return _json_error(
-            'Plan id must be an integer.', code='plan_id_invalid',
+            _txt('رقم الباقة يجب أن يكون عددًا صحيحًا.', 'Plan id must be an integer.'), code='plan_id_invalid',
             field='plan_id',
         )
     # v88 — wrap the service call so an unexpected exception in
@@ -1832,7 +1891,7 @@ def mobile_account_plan_change_preview():
             getattr(user, 'id', None), plan_id,
         )
         return _json_error(
-            'Unexpected error while building plan-change preview.',
+            _txt('حدث خطأ غير متوقع أثناء تجهيز معاينة تغيير الباقة.', 'Unexpected error while building plan-change preview.'),
             code='internal_error', status=500,
         )
     return api_ok(
@@ -1868,20 +1927,20 @@ def mobile_account_plan_change_confirm():
     raw_plan_id = data.get('plan_id')
     if raw_plan_id is None:
         return _json_error(
-            'Plan id is required.', code='plan_id_required',
+            _txt('رقم الباقة مطلوب.', 'Plan id is required.'), code='plan_id_required',
             field='plan_id',
         )
     try:
         plan_id = int(raw_plan_id)
     except (TypeError, ValueError):
         return _json_error(
-            'Plan id must be an integer.', code='plan_id_invalid',
+            _txt('رقم الباقة يجب أن يكون عددًا صحيحًا.', 'Plan id must be an integer.'), code='plan_id_invalid',
             field='plan_id',
         )
     mode = (data.get('mode') or '').strip()
     if mode not in ('same_duration', 'reduced_days'):
         return _json_error(
-            'Unknown pricing mode.', code='unknown_mode', field='mode',
+            _txt('طريقة التحويل غير معروفة.', 'Unknown pricing mode.'), code='unknown_mode', field='mode',
         )
     desired_days = data.get('desired_target_days')
     if desired_days is not None:
@@ -1889,7 +1948,7 @@ def mobile_account_plan_change_confirm():
             desired_days = int(desired_days)
         except (TypeError, ValueError):
             return _json_error(
-                'desired_target_days must be an integer.',
+                _txt('عدد الأيام المقترح يجب أن يكون عددًا صحيحًا.', 'desired_target_days must be an integer.'),
                 code='desired_target_days_invalid',
                 field='desired_target_days',
             )
@@ -1897,7 +1956,7 @@ def mobile_account_plan_change_confirm():
         # `timedelta(days=N)` deeper in apply_request can't overflow.
         if desired_days < 0 or desired_days > 10_000:
             return _json_error(
-                'desired_target_days is out of range.',
+                _txt('عدد الأيام المقترح خارج النطاق المسموح.', 'desired_target_days is out of range.'),
                 code='desired_target_days_invalid',
                 field='desired_target_days',
             )
@@ -1919,19 +1978,167 @@ def mobile_account_plan_change_confirm():
             getattr(user, 'id', None), plan_id, mode, desired_days,
         )
         return _json_error(
-            'Unexpected error while applying the plan change.',
+            _txt('حدث خطأ غير متوقع أثناء تطبيق تغيير الباقة.', 'Unexpected error while applying the plan change.'),
             code='internal_error', status=500,
         )
     payload = result.to_dict()
     if result.outcome == 'blocked':
         return api_error(
-            payload.get('blocked_reason') or 'Plan change blocked.',
+            payload.get('blocked_reason') or _txt('تعذّر تنفيذ تغيير الباقة.', 'Plan change blocked.'),
             code=payload.get('blocked_reason') or 'blocked',
             status=400,
             data=payload,
         )
     return api_ok(
         payload,
+        meta={'api_version': 'v1', 'namespace': 'api/mobile'},
+    )
+
+
+# v91 — mobile-native Stripe-checkout session creator. The web flow
+# uses `payments.create_invoice_checkout` which authenticates via
+# Flask session cookie. Mobile clients carry bearer tokens, so they
+# need a parallel endpoint that:
+#   * Authenticates via the standard `_require_bearer_user` helper.
+#   * Validates ownership + case state defensively (same security
+#     boundary as the web route).
+#   * Builds the checkout session via the shared
+#     `create_invoice_checkout_session` gateway helper.
+#   * Returns the Stripe-hosted URL as JSON so the Flutter app can
+#     hand it to `url_launcher` to open in the system browser.
+
+@mobile_core_api_bp.post('/account/plan-change/checkout')
+def mobile_account_plan_change_checkout():
+    """Create a Stripe Checkout Session for an outstanding plan-
+    change invoice and return its URL to the mobile client.
+
+    Body (JSON object):
+      * `case_id` (int, required) — id of the
+        `SupportCase(case_type='plan_change_request')` that's in
+        `payment_requested` state for the calling user.
+
+    Success response (200):
+      {
+        ok: true,
+        data: {
+          url:               '<stripe checkout url>',
+          session_id:        '<cs_test_...>',
+          invoice_reference: 'INV-<tenant>-<case>',
+          amount:            <float>,
+          currency:          '<ISO>'
+        }
+      }
+
+    Stable error codes (400/401/403/404/409/502/503):
+      auth_required, case_id_required, case_id_invalid,
+      case_not_found, case_not_pending_payment, no_pending_invoice,
+      stripe_not_ready, invalid_input, stripe_error.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    data, error = _strict_json_object()
+    if error:
+        return error
+    raw_case_id = data.get('case_id')
+    if raw_case_id is None:
+        return _json_error(
+            _txt('رقم الطلب مطلوب.', 'Case id is required.'), code='case_id_required',
+            field='case_id',
+        )
+    try:
+        case_id = int(raw_case_id)
+    except (TypeError, ValueError):
+        return _json_error(
+            _txt('رقم الطلب يجب أن يكون عددًا صحيحًا.', 'Case id must be an integer.'), code='case_id_invalid',
+            field='case_id',
+        )
+    from ..services.plan_change_workbench import (
+        STATUS_PAYMENT_REQUESTED, find_pending_invoice,
+    )
+    case = SupportCase.query.filter_by(
+        id=case_id, case_type='plan_change_request',
+    ).first()
+    # Security: silently treat cross-user attempts as 'not found'.
+    if not case or case.user_id != user.id:
+        return _json_error(
+            _txt('تعذّر العثور على طلب تغيير الباقة.', 'Plan-change request not found.'),
+            code='case_not_found', status=404,
+        )
+    if (case.status or '').lower() != STATUS_PAYMENT_REQUESTED:
+        return _json_error(
+            _txt('هذا الطلب ليس في حالة انتظار الدفع.', 'This request is not in payment_requested state.'),
+            code='case_not_pending_payment', status=409,
+            current_status=case.status,
+        )
+    invoice = find_pending_invoice(case)
+    if not invoice or not invoice.amount or invoice.amount <= 0:
+        return _json_error(
+            _txt('لا توجد فاتورة معلقة لهذا الطلب.', 'No pending invoice for this request.'),
+            code='no_pending_invoice',
+        )
+    try:
+        success_url = url_for(
+            'payments.checkout_success',
+            session_id='{CHECKOUT_SESSION_ID}', _external=True,
+        )
+    except Exception:  # pragma: no cover
+        success_url = '/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}'
+    try:
+        cancel_url = url_for('payments.checkout_cancel', _external=True)
+    except Exception:  # pragma: no cover
+        cancel_url = '/payments/stripe/cancel'
+    try:
+        from ..services.stripe_gateway import (
+            create_invoice_checkout_session, StripeNotReady,
+        )
+    except Exception:
+        return _json_error(
+            _txt('خدمة بوابة الدفع غير متاحة حاليًا.', 'Payment gateway helper unavailable.'),
+            code='stripe_not_ready', status=503,
+        )
+    try:
+        result = create_invoice_checkout_session(
+            case_id=case.id,
+            amount_value=float(invoice.amount),
+            currency=(invoice.currency or 'USD'),
+            case_label=(case.subject or f'plan_change_invoice_{case.id}'),
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=(getattr(user, 'email', None) or None),
+            tenant_id=getattr(user, 'tenant_id', None),
+            user_id=user.id,
+            locale=(request.args.get('lang') or 'ar'),
+        )
+    except StripeNotReady:
+        return _json_error(
+            _txt('بوابة الدفع غير مهيأة بعد.', 'Payment gateway is not configured.'),
+            code='stripe_not_ready', status=503,
+        )
+    except ValueError as exc:
+        return _json_error(
+            _txt('بيانات إنشاء جلسة الدفع غير صالحة.', 'Invalid checkout input.'),
+            code='invalid_input', detail=str(exc),
+        )
+    except Exception as exc:
+        current_app.logger.warning(
+            'mobile_plan_change_checkout_failed err_class=%s',
+            type(exc).__name__,
+        )
+        return _json_error(
+            _txt('تعذّر إنشاء جلسة الدفع.', 'Failed to create checkout session.'),
+            code='stripe_error', status=502,
+        )
+    return api_ok(
+        {
+            'url': result.get('url'),
+            'session_id': result.get('id'),
+            'invoice_reference': invoice.reference,
+            'amount': float(invoice.amount),
+            'currency': invoice.currency or 'USD',
+            'provider': result.get('provider'),
+            'mode': result.get('mode'),
+        },
         meta={'api_version': 'v1', 'namespace': 'api/mobile'},
     )
 
@@ -1961,7 +2168,7 @@ def mobile_onboarding_update():
     if 'onboarding_step' in data or 'step' in data:
         step = (data.get('onboarding_step') or data.get('step') or '').strip().lower()
         if step not in allowed_steps:
-            return _json_error('Onboarding step is not supported.', code='invalid_onboarding_step', field='onboarding_step')
+            return _json_error(_txt('خطوة الإعداد غير مدعومة.', 'Onboarding step is not supported.'), code='invalid_onboarding_step', field='onboarding_step')
         user.onboarding_step = step
 
     if 'onboarding_completed' in data or 'completed' in data:
@@ -1979,12 +2186,12 @@ def mobile_onboarding_update():
         try:
             device_id = int(raw_id)
         except (TypeError, ValueError):
-            return _json_error('Selected device id is invalid.', code='invalid_device_id', field='selected_device_id')
+            return _json_error(_txt('معرّف الجهاز المختار غير صالح.', 'Selected device id is invalid.'), code='invalid_device_id', field='selected_device_id')
         device = AppDevice.query.filter_by(id=device_id, owner_user_id=user.id).first()
         if not device:
-            return _json_error('Device was not found for this account.', code='device_not_found', status=404, field='selected_device_id')
+            return _json_error(_txt('تعذّر العثور على الجهاز المختار ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404, field='selected_device_id')
         if not device.is_active:
-            return _json_error('Selected device is not active.', code='device_inactive', field='selected_device_id')
+            return _json_error(_txt('الجهاز المختار غير مفعّل.', 'Selected device is not active.'), code='device_inactive', field='selected_device_id')
         user.preferred_device_id = device.id
         user.preferred_device_type = device.device_type or user.preferred_device_type
 
@@ -1992,7 +2199,7 @@ def mobile_onboarding_update():
         provider_codes = {spec.code for spec in provider_catalog()}
         provider_code = (data.get('preferred_device_type') or '').strip().lower()
         if provider_code and provider_code not in provider_codes:
-            return _json_error('Device provider is not supported.', code='invalid_provider', field='preferred_device_type')
+            return _json_error(_txt('موفّر الجهاز غير مدعوم.', 'Device provider is not supported.'), code='invalid_provider', field='preferred_device_type')
         if provider_code:
             user.preferred_device_type = provider_code
 
@@ -2003,7 +2210,7 @@ def mobile_onboarding_update():
     if basics:
         device = _selected_device_for_user(user)
         if not device:
-            return _json_error('A device is required before saving system basics.', code='device_required', status=409)
+            return _json_error(_txt('يجب اختيار جهاز قبل حفظ إعدادات النظام الأساسية.', 'A device is required before saving system basics.'), code='device_required', status=409)
         settings = _safe_json_loads(device.settings_json)
         if 'battery_capacity_kwh' in basics:
             capacity, error = _float_or_error(basics.get('battery_capacity_kwh'), 'battery_capacity_kwh', minimum=0.1, maximum=1000)
@@ -2111,7 +2318,7 @@ def mobile_device_detail(device_id: int):
         return err
     device = _mobile_device_for_user(user, device_id)
     if not device:
-        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
     latest = (
         Reading.query
         .filter_by(device_id=device.id)
@@ -2135,7 +2342,7 @@ def mobile_device_update(device_id: int):
         return error
     device = _mobile_device_for_user(user, device_id)
     if not device:
-        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
     error = _mobile_apply_device_fields(device, user, data)
     if error:
         return error
@@ -2174,7 +2381,7 @@ def mobile_device_setup(device_id: int):
         return err
     device = _mobile_device_for_user(user, device_id)
     if not device:
-        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
 
     data, error = _strict_json_object()
     if error:
@@ -2182,7 +2389,7 @@ def mobile_device_setup(device_id: int):
 
     spec = _mobile_provider_spec(device.device_type)
     if not spec:
-        return api_error('Device provider is not supported.', code='invalid_provider', status=400)
+        return api_error(_txt('موفّر الجهاز غير مدعوم.', 'Device provider is not supported.'), code='invalid_provider', status=400)
 
     raw_fields = data.get('fields')
     if raw_fields is None:
@@ -2190,7 +2397,7 @@ def mobile_device_setup(device_id: int):
         # top level. Filter out the always-present envelope keys.
         raw_fields = {k: v for k, v in data.items() if k != 'fields'}
     if not isinstance(raw_fields, dict):
-        return _json_error('`fields` must be a JSON object.', code='invalid_fields', field='fields')
+        return _json_error(_txt('يجب أن تكون الحقول المرسلة ضمن كائن JSON.', '`fields` must be a JSON object.'), code='invalid_fields', field='fields')
 
     _mobile_apply_provider_setup(device, spec, raw_fields)
     db.session.commit()
@@ -2223,6 +2430,20 @@ def _mobile_sync_error_payload(exc: Exception) -> tuple[int, str, str]:
     return 502, 'sync_failed', raw[:240]
 
 
+# v90 — override the legacy fallback strings with clean bilingual copy.
+def _mobile_sync_error_payload(exc: Exception) -> tuple[int, str, str]:
+    if isinstance(exc, ValueError):
+        return 400, 'setup_not_ready', str(exc) or _txt(
+            'تعذّر التحقق من جاهزية الجهاز.',
+            'Unable to verify that the device is ready.',
+        )
+    raw = str(exc).strip() or _txt(
+        'فشلت محاولة المزامنة.',
+        'Sync attempt failed.',
+    )
+    return 502, 'sync_failed', raw[:240]
+
+
 @mobile_core_api_bp.post('/devices/<int:device_id>/sync-now')
 def mobile_device_sync_now(device_id: int):
     """v50: subscriber-facing "verify integration now" action.
@@ -2249,10 +2470,10 @@ def mobile_device_sync_now(device_id: int):
         return err
     device = _mobile_device_for_user(user, device_id)
     if not device:
-        return api_error('Device was not found for this account.', code='device_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الجهاز ضمن هذا الحساب.', 'Device was not found for this account.'), code='device_not_found', status=404)
     if not bool(device.is_active):
         return api_error(
-            'Device is not active. Re-enable it before syncing.',
+            _txt('الجهاز غير مفعّل. أعد تفعيله قبل بدء المزامنة.', 'Device is not active. Re-enable it before syncing.'),
             code='device_inactive',
             status=400,
         )
@@ -2372,7 +2593,7 @@ def mobile_load_detail(load_id: int):
         return err
     load = _mobile_load_for_user(user, load_id)
     if not load:
-        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الحمل ضمن هذا الحساب.', 'Load was not found for this account.'), code='load_not_found', status=404)
     return api_ok({'load': _mobile_load_payload(load)}, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
@@ -2386,7 +2607,7 @@ def mobile_load_update(load_id: int):
         return error
     load = _mobile_load_for_user(user, load_id)
     if not load:
-        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الحمل ضمن هذا الحساب.', 'Load was not found for this account.'), code='load_not_found', status=404)
     error = _mobile_apply_load_fields(load, user, data)
     if error:
         return error
@@ -2401,14 +2622,17 @@ def mobile_load_delete(load_id: int):
         return err
     load = _mobile_load_for_user(user, load_id)
     if not load:
-        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الحمل ضمن هذا الحساب.', 'Load was not found for this account.'), code='load_not_found', status=404)
     deleted_id = load.id
     db.session.delete(load)
     db.session.commit()
     return api_ok({
         'deleted': True,
         'load_id': deleted_id,
-        'note': 'The saved load row was removed. No readings, device history, scheduler jobs, or hardware controls were changed.',
+        'note': _txt(
+            'تم حذف سجل الحمل المحفوظ فقط، ولم تتغير القراءات أو سجل الجهاز أو مهام الجدولة أو أوامر العتاد.',
+            'The saved load row was removed. No readings, device history, scheduler jobs, or hardware controls were changed.',
+        ),
     }, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
@@ -2422,10 +2646,10 @@ def mobile_load_toggle(load_id: int):
         return error
     for key in data:
         if key not in {'is_enabled', 'enabled'}:
-            return _json_error('Toggle field is not supported by the mobile API.', code='unsupported_field', field=key)
+            return _json_error(_txt('هذا الحقل غير مدعوم في تبديل حالة الحمل.', 'Toggle field is not supported by the mobile API.'), code='unsupported_field', field=key)
     load = _mobile_load_for_user(user, load_id)
     if not load:
-        return api_error('Load was not found for this account.', code='load_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الحمل ضمن هذا الحساب.', 'Load was not found for this account.'), code='load_not_found', status=404)
     if 'is_enabled' in data or 'enabled' in data:
         parsed, error = _boolean_or_error(data.get('is_enabled') if 'is_enabled' in data else data.get('enabled'), 'is_enabled')
         if error:
@@ -2453,7 +2677,10 @@ def mobile_load_recommendations():
     return api_ok({
         'available': False,
         'reason': 'mobile_recommendations_deferred',
-        'message': 'Mobile load recommendations are not exposed yet because the existing recommendation helpers are coupled to the web dashboard/session context. This endpoint is read-only and does not run scheduler, energy recalculation, or hardware control.',
+        'message': _txt(
+            'اقتراحات الأحمال غير متاحة بعد في تطبيق الجوال، لأن أدوات التوصية الحالية ما زالت مرتبطة بلوحة الويب وسياق الجلسة. هذه الواجهة للعرض فقط ولا تشغّل الجدولة أو إعادة حساب الطاقة أو التحكم بالعتاد.',
+            'Mobile load recommendations are not exposed yet because the existing recommendation helpers are coupled to the web dashboard/session context. This endpoint is read-only and does not run scheduler, energy recalculation, or hardware control.',
+        ),
         'scope': {
             'mode': 'device' if device else 'all',
             'device_id': device.id if device else None,
@@ -2484,7 +2711,7 @@ def mobile_notification_settings_update():
     payload_settings = {}
     if 'settings' in data:
         if not isinstance(data.get('settings'), dict):
-            return _json_error('Notification settings must be a JSON object.', code='invalid_settings', field='settings')
+            return _json_error(_txt('يجب إرسال إعدادات الإشعارات ضمن كائن JSON.', 'Notification settings must be a JSON object.'), code='invalid_settings', field='settings')
         payload_settings.update(data.get('settings') or {})
 
     supported_top_level = {'settings', 'rules'}
@@ -2492,12 +2719,12 @@ def mobile_notification_settings_update():
         if key in supported_top_level:
             continue
         if key not in allowed_settings:
-            return _json_error('Notification setting is not supported by the mobile API.', code='unsupported_field', field=key)
+            return _json_error(_txt('إعداد الإشعارات هذا غير مدعوم في تطبيق الجوال.', 'Notification setting is not supported by the mobile API.'), code='unsupported_field', field=key)
         payload_settings[key] = value
 
     for key in payload_settings:
         if key not in allowed_settings:
-            return _json_error('Notification setting is not supported by the mobile API.', code='unsupported_field', field=f'settings.{key}')
+            return _json_error(_txt('إعداد الإشعارات هذا غير مدعوم في تطبيق الجوال.', 'Notification setting is not supported by the mobile API.'), code='unsupported_field', field=f'settings.{key}')
 
     for key, value in payload_settings.items():
         kind = allowed_settings.get(key)
@@ -2549,7 +2776,7 @@ def mobile_notification_mark_read(notification_id: int):
         return err
     event = _mobile_notification_event_query(user).filter_by(id=notification_id).first()
     if not event:
-        return api_error('Notification was not found for this account.', code='notification_not_found', status=404)
+        return api_error(_txt('تعذّر العثور على الإشعار ضمن هذا الحساب.', 'Notification was not found for this account.'), code='notification_not_found', status=404)
     changed = 0
     if not event.is_read:
         event.is_read = True

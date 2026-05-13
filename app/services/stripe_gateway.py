@@ -461,6 +461,7 @@ def create_invoice_checkout_session(
     customer_email: Optional[str] = None,
     tenant_id: Optional[int] = None,
     user_id: Optional[int] = None,
+    locale: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a Stripe Checkout Session that bills the exact
     prorated amount on a plan-change invoice (`INV-…` ledger row).
@@ -494,6 +495,19 @@ def create_invoice_checkout_session(
         safe_metadata['tenant_id'] = str(tenant_id)
     if user_id is not None:
         safe_metadata['user_id'] = str(user_id)
+    # v90 — pass the subscriber's UI locale to Stripe so the hosted
+    # Checkout page renders in Arabic (or English) instead of the
+    # browser default. Stripe accepts a small allowlist of locale
+    # strings; we map 'ar'/'en' explicitly and fall back to 'auto'
+    # for anything unrecognized so a future language doesn't break
+    # the flow.
+    stripe_locale = 'auto'
+    if locale:
+        normalized = str(locale).lower().strip()
+        if normalized.startswith('ar'):
+            stripe_locale = 'ar'
+        elif normalized.startswith('en'):
+            stripe_locale = 'en'
     try:
         session = pkg.checkout.Session.create(
             mode='payment',
@@ -510,6 +524,7 @@ def create_invoice_checkout_session(
             cancel_url=cancel_url,
             customer_email=customer_email or None,
             metadata=safe_metadata,
+            locale=stripe_locale,
         )
     except Exception as exc:
         logger.warning(

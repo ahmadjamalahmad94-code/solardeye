@@ -330,6 +330,10 @@ def create_invoice_checkout():
             customer_email=(getattr(user, 'email', None) or None),
             tenant_id=getattr(user, 'tenant_id', None),
             user_id=user.id,
+            # v90 — render Stripe's hosted Checkout page in the
+            # subscriber's UI language. Falls back to 'auto' inside
+            # the gateway if the value is unrecognized.
+            locale=(session.get('ui_lang') or request.args.get('lang') or 'ar'),
         )
     except StripeNotReady as exc:
         logger.warning('stripe_not_ready_invoice: %s', exc)
