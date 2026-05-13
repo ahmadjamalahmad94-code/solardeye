@@ -13,6 +13,10 @@ CSRF_EXEMPT_ENDPOINTS = {
     'main.telegram_webhook',
     'notifications_routes.telegram_webhook',
     'main.telegram_multilink_webhook',
+    # v84: Stripe POSTs webhook events with its own signed header
+    # (`Stripe-Signature`) verified inside the route. CSRF doesn't
+    # apply because there's no session cookie in the request.
+    'payments.stripe_webhook',
 }
 
 SENSITIVE_KEY_RE = re.compile(

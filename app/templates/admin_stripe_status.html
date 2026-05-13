@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{# v84 — admin Stripe readiness probe. Surfaces booleans only;
+   the secret value never reaches this template. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area admin-shell-v2">
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">{{ 'Payments · Stripe' if is_en else 'المدفوعات · Stripe' }}</span>
+        <h1>{{ 'Stripe sandbox readiness' if is_en else 'حالة الاتصال بـ Stripe (وضع التجربة)' }}</h1>
+        <p>{{ 'Stripe sandbox/test foundation. The page reports only presence/absence flags — never the secret value.' if is_en else 'هذه الصفحة تعرض جاهزية الاتصال مع Stripe في وضع التجربة فقط، ولا تُظهر القيم السرية أبدًا.' }}</p>
+      </div>
+      <span class="status-pill {% if status.is_ready %}success{% else %}warning{% endif %}">
+        {{ ('Ready' if is_en else 'جاهز') if status.is_ready else ('Not ready' if is_en else 'غير جاهز') }}
+      </span>
+    </header>
+
+    <section class="admin-card-v2">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Configuration' if is_en else 'الإعدادات' }}</small>
+          <h3>{{ 'Environment readiness' if is_en else 'جاهزية متغيرات البيئة' }}</h3>
+        </div>
+        <span class="table-sub" dir="ltr">mode = {{ status.mode }}</span>
+      </div>
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <tbody>
+            <tr>
+              <td>{{ 'stripe package importable' if is_en else 'حزمة Stripe قابلة للاستيراد' }}</td>
+              <td><span class="status-pill {% if status.stripe_installed %}success{% else %}danger{% endif %}">{{ ('Yes' if is_en else 'نعم') if status.stripe_installed else ('No' if is_en else 'لا') }}</span></td>
+            </tr>
+            <tr>
+              <td>STRIPE_PUBLIC_KEY {{ '(env)' if is_en else '(متغير البيئة)' }}</td>
+              <td>
+                <span class="status-pill {% if status.public_key_present %}success{% else %}danger{% endif %}">{{ ('Present' if is_en else 'موجود') if status.public_key_present else ('Missing' if is_en else 'مفقود') }}</span>
+                {% if status.public_key_present %}
+                  <span class="status-pill {% if status.public_key_looks_like_test %}success{% else %}warning{% endif %}" dir="ltr">{{ 'test key' if status.public_key_looks_like_test else 'NOT a test key' }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td>STRIPE_SECRET_KEY {{ '(env)' if is_en else '(متغير البيئة)' }}</td>
+              <td>
+                <span class="status-pill {% if status.secret_key_present %}success{% else %}danger{% endif %}">{{ ('Present' if is_en else 'موجود') if status.secret_key_present else ('Missing' if is_en else 'مفقود') }}</span>
+                {% if status.secret_key_present %}
+                  <span class="status-pill {% if status.secret_key_looks_like_test %}success{% else %}warning{% endif %}" dir="ltr">{{ 'test key' if status.secret_key_looks_like_test else 'NOT a test key' }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td>STRIPE_WEBHOOK_SECRET {{ '(env, optional)' if is_en else '(متغير البيئة، اختياري)' }}</td>
+              <td><span class="status-pill {% if status.webhook_secret_present %}success{% else %}warning{% endif %}">{{ ('Present' if is_en else 'موجود') if status.webhook_secret_present else ('Missing — webhook route will return 503' if is_en else 'مفقود — مسار الـ webhook سيعيد 503') }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if status.issues %}
+    <section class="admin-card-v2" style="margin-top:14px;border:1px solid #f59e0b;background:rgba(245,158,11,0.04)">
+      <div class="section-heading-inline">
+        <div>
+          <small>⚠ {{ 'Issues' if is_en else 'تنبيهات' }}</small>
+          <h3>{{ 'What still needs configuring' if is_en else 'ما الذي يحتاج إلى إعداد' }}</h3>
+        </div>
+      </div>
+      <ul style="padding-{{ 'left' if is_en else 'right' }}:16px;margin:8px 0 0 0">
+        {% for issue in status.issues %}
+          <li dir="ltr" style="font-family:monospace;font-size:0.9rem;color:#92400e">{{ issue }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="admin-card-v2" style="margin-top:14px">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Diagnostic' if is_en else 'تشخيص' }}</small>
+          <h3>{{ 'Quick reference' if is_en else 'مرجع سريع' }}</h3>
+        </div>
+      </div>
+      <p style="margin:8px 0">
+        {{ 'Env vars are read from Render at request time. No restart is needed when an env var is added; the next admin reload will see the updated readiness state.' if is_en else 'تُقرأ متغيرات البيئة من Render عند كل طلب. لا حاجة لإعادة تشغيل بعد إضافة متغير جديد — التحميل التالي سيعكس الحالة الجديدة.' }}
+      </p>
+      <p style="margin:8px 0">
+        {{ 'Test cards in Stripe Sandbox: use 4242 4242 4242 4242 with any future expiry and any 3-digit CVC.' if is_en else 'بطاقات الاختبار في Stripe Sandbox: استخدم 4242 4242 4242 4242 مع أي تاريخ مستقبلي ورمز CVC من ثلاثة أرقام.' }}
+      </p>
+    </section>
+  </main>
+</div>
+{% endblock %}

@@ -66,6 +66,11 @@ def create_app():
     from .blueprints.main import main_bp
     from .blueprints.api_probe import probe_bp
     from .blueprints.fleet_api import fleet_api_bp
+    # v84: Stripe Sandbox payments foundation. Self-contained
+    # blueprint — a missing STRIPE_* env var keeps the rest of the
+    # app fully functional; only the payment routes themselves
+    # return a 503 in that case.
+    from .blueprints.payments import payments_bp
 
     app.register_blueprint(auth_bp)
     # v9 modular admin operations are registered before the legacy main blueprint
@@ -91,6 +96,7 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(probe_bp)
     app.register_blueprint(fleet_api_bp)
+    app.register_blueprint(payments_bp)
 
     with app.app_context():
         db.create_all()

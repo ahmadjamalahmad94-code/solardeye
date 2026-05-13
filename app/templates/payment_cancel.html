@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{# v84 — neutral payment-cancel page. Subscriber clicked Cancel on
+   the Stripe-hosted Checkout page. No state mutation. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
+    <article class="admin-card-v2" style="max-width:520px;text-align:center;padding:32px 24px">
+      <div style="font-size:48px;line-height:1;margin-bottom:12px">⏸</div>
+      <h1 style="margin:0 0 8px 0;font-size:1.4rem">
+        {{ 'Payment cancelled' if is_en else 'تم إلغاء عملية الدفع' }}
+      </h1>
+      <p style="margin:0 0 14px 0;color:#475569">
+        {{ 'You cancelled the test payment. Your subscription is unchanged.' if is_en else 'تم إلغاء الدفعة التجريبية. لم يتم تغيير اشتراكك.' }}
+      </p>
+      <p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.8rem" dir="ltr">
+        provider = {{ provider }} · mode = {{ mode }}
+      </p>
+      <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="btn-pill" style="text-decoration:none">
+        {{ 'Back to my subscription' if is_en else 'العودة إلى اشتراكي' }}
+      </a>
+    </article>
+  </main>
+</div>
+{% endblock %}

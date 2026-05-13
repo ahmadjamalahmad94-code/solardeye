@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{# v84 — neutral payment-success confirmation. No DB mutation, no
+   automatic subscription activation. Operators must finalize the
+   request through the existing admin workflow once the webhook
+   handler is wired to mutate state. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
+    <article class="admin-card-v2" style="max-width:520px;text-align:center;padding:32px 24px">
+      <div style="font-size:48px;line-height:1;margin-bottom:12px">✅</div>
+      <h1 style="margin:0 0 8px 0;font-size:1.4rem">
+        {{ 'Payment received (sandbox)' if is_en else 'تم استلام الدفع (وضع التجربة)' }}
+      </h1>
+      <p style="margin:0 0 14px 0;color:#475569">
+        {{ 'Your test payment was accepted by Stripe sandbox. Our team will confirm and apply your subscription change shortly.' if is_en else 'تم قبول دفعتك التجريبية في Stripe Sandbox. سيتولّى فريقنا التحقق وتطبيق تغيير الاشتراك قريبًا.' }}
+      </p>
+      <p style="margin:0 0 14px 0;color:#64748b;font-size:0.9rem">
+        {{ 'No real money was charged — this is a sandbox environment.' if is_en else 'لم يتم تحصيل أي مبلغ فعلي — هذه بيئة تجربة.' }}
+      </p>
+      {% if session_id %}
+        <p style="margin:0 0 14px 0;color:#64748b;font-size:0.85rem" dir="ltr">
+          {{ 'Reference: ' if is_en else 'المرجع: ' }}<code>{{ session_id }}</code>
+        </p>
+      {% endif %}
+      <p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.8rem" dir="ltr">
+        provider = {{ provider }} · mode = {{ mode }}
+      </p>
+      <a href="{{ url_for('main.account_subscription', lang=ui_lang) }}" class="btn-pill success" style="text-decoration:none">
+        {{ 'Back to my subscription' if is_en else 'العودة إلى اشتراكي' }}
+      </a>
+    </article>
+  </main>
+</div>
+{% endblock %}
