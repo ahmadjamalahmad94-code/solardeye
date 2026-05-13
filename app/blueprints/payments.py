@@ -827,7 +827,7 @@ def checkout_success():
                 (verification or {}).get('case_status'),
             )
         except Exception as exc:
-            logger.warning(
+            logger.exception(
                 'stripe_redirect_verify_failed err_class=%s',
                 type(exc).__name__,
             )

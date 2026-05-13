@@ -744,6 +744,26 @@ def verify_and_settle_checkout_session(session_id: str, *, auto_apply: bool = Tr
         'reason': None,
         'case_status': None,
     }
+    try:
+        return _verify_and_settle_inner(
+            session_id, result, auto_apply=auto_apply,
+            actor_user_id=actor_user_id,
+        )
+    except Exception as exc:
+        logger.exception(
+            'stripe_verify_unhandled err_class=%s session_id=%s',
+            type(exc).__name__,
+            (session_id or '')[:32],
+        )
+        result['reason'] = result.get('reason') or f'unhandled_{type(exc).__name__}'
+        return result
+
+
+def _verify_and_settle_inner(session_id, result, *, auto_apply, actor_user_id):
+    """Inner body of `verify_and_settle_checkout_session` separated
+    so the outer function can wrap it in a top-level try/except
+    that converts any uncaught exception into a structured
+    `reason='unhandled_<class>'` outcome."""
     if not session_id:
         result['reason'] = 'missing_session_id'
         return result
@@ -766,24 +786,67 @@ def verify_and_settle_checkout_session(session_id: str, *, auto_apply: bool = Tr
         )
         result['reason'] = 'session_retrieve_failed'
         return result
-    payment_status = str(getattr(sess, 'payment_status', '') or '').lower()
-    metadata = getattr(sess, 'metadata', None) or {}
-    if hasattr(metadata, 'to_dict_recursive'):
-        try:
-            metadata = metadata.to_dict_recursive()
-        except Exception:
-            metadata = {}
-    kind = str(metadata.get('kind') or '').strip()
-    raw_case_id = metadata.get('case_id')
+    # v92r — defensive processing of the retrieved session. Any
+    # AttributeError / TypeError on the Stripe object proxy is
+    # caught here so the redirect-fallback never throws up to the
+    # route handler. Each access is logged at the WARNING level
+    # with the failing step name so the cause is pinpointed.
     try:
+        payment_status = str(
+            getattr(sess, 'payment_status', '') or ''
+        ).lower()
+    except Exception as exc:
+        logger.warning(
+            'stripe_verify_payment_status_attr err_class=%s', type(exc).__name__,
+        )
+        payment_status = ''
+    try:
+        raw_metadata = getattr(sess, 'metadata', None) or {}
+    except Exception as exc:
+        logger.warning(
+            'stripe_verify_metadata_attr err_class=%s', type(exc).__name__,
+        )
+        raw_metadata = {}
+    metadata: dict = {}
+    if isinstance(raw_metadata, dict):
+        metadata = dict(raw_metadata)
+    else:
+        # Stripe StripeObject — try multiple coercion strategies.
+        for method_name in ('to_dict_recursive', 'to_dict'):
+            method = getattr(raw_metadata, method_name, None)
+            if callable(method):
+                try:
+                    d = method()
+                    if isinstance(d, dict):
+                        metadata = dict(d)
+                        break
+                except Exception:
+                    continue
+        if not metadata:
+            try:
+                metadata = dict(raw_metadata)
+            except Exception:
+                metadata = {}
+    try:
+        kind = str(metadata.get('kind') or '').strip()
+    except Exception:
+        kind = ''
+    try:
+        raw_case_id = metadata.get('case_id')
         case_id = int(raw_case_id) if raw_case_id is not None else None
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         case_id = None
     result['verified'] = True
     result['paid'] = payment_status == 'paid'
     result['payment_status'] = payment_status
     result['kind'] = kind
     result['case_id'] = case_id
+    logger.info(
+        'stripe_verify_parsed session_id=%s payment_status=%s '
+        'kind=%s case_id=%s metadata_keys=%s',
+        session_id[:32], payment_status, kind, case_id,
+        list(metadata.keys()) if isinstance(metadata, dict) else None,
+    )
     if kind != 'plan_change_invoice':
         result['reason'] = 'not_plan_change_invoice'
         return result
@@ -793,13 +856,26 @@ def verify_and_settle_checkout_session(session_id: str, *, auto_apply: bool = Tr
     if not result['paid']:
         result['reason'] = f'payment_status_{payment_status or "unknown"}'
         return result
-    # All checks passed — settle + (optionally) apply.
-    settle_outcome = _settle_plan_change_invoice(
-        case_id,
-        auto_apply=auto_apply,
-        actor_user_id=actor_user_id,
-        note='Settled by Stripe redirect-fallback after sandbox payment',
-    )
+    # All checks passed — settle + (optionally) apply. The settle
+    # helper has its own try/except so any exception there returns
+    # a structured outcome instead of raising.
+    try:
+        settle_outcome = _settle_plan_change_invoice(
+            case_id,
+            auto_apply=auto_apply,
+            actor_user_id=actor_user_id,
+            note='Settled by Stripe redirect-fallback after sandbox payment',
+        )
+    except Exception as exc:
+        logger.exception(
+            'stripe_verify_settle_raised case_id=%s err_class=%s',
+            case_id, type(exc).__name__,
+        )
+        settle_outcome = {
+            'settled': False, 'skip_reason': 'settle_raised',
+        }
+    if not isinstance(settle_outcome, dict):
+        settle_outcome = {}
     result.update(settle_outcome)
     if settle_outcome.get('applied'):
         result['reason'] = 'settled_and_applied'
