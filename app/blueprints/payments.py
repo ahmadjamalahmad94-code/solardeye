@@ -18,6 +18,7 @@ Endpoint map
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from flask import (
     Blueprint, abort, current_app, flash, jsonify, redirect, render_template,
@@ -381,6 +382,105 @@ def create_invoice_checkout():
         return redirect(checkout_url, code=303)
     flash('تعذّر استلام رابط الدفع من Stripe.', 'danger')
     return redirect(url_for('main.account_subscription', lang=session.get('ui_lang') or 'ar'))
+
+
+# ── Self-test: create a session with known metadata + retrieve ──
+
+@payments_bp.route('/payments/stripe/diagnostics/selftest', methods=['GET'])
+def diagnostics_selftest():
+    """v92n — self-test that proves whether Stripe is accepting our
+    metadata at all.
+
+    Creates a minimal Checkout Session with deterministic test
+    metadata ({selftest: '1', stamp: <ts>}), immediately retrieves
+    it, and returns both metadata views side-by-side. If the
+    retrieved metadata is empty, the issue is with Stripe (or our
+    SDK version). If it has the keys, the issue is elsewhere
+    (route doesn't pass them, gets stripped somewhere else)."""
+    user = _active_user()
+    if user is None:
+        return jsonify({'ok': False, 'code': 'auth_required'}), 401
+    try:
+        from ..services.stripe_gateway import (
+            _configure_stripe, StripeNotReady,
+        )
+        pkg = _configure_stripe()
+    except StripeNotReady:
+        return jsonify({'ok': False, 'code': 'stripe_not_ready'}), 503
+    except Exception:
+        logger.exception('selftest: configure failed')
+        return jsonify({'ok': False, 'code': 'internal_error'}), 500
+    stamp = str(int(datetime.utcnow().timestamp()))
+    sent_metadata = {
+        'selftest': '1',
+        'stamp': stamp,
+        'note': 'v92n_selftest',
+    }
+    try:
+        created = pkg.checkout.Session.create(
+            mode='payment',
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {'name': 'v92n self-test'},
+                    'unit_amount': 100,
+                },
+                'quantity': 1,
+            }],
+            success_url='https://example.com/success',
+            cancel_url='https://example.com/cancel',
+            metadata=sent_metadata,
+        )
+    except Exception as exc:
+        logger.exception('selftest: create failed')
+        return jsonify({
+            'ok': False,
+            'code': 'create_failed',
+            'err_class': type(exc).__name__,
+            'sent_metadata': sent_metadata,
+        }), 500
+    created_id = getattr(created, 'id', None)
+    created_md = getattr(created, 'metadata', None) or {}
+    if hasattr(created_md, 'to_dict_recursive'):
+        try:
+            created_md = created_md.to_dict_recursive()
+        except Exception:
+            created_md = {}
+    try:
+        retrieved = pkg.checkout.Session.retrieve(created_id)
+    except Exception as exc:
+        return jsonify({
+            'ok': False,
+            'code': 'retrieve_failed',
+            'err_class': type(exc).__name__,
+            'sent_metadata': sent_metadata,
+            'created_id': created_id,
+        }), 500
+    retrieved_md = getattr(retrieved, 'metadata', None) or {}
+    if hasattr(retrieved_md, 'to_dict_recursive'):
+        try:
+            retrieved_md = retrieved_md.to_dict_recursive()
+        except Exception:
+            retrieved_md = {}
+    return jsonify({
+        'ok': True,
+        'data': {
+            'sent_metadata': sent_metadata,
+            'created_id': created_id,
+            'metadata_in_create_response': created_md,
+            'metadata_in_retrieve_response': retrieved_md,
+            'match': bool(retrieved_md) and dict(retrieved_md).get('stamp') == stamp,
+            'hint': (
+                'PASS — metadata round-trips through Stripe correctly. '
+                'The original missing-metadata sessions came from a '
+                'different code path or older SDK call.'
+                if dict(retrieved_md).get('stamp') == stamp else
+                'FAIL — Stripe drops metadata on session.create. This '
+                'is likely an SDK version or API version mismatch.'
+            ),
+        },
+    })
 
 
 # ── Diagnostic: list Stripe sessions for plan-change debugging ──
