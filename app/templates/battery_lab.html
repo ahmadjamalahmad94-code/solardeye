@@ -56,20 +56,28 @@
           {% endif %}
           <div><span>الاحتياطي</span><strong>{{ battery_insights.reserve_kwh }} kWh</strong></div>
 
-          {# ── المصادر / المدخلات ────────────────────────── #}
-          {% set ext_w = battery_insights.external_ac_input_w or 0 %}
-          {% set inferred_w = battery_insights.inferred_external_w %}
-          {% if ext_w > 5 %}
+          {# ── المصادر / المدخلات (v93s) ──────────────────────
+             Split into TWO rows: utility grid and generator.
+             Each row only renders when its bucket is non-zero.
+             A third summary row "حالة AC IN" always renders so
+             the user gets a clear "شبكة / مولد / شبكة ومولد /
+             لا يوجد" verdict. #}
+          {% if battery_insights.grid_input_w and battery_insights.grid_input_w > 5 %}
           <div>
-            <span>إدخال خارجي · شبكة/مولد</span>
-            <strong>{{ ext_w }} W</strong>
-          </div>
-          {% elif inferred_w is not none %}
-          <div>
-            <span>إدخال خارجي تقديري</span>
-            <strong>≈ {{ inferred_w }} W</strong>
+            <span>إدخال خارجي · شبكة</span>
+            <strong>{{ battery_insights.grid_input_w }} W</strong>
           </div>
           {% endif %}
+          {% if battery_insights.generator_input_w and battery_insights.generator_input_w > 5 %}
+          <div>
+            <span>إدخال خارجي · مولد</span>
+            <strong>{{ battery_insights.generator_input_w }} W</strong>
+          </div>
+          {% endif %}
+          <div>
+            <span>حالة AC IN</span>
+            <strong>{{ battery_insights.ac_in_source_label or 'لا يوجد إدخال' }}</strong>
+          </div>
           {% if battery_insights.feed_in_w and battery_insights.feed_in_w > 5 %}
           <div><span>تصدير إلى الشبكة</span><strong>{{ battery_insights.feed_in_w }} W</strong></div>
           {% endif %}
@@ -85,19 +93,11 @@
           <div><span>إدخال خارجي اليوم</span><strong>{{ battery_insights.daily_generator_kwh }} kWh</strong></div>
           {% endif %}
 
-          {# ── تشخيص متقدم (only when notable) ────────────── #}
-          {% if battery_insights.grid_relay_status_label and 'مفصول' in battery_insights.grid_relay_status_label %}
-          <div class="diag-note">
-            <span>تنبيه AC IN</span>
-            <strong>{{ battery_insights.grid_relay_status_label }}</strong>
-          </div>
-          {% endif %}
-          {% if inferred_w is not none and battery_insights.station_generation_w is not none %}
-          <div class="diag-note">
-            <span>إنتاج محطة (Deye)</span>
-            <strong>{{ battery_insights.station_generation_w }} W</strong>
-          </div>
-          {% endif %}
+          {# v93s — "ريليه AC IN" and "إنتاج محطة (Deye)" rows
+             intentionally removed. The grid/generator split
+             rows + the "حالة AC IN" summary already convey
+             the same information without exposing the
+             relay-state jargon to the user. #}
         </div>
       </div>
     </section>

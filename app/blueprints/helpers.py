@@ -533,6 +533,10 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'active_time_label': 'غير متاح',
         'daily_charge_kwh': None,
         'daily_discharge_kwh': None,
+        # v93s — grid vs generator split defaults.
+        'grid_input_w': 0.0,
+        'generator_input_w': 0.0,
+        'ac_in_source_label': 'لا يوجد إدخال',
     }
     if not latest:
         return empty
@@ -590,6 +594,22 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
     # doesn't have to peel `raw_json` itself.
     daily_charge_kwh = None
     daily_discharge_kwh = None
+    # v93s — split external AC-IN into "grid" vs "generator" buckets
+    # using the gridStatus signal as the disambiguator. On a Deye
+    # residential hybrid the AC-IN sensor cannot distinguish utility
+    # vs generator electrically, but `gridStatus` tells us whether
+    # Deye believes a utility grid is present:
+    #   * gridStatus = Static            → off-grid setup → any
+    #                                       AC-IN flow is generator
+    #   * gridStatus = On/Normal/etc.    → grid present → direct
+    #                                       AC-IN flow is utility
+    # Station-tier inferred power (relay = Break + generationPower
+    # gap) is ALWAYS attributed to "generator" because by
+    # definition it's an external source bypassing the AC-IN
+    # sensor (transfer switch).
+    grid_input_w = 0.0
+    generator_input_w = 0.0
+    ac_in_source_label = ''
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
@@ -700,6 +720,31 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
                     daily_discharge_kwh = float(v)
             except (TypeError, ValueError):
                 pass
+            # v93s — split external AC-IN into grid vs generator.
+            # Threshold of 5 W filters electrical noise. A direct
+            # AC-IN reading is attributed to grid OR generator
+            # based on `gridStatus`; the station-tier inferred
+            # value is always attributed to generator.
+            _direct = external_ac_input_w
+            _is_offgrid = 'static' in (gs_lower if grid_status_raw else '')
+            if _direct > 5.0:
+                if _is_offgrid:
+                    generator_input_w += _direct
+                else:
+                    grid_input_w += _direct
+            if inferred_external_w is not None and inferred_external_w > 5.0:
+                generator_input_w += inferred_external_w
+            # Build the human-readable summary label.
+            _has_grid = grid_input_w > 5.0
+            _has_gen = generator_input_w > 5.0
+            if _has_grid and _has_gen:
+                ac_in_source_label = 'شبكة ومولد'
+            elif _has_grid:
+                ac_in_source_label = 'شبكة'
+            elif _has_gen:
+                ac_in_source_label = 'مولد'
+            else:
+                ac_in_source_label = 'لا يوجد إدخال'
         except Exception:
             pass
 
@@ -849,6 +894,13 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
             round(daily_discharge_kwh, 2)
             if daily_discharge_kwh is not None else None
         ),
+        # v93s — split external AC-IN by source (grid vs generator)
+        # plus a single human-readable summary label. The UI uses
+        # the split values to render two distinct rows and the
+        # label to render a third "حالة AC IN" row.
+        'grid_input_w': round(grid_input_w, 1),
+        'generator_input_w': round(generator_input_w, 1),
+        'ac_in_source_label': ac_in_source_label,
     }
 
 
