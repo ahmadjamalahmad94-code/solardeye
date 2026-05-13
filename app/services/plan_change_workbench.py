@@ -283,30 +283,34 @@ def classify_change(
     cycle_days_current: int | None = None,
     cycle_days_target: int | None = None,
 ) -> str:
-    """v87 — classify a (current, target) pair as upgrade/downgrade/
-    lateral based on **per-day price**. Returns one of
-    `POLICY_UPGRADE`, `POLICY_DOWNGRADE`, `POLICY_LATERAL`.
+    """v87 / v93d — classify a (current, target) pair as upgrade/
+    downgrade/lateral.
 
-    The policy considers per-day value (not headline price) so a
-    20 USD / 90 day plan vs a 10 USD / 30 day plan correctly classifies
-    as an upgrade (target per-day is higher) regardless of the
-    headline difference. Missing plans default to lateral so the
-    caller never gets a surprise classification.
+    v87 used **per-day price** which produced confusing labels when
+    cycle lengths differed: a 256-day plan at $30 (≈$0.117/day) →
+    90-day plan at $20 (≈$0.222/day) classified as UPGRADE even
+    though the subscriber paid LESS total and intuitively saw it as
+    "downgrade".
+
+    v93d switches to **total cycle price** so the label matches the
+    subscriber's mental model: cheaper total = downgrade, more
+    expensive total = upgrade. The conversion math (per-day) is
+    unaffected — only the upgrade/downgrade label changes.
+
+    Edge case: under v93d, a "downgrade" to a shorter-cycle plan
+    with higher per-day price will produce FEWER days on the new
+    plan after conversion. The summary copy honestly states this:
+    "Your remaining value converts to X days on the cheaper plan"
+    without promising "more days".
     """
     if not current_plan or not target_plan:
         return POLICY_LATERAL
-    cur_cycle = max(int(cycle_days_current or _floor_cycle(current_plan)), 1)
-    tgt_cycle = max(int(cycle_days_target or _floor_cycle(target_plan)), 1)
     cur_price = float(getattr(current_plan, 'price', 0) or 0)
     tgt_price = float(getattr(target_plan, 'price', 0) or 0)
-    cur_per_day = cur_price / cur_cycle
-    tgt_per_day = tgt_price / tgt_cycle
-    # Cents tolerance — anything within 0.01 per-day is treated as
-    # lateral so two plans priced "the same" don't bounce between
-    # categories on rounding.
-    if abs(tgt_per_day - cur_per_day) < 0.01 / max(cur_cycle, tgt_cycle):
+    # Total cycle price is the comparison axis. Penny tolerance.
+    if abs(tgt_price - cur_price) < 0.01:
         return POLICY_LATERAL
-    return POLICY_UPGRADE if tgt_per_day > cur_per_day else POLICY_DOWNGRADE
+    return POLICY_UPGRADE if tgt_price > cur_price else POLICY_DOWNGRADE
 
 
 def _resolve_request_context(case: SupportCase, *, target_plan: SubscriptionPlan | None, now: datetime | None) -> dict:

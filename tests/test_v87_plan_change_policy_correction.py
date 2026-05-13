@@ -152,21 +152,25 @@ def test_classify_change_detects_upgrade():
 
 
 def test_classify_change_handles_different_cycle_lengths():
-    """The classifier compares per-day price, not headline price.
-    A 90-day $20 plan ($0.222/d) vs a 30-day $10 plan ($0.333/d) is
-    an UPGRADE despite the higher headline price on the 90-day plan."""
+    """v93d — classifier compares TOTAL cycle price (not per-day).
+    A 30-day $10 plan is cheaper than a 90-day $20 plan regardless
+    of per-day cost; the subscriber sees that as a downgrade
+    (cheaper total = downgrade) which matches human intuition."""
     from app.services import plan_change_workbench as wb
     plan_90d_20 = _fake_plan(id_=1, price=20.0, duration_days=90)
     plan_30d_10 = _fake_plan(id_=2, price=10.0, duration_days=30)
-    assert wb.classify_change(plan_90d_20, plan_30d_10) == wb.POLICY_UPGRADE
-    assert wb.classify_change(plan_30d_10, plan_90d_20) == wb.POLICY_DOWNGRADE
+    # Going from $20 plan TO $10 plan = total cheaper = downgrade.
+    assert wb.classify_change(plan_90d_20, plan_30d_10) == wb.POLICY_DOWNGRADE
+    # And the reverse — going from $10 TO $20 = upgrade by total.
+    assert wb.classify_change(plan_30d_10, plan_90d_20) == wb.POLICY_UPGRADE
 
 
-def test_classify_change_lateral_when_per_day_equal():
-    """Same per-day price = lateral."""
+def test_classify_change_lateral_when_total_price_equal():
+    """v93d — lateral only when TOTAL cycle prices match
+    (within penny tolerance), regardless of cycle length."""
     from app.services import plan_change_workbench as wb
     current = _fake_plan(id_=1, price=30.0, duration_days=30)
-    target  = _fake_plan(id_=2, price=60.0, duration_days=60)  # both $1/d
+    target  = _fake_plan(id_=2, price=30.0, duration_days=60)
     assert wb.classify_change(current, target) == wb.POLICY_LATERAL
 
 
@@ -377,7 +381,7 @@ def test_upgrade_reduced_days_keeps_value_and_reduces_days():
 
 
 def test_lateral_change_is_clean_same_duration_no_money():
-    """Two plans with the same per-day price — lateral, no money."""
+    """v93d — lateral when total cycle prices match."""
     from app.services import plan_change_workbench as wb
     case = _fake_case(tenant_id=7)
     tenant = _fake_tenant(id_=7)
@@ -385,9 +389,9 @@ def test_lateral_change_is_clean_same_duration_no_money():
         starts_at=datetime(2026, 4, 27),
         ends_at=datetime(2026, 5, 27),
     )
-    # Both plans cost $1/day.
+    # Both plans cost $30 total (different cycles).
     current = _fake_plan(id_=1, price=30.0, duration_days=30)
-    target  = _fake_plan(id_=2, price=60.0, duration_days=60)
+    target  = _fake_plan(id_=2, price=30.0, duration_days=60)
     patches = _patch_collaborators(
         tenant=tenant, sub=sub, current_plan=current, target_plan=target,
     )
