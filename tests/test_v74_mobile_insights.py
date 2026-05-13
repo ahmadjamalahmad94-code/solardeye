@@ -85,8 +85,11 @@ def test_energy_advice_tolerates_empty_or_garbage_input():
 
 
 def test_solar_prediction_compact_subset_locked():
-    """The mapper must pick exactly five keys + round time-to-full.
-    No admin-only / internal helper keys should leak through."""
+    """The mapper must pick exactly the documented keys + round
+    time-to-full. No admin-only / internal helper keys should leak
+    through. v78: the locked contract now includes `is_night` so the
+    mobile card can pivot to night-state copy without recomputing
+    the geometric daylight window."""
     from app.blueprints.mobile_devices_api import _mobile_solar_prediction
     raw = {
         'sunset_time': '19:42',
@@ -113,6 +116,7 @@ def test_solar_prediction_compact_subset_locked():
         'will_full_before_sunset': True,
         'verdict': 'سيتم شحن البطارية قبل الغروب',
         'advice': 'الوضع جيد.',
+        'is_night': False,
     }
 
 
@@ -129,6 +133,7 @@ def test_solar_prediction_returns_none_when_helper_returned_none():
         'will_full_before_sunset': False,
         'verdict': None,
         'advice': None,
+        'is_night': False,
     }
 
 
@@ -495,11 +500,14 @@ def test_route_success_returns_full_insights_payload():
         'cloud_cover_percent': 35.0,
     }
 
-    # solar_prediction — exactly six keys, time_to_full rounded.
+    # solar_prediction — locked contract. v78 added `is_night` so
+    # the mobile card can pivot to night-state copy without
+    # recomputing the geometric daylight window. Daytime fake
+    # prediction → `is_night=False`.
     sp = data['solar_prediction']
     assert set(sp.keys()) == {
         'sunset_time', 'effective_sunset_time', 'time_to_full_hours',
-        'will_full_before_sunset', 'verdict', 'advice',
+        'will_full_before_sunset', 'verdict', 'advice', 'is_night',
     }
     assert sp['sunset_time'] == '19:42'
     assert sp['effective_sunset_time'] == '18:42'
@@ -507,6 +515,7 @@ def test_route_success_returns_full_insights_payload():
     assert sp['will_full_before_sunset'] is True
     assert sp['verdict'] == 'سيتم شحن البطارية قبل الغروب'
     assert sp['advice'] == 'الوضع جيد.'
+    assert sp['is_night'] is False
 
     # energy_advice — exactly three keys, level mapped from emoji.
     ea = data['energy_advice']

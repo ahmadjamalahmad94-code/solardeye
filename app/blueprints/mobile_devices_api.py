@@ -666,14 +666,24 @@ def device_weather(device_id: int):
     coupling, no notification side-effects.
 
     Honest unavailability:
-      * Latest reading is missing OR carries no station coords →
+      * No latest reading for the device →
+        `available=false, reason='reading_unavailable'`. (v78: was
+        previously folded into `station_coords_unavailable`; the two
+        cases now diverge so the client can render different copy
+        for "not synced yet" vs "vendor blob has no coords".)
+      * Latest reading exists but carries no station coords →
         `available=false, reason='station_coords_unavailable'`.
-        Common for newly-added devices that haven't synced yet, or
-        for providers whose vendor blob doesn't ship lat/lng.
+        Typical for providers whose vendor blob doesn't ship
+        `locationLat` / `locationLng`.
       * Open-Meteo call raises (network / vendor outage / timeout) →
         `available=false, reason='weather_unreachable'`. The mobile
         client renders a retry-friendly error; nothing is logged
         about the inverter or its data.
+
+    Night-time is NEVER reported as a weather failure — Open-Meteo
+    serves valid payloads 24×7 and the helper's sunrise/sunset block
+    is the right place to express "the sun is down", not the
+    unavailability path.
 
     Energy-coupled extras intentionally NOT in this contract:
     pre-sunset prediction, weather-aware smart energy advice, sun
@@ -703,6 +713,22 @@ def device_weather(device_id: int):
         .first()
     )
 
+    # v78: split "no reading yet" from "reading exists but no coords"
+    # so the client can render different copy. The two cases have
+    # different remediation:
+    #   * `reading_unavailable` → the user is waiting for the first
+    #     successful sync; nothing to fix on their end.
+    #   * `station_coords_unavailable` → the provider doesn't ship
+    #     coords in its vendor blob; the user can fix this by
+    #     editing the device location (or contacting support).
+    if latest is None:
+        return api_ok(_mobile_weather_unavailable(
+            reason='reading_unavailable',
+            message='No recent reading is available for this device yet.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
     lat, lng = _extract_station_coords(latest)
     if lat is None or lng is None:
         return api_ok(_mobile_weather_unavailable(
@@ -719,6 +745,18 @@ def device_weather(device_id: int):
         # the underlying exception text on purpose: the mobile
         # client doesn't need vendor stack traces. The stable
         # `reason` code is the contract for retry behaviour.
+        return api_ok(_mobile_weather_unavailable(
+            reason='weather_unreachable',
+            message='Weather service could not be reached right now.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+
+    # v78: defensive — if the wrapper returns `None` instead of
+    # raising (e.g. internal caller swallowed the error), surface
+    # `weather_unreachable` honestly rather than crashing the
+    # payload builder downstream.
+    if snapshot is None:
         return api_ok(_mobile_weather_unavailable(
             reason='weather_unreachable',
             message='Weather service could not be reached right now.',
@@ -784,23 +822,37 @@ def _mobile_energy_advice(raw: dict) -> dict:
 def _mobile_solar_prediction(raw) -> dict | None:
     """Compact subset of `build_pre_sunset_prediction(...)`. Returns
     `None` when the helper itself returned `None` (no latest reading).
-    Otherwise picks exactly the five fields the mobile Home card
+    Otherwise picks exactly the seven fields the mobile Home card
     renders — drops admin-only / internal keys like `capacity_kwh`,
-    `reserve_percent`, `minutes_to_sunset`, `weather_level`, `is_day`."""
+    `reserve_percent`, `minutes_to_sunset`, `weather_level`, `is_day`.
+
+    v78: also surfaces the new `is_night` flag so the card can pivot
+    to night-state copy without recomputing the geometric daylight
+    window. `time_to_full_hours` is force-cleared at night because
+    the underlying derivation only makes sense while the sun is up;
+    leaving a stale value would mislead the subscriber.
+    """
     if not isinstance(raw, dict):
         return None
     time_to_full = raw.get('time_to_full_hours')
-    # Round to one decimal for stable display; mobile clients want a
-    # readable number, not full float precision.
     if isinstance(time_to_full, (int, float)):
         time_to_full = round(float(time_to_full), 2)
+    is_night = bool(raw.get('is_night'))
+    if is_night:
+        time_to_full = None
     return {
         'sunset_time': raw.get('sunset_time'),
         'effective_sunset_time': raw.get('effective_sunset_time'),
         'time_to_full_hours': time_to_full,
-        'will_full_before_sunset': bool(raw.get('will_full_before_sunset')),
+        # v78: night → never claim "will be full before sunset" — the
+        # sunset is in the past today, the heuristic is no longer
+        # applicable.
+        'will_full_before_sunset': False if is_night else bool(
+            raw.get('will_full_before_sunset'),
+        ),
         'verdict': (raw.get('verdict') or '').strip() or None,
         'advice': (raw.get('advice') or '').strip() or None,
+        'is_night': is_night,
     }
 
 
@@ -936,6 +988,15 @@ def device_insights(device_id: int):
     try:
         snapshot = fetch_weather(lat, lng, tz_name)
     except Exception:
+        return api_ok(_mobile_insights_unavailable(
+            reason='weather_unreachable',
+            message='Weather service could not be reached right now.',
+            device=dev,
+            generated_at=generated_at,
+        ))
+    # v78: defensive — treat a `None` return as a weather-unreachable
+    # event so downstream helpers never crash on missing attributes.
+    if snapshot is None:
         return api_ok(_mobile_insights_unavailable(
             reason='weather_unreachable',
             message='Weather service could not be reached right now.',

@@ -1062,14 +1062,26 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
             hours_until_sunrise = None
 
     if remaining_hours is None:
-        fallback = now_local.replace(hour=18, minute=0, second=0, microsecond=0)
-        effective = fallback - timedelta(hours=1 if subtract_hour else 0)
-        if now_local > fallback:
-            effective = effective + timedelta(days=1)
-            fallback = fallback + timedelta(days=1)
-        sunset_label = fallback.strftime('%H:%M')
+        # v78: honest night-aware fallback. The previous version
+        # rolled today's 18:00 sunset to *tomorrow* once it had
+        # passed, producing misleading subscriber-facing copy like
+        # "remaining to sunset: 19 hours" overnight. We now anchor
+        # the fallback to today's daylight window and clamp
+        # `remaining_hours` to 0 whenever the sun is geometrically
+        # down (before today's 06:00 fallback sunrise OR after
+        # today's effective sunset). Sunrise-oriented language is
+        # provided via the separate `hours_until_sunrise` field.
+        fallback_sunset = now_local.replace(hour=18, minute=0, second=0, microsecond=0)
+        fallback_sunrise_anchor = now_local.replace(hour=6, minute=0, second=0, microsecond=0)
+        effective = fallback_sunset - timedelta(hours=1 if subtract_hour else 0)
+        sunset_label = fallback_sunset.strftime('%H:%M')
         effective_sunset_label = effective.strftime('%H:%M')
-        remaining_hours = max((effective - now_local).total_seconds() / 3600, 0.0)
+        if now_local < fallback_sunrise_anchor or now_local >= effective:
+            remaining_hours = 0.0
+        else:
+            remaining_hours = max(
+                (effective - now_local).total_seconds() / 3600, 0.0,
+            )
 
     if hours_until_sunrise is None:
         sunrise_fallback = now_local.replace(hour=6, minute=0, second=0, microsecond=0)
@@ -1105,8 +1117,23 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
     will_full_before_sunset = bool(
         time_to_full_hours is not None and remaining_hours is not None and time_to_full_hours <= remaining_hours
     )
-    remaining_label = 'الشمس غائبة' if (remaining_hours is not None and remaining_hours <= 0) else human_duration_hours(remaining_hours)
     sunrise_label_human = human_duration_hours(hours_until_sunrise) if hours_until_sunrise is not None else 'غير متاح'
+
+    # v78: night-aware `remaining_label`.
+    # Previously this read simply "الشمس غائبة" overnight, which
+    # leaves the subscriber wondering when the sun returns. We now
+    # pivot to sunrise-oriented copy whenever we have a usable
+    # `hours_until_sunrise`. Daytime behaviour is unchanged.
+    is_night = bool(remaining_hours is not None and remaining_hours <= 0)
+    if is_night:
+        if hours_until_sunrise is not None and hours_until_sunrise > 0:
+            remaining_label = (
+                f'الشمس غائبة · الشروق بعد {human_duration_hours(hours_until_sunrise)}'
+            )
+        else:
+            remaining_label = 'الشمس غائبة'
+    else:
+        remaining_label = human_duration_hours(remaining_hours)
 
     # Phase-aware verdict — uses SunContext so a perfectly normal late-day
     # battery discharge isn't flagged as "danger" with a scary amber banner.
@@ -1183,6 +1210,18 @@ def build_pre_sunset_prediction(latest, weather=None, settings=None):
         'hours_until_sunrise': hours_until_sunrise, 'sunrise_remaining_label': sunrise_label_human,
         'time_to_full_hours': time_to_full_hours, 'will_full_before_sunset': will_full_before_sunset,
         'verdict': verdict, 'advice': advice, 'level': level, 'is_day': bool(is_day),
+        # v78: additive — a stable machine-readable boolean for the
+        # "sun is down" state. Mirrors the negation of `is_day` but
+        # is anchored on the geometric sunset/sunrise clamp rather
+        # than the production heuristic, so subscriber surfaces can
+        # branch on it without recomputing from `remaining_hours`.
+        'is_night': bool(is_night),
+        # v78: additive — a stable machine-readable label for the
+        # solar moment. `'day'` whenever the sun is up,
+        # `'night'` whenever it's down. Surfaces using the
+        # SunContext (phase) keep their nine-phase resolution;
+        # this is the simple binary the subscriber UI needs.
+        'sun_state': 'night' if is_night else 'day',
         'weather_advice': weather_advice, 'weather_level': weather_level,
         'capacity_kwh': battery_capacity_kwh, 'reserve_percent': battery_reserve_percent,
         'charge_power_w': charge_power_w, 'discharge_power_w': discharge_power_w, 'soc': soc,
