@@ -31,9 +31,31 @@
 }
 
 .hu-hero.sd-hero-bg,
-.ns-hero.sd-hero-bg {
+.ns-hero.sd-hero-bg,
+.admin-page-head.sd-hero-bg,
+header.admin-page-head.sd-hero-bg {
   background: var(--sd-hero-background) !important;
   background-color: #f8fafc !important;
+}
+
+/* v93g — when the unified solar image is layered onto an
+   `admin-page-head` element, neutralize its gradient + radial
+   overlays so the image shows through cleanly. The text colors
+   still adapt below via .admin-page-head h1/p/.eyebrow rules. */
+header.admin-page-head.sd-hero-bg::before {
+  display: none !important;
+}
+header.admin-page-head.sd-hero-bg h1 {
+  color: #0b1531 !important;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, .8) !important;
+}
+header.admin-page-head.sd-hero-bg p {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+header.admin-page-head.sd-hero-bg .eyebrow {
+  color: #0b1531 !important;
+  background: rgba(255, 255, 255, .92) !important;
 }
 
 /* Neutralize the legacy wave on `.hu-hero` when the unified class is on.

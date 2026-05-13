@@ -3,17 +3,20 @@
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>تشخيص البيانات</h1>
-          <p class="mb-0">ما يُعيده Deye API لحسابك</p>
+    {# v93g — migrated to unified solar hero. #}
+    <header class="hu-hero sd-hero-bg">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">الأدوات · تشخيص</span>
+          <h1 class="hu-h1">تشخيص البيانات</h1>
+          <p class="hu-tagline">ما يُعيده Deye API لحسابك في كل استدعاء — مفيد للتحقّق من اتصال الجهاز.</p>
         </div>
+        {% if debug_tools_enabled %}
+        <div class="hu-hero-cta">
+          <a href="{{ url_for('main.api_raw_debug') }}" target="_blank" class="hu-btn hu-btn-primary">Raw JSON</a>
+        </div>
+        {% endif %}
       </div>
-      {% if debug_tools_enabled %}<div class="topbar-actions">
-        <a href="{{ url_for('main.api_raw_debug') }}" target="_blank" class="btn btn-outline-primary">Raw JSON</a>
-      </div>{% endif %}
     </header>
 
     {% if latest %}

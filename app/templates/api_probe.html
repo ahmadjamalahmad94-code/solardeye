@@ -3,18 +3,19 @@
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>🔬 API Explorer</h1>
-          <p class="mb-0">يجرب كل endpoint متاح في Deye API ويعرض ماذا يعيد</p>
+    {# v93g — migrated to unified solar hero. #}
+    <header class="hu-hero sd-hero-bg">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">الأدوات · API</span>
+          <h1 class="hu-h1">🔬 API Explorer</h1>
+          <p class="hu-tagline">يجرّب كل endpoint متاح في Deye API ويعرض ما يُعيده.</p>
         </div>
-      </div>
-      <div class="topbar-actions">
-        <a href="{{ url_for('probe.api_probe_page') }}?run=1" class="btn btn-solar">
-          ▶ تشغيل الفحص الكامل
-        </a>
+        <div class="hu-hero-cta">
+          <a href="{{ url_for('probe.api_probe_page') }}?run=1" class="hu-btn hu-btn-primary">
+            ▶ تشغيل الفحص الكامل
+          </a>
+        </div>
       </div>
     </header>
 

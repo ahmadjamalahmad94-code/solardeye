@@ -3,12 +3,14 @@
 <div class="app-shell has-layout-sidebar sidebar-collapsed" id="appShell">
   {% include '_sidebar.html' %}
   <main class="app-main content-area devices-page">
-    <header class="topbar">
-      <div class="topbar-main">
-        <button class="sidebar-toggle" id="sidebarToggle" type="button">☰</button>
-        <div>
-          <h1>الأجهزة والبطارية</h1>
-          <p class="mb-0">بيانات كاملة من device/latest</p>
+    {# v93g — migrated from legacy `.topbar` to the unified
+       `.hu-hero.sd-hero-bg` so the solar hero appears here too. #}
+    <header class="hu-hero sd-hero-bg">
+      <div class="hu-hero-grid">
+        <div class="hu-hero-text">
+          <span class="hu-eyebrow">الأجهزة · بيانات حية</span>
+          <h1 class="hu-h1">الأجهزة والبطارية</h1>
+          <p class="hu-tagline">بيانات كاملة من جهازك مع آخر تحديث من device/latest.</p>
         </div>
       </div>
     </header>

@@ -33,7 +33,7 @@
   <main class="app-main content-area admin-shell-v2">
 
     {# ─── 1. Page head ───────────────────────────────────────────── #}
-    <header class="admin-page-head">
+    <header class="admin-page-head sd-hero-bg">
       <div>
         <span class="eyebrow">
           <a href="{{ url_for('billing.admin_plan_change_requests', lang=ui_lang) }}" style="text-decoration:none;color:inherit">
@@ -619,12 +619,8 @@
     font-size: .82rem;
     line-height: 1.55;
   }
-  /* v93 — ensure the workbench hero uses the adopted sky→amber
-     unified gradient, in case a downstream stylesheet shadows it. */
-  main.admin-shell-v2 > header.admin-page-head {
-    background: linear-gradient(135deg, #0e3b86 0%, #3aa7ff 50%, #ffd66e 100%) !important;
-    border: none !important;
-    border-radius: 30px !important;
-  }
+  /* v93g — old inline gradient removed. The unified solar image
+     from `hero_unified_v35.css` now paints all admin-page-head
+     heroes via the `.sd-hero-bg` class. */
 </style>
 {% endblock %}
