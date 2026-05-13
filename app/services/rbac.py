@@ -197,6 +197,12 @@ PORTAL_PAGES = (
     {'page_key': 'reports', 'endpoint': 'main.reports', 'label_ar': 'التقارير', 'label_en': 'Reports', 'icon': '🧾', 'group_key': 'monitoring', 'sort_order': 11},
     {'page_key': 'live_data', 'endpoint': 'main.live_data', 'label_ar': 'البيانات الحية', 'label_en': 'Live Data', 'icon': '📡', 'group_key': 'monitoring', 'sort_order': 12},
     {'page_key': 'loads', 'endpoint': 'main.loads_page', 'label_ar': 'الأحمال', 'label_en': 'Loads', 'icon': '💡', 'group_key': 'monitoring', 'sort_order': 13},
+    # v93p — Battery Lab promoted to a top-level portal page on
+    # explicit owner request. It surfaces SOC trace, voltage curve,
+    # cycles, SOH, AC-IN diagnostics, and the new station-tier
+    # generator inference. Locked-by-default like Dashboard so a
+    # plan admin can hide it for tiers that shouldn't see it.
+    {'page_key': 'battery_lab', 'endpoint': 'main.battery_lab', 'label_ar': 'مختبر البطارية', 'label_en': 'Battery Lab', 'icon': '🔋', 'group_key': 'monitoring', 'sort_order': 13.5},
     {'page_key': 'notifications', 'endpoint': 'main.notifications_settings', 'label_ar': 'الإشعارات', 'label_en': 'Notifications', 'icon': '📲', 'group_key': 'monitoring', 'sort_order': 14},
     {'page_key': 'channels', 'endpoint': 'main.channels', 'label_ar': 'Telegram و SMS', 'label_en': 'Telegram & SMS', 'icon': '🔗', 'group_key': 'monitoring', 'sort_order': 15},
     {'page_key': 'support', 'endpoint': 'main.portal_support', 'label_ar': 'الدعم والمراسلات', 'label_en': 'Support Center', 'icon': '💬', 'group_key': 'monitoring', 'sort_order': 16},
@@ -215,6 +221,12 @@ PORTAL_ENDPOINT_TO_KEY.update({
     'energy.reports': 'reports',
     'energy.live_data': 'live_data',
     'energy.loads_page': 'loads',
+    # v93p — battery_lab endpoint aliases. The route is registered
+    # by `devices_routes.battery_lab` and re-exposed via main_compat
+    # as `main.battery_lab`, so both names need to map to the same
+    # portal page key for active-state highlighting.
+    'devices_routes.battery_lab': 'battery_lab',
+    'main.battery_lab': 'battery_lab',
     'notifications_routes.notifications_settings': 'notifications',
     'notifications_routes.channels': 'channels',
     'support.portal_support': 'support',

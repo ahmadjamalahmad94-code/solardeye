@@ -111,22 +111,36 @@ def test_sidebar_admin_section_groups_support_surfaces_together():
     assert idx_support < idx_internal_mail < idx_tickets
 
 
-# ─── Subscriber section — Battery Lab is intentionally OUT ──────────
+# ─── Subscriber section — Battery Lab is now promoted (v93p) ──────
 
 
-def test_sidebar_does_not_promote_battery_lab_to_top_level():
-    """v83 product judgment: Battery Lab is an advanced diagnostic
-    page (SOC trace, voltage curves, cycles, SOH, temperature). It
-    is not registered in `PORTAL_PAGES` and is not part of the
-    daily-use subscriber portal. Promoting it to a top-level
-    sidebar entry would dilute the portal's information
-    architecture. It remains reachable via the existing /battery-lab
-    URL for the small set of subscribers who want it."""
+def test_sidebar_promotes_battery_lab_to_subscriber_section():
+    """v93p — reversal of the v83 product judgment, on owner
+    request. Battery Lab is now a first-class subscriber portal
+    page so subscribers don't need to type the URL to reach the
+    SOC trace, voltage curve, cycles, SOH, AC-IN diagnostics and
+    the v93o station-tier generator inference.
+
+    It still respects `portal_page_visible('battery_lab')` so a
+    plan admin can hide it for tiers that shouldn't see it. The
+    page is registered in `PORTAL_PAGES` with `page_key =
+    "battery_lab"` and `endpoint = "main.battery_lab"`."""
     src = _read(_SIDEBAR_PATH)
-    # No nav_item wired to the battery-lab endpoint anywhere.
-    assert 'devices_routes.battery_lab' not in src
-    assert "'battery-lab'" not in src
-    assert "'battery_lab'" not in src
+    # nav_item is wired to the canonical endpoint + alias.
+    assert 'devices_routes.battery_lab' in src
+    assert "'battery_lab'" in src
+    assert 'مختبر البطارية' in src
+    assert 'Battery Lab' in src
+    # Active-state matches both endpoint variants.
+    assert "'main.battery_lab'" in src
+
+    # And PORTAL_PAGES carries the page so portal_page_visible
+    # gating can hide/show it per plan.
+    from app.services.rbac import PORTAL_PAGES, PORTAL_ENDPOINT_TO_KEY
+    keys = {p['page_key'] for p in PORTAL_PAGES}
+    assert 'battery_lab' in keys
+    assert PORTAL_ENDPOINT_TO_KEY.get('main.battery_lab') == 'battery_lab'
+    assert PORTAL_ENDPOINT_TO_KEY.get('devices_routes.battery_lab') == 'battery_lab'
 
 
 # ─── Items intentionally NOT in the top-level sidebar ───────────────

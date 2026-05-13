@@ -31,7 +31,8 @@
     'message':'<path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
     'logout':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     'menu':'<path d="M4 6h16M4 12h16M4 18h16"/>',
-    'inbox':'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>'
+    'inbox':'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+    'battery':'<rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/><line x1="10" y1="11" x2="10" y2="13"/><line x1="14" y1="11" x2="14" y2="13"/>'
   } %}
   <svg class="hs-icon-v180" viewBox="0 0 24 24" aria-hidden="true">{{ paths.get(name, paths['grid'])|safe }}</svg>
 {%- endmacro %}
@@ -111,6 +112,8 @@
       {% if portal_page_visible('reports') %}{{ nav_item('reports','التقارير','Reports',['energy.reports','main.reports'],url_for('main.reports', lang=ui_lang),'file') }}{% endif %}
       {% if portal_page_visible('live_data') %}{{ nav_item('live','البيانات الحية','Live Data',['energy.live_data','main.live_data'],url_for('main.live_data', lang=ui_lang),'activity') }}{% endif %}
       {% if portal_page_visible('loads') %}{{ nav_item('loads','الأحمال','Loads',['energy.loads_page','main.loads_page'],url_for('main.loads_page', lang=ui_lang),'gauge') }}{% endif %}
+      {# v93p — Battery Lab promoted to a top-level subscriber nav entry on owner request. Was previously kept off the sidebar (v83 contract); we now treat it as a first-class portal page so subscribers can reach the SOC/voltage/AC-IN diagnostics without typing the URL. #}
+      {% if portal_page_visible('battery_lab') %}{{ nav_item('battery_lab','مختبر البطارية','Battery Lab',['devices_routes.battery_lab','main.battery_lab'],url_for('main.battery_lab', lang=ui_lang),'battery') }}{% endif %}
       {% if portal_page_visible('notifications') %}{{ nav_item('notifications','الإشعارات','Notifications',['notifications_routes.notifications_settings','main.notifications_settings'],url_for('main.notifications_settings', lang=ui_lang),'bell') }}{% endif %}
       {% if portal_page_visible('channels') %}{{ nav_item('channels','SMS و Telegram','Telegram & SMS',['notifications_routes.channels','main.channels'],url_for('main.channels', lang=ui_lang),'send') }}{% endif %}
       {% if portal_page_visible('support') %}{{ nav_item('support','الدعم والمراسلات','Support Center',['support.portal_support','support.portal_messages','support.portal_tickets','main.portal_support','main.portal_messages','main.portal_tickets'],url_for('main.portal_support', lang=ui_lang),'message', unread_total) }}{% endif %}
