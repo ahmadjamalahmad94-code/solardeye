@@ -2883,6 +2883,63 @@ def _mobile_reading_payload(row):
     return sanitize_response_payload(payload)
 
 
+def _derive_generator_power_w(row) -> float:
+    """v93r — instantaneous external AC-IN power for the new mobile
+    "Generator" flow node.
+
+    On a Deye hybrid inverter the AC-IN port carries either utility
+    grid OR a backup generator (the inverter cannot tell them apart).
+    We use `derived.purchasePower` as the canonical figure. When the
+    AC-IN relay is in Break mode (gridRelayStatus = Break) the
+    device-tier sensor reads 0 but the station-tier
+    `generationPower` reflects the through-power that's still
+    flowing — same logic as `helpers.build_battery_insights.
+    inferred_external_w`. We mirror that here so the mobile flow
+    graph shows a meaningful number even on off-grid setups.
+    """
+    if not row or not getattr(row, 'raw_json', None):
+        return 0.0
+    try:
+        raw = json.loads(row.raw_json) or {}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return 0.0
+    derived = raw.get('derived', {}) if isinstance(raw, dict) else {}
+
+    def _num(v) -> float:
+        try:
+            return float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    # Direct measurement first — `purchasePower` is already the
+    # positive import projection of `gridPowerSigned`.
+    direct = _num(derived.get('purchasePower'))
+    if direct <= 0:
+        gps = _num(derived.get('gridPowerSigned'))
+        if gps < 0:
+            direct = abs(gps)
+    if direct >= 5.0:
+        return round(direct, 1)
+
+    # Direct sensor sees nothing. Fall back to the station-tier
+    # discrepancy: generationPower - sum(PV strings). Only valid
+    # when the gap exceeds 50 W (filters out calibration drift).
+    pv_total = (
+        _num(derived.get('dcPowerPv1'))
+        + _num(derived.get('dcPowerPv2'))
+        + _num(derived.get('dcPowerPv3'))
+    )
+    gen = None
+    for blob_key in ('latest', 'station_summary'):
+        blob = raw.get(blob_key) if isinstance(raw, dict) else None
+        if isinstance(blob, dict) and blob.get('generationPower') is not None:
+            gen = _num(blob.get('generationPower'))
+            break
+    if gen is not None and gen - pv_total >= 50.0:
+        return round(max(gen - pv_total, 0.0), 1)
+    return 0.0
+
+
 def _mobile_reading_cards(row):
     if not row:
         return {
@@ -2892,6 +2949,8 @@ def _mobile_reading_cards(row):
             'battery_power_w': 0.0,
             'grid_power_w': 0.0,
             'inverter_power_w': 0.0,
+            # v93r — generator/external AC-IN power for the flow graph.
+            'generator_power_w': 0.0,
             'daily_production_kwh': 0.0,
             'monthly_production_kwh': 0.0,
             'total_production_kwh': 0.0,
@@ -2903,6 +2962,11 @@ def _mobile_reading_cards(row):
         'battery_power_w': _reading_number(row.battery_power),
         'grid_power_w': _reading_number(row.grid_power),
         'inverter_power_w': _reading_number(row.inverter_power),
+        # v93r — generator/external AC-IN power. Computed from the
+        # raw_json snapshot using the same direct + inferred logic
+        # as `build_battery_insights` so the mobile flow graph
+        # mirrors what battery-lab shows.
+        'generator_power_w': _derive_generator_power_w(row),
         'daily_production_kwh': _reading_number(row.daily_production),
         'monthly_production_kwh': _reading_number(row.monthly_production),
         'total_production_kwh': _reading_number(row.total_production),
@@ -2986,6 +3050,8 @@ def _mobile_fleet_snapshot(user):
             'battery_power_w': round(sum(_reading_number(row.battery_power) for row in latest_rows), 2),
             'grid_power_w': round(sum(_reading_number(row.grid_power) for row in latest_rows), 2),
             'inverter_power_w': round(sum(_reading_number(row.inverter_power) for row in latest_rows), 2),
+            # v93r — aggregate generator power across all devices.
+            'generator_power_w': round(sum(_derive_generator_power_w(row) for row in latest_rows), 2),
             'daily_production_kwh': round(sum(_reading_number(row.daily_production) for row in latest_rows), 2),
             'monthly_production_kwh': round(sum(_reading_number(row.monthly_production) for row in latest_rows), 2),
             'total_production_kwh': round(sum(_reading_number(row.total_production) for row in latest_rows), 2),
