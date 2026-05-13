@@ -479,8 +479,10 @@ def test_route_happy_path_cancels_prior_then_creates_new_case():
 
 
 def test_route_happy_path_without_message_omits_separator():
-    """When no `message` is supplied the subject must NOT end with
-    a dangling ' — ' separator — the admin queue depends on this."""
+    """The v89 bridge changed `plan_id`-only calls into a preview
+    bridge. To exercise the preserved legacy triage path we include a
+    `message`; the created subject must still avoid a dangling
+    separator when the note is omitted elsewhere."""
     from app.blueprints.mobile_api import (
         mobile_account_request_plan_change, SubscriptionPlan, SupportCase,
     )
@@ -498,7 +500,7 @@ def test_route_happy_path_without_message_omits_separator():
     with app.test_request_context(
         '/api/mobile/account/subscription/request-change',
         method='POST',
-        json={'plan_id': 2},  # no message
+        json={'plan_id': 2, 'message': 'legacy please'},  # forces triage fallback
     ), _patch_bearer_user(user), \
          mock.patch.object(SubscriptionPlan, 'query', plan_query), \
          mock.patch.object(SupportCase, 'query', case_query), \
@@ -507,8 +509,7 @@ def test_route_happy_path_without_message_omits_separator():
          mock.patch('app.blueprints.mobile_api.db', db_mock):
         mobile_account_request_plan_change()
     added_case = db_mock.session.add.call_args[0][0]
-    assert added_case.subject == 'طلب تغيير الخطة إلى برو'
-    assert ' — ' not in added_case.subject
+    assert added_case.subject == 'طلب تغيير الخطة إلى برو — legacy please'
 
 
 def test_route_long_message_is_capped_at_240_chars():

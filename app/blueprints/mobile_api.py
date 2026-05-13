@@ -1223,6 +1223,35 @@ def _account_payload(user):
     }
 
 
+def _mobile_plan_change_superseded_by_meta() -> dict:
+    return {
+        'preview': '/api/mobile/account/plan-change/preview',
+        'confirm': '/api/mobile/account/plan-change/confirm',
+    }
+
+
+def _mobile_account_payload_with_plan_change(
+    user,
+    *,
+    preview_payload: dict | None = None,
+    result_payload: dict | None = None,
+):
+    """Return the legacy `_account_payload(user)` shape with additive
+    v89 plan-change bridge fields.
+
+    Older mobile builds expect the account envelope and may reject a
+    wholly different `data` object as an "invalid response". We keep
+    that base shape intact and attach compatibility blocks only when
+    the caller is routing through the v89 bridge.
+    """
+    payload = _account_payload(user)
+    if preview_payload is not None:
+        payload['plan_change_preview'] = preview_payload
+    if result_payload is not None:
+        payload['plan_change_result'] = result_payload
+    return payload
+
+
 def _onboarding_payload(user):
     has_location = bool((user.country or '').strip() and (user.city or '').strip() and (user.timezone or '').strip())
     has_device = bool(AppDevice.query.filter_by(owner_user_id=user.id).first())
@@ -1481,39 +1510,29 @@ def mobile_account_delete():
 
 @mobile_core_api_bp.post('/account/subscription/request-change')
 def mobile_account_request_plan_change():
-    """v65 — legacy subscriber-initiated plan-change request (kept
-    as a stable compatibility wrapper).
+    """Legacy mobile plan-change endpoint, upgraded into a v89
+    compatibility bridge.
 
-    v88 contract notes:
-    * This endpoint is the **legacy mobile path**. It still works
-      and is intentionally not removed so older app builds keep
-      operating. The response now carries a `meta.superseded_by`
-      pointer to the v87 subscriber-driven flow so newer clients
-      know which endpoints to migrate to.
-    * Behavior preserved verbatim: persists the request as a
-      `SupportCase` row (`case_type='plan_change_request'`,
-      `status='open'`), cancels prior open requests for the same
-      user, and fans the new request out to admins. It does NOT
-      switch plans immediately — admins triage through the
-      workbench. To switch plans without admin triage, mobile
-      clients should call `GET /account/plan-change/preview`
-      then `POST /account/plan-change/confirm` (v87).
+    Three intentional modes now exist:
 
-    Request body:
-      * `plan_id`  (int, **required**) — target plan id; must be
-                                          active. Bad / missing →
-                                          `400 plan_id_required` /
-                                          `400 plan_id_invalid` /
-                                          `404 plan_not_found`.
-      * `message`  (str, **optional**)  — short user note. Capped
-                                          server-side at 240 chars
-                                          and appended to the case
-                                          subject behind ' — ' so
-                                          the existing admin queue
-                                          renders unchanged.
+      1. `plan_id` only, no `mode`, no `message`
+         → preview bridge over the v87 flow. Returns the normal
+           `_account_payload(user)` plus additive
+           `data.plan_change_preview` details so older mobile builds
+           keep receiving the account envelope they expect.
 
-    Returns the refreshed `_account_payload(user)` — the mobile
-    client updates the Account screen in-place, no second GET.
+      2. `plan_id` + `mode`
+         → confirm bridge over the v87 flow. Returns the normal
+           `_account_payload(user)` plus additive
+           `data.plan_change_result`.
+
+      3. legacy free-text submission (`plan_id` + `message`)
+         → preserved fallback that creates a `SupportCase(status='open')`
+           for admin triage, with `meta.compat_fallback='legacy_triage'`.
+
+    The endpoint is intentionally not removed so older app builds
+    keep functioning while newer ones migrate to the canonical
+    `/account/plan-change/preview` + `/confirm` endpoints.
     """
     user, err = _require_bearer_user()
     if err:
@@ -1521,14 +1540,160 @@ def mobile_account_request_plan_change():
     data, error = _strict_json_object()
     if error:
         return error
-
     raw_plan_id = data.get('plan_id')
-    if raw_plan_id is None or (isinstance(raw_plan_id, str) and not raw_plan_id.strip()):
-        return _json_error(
-            'Plan id is required.',
-            code='plan_id_required',
-            field='plan_id',
+    raw_mode = data.get('mode')
+    mode = (raw_mode or '').strip() if isinstance(raw_mode, str) else ''
+    raw_message = data.get('message')
+    message = (raw_message or '').strip() if isinstance(raw_message, str) else ''
+    if len(message) > 240:
+        message = message[:240]
+
+    def _compat_meta(*, flow: str | None = None, compat_fallback: str | None = None):
+        meta = {
+            'api_version': 'v1',
+            'namespace': 'api/mobile',
+            'compat': 'legacy_bridge',
+            'superseded_by': _mobile_plan_change_superseded_by_meta(),
+        }
+        if flow:
+            meta['flow'] = flow
+        if compat_fallback:
+            meta['compat_fallback'] = compat_fallback
+        return meta
+
+    def _plan_id_error():
+        if raw_plan_id is None or (isinstance(raw_plan_id, str) and not raw_plan_id.strip()):
+            return _json_error(
+                'Plan id is required.',
+                code='plan_id_required',
+                field='plan_id',
+            )
+        return None
+
+    if mode:
+        err = _plan_id_error()
+        if err:
+            return err
+        try:
+            plan_id = int(raw_plan_id)
+        except (TypeError, ValueError):
+            return _json_error(
+                'Plan id must be an integer.',
+                code='plan_id_invalid',
+                field='plan_id',
+            )
+        if mode not in ('same_duration', 'reduced_days'):
+            return _json_error(
+                'Unknown pricing mode.',
+                code='unknown_mode',
+                field='mode',
+            )
+        desired_days = data.get('desired_target_days')
+        if desired_days is not None:
+            try:
+                desired_days = int(desired_days)
+            except (TypeError, ValueError):
+                return _json_error(
+                    'desired_target_days must be an integer.',
+                    code='desired_target_days_invalid',
+                    field='desired_target_days',
+                )
+            if desired_days < 0 or desired_days > 10_000:
+                return _json_error(
+                    'desired_target_days is outside the supported range.',
+                    code='desired_target_days_invalid',
+                    field='desired_target_days',
+                )
+        from ..services.subscriber_plan_change import confirm as _confirm, preview as _preview
+        try:
+            result = _confirm(
+                user, plan_id, mode=mode,
+                desired_target_days=desired_days,
+                commit=True,
+            )
+        except Exception:
+            current_app.logger.exception(
+                'mobile_account_request_plan_change legacy confirm bridge: '
+                'unexpected error (user_id=%s, plan_id=%s, mode=%s)',
+                getattr(user, 'id', None), raw_plan_id, mode,
+            )
+            return api_error(
+                'Unexpected error while confirming the plan change.',
+                code='internal_error', status=500,
+            )
+        payload = _mobile_account_payload_with_plan_change(
+            user, result_payload=result.to_dict(),
         )
+        if result.outcome == 'blocked':
+            try:
+                payload['plan_change_preview'] = _preview(user, plan_id).to_dict()
+            except Exception:
+                current_app.logger.exception(
+                    'mobile_account_request_plan_change legacy confirm bridge: '
+                    'preview follow-up failed (user_id=%s, plan_id=%s)',
+                    getattr(user, 'id', None), plan_id,
+                )
+            return api_error(
+                result.blocked_reason or 'Plan change blocked.',
+                code=result.blocked_reason or 'blocked',
+                status=400,
+                data=payload,
+                meta=_compat_meta(flow='confirm'),
+            )
+        return api_ok(
+            payload,
+            meta=_compat_meta(flow='confirm'),
+        )
+
+    if raw_plan_id not in (None, '') and not message:
+        try:
+            plan_id = int(raw_plan_id)
+        except (TypeError, ValueError):
+            return _json_error(
+                'Plan id must be an integer.',
+                code='plan_id_invalid',
+                field='plan_id',
+            )
+        target_plan = SubscriptionPlan.query.get(plan_id)
+        if target_plan is None or not target_plan.is_active:
+            return _json_error(
+                'Subscription plan was not found or is not active.',
+                code='plan_not_found',
+                status=404,
+                field='plan_id',
+            )
+        from ..services.subscriber_plan_change import preview as _preview
+        try:
+            result = _preview(user, plan_id)
+        except Exception:
+            current_app.logger.exception(
+                'mobile_account_request_plan_change legacy preview bridge: '
+                'unexpected error (user_id=%s, plan_id=%s)',
+                getattr(user, 'id', None), plan_id,
+            )
+            return api_error(
+                'Unexpected error while building the plan-change preview.',
+                code='internal_error', status=500,
+            )
+        payload = _mobile_account_payload_with_plan_change(
+            user, preview_payload=result.to_dict(),
+        )
+        if result.blocked_reason:
+            return api_error(
+                result.blocked_reason,
+                code=result.blocked_reason,
+                status=400,
+                data=payload,
+                meta=_compat_meta(flow='preview'),
+            )
+        return api_ok(
+            payload,
+            meta=_compat_meta(flow='preview'),
+        )
+
+    err = _plan_id_error()
+    if err:
+        return err
     try:
         plan_id = int(raw_plan_id)
     except (TypeError, ValueError):
@@ -1547,11 +1712,6 @@ def mobile_account_request_plan_change():
             field='plan_id',
         )
 
-    raw_message = data.get('message')
-    message = (raw_message or '').strip() if isinstance(raw_message, str) else ''
-    if len(message) > 240:
-        message = message[:240]
-
     # Same cancel-then-create pattern as `billing.account_subscription_request_change`.
     SupportCase.query.filter_by(
         user_id=user.id,
@@ -1563,8 +1723,6 @@ def mobile_account_request_plan_change():
         user, activated_by_user_id=user.id,
     )
     plan_name = target_plan.name_ar or target_plan.name_en or target_plan.code
-    # Exact subject convention from `billing.py:401` — admin queue
-    # must continue to read both submission paths identically.
     subject = f'{_PLAN_CHANGE_SUBJECT_PREFIX}{plan_name}'
     if message:
         subject = f'{subject} — {message}'
@@ -1580,14 +1738,6 @@ def mobile_account_request_plan_change():
     )
     db.session.add(case)
     db.session.flush()
-    # v86: mobile parity with web. The web subscriber path
-    # (`billing.account_subscription_request_change` → preview →
-    # confirm) routes through `notify_admins_of_plan_change_request`
-    # so every active admin sees the new request in their bell +
-    # notification center. The mobile path historically skipped
-    # this — admins were blind to mobile submissions. v86 closes
-    # that gap. Wrapped defensively so a notification failure can
-    # never block the subscriber's submission.
     try:
         from ..services.support_ops import notify_admins_of_plan_change_request
         notify_admins_of_plan_change_request(
@@ -1600,18 +1750,11 @@ def mobile_account_request_plan_change():
     db.session.commit()
 
     return api_ok(
-        _account_payload(user),
-        meta={
-            'api_version': 'v1',
-            'namespace': 'api/mobile',
-            # v88 — explicit deprecation pointer so newer mobile
-            # builds can migrate to the subscriber-driven flow.
-            # The legacy endpoint continues to function unchanged.
-            'superseded_by': {
-                'preview': '/api/mobile/account/plan-change/preview',
-                'confirm': '/api/mobile/account/plan-change/confirm',
-            },
-        },
+        _mobile_account_payload_with_plan_change(user),
+        meta=_compat_meta(
+            flow='legacy_request',
+            compat_fallback='legacy_triage',
+        ),
         status=201,
     )
 
