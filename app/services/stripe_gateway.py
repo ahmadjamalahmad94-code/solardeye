@@ -183,6 +183,24 @@ class StripeNotReady(Exception):
     payment-local 503 — unrelated pages keep working."""
 
 
+# v92d — permissive email shape validation. Stripe rejects the
+# entire session create call if `customer_email` is malformed, so
+# we pre-filter here. The pattern is loose on purpose (no full
+# RFC 5322): catches the common typo cases (missing TLD, spaces,
+# missing `@`) without rejecting valid-but-unusual addresses.
+_EMAIL_SHAPE_RE = __import__('re').compile(
+    r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$'
+)
+
+
+def _looks_like_email(value: str) -> bool:
+    """Return True if `value` resembles a real email address.
+    Used to gate `customer_email` before it reaches Stripe."""
+    if not value:
+        return False
+    return bool(_EMAIL_SHAPE_RE.match(value))
+
+
 def _configure_stripe():
     """Lazily set `stripe.api_key` from env. Returns the live module
     handle. Raises `StripeNotReady` when prerequisites are missing.
@@ -525,6 +543,28 @@ def create_invoice_checkout_session(
         elif normalized in _STRIPE_SUPPORTED_LOCALES:
             stripe_locale = normalized
         # Arabic and any other unsupported language → keep 'auto'.
+    # v92d — Stripe rejects the entire session if `customer_email`
+    # is provided but malformed (e.g. `user@icloud` missing the TLD).
+    # The error surfaces as a confusing "تعذّر إنشاء جلسة الدفع"
+    # message to the subscriber even though the rest of the
+    # invoice is fine. The pragmatic fix: validate cheaply with a
+    # permissive regex, and if the email doesn't look real, simply
+    # OMIT it — Stripe's hosted Checkout will then prompt the
+    # subscriber to enter their email themselves, which is a much
+    # better UX than a hard failure.
+    safe_email: Optional[str] = None
+    if customer_email:
+        normalized_email = str(customer_email).strip()
+        # Loose but practical email shape: <local>@<domain>.<tld>
+        # with no whitespace in any segment. Catches the
+        # `user@icloud` (missing tld) case + most other typos.
+        if _looks_like_email(normalized_email):
+            safe_email = normalized_email
+        else:
+            logger.info(
+                'stripe_invoice_checkout: dropping malformed customer_email %r',
+                normalized_email[:120],
+            )
     try:
         session = pkg.checkout.Session.create(
             mode='payment',
@@ -539,7 +579,7 @@ def create_invoice_checkout_session(
             }],
             success_url=success_url,
             cancel_url=cancel_url,
-            customer_email=customer_email or None,
+            customer_email=safe_email,
             metadata=safe_metadata,
             locale=stripe_locale,
         )
