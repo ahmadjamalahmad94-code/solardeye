@@ -26,7 +26,13 @@ from ..services.quota_engine import (
 from ..services.subscriptions import allowed_device_limit, compute_subscription_status, current_subscription_for_user, ensure_user_tenant_and_subscription, plan_features
 from ..services.mobile_auth import user_from_bearer_or_session, verify_access_token
 from ..services.api_responses import api_error, api_ok, page_meta, pagination_args
-from .helpers import _upsert_setting, load_settings
+from .helpers import (
+    _upsert_setting,
+    build_battery_details,
+    build_battery_insights,
+    get_runtime_battery_settings,
+    load_settings,
+)
 from .notifications import NOTIFICATION_SECTION_FIELDS, load_notification_rules
 
 mobile_api_bp = Blueprint('mobile_api', __name__, url_prefix='/api/v1/mobile')
@@ -126,6 +132,7 @@ _MOBILE_CORE_ALLOWED_METHODS = {
     '/dashboard': {'GET'},
     '/dashboard/feed': {'GET'},
     '/live': {'GET'},
+    '/battery-lab': {'GET'},
     '/bootstrap': {'GET'},
     '/health': {'GET'},
 }
@@ -3060,6 +3067,86 @@ def _mobile_fleet_snapshot(user):
     }
 
 
+def _mobile_battery_lab_payload(user):
+    """v100 — Battery Lab data for the native mobile screen.
+
+    Returns the same data the web `/battery-lab` page renders:
+      * `latest` — most recent reading basics
+      * `battery_insights` — full v93l..v93s dict (live state, SoC,
+        reserve, external AC-IN split, daily kWh, mode label, etc.)
+      * `battery_details` — voltage / current / cycles / SOH / temp /
+        SNs from `build_battery_details(...)`
+      * `hourly` — 48 hourly-aggregated points for charts:
+          { time_label, time_iso, soc, power_w, voltage, current }
+
+    Hourly aggregation mirrors the web route's "last reading per hour"
+    strategy so a phone-side chart looks identical to the desktop.
+    """
+    mode, device, error = _mobile_device_scope(user)
+    if error:
+        return None, error
+
+    settings = load_settings()
+    capacity_kwh, reserve_percent = get_runtime_battery_settings(settings)
+    latest = _mobile_latest_reading(user, mode=mode, device=device)
+
+    insights = build_battery_insights(latest, capacity_kwh, reserve_percent)
+    details = build_battery_details(latest)
+
+    # Build a 48-hour hourly aggregation, last reading per hour.
+    from datetime import UTC as _UTC, datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo as _ZI
+    from ..services.utils import utc_to_local
+    tz_name = current_app.config['LOCAL_TIMEZONE']
+    local_tz = _ZI(tz_name)
+    now_local = _dt.now(local_tz)
+    since_utc = (
+        now_local.replace(minute=0, second=0, microsecond=0)
+        .astimezone(_UTC)
+        - _td(hours=47)
+    )
+    q = _mobile_readings_query(user, mode=mode, device=device).filter(
+        Reading.created_at >= since_utc,
+    ).order_by(Reading.created_at.asc())
+    rows = q.all()
+    grouped = {}
+    for row in rows:
+        local_dt = utc_to_local(row.created_at, tz_name)
+        if not local_dt:
+            continue
+        hour_key = local_dt.strftime('%Y-%m-%d %H:00')
+        grouped[hour_key] = row
+    hourly_points = list(grouped.values())[-48:]
+    hourly = []
+    for r in hourly_points:
+        local_dt = utc_to_local(r.created_at, tz_name)
+        if not local_dt:
+            continue
+        d = build_battery_details(r)
+        hourly.append({
+            'time_label': local_dt.strftime('%H:00'),
+            'time_iso': r.created_at.isoformat() if r.created_at else None,
+            'soc': round(float(r.battery_soc or 0), 1),
+            'power_w': round(float(r.battery_power or 0), 1),
+            'voltage': d.get('battery_voltage'),
+            'current': d.get('battery_current'),
+        })
+
+    payload = {
+        'scope': {
+            'mode': 'all' if mode == 'all' else 'device',
+            'device_id': device.id if device else None,
+            'device_name': (device.name if device else None) or None,
+        },
+        'latest': _mobile_reading_payload(latest),
+        'battery_insights': insights,
+        'battery_details': details,
+        'hourly': hourly,
+        'generated_at': _dt.now(_UTC).isoformat(),
+    }
+    return payload, None
+
+
 def _mobile_dashboard_payload(user, *, include_feed: bool = True):
     mode, device, error = _mobile_device_scope(user)
     if error:
@@ -3154,6 +3241,24 @@ def mobile_dashboard_feed():
         'items': [_mobile_reading_payload(row) for row in rows],
         'order': 'newest_first',
     }, meta={**page_meta(page, page_size, total), 'api_version': 'v1', 'namespace': 'api/mobile'})
+
+
+@mobile_core_api_bp.get('/battery-lab')
+def mobile_battery_lab():
+    """v100 — Battery Lab native endpoint.
+
+    Returns the same structured data the web `/battery-lab` page renders
+    (insights, details, 48 h of hourly aggregated readings) so the
+    mobile screen can present an identical view without an external
+    browser hop. See `_mobile_battery_lab_payload` for the shape.
+    """
+    user, err = _require_bearer_user()
+    if err:
+        return err
+    payload, error = _mobile_battery_lab_payload(user)
+    if error:
+        return error
+    return api_ok(payload, meta={'api_version': 'v1', 'namespace': 'api/mobile'})
 
 
 @mobile_core_api_bp.get('/bootstrap')
