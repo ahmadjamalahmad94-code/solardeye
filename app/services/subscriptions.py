@@ -137,19 +137,39 @@ def _create_subscription_ledger_entry(tenant, plan, days, sub, activated_by_user
 
 
 def activate_tenant_subscription(tenant, plan, days, activated_by_user_id=None, notes=''):
-    now = datetime.utcnow()
-    prior = TenantSubscription.query.filter_by(tenant_id=tenant.id).order_by(TenantSubscription.created_at.desc()).first()
-    is_renewal = bool(prior and prior.plan_id == plan.id and prior.status in ('active', 'expired'))
-    sub = TenantSubscription(tenant_id=tenant.id, plan_id=plan.id, status='active', activation_mode='manual', starts_at=now, ends_at=now+timedelta(days=days), activated_by_user_id=activated_by_user_id, notes=notes)
-    tenant.plan_id = plan.id
-    tenant.status = 'active'
-    db.session.add(sub)
-    try:
-        from .quota_engine import apply_plan_quotas_to_tenant
-        apply_plan_quotas_to_tenant(tenant, plan, commit=False)
-    except Exception:
-        pass
-    db.session.flush()
-    _create_subscription_ledger_entry(tenant, plan, days, sub, activated_by_user_id, is_renewal=is_renewal)
-    db.session.commit()
-    return sub
+    """v82: this helper is now a thin wrapper around the canonical
+    `billing_engine` lifecycle actions.
+
+    Behaviour is preserved for every existing caller:
+      * First-time / unrelated-plan activations create a fresh sub
+        row charging the full plan price and use the `ACT-…` ledger
+        reference.
+      * Repeats on the same plan are routed through `renew(...)` so
+        they get the new stacking semantics + the `REN-…` reference.
+        Net effect for finance is the same charge, but the reference
+        token now distinguishes activation from renewal cleanly.
+    """
+    prior = (
+        TenantSubscription.query
+        .filter_by(tenant_id=tenant.id)
+        .order_by(TenantSubscription.created_at.desc())
+        .first()
+    )
+    is_renewal = bool(
+        prior and prior.plan_id == plan.id
+        and prior.status in ('active', 'expired')
+    )
+    from .billing_engine import activate as _activate, renew as _renew
+    if is_renewal:
+        result = _renew(
+            tenant, plan, days=days,
+            actor_user_id=activated_by_user_id, commit=True,
+        )
+    else:
+        result = _activate(
+            tenant, plan, days=days,
+            actor_user_id=activated_by_user_id, notes=notes,
+            activation_mode='manual', commit=True,
+        )
+    sub_id = result.subscription_id
+    return TenantSubscription.query.get(sub_id) if sub_id else None
