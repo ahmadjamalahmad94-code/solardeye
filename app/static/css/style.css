@@ -495,6 +495,19 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
 .battery-lab-grid { grid-template-columns: 2fr 1fr; }
 .battery-metric-grid { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:14px; }
 .battery-insight-list { display:grid; gap:12px; }
+/* v93q — operating-indicators reorg accents.
+   * flow-charging: green tint on +W (battery is gaining energy)
+   * flow-discharging: amber tint on -W (battery is losing energy)
+   * diag-note: warm sand background for low-priority advisory
+                rows (relay-Break notice, Deye station echo). */
+.battery-insight-list strong.flow-charging { color: #0e7c4a; }
+.battery-insight-list strong.flow-discharging { color: #b45309; }
+.battery-insight-list > div.diag-note {
+  background: #fff8ec;
+  border-color: #fbd38d;
+}
+.battery-insight-list > div.diag-note span { color: #92400e; font-weight: 600; }
+.battery-insight-list > div.diag-note strong { font-size: 0.92rem; line-height: 1.45; }
 .battery-badge {
   background: #eefbf3;
   color: #15803d;

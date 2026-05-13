@@ -525,6 +525,14 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'station_generation_w': None,
         'pv_total_w': 0.0,
         'inferred_external_w': None,
+        # v93q — live-flow + daily-counter defaults.
+        'live_flow_w': 0.0,
+        'live_flow_label': '—',
+        'live_flow_direction': 'idle',
+        'active_time_caption': 'الحالة',
+        'active_time_label': 'غير متاح',
+        'daily_charge_kwh': None,
+        'daily_discharge_kwh': None,
     }
     if not latest:
         return empty
@@ -576,6 +584,12 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
     station_generation_w = None
     pv_total_w = 0.0
     inferred_external_w = None
+    # v93q — daily energy counters for the "ملخص اليوم" group.
+    # These come straight from Deye device data; the helper just
+    # projects them into the insights dict so the template
+    # doesn't have to peel `raw_json` itself.
+    daily_charge_kwh = None
+    daily_discharge_kwh = None
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
@@ -673,6 +687,19 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
                 inferred_external_w = max(
                     station_generation_w - pv_total_w, 0.0,
                 )
+            # v93q — daily charge / discharge energy counters.
+            try:
+                v = derived.get('dailyChargingEnergy')
+                if v is not None:
+                    daily_charge_kwh = float(v)
+            except (TypeError, ValueError):
+                pass
+            try:
+                v = derived.get('dailyDischargingEnergy')
+                if v is not None:
+                    daily_discharge_kwh = float(v)
+            except (TypeError, ValueError):
+                pass
         except Exception:
             pass
 
@@ -729,6 +756,30 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
             charge_eta = 'لا يوجد شحن نشط — يوجد إدخال خارجي'
             mode_label = 'ثابتة — إدخال خارجي'
 
+    # v93q — Compute "live flow" + "active time" derived fields so
+    # the template renders ONE row for power and ONE row for ETA
+    # instead of always showing both charge + discharge rows with
+    # half of them holding a placeholder. This is the core of the
+    # operating-indicators reorg the owner asked for.
+    if mode_label == 'يتم الشحن':
+        live_flow_direction = 'charging'
+        live_flow_w = round(charge_power_w, 1)
+        live_flow_label = f'+{int(round(charge_power_w))} W'
+        active_time_caption = 'الوقت حتى الامتلاء'
+        active_time_label = charge_eta
+    elif mode_label == 'يتم التفريغ':
+        live_flow_direction = 'discharging'
+        live_flow_w = -round(discharge_power_w, 1)
+        live_flow_label = f'−{int(round(discharge_power_w))} W'
+        active_time_caption = 'الوقت حتى النفاد'
+        active_time_label = discharge_eta
+    else:
+        live_flow_direction = 'idle'
+        live_flow_w = 0.0
+        live_flow_label = '0 W'
+        active_time_caption = 'الحالة'
+        active_time_label = mode_label
+
     return {
         'capacity_kwh': round(battery_capacity_kwh, 2),
         'reserve_percent': reserve_percent,
@@ -781,6 +832,22 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'inferred_external_w': (
             round(inferred_external_w, 1)
             if inferred_external_w is not None else None
+        ),
+        # v93q — derived live-flow + daily counters so the
+        # operating-indicators panel can render one row per
+        # signal instead of two-with-placeholders.
+        'live_flow_w': live_flow_w,
+        'live_flow_label': live_flow_label,
+        'live_flow_direction': live_flow_direction,
+        'active_time_caption': active_time_caption,
+        'active_time_label': active_time_label,
+        'daily_charge_kwh': (
+            round(daily_charge_kwh, 2)
+            if daily_charge_kwh is not None else None
+        ),
+        'daily_discharge_kwh': (
+            round(daily_discharge_kwh, 2)
+            if daily_discharge_kwh is not None else None
         ),
     }
 

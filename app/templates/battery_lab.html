@@ -34,49 +34,69 @@
         </div>
       </div>
       <div class="panel-card battery-lab-side">
-        <div class="stats-panel-head compact"><div><h3>مؤشرات التشغيل</h3><small>ملخص ذكي</small></div></div>
+        <div class="stats-panel-head compact"><div><h3>مؤشرات التشغيل</h3><small>الحالة اللحظية وملخص اليوم</small></div></div>
+        {# v93q — panel reorg: 4 logical groups (الحالة الآن /
+           المصادر / ملخص اليوم / تشخيص متقدم). Each group hides
+           rows whose values are 0 or unavailable so the panel
+           shows only what's actionable. Active mode dictates
+           which ETA + flow row appears — no more "غير متاح"
+           placeholder noise. #}
         <div class="battery-insight-list">
-          <div><span>الوضع الحالي</span><strong>{{ battery_insights.mode_label }}</strong></div>
-          <div><span>وقت الامتلاء</span><strong>{{ battery_insights.charge_eta }}</strong></div>
-          <div><span>وقت النفاد</span><strong>{{ battery_insights.discharge_eta }}</strong></div>
-          <div><span>الاحتياطي المحجوز</span><strong>{{ battery_insights.reserve_kwh }} kWh</strong></div>
-          <div><span>قدرة الشحن</span><strong>{{ battery_insights.charge_power_w }} W</strong></div>
-          <div><span>قدرة التفريغ</span><strong>{{ battery_insights.discharge_power_w }} W</strong></div>
-          {# v93l + v93m — Always show the AC-IN row so the user can
-             see whether Deye is reporting external input right
-             now. When 0 W, the cumulative AC-IN energy + grid
-             status label below explain *why* (no source on the
-             port vs. inverter not seeing the generator). #}
+
+          {# ── الحالة الآن (always-on) ─────────────────────── #}
+          <div><span>الوضع</span><strong>{{ battery_insights.mode_label }}</strong></div>
+          {% if battery_insights.active_time_caption and battery_insights.active_time_label %}
+          <div><span>{{ battery_insights.active_time_caption }}</span><strong>{{ battery_insights.active_time_label }}</strong></div>
+          {% endif %}
+          {% if battery_insights.live_flow_direction != 'idle' %}
           <div>
-            <span>إدخال خارجي (شبكة/مولد)</span>
-            <strong>{{ battery_insights.external_ac_input_w or 0 }} W</strong>
+            <span>التدفق الآن</span>
+            <strong class="flow-{{ battery_insights.live_flow_direction }}">{{ battery_insights.live_flow_label }}</strong>
           </div>
-          {% if battery_insights.feed_in_w and battery_insights.feed_in_w > 0 %}
+          {% endif %}
+          <div><span>الاحتياطي</span><strong>{{ battery_insights.reserve_kwh }} kWh</strong></div>
+
+          {# ── المصادر / المدخلات ────────────────────────── #}
+          {% set ext_w = battery_insights.external_ac_input_w or 0 %}
+          {% set inferred_w = battery_insights.inferred_external_w %}
+          {% if ext_w > 5 %}
+          <div>
+            <span>إدخال خارجي · شبكة/مولد</span>
+            <strong>{{ ext_w }} W</strong>
+          </div>
+          {% elif inferred_w is not none %}
+          <div>
+            <span>إدخال خارجي تقديري</span>
+            <strong>≈ {{ inferred_w }} W</strong>
+          </div>
+          {% endif %}
+          {% if battery_insights.feed_in_w and battery_insights.feed_in_w > 5 %}
           <div><span>تصدير إلى الشبكة</span><strong>{{ battery_insights.feed_in_w }} W</strong></div>
           {% endif %}
-          {% if battery_insights.grid_status_label %}
-          <div><span>حالة AC IN حسب Deye</span><strong>{{ battery_insights.grid_status_label }}</strong></div>
+
+          {# ── ملخص اليوم ───────────────────────────────── #}
+          {% if battery_insights.daily_charge_kwh is not none and battery_insights.daily_charge_kwh > 0 %}
+          <div><span>شحنت اليوم</span><strong>{{ battery_insights.daily_charge_kwh }} kWh</strong></div>
           {% endif %}
-          {% if battery_insights.grid_relay_status_label %}
-          <div><span>ريليه AC IN</span><strong>{{ battery_insights.grid_relay_status_label }}</strong></div>
+          {% if battery_insights.daily_discharge_kwh is not none and battery_insights.daily_discharge_kwh > 0 %}
+          <div><span>فرّغت اليوم</span><strong>{{ battery_insights.daily_discharge_kwh }} kWh</strong></div>
           {% endif %}
-          {# v93o — when the relay is Break and the device-tier
-             AC-IN sensor reads 0 W, the station-tier
-             `generationPower` exposes the hidden source.
-             Surface BOTH the raw station figure and the
-             inferred external-input estimate so the user can
-             reason about the discrepancy. #}
-          {% if battery_insights.inferred_external_w is not none %}
-          <div><span>إدخال خارجي محسوب (مولد محتمل)</span><strong>{{ battery_insights.inferred_external_w }} W</strong></div>
-          {% endif %}
-          {% if battery_insights.station_generation_w is not none %}
-          <div><span>إنتاج محطة (Deye station)</span><strong>{{ battery_insights.station_generation_w }} W</strong></div>
-          {% endif %}
-          {% if battery_insights.daily_generator_kwh is not none %}
+          {% if battery_insights.daily_generator_kwh is not none and battery_insights.daily_generator_kwh > 0 %}
           <div><span>إدخال خارجي اليوم</span><strong>{{ battery_insights.daily_generator_kwh }} kWh</strong></div>
           {% endif %}
-          {% if battery_insights.total_generator_kwh is not none %}
-          <div><span>إدخال خارجي تراكمي</span><strong>{{ battery_insights.total_generator_kwh }} kWh</strong></div>
+
+          {# ── تشخيص متقدم (only when notable) ────────────── #}
+          {% if battery_insights.grid_relay_status_label and 'مفصول' in battery_insights.grid_relay_status_label %}
+          <div class="diag-note">
+            <span>تنبيه AC IN</span>
+            <strong>{{ battery_insights.grid_relay_status_label }}</strong>
+          </div>
+          {% endif %}
+          {% if inferred_w is not none and battery_insights.station_generation_w is not none %}
+          <div class="diag-note">
+            <span>إنتاج محطة (Deye)</span>
+            <strong>{{ battery_insights.station_generation_w }} W</strong>
+          </div>
           {% endif %}
         </div>
       </div>
