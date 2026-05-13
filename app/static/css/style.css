@@ -337,12 +337,15 @@ body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, #f8
 .deye-flow-stage .flow-box .flow-state.muted { color:#94a3b8; }
 .deye-flow-stage .flow-box.solar { top:70px; left:42px; }
 .deye-flow-stage .flow-box.grid { top:70px; right:42px; }
-/* v93u — Generator sits horizontally centered on the top row, in the
-   empty space between Panels (top-left) and Grid (top-right). The
-   short vertical line in the SVG (`#generatorTrack`) connects its
-   bottom edge to the inverter's top. Same dimensions (130×96 px) as
-   every other flow-box; the existing icon/value/title styling
-   applies unchanged. */
+/* v93u + v93v — Generator sits horizontally centered on the top
+   row, exactly aligned with Panels (top-left) and Grid (top-right).
+   Both Panels and Grid carry the `.highlight` class which adds a
+   3px outer glow that visually lifts them by ~3px; without it the
+   generator looked ~3px below the others. We keep `top:70px` (same
+   as solar/grid) and `.flow-box.generator` shares the highlight
+   styling via the HTML class. The short vertical line in the SVG
+   (`#generatorTrack`) connects its bottom edge to the inverter's
+   top. */
 .deye-flow-stage .flow-box.generator { top:70px; left:calc(50% - 65px); }
 .deye-flow-stage .flow-box.inverter { top:220px; left:calc(50% - 65px); }
 .deye-flow-stage .flow-box.home { bottom:72px; left:calc(50% - 65px); }
