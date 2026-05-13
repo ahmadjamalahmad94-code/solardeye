@@ -457,6 +457,79 @@ def _agg_assignee_name(case):
         return ''
 
 
+# v93e — human-readable service labels for system notifications.
+# When `assignee` is empty (system event, no support case), we
+# instead show "From: <service>" in the modal so subscribers know
+# which subsystem fired the alert.
+_SERVICE_LABELS_AR = {
+    # Energy + device alerts
+    'battery_status':       '🔋 حالة البطارية',
+    'battery_warning':      '🔋 تحذير بطارية',
+    'night_discharge':      '🌙 تفريغ ليلي',
+    'load_alert':           '⚡ تنبيه الأحمال',
+    'solar_status':         '☀️ حالة الإنتاج الشمسي',
+    'inverter_status':      '🔌 حالة الإنفرتر',
+    'energy_status_change': '📊 تحديث الطاقة',
+    'weather_alert':        '🌦️ تنبيه الطقس',
+    'pre_sunset':           '🌅 ما قبل الغروب',
+    'sunrise_alert':        '🌄 الشروق',
+    'daily_report':         '📅 تقرير يومي',
+    'periodic_status':      '📊 تحديث دوري',
+    # Plan-change events
+    'plan_change_request_received':      '🔁 طلب تغيير خطة',
+    'plan_change_invoice_issued':        '🧾 طلب دفع',
+    'plan_change_invoice_settled':       '💰 تسوية فاتورة',
+    'plan_change_applied':               '✅ تطبيق تغيير الخطة',
+    'plan_change_rejected':              '✖ رفض الطلب',
+    'plan_change_cancelled':             '⏸ إلغاء',
+    'plan_change_discussion':            '💬 مقترح تغيير الخطة',
+    'plan_change_request_admin':         '👥 طلب تغيير خطة (إدارة)',
+    'plan_change_applied_admin':         '👥 تطبيق خطة (إدارة)',
+    'plan_change_payment_settled_admin': '👥 دفعة مستلَمة (إدارة)',
+    # Support / fallback
+    'support':            '🎫 الدعم الفنّي',
+    'support_message':    '💬 رسالة دعم',
+    'support_update':     '🎫 تحديث دعم',
+}
+_SERVICE_LABELS_EN = {
+    'battery_status':       '🔋 Battery status',
+    'battery_warning':      '🔋 Battery warning',
+    'night_discharge':      '🌙 Night discharge',
+    'load_alert':           '⚡ Load alert',
+    'solar_status':         '☀️ Solar production',
+    'inverter_status':      '🔌 Inverter status',
+    'energy_status_change': '📊 Energy update',
+    'weather_alert':        '🌦️ Weather alert',
+    'pre_sunset':           '🌅 Pre-sunset',
+    'sunrise_alert':        '🌄 Sunrise',
+    'daily_report':         '📅 Daily report',
+    'periodic_status':      '📊 Periodic status',
+    'plan_change_request_received':      '🔁 Plan-change requested',
+    'plan_change_invoice_issued':        '🧾 Payment requested',
+    'plan_change_invoice_settled':       '💰 Invoice settled',
+    'plan_change_applied':               '✅ Plan applied',
+    'plan_change_rejected':              '✖ Plan rejected',
+    'plan_change_cancelled':             '⏸ Cancelled',
+    'plan_change_discussion':            '💬 Proposal',
+    'plan_change_request_admin':         '👥 Plan request (admin)',
+    'plan_change_applied_admin':         '👥 Plan applied (admin)',
+    'plan_change_payment_settled_admin': '👥 Payment received (admin)',
+    'support':            '🎫 Support',
+    'support_message':    '💬 Support message',
+    'support_update':     '🎫 Support update',
+}
+
+
+def _agg_service_label(event_type, lang='ar'):
+    """v93e — service-category label for the modal "From:" field
+    when the notification has no human assignee (system events)."""
+    key = (event_type or '').strip().lower()
+    if not key:
+        return ''
+    table = _SERVICE_LABELS_EN if lang == 'en' else _SERVICE_LABELS_AR
+    return table.get(key, '')
+
+
 def _agg_status_label(status):
     labels = {
         'new': 'جديد', 'open': 'مفتوح', 'assigned': 'مخصص', 'in_progress': 'قيد المتابعة',
@@ -575,6 +648,23 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
         elif kind == 'message' and not title.startswith('محادثة') and not title.startswith('رسالة'):
             title = f'محادثة دعم #{source_id or last.id}'
         details = (getattr(last, 'message', None) or '').strip() or (getattr(last, 'title', None) or '').strip() or 'تحديث جديد'
+        # v93e — for system events with no human assignee, fall
+        # back to the service-category label ("⚡ Load alert"
+        # etc.) so the modal's "From:" field is meaningful.
+        assignee_name = _agg_assignee_name(case)
+        if not assignee_name and kind == 'system':
+            assignee_name = _agg_service_label(
+                getattr(last, 'event_type', None), _lang(),
+            )
+        # v93e — hide the "Open source" button in the modal when
+        # the notification is already a system event and the URL
+        # is just the notification center itself.
+        resolved_url = _agg_open_url(kind, source_id, last, _lang())
+        has_meaningful_source = (
+            resolved_url and
+            '/notifications/' not in resolved_url and
+            '/notification-center' not in resolved_url
+        )
         group = {
             'group_key': key,
             'kind': kind,
@@ -582,18 +672,21 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
             'id': source_id or getattr(last, 'id', 0),
             'source_id': source_id or '',
             'last_event_id': getattr(last, 'id', 0),
+            'event_type': getattr(last, 'event_type', None) or '',
             'title': title,
             'details': details,
             'status': status,
             'status_label': _agg_status_label(status),
             'priority': priority,
             'priority_label': _agg_priority_label(priority),
-            'assignee': _agg_assignee_name(case) or '—',
+            'assignee': assignee_name or '—',
+            'sender': assignee_name or '',  # legacy alias the bell JS reads
+            'has_source_link': has_meaningful_source,
             'unread_count': unread_count,
             'events_count': len(events),
             'last_activity_at': last_at,
             'last_activity_label': format_local_datetime(last_at, current_app.config['LOCAL_TIMEZONE']) if last_at else '',
-            'url': _agg_open_url(kind, source_id, last, _lang()),
+            'url': resolved_url,
             'is_closed': (status in {'closed', 'resolved'}),
             'is_archived': (status in {'closed', 'resolved'}),
         }

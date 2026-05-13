@@ -394,11 +394,14 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
         title: item.title || '',
         details: item.details || '',
         url: item.url || '',
-        sender: item.sender || '',
-        created_at: item.created_at || '',
+        sender: item.sender || item.assignee || '',
+        created_at: item.created_at || item.last_activity_label || '',
         status: item.status || '',
         kind: kind,
         event_id: item.event_id || '',
+        // v93e — hide "Open source" button in the modal when the
+        // resolved URL is just the notifications center itself.
+        has_source_link: item.has_source_link !== false,
       }));
       return `<button type="button" class="notification-item kind-${esc(kind)} status-${esc(item.status)}" data-event-id="${esc(item.event_id || '')}" data-payload="${payload}" style="text-align:start;width:100%;border:1px solid transparent;cursor:pointer;font:inherit"><div class="notif-row"><span class="notif-kind">${kindLabel(kind)}</span><span class="notif-status">${esc(statusLabel(item.status))}</span></div><h4>${esc(legacyInline(item.title))}</h4><p>${esc(legacyInline(item.details))}</p><div class="notif-meta"><span>${esc(item.sender || '')}</span><small>${esc(item.created_at)}</small></div></button>`;
     }).join('');
@@ -461,9 +464,10 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       legacyInline(data.details) || '';
     const meta = root.querySelector('#notifModalMeta');
     meta.innerHTML = '';
-    if(data.sender){
+    const senderText = (data.sender && data.sender !== '—') ? data.sender : '';
+    if(senderText){
       const s = document.createElement('span');
-      s.textContent = (lang()==='en'?'From: ':'من: ') + data.sender;
+      s.textContent = (lang()==='en'?'From: ':'من: ') + senderText;
       meta.appendChild(s);
     }
     if(data.created_at){
@@ -472,7 +476,14 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       meta.appendChild(t);
     }
     const goto = root.querySelector('#notifModalGoto');
-    if(data.url && data.url !== '#'){
+    // v93e — hide the "Open source" button when there's no
+    // meaningful destination (e.g. the URL is just the
+    // notification center itself, for energy alerts).
+    const hasSource = data.has_source_link !== false
+      && data.url && data.url !== '#'
+      && data.url.indexOf('/notifications/') === -1
+      && data.url.indexOf('/notification-center') === -1;
+    if(hasSource){
       goto.href = data.url;
       goto.style.display = '';
     } else {
@@ -498,6 +509,7 @@ document.querySelectorAll('[data-hover-card]').forEach((card) => {
       created_at: a.getAttribute('data-modal-created') || '',
       url: a.getAttribute('data-modal-url') || a.getAttribute('href') || '',
       kind: a.getAttribute('data-modal-kind') || 'message',
+      has_source_link: a.getAttribute('data-modal-has-source') !== '0',
     });
   });
   function updateCounts(data){

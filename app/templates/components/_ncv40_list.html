@@ -24,6 +24,7 @@
        data-modal-created="{{ (item.last_activity_label or '')|e }}"
        data-modal-url="{{ item.url|e }}"
        data-modal-kind="{{ item.kind }}"
+       data-modal-has-source="{{ '1' if item.has_source_link else '0' }}"
        data-ncv40-item
        data-ncv40-open
        data-kind="{{ item.kind }}"
