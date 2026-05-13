@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{# v81 — admin plan-change request workflow.
+   Reuses the existing admin_subscriptions visual language (KPI grid +
+   admin-table-v2). Adds an "actions" column with approve / reject /
+   cancel POST forms. The pricing diff comes from
+   `compute_plan_change_quote` so the operator sees every input that
+   produced the recommended ledger amount. #}
+{% block body %}
+{% set is_en = (ui_lang or 'ar') == 'en' %}
+<div class="app-shell has-layout-sidebar sidebar-collapsed">
+  {% include '_sidebar.html' %}
+  <main class="app-main content-area admin-shell-v2">
+    <header class="admin-page-head">
+      <div>
+        <span class="eyebrow">{{ 'Plan-change requests' if is_en else 'طلبات تغيير الخطة' }}</span>
+        <h1>{{ 'Subscriber-initiated plan changes' if is_en else 'طلبات تغيير الخطة من المشتركين' }}</h1>
+        <p>{{ 'Review each request, confirm the prorated difference, then approve or reject.' if is_en else 'راجع كل طلب، تحقق من فرق التسعير، ثم وافق أو ارفض.' }}</p>
+      </div>
+    </header>
+
+    <section class="admin-kpi-grid-v2">
+      <article class="admin-kpi-card">
+        <small>{{ 'Total' if is_en else 'الإجمالي' }}</small>
+        <strong>{{ rows|length }}</strong>
+        <span>{{ 'All submitted requests' if is_en else 'كل الطلبات المسجلة' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Open' if is_en else 'مفتوحة' }}</small>
+        <strong>{{ rows|selectattr('case.status', 'equalto', 'open')|list|length }}</strong>
+        <span>{{ 'Awaiting admin action' if is_en else 'بانتظار إجراء الإدارة' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Resolved' if is_en else 'مطبَّقة' }}</small>
+        <strong>{{ rows|selectattr('case.status', 'equalto', 'resolved')|list|length }}</strong>
+        <span>{{ 'Applied successfully' if is_en else 'تم تطبيقها بنجاح' }}</span>
+      </article>
+      <article class="admin-kpi-card">
+        <small>{{ 'Closed / cancelled' if is_en else 'مغلقة / ملغاة' }}</small>
+        <strong>{{ rows|rejectattr('case.status', 'equalto', 'open')|rejectattr('case.status', 'equalto', 'resolved')|list|length }}</strong>
+        <span>{{ 'Rejected or superseded' if is_en else 'مرفوضة أو متجاوزة' }}</span>
+      </article>
+    </section>
+
+    <section class="admin-card-v2">
+      <div class="section-heading-inline">
+        <div>
+          <small>{{ 'Workflow' if is_en else 'سير العمل' }}</small>
+          <h3>{{ 'Plan-change requests table' if is_en else 'جدول طلبات تغيير الخطة' }}</h3>
+        </div>
+      </div>
+
+      <div class="table-shell-v2">
+        <table class="admin-table-v2">
+          <thead>
+            <tr>
+              <th>{{ 'Subscriber' if is_en else 'المشترك' }}</th>
+              <th>{{ 'Current plan' if is_en else 'الخطة الحالية' }}</th>
+              <th>{{ 'Requested plan' if is_en else 'الخطة المطلوبة' }}</th>
+              <th>{{ 'Days left' if is_en else 'الأيام المتبقية' }}</th>
+              <th>{{ 'Price diff' if is_en else 'فرق السعر' }}</th>
+              <th>{{ 'Status' if is_en else 'الحالة' }}</th>
+              <th>{{ 'Actions' if is_en else 'إجراءات' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              {% set case = row.case %}
+              {% set quote = row.quote %}
+              {% set is_open = (case.status or '')|lower == 'open' %}
+              {% set extra = quote.extra_charge or 0 %}
+              <tr>
+                <td>
+                  <strong>{{ row.user.full_name or row.user.username if row.user else '—' }}</strong>
+                  <div class="table-sub">
+                    {{ mask_email(row.user.email) if row.user and row.user.email else (row.user.username if row.user else '—') }}
+                    · <span dir="ltr">#{{ case.id }}</span>
+                  </div>
+                </td>
+                <td>
+                  {% if quote.current_plan %}
+                    <strong>{{ quote.current_plan.name_ar or quote.current_plan.name_en or quote.current_plan.code }}</strong>
+                    <div class="table-sub">{{ quote.current_plan_price }} {{ quote.currency }}</div>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if row.target_plan %}
+                    <strong>{{ row.target_plan.name_ar or row.target_plan.name_en or row.target_plan.code }}</strong>
+                    <div class="table-sub">{{ quote.target_plan_price }} {{ quote.currency }}</div>
+                  {% else %}
+                    <span class="status-pill warning">{{ 'Unresolved' if is_en else 'غير معروفة' }}</span>
+                    <div class="table-sub">{{ case.subject }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <strong dir="ltr">{{ quote.remaining_days }}</strong>
+                  <div class="table-sub">
+                    {{ quote.current_remaining_value }} → {{ quote.target_remaining_value }} {{ quote.currency }}
+                  </div>
+                </td>
+                <td>
+                  {% if extra > 0 %}
+                    <span class="status-pill warning" dir="ltr">+{{ '%.2f'|format(extra) }} {{ quote.currency }}</span>
+                    <div class="table-sub">{{ 'Charge subscriber' if is_en else 'يُحمَّل على المشترك' }}</div>
+                  {% elif extra < 0 %}
+                    <span class="status-pill success" dir="ltr">{{ '%.2f'|format(extra) }} {{ quote.currency }}</span>
+                    <div class="table-sub">{{ 'Credit subscriber' if is_en else 'رصيد للمشترك' }}</div>
+                  {% else %}
+                    <span class="status-pill" dir="ltr">0.00 {{ quote.currency }}</span>
+                    <div class="table-sub">{{ 'No financial diff' if is_en else 'لا فرق مالي' }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="status-pill {% if case.status == 'open' %}warning{% elif case.status == 'resolved' %}success{% else %}danger{% endif %}">
+                    {{ ui_label(case.status, 'status', ui_lang) }}
+                  </span>
+                  <div class="table-sub" dir="ltr">{{ case.updated_at.strftime('%Y-%m-%d %H:%M') if case.updated_at else '—' }}</div>
+                </td>
+                <td>
+                  {% if is_open and row.target_plan %}
+                    <form method="post" action="{{ url_for('billing.admin_plan_change_request_approve', case_id=case.id, lang=ui_lang) }}" style="display:inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn-pill success" onclick="return confirm('{{ 'Apply this plan change and write the ledger entry?' if is_en else 'تطبيق تغيير الخطة وتسجيل القيد المالي؟' }}');">
+                        ✅ {{ 'Approve' if is_en else 'موافقة' }}
+                      </button>
+                    </form>
+                    <form method="post" action="{{ url_for('billing.admin_plan_change_request_reject', case_id=case.id, lang=ui_lang) }}" style="display:inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="reason" value="">
+                      <button type="submit" class="btn-pill danger" onclick="return confirm('{{ 'Reject this request and notify the subscriber?' if is_en else 'رفض الطلب وإبلاغ المشترك؟' }}');">
+                        ✖ {{ 'Reject' if is_en else 'رفض' }}
+                      </button>
+                    </form>
+                    <form method="post" action="{{ url_for('billing.admin_plan_change_request_cancel', case_id=case.id, lang=ui_lang) }}" style="display:inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn-pill" onclick="return confirm('{{ 'Close without notifying the subscriber?' if is_en else 'إغلاق بدون إبلاغ المشترك؟' }}');">
+                        ⏸ {{ 'Close' if is_en else 'إغلاق' }}
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="table-sub">{{ '—' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="7">{{ 'No plan-change requests yet.' if is_en else 'لا توجد طلبات تغيير خطة بعد.' }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

@@ -400,9 +400,155 @@ def account_subscription_request_change():
     # store target plan info and user note in case subject extended form
     case.subject = f'طلب تغيير الخطة إلى {plan_name}' + (f' — {message}' if message else '')
     db.session.add(case)
+    db.session.flush()
+    # v81: fan out an admin-visible notification so operators see the
+    # request in the admin notification center. Each active admin gets
+    # exactly one event keyed to this case; the dedup inside
+    # `notify_admins_of_plan_change_request` prevents a re-render from
+    # spamming the queue.
+    try:
+        from ..services.support_ops import notify_admins_of_plan_change_request
+        notify_admins_of_plan_change_request(
+            case, requester=user, target_plan=target_plan, commit=False,
+        )
+    except Exception:
+        current_app.logger.exception('plan_change_request admin notify failed')
     db.session.commit()
     flash(f'تم إرسال طلب تغيير الخطة إلى "{plan_name}" بنجاح. سيتواصل معك الفريق قريبًا.', 'success')
     return redirect(url_for('billing.account_subscription', lang=_lang()))
+
+
+# v81: ── Admin plan-change-request workflow ──────────────────────────
+#
+# A real admin workflow on top of `SupportCase(case_type='plan_change_request')`
+# rows so operators can review, approve, and reject requests with a
+# clear pricing breakdown and a transparent wallet/ledger entry. The
+# heavy lifting (pricing, ledger, subscriber notification, audit log)
+# lives in `support_ops` so the route handlers stay thin.
+
+
+def _plan_change_request_or_404(case_id: int):
+    case = SupportCase.query.filter_by(
+        id=int(case_id), case_type='plan_change_request',
+    ).first()
+    if not case:
+        return None
+    return case
+
+
+@billing_bp.route('/admin/plan-change-requests', methods=['GET'])
+def admin_plan_change_requests():
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    from ..services.support_ops import (
+        compute_plan_change_quote, extract_plan_change_target_plan,
+    )
+    cases = (
+        SupportCase.query
+        .filter_by(case_type='plan_change_request')
+        .order_by(SupportCase.status.asc(), SupportCase.updated_at.desc(), SupportCase.id.desc())
+        .limit(200)
+        .all()
+    )
+    rows = []
+    for c in cases:
+        user = AppUser.query.get(c.user_id) if c.user_id else None
+        target = extract_plan_change_target_plan(c)
+        quote = compute_plan_change_quote(c, target_plan=target)
+        rows.append({
+            'case': c,
+            'user': user,
+            'target_plan': target,
+            'quote': quote,
+        })
+    return render_template(
+        'admin_plan_change_requests.html',
+        rows=rows,
+        ui_lang=_lang(),
+        summary=_admin_counts_snapshot(),
+    )
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/approve', methods=['POST'])
+def admin_plan_change_request_approve(case_id: int):
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    if (case.status or '').lower() != 'open':
+        flash('لا يمكن تطبيق طلب مغلق أو منتهي.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.support_ops import apply_plan_change_request
+    actor = _active_user()
+    result = apply_plan_change_request(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        commit=True,
+    )
+    extra = float(result.get('extra_charge') or 0)
+    currency = result.get('currency') or 'USD'
+    if abs(extra) >= 0.01:
+        flash(
+            f'تم تطبيق تغيير الخطة. الفرق المسجّل: {extra:.2f} {currency}.',
+            'success',
+        )
+    else:
+        flash('تم تطبيق تغيير الخطة دون فرق مالي.', 'success')
+    return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/reject', methods=['POST'])
+def admin_plan_change_request_reject(case_id: int):
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.support_ops import reject_plan_change_request
+    actor = _active_user()
+    reason = (request.form.get('reason') or '').strip()
+    reject_plan_change_request(
+        case,
+        actor_user_id=getattr(actor, 'id', None),
+        reason=reason,
+        commit=True,
+    )
+    flash('تم رفض طلب تغيير الخطة وإبلاغ المشترك.', 'success')
+    return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+
+
+@billing_bp.route('/admin/plan-change-requests/<int:case_id>/cancel', methods=['POST'])
+def admin_plan_change_request_cancel(case_id: int):
+    """Soft-close without notifying the subscriber. Use when the
+    request was a duplicate / superseded by another admin action."""
+    guard = _admin_guard('can_manage_subscriptions')
+    if guard:
+        return guard
+    case = _plan_change_request_or_404(case_id)
+    if not case:
+        flash('طلب تغيير الخطة غير موجود.', 'warning')
+        return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
+    from ..services.support_ops import audit_case
+    actor = _active_user()
+    case.status = 'cancelled'
+    case.is_frozen = True
+    case.updated_at = datetime.utcnow()
+    audit_case(
+        case.case_type, case.source_id,
+        getattr(actor, 'id', None),
+        'plan_change.cancel',
+        'Admin closed plan-change request without applying',
+        commit=False,
+    )
+    db.session.commit()
+    flash('تم إغلاق طلب تغيير الخطة دون تطبيقه.', 'success')
+    return redirect(url_for('billing.admin_plan_change_requests', lang=_lang()))
 
 
 @billing_bp.route('/admin/subscriptions')

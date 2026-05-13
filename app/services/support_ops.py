@@ -9,7 +9,8 @@ from flask import url_for
 from ..extensions import db
 from ..models import (
     AppUser, CannedReply, InternalMailMessage, InternalMailThread, NotificationEvent,
-    SupportAuditLog, SupportCase, SupportTicket, SupportTicketMessage, TenantAccount,
+    SubscriptionPlan, SupportAuditLog, SupportCase, SupportTicket, SupportTicketMessage,
+    TenantAccount, TenantSubscription, WalletLedger,
 )
 
 OPEN_STATUSES = {'new', 'open', 'assigned', 'in_progress', 'waiting_user', 'pending'}
@@ -424,3 +425,388 @@ def recent_cases_for_user(user_id, exclude_case_key=None, limit: int = 5):
         if len(out) >= limit:
             break
     return out
+
+
+# v81: ── Plan-change request workflow ─────────────────────────────────
+#
+# A plan-change request lives as `SupportCase(case_type='plan_change_request')`
+# but historically had no real admin workflow attached — operators only
+# saw a subject line in the support queue and there was no canonical
+# apply path. v81 adds:
+#
+#   * `notify_admins_of_plan_change_request(...)` — fanout admin-visible
+#     `NotificationEvent` rows on submit.
+#   * `extract_plan_change_target_plan(...)` — parse the requested
+#     target plan id out of the case subject (kept loose because we
+#     do not change the SupportCase schema).
+#   * `compute_plan_change_quote(...)` — honest pricing diff. Pro-rates
+#     the remaining-value credit from the current plan against the
+#     pro-rated value of the same remaining window at the target plan.
+#   * `apply_plan_change_request(...)` — switches the tenant's plan,
+#     writes a `WalletLedger` entry for the diff, marks the case
+#     resolved, and notifies the subscriber.
+#   * `reject_plan_change_request(...)` — closes the case and notifies
+#     the subscriber.
+
+# Stable identifier prefixes so admin lookups stay reversible.
+_PLAN_CHANGE_ADMIN_EVENT_TYPE = 'plan_change_request'
+_PLAN_CHANGE_APPLIED_EVENT_TYPE = 'plan_change_applied'
+_PLAN_CHANGE_REJECTED_EVENT_TYPE = 'plan_change_rejected'
+_PLAN_CHANGE_LEDGER_CATEGORY = 'plan_change'
+_PLAN_CHANGE_SOURCE_TYPE = 'plan_change_request'
+
+
+def _admin_user_ids() -> list[int]:
+    """Return the ids of every active admin user — fanout target for
+    plan-change admin notifications. The filter mirrors
+    `_is_admin_like_user(...)`: anyone with `is_admin=True` or a
+    role outside the subscriber set."""
+    rows = AppUser.query.filter(AppUser.is_active.is_(True)).all()
+    out: list[int] = []
+    for u in rows:
+        role = (getattr(u, 'role', '') or '').strip().lower()
+        if bool(getattr(u, 'is_admin', False)) or role not in {
+            '', 'user', 'subscriber', 'customer',
+        }:
+            out.append(int(u.id))
+    return out
+
+
+def _plan_label(plan: SubscriptionPlan | None) -> str:
+    if not plan:
+        return '—'
+    return (
+        getattr(plan, 'name_ar', None)
+        or getattr(plan, 'name_en', None)
+        or getattr(plan, 'code', None)
+        or f'plan-{getattr(plan, "id", "")}'
+    )
+
+
+def notify_admins_of_plan_change_request(case: SupportCase, *, requester: AppUser | None = None, target_plan: SubscriptionPlan | None = None, commit: bool = False) -> list[NotificationEvent]:
+    """Fanout admin notifications for a freshly-submitted plan-change
+    request. Each active admin gets one `NotificationEvent` keyed
+    against the case so the admin notification center can group
+    them. Subscriber-targeted energy events (battery / phase /
+    surplus) are NOT created here — those are emitted elsewhere
+    and the admin center filter is responsible for keeping them
+    out of admin view (v81 Part 3)."""
+    if not case:
+        return []
+    admin_ids = _admin_user_ids()
+    if not admin_ids:
+        return []
+    requester_label = ''
+    if requester is not None:
+        requester_label = (
+            getattr(requester, 'full_name', None)
+            or getattr(requester, 'username', None)
+            or f'user #{getattr(requester, "id", "")}'
+        )
+    target_label = _plan_label(target_plan)
+    title = f'طلب تغيير خطة — {requester_label}'.strip()
+    message = f'طلب تغيير الخطة إلى {target_label}.'
+    # Idempotency: dedup against any unread admin event for the same
+    # case so a subscriber-side re-render doesn't spam the queue.
+    existing = NotificationEvent.query.filter_by(
+        event_type=_PLAN_CHANGE_ADMIN_EVENT_TYPE,
+        source_type=_PLAN_CHANGE_SOURCE_TYPE,
+        source_id=case.id,
+        is_read=False,
+    ).all()
+    already_notified = {ev.target_user_id for ev in existing if ev.target_user_id is not None}
+    out: list[NotificationEvent] = []
+    now = datetime.utcnow()
+    for admin_id in admin_ids:
+        if admin_id in already_notified:
+            continue
+        ev = NotificationEvent(
+            event_type=_PLAN_CHANGE_ADMIN_EVENT_TYPE,
+            target_user_id=admin_id,
+            tenant_id=getattr(case, 'tenant_id', None),
+            source_type=_PLAN_CHANGE_SOURCE_TYPE,
+            source_id=case.id,
+            title=title,
+            message=message,
+            direct_url='#',  # link is computed lazily by support_ops._safe_direct_url_for_user
+            status='new',
+            created_at=now,
+        )
+        db.session.add(ev)
+        out.append(ev)
+    if commit and out:
+        db.session.commit()
+    return out
+
+
+def extract_plan_change_target_plan(case: SupportCase) -> SubscriptionPlan | None:
+    """Best-effort recovery of the target plan from the case subject.
+
+    The subscriber-side route writes a subject like
+    "طلب تغيير الخطة إلى <name_ar> — <optional note>". We match the
+    target plan by exact name across the catalog so the admin
+    workflow can present the recommended diff without a schema
+    change. A subscriber-side note that contains an em-dash would
+    confuse a regex split; we just take the candidate as everything
+    after "إلى " up to the first em-dash or end-of-string.
+    """
+    if not case or not case.subject:
+        return None
+    subject = str(case.subject).strip()
+    marker = 'إلى '
+    if marker not in subject:
+        return None
+    tail = subject.split(marker, 1)[1].strip()
+    # Strip an optional " — note" tail.
+    if ' — ' in tail:
+        tail = tail.split(' — ', 1)[0].strip()
+    candidate = tail
+    if not candidate:
+        return None
+    plan = (
+        SubscriptionPlan.query.filter_by(name_ar=candidate).first()
+        or SubscriptionPlan.query.filter_by(name_en=candidate).first()
+        or SubscriptionPlan.query.filter_by(code=candidate).first()
+    )
+    return plan
+
+
+def compute_plan_change_quote(case: SupportCase, *, target_plan: SubscriptionPlan | None = None, now: datetime | None = None) -> dict:
+    """Compute the prorated price diff for a plan-change request.
+
+    Policy (kept transparent so the admin UI can show every input):
+      * `remaining_days` = days from now to `sub.ends_at`, floor 0.
+      * `current_remaining_value` = (remaining_days / current cycle
+        days) × current plan price.
+      * `target_remaining_value` = (remaining_days / target plan
+        duration_days_default) × target plan price.
+      * `extra_charge` = target_remaining_value - current_remaining_value.
+        Positive → subscriber owes more; negative → tenant gets a
+        wallet credit; zero (within 0.01) → no ledger entry.
+
+    Returns a dict that's safe for both template rendering and
+    ledger-writing.
+    """
+    now = now or datetime.utcnow()
+    out = {
+        'remaining_days': 0,
+        'current_plan': None,
+        'target_plan': target_plan or extract_plan_change_target_plan(case),
+        'current_plan_price': 0.0,
+        'target_plan_price': 0.0,
+        'current_remaining_value': 0.0,
+        'target_remaining_value': 0.0,
+        'extra_charge': 0.0,
+        'currency': 'USD',
+        'subscription': None,
+        'cycle_days_current': 0,
+        'cycle_days_target': 0,
+    }
+    tenant = TenantAccount.query.get(getattr(case, 'tenant_id', None)) if getattr(case, 'tenant_id', None) else None
+    sub = None
+    if tenant:
+        sub = (
+            TenantSubscription.query.filter_by(tenant_id=tenant.id)
+            .order_by(TenantSubscription.created_at.desc())
+            .first()
+        )
+        out['subscription'] = sub
+        if sub and sub.plan_id:
+            out['current_plan'] = SubscriptionPlan.query.get(sub.plan_id)
+    current_plan = out['current_plan']
+    target = out['target_plan']
+    out['current_plan_price'] = float(getattr(current_plan, 'price', 0) or 0)
+    out['target_plan_price'] = float(getattr(target, 'price', 0) or 0)
+    out['currency'] = (
+        getattr(target, 'currency', None)
+        or getattr(current_plan, 'currency', None)
+        or 'USD'
+    )
+    # Remaining days clamp.
+    remaining_days = 0
+    if sub and sub.ends_at:
+        delta = (sub.ends_at.date() - now.date()).days
+        remaining_days = max(int(delta), 0)
+    out['remaining_days'] = remaining_days
+    # Current cycle length. Prefer the actual `ends_at - starts_at`
+    # when both are present, else fall back to the plan's
+    # `duration_days_default`. Floor at 1 so the divide is safe.
+    cycle_current = 0
+    if sub and sub.starts_at and sub.ends_at:
+        cycle_current = max(
+            (sub.ends_at.date() - sub.starts_at.date()).days, 0,
+        )
+    if cycle_current <= 0 and current_plan:
+        cycle_current = int(getattr(current_plan, 'duration_days_default', 30) or 30)
+    cycle_current = max(cycle_current, 1)
+    out['cycle_days_current'] = cycle_current
+    cycle_target = int(getattr(target, 'duration_days_default', 30) or 30) if target else 30
+    cycle_target = max(cycle_target, 1)
+    out['cycle_days_target'] = cycle_target
+    # Pro-rated values.
+    if remaining_days > 0 and current_plan:
+        out['current_remaining_value'] = round(
+            (remaining_days / cycle_current) * out['current_plan_price'], 2,
+        )
+    if remaining_days > 0 and target:
+        out['target_remaining_value'] = round(
+            (remaining_days / cycle_target) * out['target_plan_price'], 2,
+        )
+    out['extra_charge'] = round(
+        out['target_remaining_value'] - out['current_remaining_value'], 2,
+    )
+    return out
+
+
+def apply_plan_change_request(case: SupportCase, *, actor_user_id: int | None, target_plan: SubscriptionPlan | None = None, now: datetime | None = None, commit: bool = True) -> dict:
+    """Apply an approved plan-change request.
+
+    Switches the tenant's `plan_id` and updates / writes a
+    `TenantSubscription` row anchored to the existing `ends_at` so
+    the subscriber doesn't lose paid time. Records the diff as a
+    single explicit `WalletLedger` entry (debit if extra charge,
+    credit if refund) and notifies the subscriber. Returns the
+    quote dict augmented with the resulting case status.
+    """
+    if not case:
+        return {}
+    now = now or datetime.utcnow()
+    target = target_plan or extract_plan_change_target_plan(case)
+    quote = compute_plan_change_quote(case, target_plan=target, now=now)
+    target = quote['target_plan']
+    tenant = TenantAccount.query.get(getattr(case, 'tenant_id', None)) if getattr(case, 'tenant_id', None) else None
+    sub = quote['subscription']
+    if tenant and target:
+        tenant.plan_id = target.id
+        tenant.status = 'active'
+        if sub:
+            sub.plan_id = target.id
+            sub.status = 'active'
+            sub.updated_at = now
+        # Reset plan-derived quotas to the new plan; preserves manual
+        # overrides because `apply_plan_quotas_to_tenant` only touches
+        # `source='plan'` rows.
+        try:
+            from .quota_engine import apply_plan_quotas_to_tenant
+            apply_plan_quotas_to_tenant(tenant, target, commit=False)
+        except Exception:
+            pass
+    # Ledger entry for the diff.
+    extra = float(quote.get('extra_charge') or 0)
+    ledger_entry = None
+    if tenant and target and abs(extra) >= 0.01:
+        entry_type = 'debit' if extra > 0 else 'credit'
+        ledger_entry = WalletLedger(
+            tenant_id=tenant.id,
+            actor_user_id=actor_user_id,
+            entry_type=entry_type,
+            amount=round(abs(extra), 2),
+            currency=quote['currency'],
+            note=(
+                f'Plan change applied: {_plan_label(quote.get("current_plan"))} → '
+                f'{_plan_label(target)} ({quote.get("remaining_days", 0)} day(s) remaining)'
+            ),
+            reference=f'PCH-{tenant.id}-{case.id}',
+            category=_PLAN_CHANGE_LEDGER_CATEGORY,
+            is_recurring=False,
+        )
+        db.session.add(ledger_entry)
+    quote['ledger_entry'] = ledger_entry
+    # Mark case resolved.
+    case.status = 'resolved'
+    case.updated_at = now
+    case.is_frozen = True
+    # Subscriber outcome notification.
+    if case.user_id:
+        notify_user(
+            target_user_id=int(case.user_id),
+            event_type=_PLAN_CHANGE_APPLIED_EVENT_TYPE,
+            source_type=_PLAN_CHANGE_SOURCE_TYPE,
+            source_id=case.id,
+            tenant_id=getattr(case, 'tenant_id', None),
+            title='تم تطبيق طلب تغيير الخطة',
+            message=(
+                f'تم تحويل اشتراكك إلى {_plan_label(target)}. '
+                f'الفرق المسجّل: {extra:.2f} {quote["currency"]}.'
+                if abs(extra) >= 0.01
+                else f'تم تحويل اشتراكك إلى {_plan_label(target)}.'
+            ),
+            direct_url='/account/subscription',
+            status='new',
+            commit=False,
+        )
+    audit_case(
+        case.case_type, case.source_id, actor_user_id,
+        'plan_change.apply',
+        f'Approved plan change → {_plan_label(target)}',
+        details={
+            'target_plan_id': getattr(target, 'id', None),
+            'remaining_days': quote.get('remaining_days'),
+            'extra_charge': extra,
+            'currency': quote.get('currency'),
+        },
+        commit=False,
+    )
+    if commit:
+        db.session.commit()
+    quote['case_status'] = case.status
+    return quote
+
+
+def reject_plan_change_request(case: SupportCase, *, actor_user_id: int | None, reason: str = '', now: datetime | None = None, commit: bool = True) -> dict:
+    """Reject a plan-change request: close the case, notify the
+    subscriber, write an audit row. No subscription mutation, no
+    ledger entry."""
+    if not case:
+        return {}
+    now = now or datetime.utcnow()
+    case.status = 'closed'
+    case.is_frozen = True
+    case.updated_at = now
+    if case.user_id:
+        notify_user(
+            target_user_id=int(case.user_id),
+            event_type=_PLAN_CHANGE_REJECTED_EVENT_TYPE,
+            source_type=_PLAN_CHANGE_SOURCE_TYPE,
+            source_id=case.id,
+            tenant_id=getattr(case, 'tenant_id', None),
+            title='تعذّر تطبيق طلب تغيير الخطة',
+            message=(
+                ('لم تتم الموافقة على الطلب. ' + reason).strip()
+                if reason else 'لم تتم الموافقة على طلب تغيير الخطة.'
+            ),
+            direct_url='/account/subscription',
+            status='new',
+            commit=False,
+        )
+    audit_case(
+        case.case_type, case.source_id, actor_user_id,
+        'plan_change.reject',
+        f'Rejected plan change ({reason or "no reason given"})',
+        details={'reason': reason},
+        commit=False,
+    )
+    if commit:
+        db.session.commit()
+    return {'case_status': case.status, 'reason': reason}
+
+
+# v81: stable vocabularies for the admin notification center filter
+# (see notifications_routes._aggregated_notification_groups). Defined
+# here so any future event type joins one canonical list.
+ADMIN_RELEVANT_EVENT_TYPES = frozenset({
+    'support',
+    _PLAN_CHANGE_ADMIN_EVENT_TYPE,
+    _PLAN_CHANGE_APPLIED_EVENT_TYPE,
+    _PLAN_CHANGE_REJECTED_EVENT_TYPE,
+})
+ADMIN_RELEVANT_SOURCE_TYPES = frozenset({
+    'message',
+    'mail',
+    'internal_mail',
+    'thread',
+    'conversation',
+    'ticket',
+    'support_ticket',
+    _PLAN_CHANGE_SOURCE_TYPE,
+})

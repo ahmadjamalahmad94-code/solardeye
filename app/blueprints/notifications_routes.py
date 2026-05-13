@@ -478,10 +478,29 @@ def _aggregated_notification_groups(limit=200, include_archived=True):
     user = _active_user()
     if not user:
         return [], {}, []
-    # Admin / staff see ALL platform notifications so they can dispatch to the team.
-    # Subscribers only see notifications targeted at them personally.
+    # v81: admin / staff used to see EVERY `NotificationEvent` row,
+    # which meant subscriber-facing energy alerts (battery, phase,
+    # surplus) flooded the admin notification center and buried real
+    # operational work items. We now filter admin views to:
+    #   * events explicitly targeted at this admin user
+    #     (target_user_id == user.id), AND
+    #   * platform-wide admin-actionable types (support cases +
+    #     plan-change request workflow).
+    # Subscribers continue to see only events targeted at them
+    # personally — their view is unchanged.
     if _is_admin_like(user):
-        q = NotificationEvent.query
+        from sqlalchemy import or_ as _or_
+        from ..services.support_ops import (
+            ADMIN_RELEVANT_EVENT_TYPES,
+            ADMIN_RELEVANT_SOURCE_TYPES,
+        )
+        q = NotificationEvent.query.filter(
+            _or_(
+                NotificationEvent.target_user_id == user.id,
+                NotificationEvent.event_type.in_(tuple(ADMIN_RELEVANT_EVENT_TYPES)),
+                NotificationEvent.source_type.in_(tuple(ADMIN_RELEVANT_SOURCE_TYPES)),
+            )
+        )
     else:
         q = NotificationEvent.query.filter_by(target_user_id=user.id)
     rows = q.order_by(NotificationEvent.created_at.desc(), NotificationEvent.id.desc()).limit(limit or 300).all()
