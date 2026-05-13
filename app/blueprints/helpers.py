@@ -508,6 +508,11 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'mode_label': 'ثابتة',
         'charge_power_w': 0.0,
         'discharge_power_w': 0.0,
+        # v93l — keep the new fields present even on the empty
+        # path so consumers (mobile_api, web templates) don't
+        # crash on a missing key.
+        'external_ac_input_w': 0.0,
+        'feed_in_w': 0.0,
     }
     if not latest:
         return empty
@@ -519,12 +524,30 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
 
     charge_power_w = 0.0
     discharge_power_w = 0.0
+    # v93l — instantaneous AC-IN power (grid OR generator). The
+    # Deye hybrid inverter exposes a single bidirectional AC-IN
+    # channel as `gridPowerSigned`; we project the import side
+    # (negative grid_power → power coming IN) into a positive
+    # number so the UI can show it as "إدخال خارجي".
+    external_ac_input_w = 0.0
+    feed_in_w = 0.0
     if latest.raw_json:
         try:
             raw = json.loads(latest.raw_json)
             derived = raw.get('derived', {}) if isinstance(raw, dict) else {}
             charge_power_w = abs(safe_power_w(derived.get('chargePower'), 0.0))
             discharge_power_w = abs(safe_power_w(derived.get('dischargePower'), 0.0))
+            # purchasePower / feedInPower are already projected by
+            # the Deye client. Fall back to gridPowerSigned for older
+            # raw shapes.
+            external_ac_input_w = abs(safe_power_w(derived.get('purchasePower'), 0.0))
+            feed_in_w = abs(safe_power_w(derived.get('feedInPower'), 0.0))
+            if external_ac_input_w <= 0 and feed_in_w <= 0:
+                gps = safe_power_w(derived.get('gridPowerSigned'), 0.0)
+                if gps < 0:
+                    external_ac_input_w = abs(gps)
+                elif gps > 0:
+                    feed_in_w = abs(gps)
         except Exception:
             pass
 
@@ -539,21 +562,47 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
             discharge_power_w = abs(battery_power)
 
     mode_label = 'ثابتة'
+    # v93l — "غير متاح" was misleading: it implied the inverter
+    # failed to report the value, when in reality the battery is
+    # actively discharging (so a "time to full" is meaningless).
+    # We now surface the active state instead so the user sees
+    # what is actually happening.
     charge_eta = 'غير متاح'
     discharge_eta = 'غير متاح'
     if charge_power_w > 0 and discharge_power_w <= 0:
         mode_label = 'يتم الشحن'
         charge_eta = human_duration_hours(remaining_to_full_kwh / (charge_power_w / 1000) if charge_power_w else None)
+        discharge_eta = 'البطارية تشحن الآن'
     elif discharge_power_w > 0 and charge_power_w <= 0:
         mode_label = 'يتم التفريغ'
         discharge_eta = human_duration_hours(usable_now_kwh / (discharge_power_w / 1000) if discharge_power_w else None)
+        # v93l — when discharging, the "battery full" card now
+        # explains the state instead of saying "غير متاح". If the
+        # user has an external AC source running (generator or
+        # grid) we mention it so they understand why the battery
+        # still isn't charging despite the input.
+        if external_ac_input_w > 0:
+            charge_eta = 'وضع التفريغ نشط — يوجد إدخال خارجي'
+        else:
+            charge_eta = 'البطارية في وضع التفريغ'
     elif charge_power_w > 0 and discharge_power_w > 0:
         if charge_power_w >= discharge_power_w:
             mode_label = 'يتم الشحن'
             charge_eta = human_duration_hours(remaining_to_full_kwh / (charge_power_w / 1000))
+            discharge_eta = 'البطارية تشحن الآن'
         else:
             mode_label = 'يتم التفريغ'
             discharge_eta = human_duration_hours(usable_now_kwh / (discharge_power_w / 1000))
+            charge_eta = (
+                'وضع التفريغ نشط — يوجد إدخال خارجي'
+                if external_ac_input_w > 0
+                else 'البطارية في وضع التفريغ'
+            )
+    else:
+        # Truly idle — no measurable charge or discharge flow.
+        if external_ac_input_w > 0:
+            charge_eta = 'لا يوجد شحن نشط — يوجد إدخال خارجي'
+            mode_label = 'ثابتة — إدخال خارجي'
 
     return {
         'capacity_kwh': round(battery_capacity_kwh, 2),
@@ -567,6 +616,13 @@ def build_battery_insights(latest: Reading | None, battery_capacity_kwh: float, 
         'mode_label': mode_label,
         'charge_power_w': round(abs(charge_power_w), 1),
         'discharge_power_w': round(abs(discharge_power_w), 1),
+        # v93l — surface AC-IN flow so the UI can show "إدخال
+        # خارجي (شبكة/مولد): X W". The Deye API does not
+        # distinguish utility vs generator on residential
+        # hybrids; both share the AC-IN port. The "external"
+        # label keeps the wording accurate either way.
+        'external_ac_input_w': round(external_ac_input_w, 1),
+        'feed_in_w': round(feed_in_w, 1),
     }
 
 
