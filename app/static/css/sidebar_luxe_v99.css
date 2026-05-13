@@ -1,0 +1,283 @@
+/* ────────────────────────────────────────────────────────────────────
+   sidebar_luxe_v99.css — v99d luxury glassmorphism overlay for the
+   v11 sidebar. Loaded AFTER sidebar_rebuild_v11.css in base.html so
+   these rules win on specificity ties via explicit !important.
+
+   Goals (per owner brief): "بدنا السايد بار احترافي زجاجي بارز كانه
+   تطبيق فخم". Translate:
+     * deeper / richer gradient backdrop with cyan-tinted top glow
+     * frosted-glass blur behind the panel
+     * hairline gold highlight at the inner-right edge (the seam
+       between sidebar and main content) — same trick high-end UIs
+       use to suggest "glass over glow"
+     * nav items: full-saturation indigo→violet gradient pill when
+       active, with an exterior glow + inner top-edge highlight
+     * inactive items: subtle hover ripple + tonal lift
+     * sidebar drop shadow: two layers (close + ambient) so the
+       sidebar feels lifted off the main content
+   ──────────────────────────────────────────────────────────────────── */
+
+html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11 {
+  /* Two-layer drop shadow projects the sidebar over the content. */
+  box-shadow:
+    4px 0 0 rgba(96, 165, 250, 0.18),          /* hairline glow on inner edge */
+    18px 0 40px rgba(8, 23, 47, 0.45),         /* close lift */
+    36px 0 80px rgba(8, 23, 47, 0.25) !important;  /* diffuse ambient */
+
+  /* Richer multi-stop gradient: midnight at the bottom, lit cyan
+     halo behind the brand/user block at the top. */
+  background:
+    radial-gradient(360px circle at 18% -2%, rgba(56, 189, 248, 0.30), transparent 60%),
+    radial-gradient(220px circle at 90% 110%, rgba(124, 58, 237, 0.20), transparent 55%),
+    linear-gradient(180deg,
+      #0A1428 0%,
+      #0E1F45 30%,
+      #112A5E 65%,
+      #0B1A3D 100%) !important;
+
+  /* Inner glass effect: a frosty wash behind the gradient. */
+  backdrop-filter: blur(14px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+
+  /* Inner top-edge specular highlight via pseudo-element. */
+  position: relative !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11::before {
+  /* Top inner highlight — 1-px sheen line under the top edge. */
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 1px !important;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(186, 230, 253, 0.55) 35%,
+    rgba(186, 230, 253, 0.85) 50%,
+    rgba(186, 230, 253, 0.55) 65%,
+    rgba(255, 255, 255, 0) 100%) !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+}
+
+html body.heavy-v100 .app-shell.has-layout-sidebar > .sd-sidebar-v11::after {
+  /* Right inner-edge accent (the seam between sidebar and main). */
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  width: 1px !important;
+  background: linear-gradient(180deg,
+    rgba(96, 165, 250, 0.30) 0%,
+    rgba(96, 165, 250, 0.55) 50%,
+    rgba(96, 165, 250, 0.30) 100%) !important;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.30) !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+}
+
+/* User badge / brand area — frosted-glass card */
+html body.heavy-v100 .sd-user-v11,
+html body.heavy-v100 .sd-sidebar-head-v11 .sd-user-v11 {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.04) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 16px !important;
+  padding: 10px 12px !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),     /* top inner sheen */
+    0 6px 14px rgba(0, 0, 0, 0.18) !important;
+}
+
+html body.heavy-v100 .sd-avatar-v11 {
+  /* Avatar: gradient ring + ambient glow */
+  background: linear-gradient(135deg, #38BDF8 0%, #6366F1 100%) !important;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(99, 102, 241, 0.55) !important;
+  border-radius: 12px !important;
+  font-weight: 900 !important;
+}
+
+/* Hamburger / collapse button */
+html body.heavy-v100 .sd-menu-btn-v11 {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.06) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    0 4px 10px rgba(0, 0, 0, 0.25) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+}
+
+html body.heavy-v100 .sd-menu-btn-v11:hover {
+  transform: translateY(-1px) !important;
+  background: linear-gradient(135deg,
+    rgba(96, 165, 250, 0.28) 0%,
+    rgba(99, 102, 241, 0.18) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    0 8px 18px rgba(99, 102, 241, 0.40) !important;
+}
+
+/* Language switcher pill */
+html body.heavy-v100 .sd-lang-v11 {
+  background: rgba(15, 26, 56, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-radius: 999px !important;
+  padding: 3px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.40) !important;
+}
+
+html body.heavy-v100 .sd-lang-v11 a {
+  border-radius: 999px !important;
+  transition: all 0.15s ease !important;
+}
+
+html body.heavy-v100 .sd-lang-v11 a.active {
+  background: linear-gradient(135deg, #6366F1 0%, #4338CA 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 4px 10px rgba(99, 102, 241, 0.45) !important;
+}
+
+/* Group headings */
+html body.heavy-v100 .sd-group-title-v11 {
+  padding: 4px 10px !important;
+  margin: 4px 0 2px 0 !important;
+}
+
+html body.heavy-v100 .sd-group-title-v11 span {
+  color: rgba(186, 230, 253, 0.65) !important;
+  font-weight: 800 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 1.4px !important;
+  text-transform: uppercase !important;
+}
+
+/* Nav items — base (inactive) */
+html body.heavy-v100 .sd-nav-item-v11 {
+  border-radius: 12px !important;
+  margin: 2px 0 !important;
+  padding: 8px 11px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #d8e3ff !important;
+  transition: background 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease, border-color 0.18s ease !important;
+  position: relative !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11:hover {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  transform: translateX(-2px) !important;       /* RTL: feels like "lift toward content" */
+  box-shadow: 0 4px 10px rgba(8, 23, 47, 0.35) !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11 .sd-nav-icon-v11 svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) !important;
+}
+
+/* Active nav item — full luxury treatment */
+html body.heavy-v100 .sd-nav-item-v11.active {
+  background: linear-gradient(135deg,
+    #38BDF8 0%,
+    #6366F1 50%,
+    #4338CA 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.30) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),         /* top sheen */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),              /* bottom shadow */
+    0 6px 16px rgba(99, 102, 241, 0.55),             /* indigo glow */
+    0 12px 30px rgba(56, 189, 248, 0.20) !important; /* cyan diffuse */
+  transform: translateY(-1px) !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11.active .sd-nav-icon-v11 svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)) !important;
+}
+
+html body.heavy-v100 .sd-nav-item-v11.active .sd-nav-text-v11 {
+  font-weight: 900 !important;
+}
+
+/* Notification badge on nav items */
+html body.heavy-v100 .sd-nav-badge-v11 {
+  background: linear-gradient(135deg, #F87171 0%, #DC2626 100%) !important;
+  color: #ffffff !important;
+  border-radius: 999px !important;
+  padding: 1px 8px !important;
+  font-weight: 900 !important;
+  font-size: 10.5px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    0 3px 8px rgba(220, 38, 38, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Logout button at the bottom */
+html body.heavy-v100 .sd-logout-v11 {
+  background: linear-gradient(135deg,
+    rgba(248, 113, 113, 0.18) 0%,
+    rgba(220, 38, 38, 0.10) 100%) !important;
+  border: 1px solid rgba(248, 113, 113, 0.30) !important;
+  color: #fecaca !important;
+  border-radius: 14px !important;
+  padding: 10px 12px !important;
+  font-weight: 900 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 6px 14px rgba(220, 38, 38, 0.20) !important;
+  transition: all 0.18s ease !important;
+  width: 100% !important;
+}
+
+html body.heavy-v100 .sd-logout-v11:hover {
+  background: linear-gradient(135deg,
+    rgba(248, 113, 113, 0.32) 0%,
+    rgba(220, 38, 38, 0.22) 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    0 10px 22px rgba(220, 38, 38, 0.40) !important;
+}
+
+/* Collapsed (icon-only) state — keep the active glow bright + small */
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-item-v11 {
+  padding: 10px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-item-v11 .sd-nav-text-v11 {
+  display: none !important;
+}
+
+html body.heavy-v100.sd-sidebar-collapsed-v21 .sd-nav-item-v11.active {
+  /* Slightly tighter glow on collapsed icons so each pill reads
+     clearly without bleeding into its neighbour. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 4px 10px rgba(99, 102, 241, 0.55),
+    0 8px 18px rgba(56, 189, 248, 0.18) !important;
+}
+
+/* Sidebar footer — give it a faint top divider so the logout block
+   reads as a distinct group. */
+html body.heavy-v100 .sd-sidebar-footer-v11 {
+  border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+  padding-top: 10px !important;
+  margin-top: 6px !important;
+}

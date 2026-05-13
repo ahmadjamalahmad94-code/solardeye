@@ -23,6 +23,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/subscriber_console_v32.css', v='v32-subscriber-console-unified-multidevice') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/clock_weather_widget_v1.css', v='v33-mu-profile-clock-weather-bar') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/hero_unified_v35.css', v='v35-hero-bg-visible') }}">
+  {# v99d — luxury glassmorphism overlay for the sidebar. Loaded
+     LAST so its rules win on specificity. #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_luxe_v99.css', v='v99d-sidebar-luxe') }}">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="theme-saas saas-only heavy-v70 heavy-v71 heavy-v72 heavy-v721 heavy-v80 heavy-v90 heavy-v100 no-global-utility-bar {% if account_preview_restricted %}account-preview-v107{% endif %}" data-lang="{{ ui_lang or 'ar' }}" data-account-restricted="{{ '1' if account_preview_restricted else '0' }}" data-restricted-message="{{ account_preview_message|e }}" data-csrf-token="{{ csrf_token() if session.get('logged_in') or request.endpoint in ['auth.login','auth.register'] else '' }}" data-user-tz="{{ cwx_user_timezone or '' }}" data-user-city="{{ cwx_user_city or '' }}" data-user-country="{{ cwx_user_country or '' }}">
