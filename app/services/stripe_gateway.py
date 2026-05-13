@@ -544,9 +544,28 @@ def create_invoice_checkout_session(
             locale=stripe_locale,
         )
     except Exception as exc:
+        # v92c — capture Stripe's actual error message + offending
+        # parameter so the next failure pinpoints the real cause
+        # instead of just naming the exception class. Stripe's
+        # `InvalidRequestError` carries `user_message`, `param`,
+        # `code`, and `request_id` attributes — we surface all of
+        # them when present.
+        detail_parts = [f'err_class={type(exc).__name__}']
+        for attr in ('user_message', 'param', 'code', 'request_id'):
+            value = getattr(exc, attr, None)
+            if value:
+                detail_parts.append(f'{attr}={value!r}')
+        raw_message = str(exc) or ''
+        if raw_message:
+            detail_parts.append(f'message={raw_message[:200]!r}')
+        # Also log the resolved locale we sent so we can confirm at
+        # a glance whether the v92b fix actually took effect.
+        detail_parts.append(f'sent_locale={stripe_locale!r}')
+        detail_parts.append(f'currency={currency.lower()!r}')
+        detail_parts.append(f'unit_amount={unit_amount!r}')
         logger.warning(
-            'stripe_invoice_checkout_failed err_class=%s',
-            type(exc).__name__,
+            'stripe_invoice_checkout_failed %s',
+            ' '.join(detail_parts),
         )
         raise
     return {
