@@ -416,10 +416,25 @@ def _agg_norm_source_type(value):
 
 
 def _agg_group_key(ev):
+    """v93c — group key for the notification aggregator.
+
+    Previously: `{kind}-{source_id}` — which merged ALL events for
+    the same case into a single row. That made sense for support
+    conversations (one ticket = one row, regardless of how many
+    replies), but it COLLAPSED plan-change events: a case had a
+    `request_received` + `invoice_issued` + `invoice_settled` +
+    `applied` chain — 4 distinct user-facing events — but the
+    aggregator showed only one combined row.
+
+    Now: only support conversations (`message` / `ticket`) get
+    grouped by source_id. Every other event_type renders as its own
+    row so the subscriber + admin actually see the whole flow.
+    """
     kind = _agg_norm_source_type(getattr(ev, 'source_type', None) or getattr(ev, 'event_type', None))
     source_id = getattr(ev, 'source_id', None)
-    if source_id:
+    if kind in {'message', 'ticket'} and source_id:
         return f'{kind}-{int(source_id)}'
+    # Every system/plan-change/etc. event becomes its own row.
     return f'event-{getattr(ev, "id", 0)}'
 
 
