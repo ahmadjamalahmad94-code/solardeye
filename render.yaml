@@ -42,6 +42,17 @@ services:
         value: false
       - key: GOOGLE_DRIVE_BACKUP_FOLDER_ID
         value: ""
+      # v101 — Firebase Cloud Messaging (push notifications).
+      # The actual service-account JSON must be added in the Render
+      # dashboard as a Secret File named
+      # ``firebase-service-account.json`` (Render mounts it at
+      # /etc/secrets/<filename>). It is NOT defined here because
+      # render.yaml lives in git and the JSON is a private
+      # cryptographic credential.
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: /etc/secrets/firebase-service-account.json
+      - key: PUSH_ENABLED
+        value: true
       - key: DATABASE_URL
         fromDatabase:
           name: solardeye-db

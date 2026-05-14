@@ -649,11 +649,32 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
     event_key = _build_device_dedup_key(event_key, _user_id, _device_id)
     if dedupe_minutes > 0 and notification_exists(event_key, dedupe_minutes):
         return
-    for channel in (['telegram', 'sms'] if channel_pref == 'both' else [channel_pref]):
+    # v101: push as opt-in channel. 'all' fans out to telegram + sms +
+    # push (mirrors the existing 'both' shape). 'push' alone is a
+    # one-channel send. The default rule channel set in
+    # ``default_notification_rules()`` is unchanged — push only fires
+    # when a user explicitly sets a rule to 'push' or 'all'.
+    if channel_pref == 'both':
+        channels = ['telegram', 'sms']
+    elif channel_pref == 'all':
+        channels = ['telegram', 'sms', 'push']
+    else:
+        channels = [channel_pref]
+    for channel in channels:
         if channel == 'telegram':
             ok, resp = send_telegram_message(settings, title, message)
         elif channel == 'sms':
             ok, resp = send_sms_message(settings, title, message)
+        elif channel == 'push':
+            # Local import keeps this module importable even when
+            # firebase-admin is not installed (e.g. immediately after
+            # a requirements bump but before pip has run on the host).
+            from ..services.push_dispatch import send_push_to_user
+            sent, failed = send_push_to_user(
+                user_id=_user_id, title=title, body=message,
+            )
+            ok = sent > 0
+            resp = f'sent={sent} failed={failed}'
         else:
             continue
         log_notification(event_key + ':' + channel, rule_name, title, message, channel, 'success' if ok else 'danger', resp, force=True)

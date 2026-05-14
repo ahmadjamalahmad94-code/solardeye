@@ -8,6 +8,15 @@ client_secret_*.json
 *.p12
 *.pfx
 
+# v101 — Firebase Cloud Messaging service-account credentials.
+# Anyone holding this JSON can push notifications to every install
+# of the app. It must NEVER enter the repo. The actual file lives
+# outside the project on dev machines and is mounted via Render
+# Secret File in production.
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+firebase-service-account*.json
+
 # Python/runtime
 __pycache__/
 *.py[cod]

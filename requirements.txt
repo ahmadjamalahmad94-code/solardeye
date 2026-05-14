@@ -11,3 +11,4 @@ psycopg2-binary==2.9.9
 google-api-python-client==2.134.0
 google-auth==2.32.0
 stripe
+firebase-admin==6.6.0
