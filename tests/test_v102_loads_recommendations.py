@@ -186,14 +186,44 @@ def test_r5_warning_level_essentials_override_when_surplus_short():
     )
     by_id = {item['load_id']: item for item in out['items']}
     # priority 1: 200 W × 1.8 = 360 W, surplus 1000 ≥ 360 → allowed
+    # via the surplus branch (no override needed).
     assert by_id[10]['allowed'] is True
-    # priority 2: 1200 W × 1.8 = 2160 W, surplus 640 W remaining
-    # after the fridge consumed 200 → 640 < 2160 → denied (NOT
+    # priority 2: 1200 W × 1.8 = 2160 W, surplus 800 W remaining
+    # after the fridge consumed 200 → 800 < 2160 → denied (NOT
     # essential, so no override).
     assert by_id[11]['allowed'] is False
     # priority 3: 2500 W × 1.8 = 4500 W, surplus much less → denied
     assert by_id[12]['allowed'] is False
     assert out['decision']['level'] == 'warning'
+
+
+def test_r5b_essentials_override_capped_by_power_at_warning():
+    """v10.5.36 — even an essential load (priority=1) gets denied
+    when its power_w exceeds the warning-level cap (200 W). This
+    is the fix for the "everything allowed" data-state problem
+    when an owner classifies every load as priority=1."""
+    from app.services.loads_recommendations import build_loads_recommendations
+    loads = [
+        # essential + tiny → overrides through despite no surplus.
+        _fake_load(load_id=20, name='شاشة', power_w=40, priority=1),
+        # essential + huge → DENIED because power exceeds 200 W cap.
+        _fake_load(load_id=21, name='قلاية هوائية', power_w=1600, priority=1),
+    ]
+    out = build_loads_recommendations(
+        enabled_loads=loads,
+        advice_dict=_advice(
+            status_label='🟠 احذر',
+            predicted_next_hour_surplus=0.0,  # zero surplus
+        ),
+        scope_mode='device',
+        scope_device_id=1,
+        generated_at='2026-05-14T12:00:00',
+    )
+    by_id = {item['load_id']: item for item in out['items']}
+    assert by_id[20]['allowed'] is True
+    assert 'أساسي خفيف' in by_id[20]['reason']
+    assert by_id[21]['allowed'] is False
+    assert 'لا يكفي' in by_id[21]['reason']
 
 
 # ── R6 — reading_unavailable envelope ─────────────────────────────

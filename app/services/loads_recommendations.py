@@ -46,9 +46,27 @@ HEADROOM_BY_LEVEL: dict[str, float] = {
 }
 
 # Essential cutoff. Priority values at or below this are treated
-# as must-run (non-critical levels grant them an override even
-# when surplus is insufficient).
+# as must-run (non-critical levels MAY grant them an override
+# when surplus is insufficient — gated by ESSENTIALS_POWER_CAP_W
+# so a 2 kW "essential" doesn't slip through on a low-battery day).
 ESSENTIAL_PRIORITY_THRESHOLD: int = 1
+
+# v10.5.36 — power-aware essentials override.
+#
+# First on-device run revealed that owners often classify every
+# load as `priority=1` (a UX wart in the loads-management screen,
+# not the algorithm's fault). With the unconditional override
+# from v10.5.35 the result was "all 17 loads allowed" — useless
+# for the mobile cards.
+#
+# The override now ALSO requires `power_w <= ESSENTIALS_POWER_CAP_W[level]`,
+# so a 30 W fan still gets the override but a 1600 W air fryer
+# does not. The cap tightens with system stress.
+ESSENTIALS_POWER_CAP_W: dict[str, float] = {
+    'good': 2000.0,
+    'caution': 500.0,
+    'warning': 200.0,
+}
 
 
 def _safe_power_w(load) -> float:
@@ -261,11 +279,16 @@ def build_loads_recommendations(
             ))
             remaining_w -= power_w
         else:
-            if priority <= ESSENTIAL_PRIORITY_THRESHOLD:
+            power_cap = ESSENTIALS_POWER_CAP_W.get(level, 0.0)
+            is_essential = (
+                priority <= ESSENTIAL_PRIORITY_THRESHOLD
+                and power_w <= power_cap
+            )
+            if is_essential:
                 items.append(_load_to_dict(
                     load,
                     allowed=True,
-                    reason='حمل أساسي — مسموح رغم محدودية الفائض',
+                    reason='حمل أساسي خفيف — مسموح رغم محدودية الفائض',
                 ))
             else:
                 items.append(_load_to_dict(
