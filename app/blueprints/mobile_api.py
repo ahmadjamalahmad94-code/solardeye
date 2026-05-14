@@ -145,7 +145,7 @@ _MOBILE_LOAD_TOGGLE_ALLOWED_METHODS = {'POST'}
 _MOBILE_NOTIFICATION_READ_ALLOWED_METHODS = {'POST'}
 _SAFE_DEVICE_SETTING_KEYS = {'battery_capacity_kwh', 'battery_reserve_percent'}
 _MOBILE_LOAD_ALLOWED_FIELDS = {'name', 'power_w', 'wattage', 'watts', 'power', 'priority', 'device_id', 'is_enabled', 'enabled'}
-_MOBILE_NOTIFICATION_CHANNEL_VALUES = {'telegram', 'sms', 'both', 'none', 'disabled', ''}
+_MOBILE_NOTIFICATION_CHANNEL_VALUES = {'telegram', 'sms', 'both', 'none', 'disabled', '', 'push', 'all'}
 _MOBILE_ACCOUNT_ALLOWED_FIELDS = {
     'full_name',
     'email',
@@ -811,6 +811,15 @@ def _mobile_channels_status(settings: dict) -> dict:
     sms_url = bool((settings.get('sms_api_url') or '').strip())
     sms_key = bool((settings.get('sms_api_key') or '').strip())
     sms_recipients = bool((settings.get('sms_recipients') or '').strip())
+    # v101 Phase D — push channel status. `enabled` reflects the
+    # owner-controlled `push_enabled` master toggle; `configured` is
+    # true when at least one MobilePushToken row exists for the
+    # current user (i.e. the mobile app has actually registered).
+    # `_current_user_id_for_settings` is a thin shim that returns the
+    # bearer-authenticated user id and is None for global/admin
+    # contexts — in that case we conservatively report not-configured.
+    push_master = _setting_bool(settings.get('push_enabled'))
+    push_token_count = _mobile_push_token_count_for_request()
     return {
         'telegram': {
             'enabled': _setting_bool(settings.get('telegram_enabled')),
@@ -827,7 +836,31 @@ def _mobile_channels_status(settings: dict) -> dict:
             'has_recipients': sms_recipients,
             'sender_configured': bool((settings.get('sms_sender') or '').strip()),
         },
+        'push': {
+            'enabled': push_master,
+            'configured': push_token_count > 0,
+            'token_count': push_token_count,
+        },
     }
+
+
+def _mobile_push_token_count_for_request() -> int:
+    """Count the active MobilePushToken rows for the bearer user.
+
+    Returns 0 outside a bearer-auth context (admin endpoints, tests
+    without a session). Failures are swallowed: the channels payload
+    must never blow up because of an opportunistic count.
+    """
+    try:
+        from ..models import MobilePushToken
+        user = user_from_bearer_or_session()
+        if user is None:
+            return 0
+        return MobilePushToken.query.filter_by(
+            user_id=user.id, is_active=True,
+        ).count()
+    except Exception:
+        return 0
 
 
 def _mobile_notification_settings_payload() -> dict:
@@ -841,7 +874,9 @@ def _mobile_notification_settings_payload() -> dict:
         'channels': _mobile_channels_status(settings),
         'sections': _mobile_notification_sections_payload(settings),
         'rules': _mobile_notification_rules_payload(settings),
-        'supported_channel_values': ['telegram', 'sms', 'both', 'none'],
+        # v101 Phase D — 'push' and 'all' are valid channel values now.
+        # Defaults are unchanged; the user must opt in explicitly.
+        'supported_channel_values': ['telegram', 'sms', 'both', 'none', 'push', 'all'],
         'read_only': False,
     })
 

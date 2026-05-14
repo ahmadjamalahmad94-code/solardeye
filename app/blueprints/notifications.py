@@ -81,7 +81,12 @@ def load_notification_rules(settings: dict | None = None) -> dict:
 NOTIFICATION_SECTION_FIELDS = {
     'general': {
         'text': [],
-        'checkbox': ['notifications_enabled'],
+        # v101 Phase D — `push_enabled` is the master switch surfaced
+        # in the mobile Settings screen. When ON, every rule that
+        # would fire on Telegram / SMS / both also fires a push, so
+        # the user gets one toggle to opt every existing rule into
+        # push without per-rule edits. Defaults to OFF.
+        'checkbox': ['notifications_enabled', 'push_enabled'],
     },
     'periodic_day': {
         'text': [
@@ -670,14 +675,52 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
             # firebase-admin is not installed (e.g. immediately after
             # a requirements bump but before pip has run on the host).
             from ..services.push_dispatch import send_push_to_user
+            # v101 Phase D — attach the event_type to the FCM data
+            # payload so the mobile push_overlay can deep-link the
+            # tap into the natural destination (battery_status →
+            # Battery Lab, weather_alert → Weather, …). Keep the
+            # payload string-only as FCM requires.
+            push_event_type = event_type_for_dispatch_key(event_key) or ''
             sent, failed = send_push_to_user(
-                user_id=_user_id, title=title, body=message,
+                user_id=_user_id,
+                title=title,
+                body=message,
+                data={'event_type': push_event_type} if push_event_type else None,
             )
             ok = sent > 0
             resp = f'sent={sent} failed={failed}'
         else:
             continue
         log_notification(event_key + ':' + channel, rule_name, title, message, channel, 'success' if ok else 'danger', resp, force=True)
+    # v101 Phase D — additive push fan-out.
+    #
+    # When the user has flipped the "Push notifications" master toggle
+    # ON in Settings (`push_enabled=true`) and this dispatch entered
+    # the loop (i.e. channel_pref is NOT 'none'), ALSO send a push to
+    # every active token belonging to the user. This is the opt-in
+    # path: the user gets one toggle that effectively adds push to
+    # every rule, without forcing them to flip every per-rule
+    # `channel_pref` from 'telegram' to 'all'.
+    #
+    # If `'push'` was already in the dispatched channels (e.g. the
+    # rule's channel_pref is explicitly 'push' or 'all') we skip the
+    # additive pass to avoid double-sending and double-logging.
+    push_master_raw = (settings.get('push_enabled') if isinstance(settings, dict) else None) or ''
+    push_master = str(push_master_raw).strip().lower() in ('true', '1', 'yes', 'on')
+    if push_master and 'push' not in channels:
+        from ..services.push_dispatch import send_push_to_user
+        push_event_type = event_type_for_dispatch_key(event_key) or ''
+        sent, failed = send_push_to_user(
+            user_id=_user_id,
+            title=title,
+            body=message,
+            data={'event_type': push_event_type} if push_event_type else None,
+        )
+        log_notification(
+            event_key + ':push', rule_name, title, message, 'push',
+            'success' if sent > 0 else 'danger',
+            f'sent={sent} failed={failed} (additive)', force=True,
+        )
     # v43: mirror this already-decided energy/load/solar/weather event
     # into the mobile Notification Center exactly once per logical event
     # (after the channel loop, not per channel). The dispatch dedup gate
