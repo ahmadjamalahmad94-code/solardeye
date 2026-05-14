@@ -2728,20 +2728,21 @@ def mobile_load_toggle(load_id: int):
 
 @mobile_core_api_bp.get('/loads/recommendations')
 def mobile_load_recommendations():
-    """Heavy v10.5.35 — Loads Recommendations live endpoint.
+    """Heavy v10.5.37 — Loads Recommendations, web-aligned source.
 
-    Replaces the v10.5.x `mobile_recommendations_deferred` stub
-    with real per-load allow/deny decisions derived from the
-    existing `smart_engine` output (the same function the web
-    dashboard renders). The decision is computed at request time
-    by `app.services.loads_recommendations.build_loads_recommendations`
-    — no DB column was added, no mobile heuristic was introduced,
-    no mock data.
+    Replaces the v10.5.36 internal algorithm (priority + headroom +
+    essentials override + predicted_next_hour_surplus from
+    smart_engine) with a direct call into the web's authoritative
+    helper ``_smart_load_suggestions(latest, settings)`` in
+    ``app/blueprints/main.py``. The mobile is now a THIN CLIENT
+    over the exact same function the dashboard template at
+    ``app/templates/dashboard.html`` renders — same actual surplus
+    math (``compute_actual_solar_surplus``), same day/night phase
+    resolver, same `power_w ≤ safe_available` decision rule.
 
-    Owner-scoped per `_mobile_loads_query`. When `device_id` is
-    supplied, recommendations are computed against THAT device's
-    latest reading + weather + smart-engine output. When not
-    supplied, the first owned active device is used.
+    Outcome: the mobile cannot disagree with the dashboard on
+    "مسموح / يفضل تأجيلها" because there is no parallel logic to
+    drift apart.
     """
     user, err = _require_bearer_user()
     if err:
@@ -2753,9 +2754,9 @@ def mobile_load_recommendations():
 
     generated_at = datetime.utcnow().isoformat()
 
-    # Resolve the device we run the smart_engine against. When the
-    # caller didn't pin one, fall back to the user's first owned
-    # active device — same as `/dashboard` / `/insights` resolution.
+    # Resolve the device we run the helper against. When the caller
+    # didn't pin one, fall back to the user's first owned active
+    # device — same as `/dashboard` / `/insights` resolution.
     target_device = device
     if target_device is None:
         target_device = (
@@ -2765,20 +2766,15 @@ def mobile_load_recommendations():
             .first()
         )
 
-    # Build the scope envelope. `mode='device'` when a specific
-    # device was either supplied or resolved, otherwise `'all'`
-    # with a null device_id.
     scope_mode = 'device' if target_device is not None else 'all'
     scope_device_id = getattr(target_device, 'id', None)
 
-    # No target device → degrade honestly. The user might have no
-    # devices yet, or all of them are inactive.
+    from ..services.loads_recommendations import transform_loads_suggestions
+
     if target_device is None:
-        from ..services.loads_recommendations import build_loads_recommendations
         return api_ok(
-            build_loads_recommendations(
-                enabled_loads=[],
-                advice_dict=None,
+            transform_loads_suggestions(
+                web_result={},
                 scope_mode=scope_mode,
                 scope_device_id=None,
                 generated_at=generated_at,
@@ -2789,15 +2785,6 @@ def mobile_load_recommendations():
             meta={'api_version': 'v1', 'namespace': 'api/mobile'},
         )
 
-    # Pull the inputs the smart engine needs (latest reading +
-    # weather + settings). Mirrors `device_insights` in
-    # `mobile_devices_api.py` — same helpers, same unavailable
-    # branching.
-    from ..blueprints.mobile_devices_api import _extract_station_coords
-    from ..services.weather_service import fetch_weather
-    from ..blueprints.smart_engine import build_smart_energy_advice
-    from ..services.loads_recommendations import build_loads_recommendations
-
     latest = (
         Reading.query
         .filter_by(device_id=target_device.id)
@@ -2806,9 +2793,8 @@ def mobile_load_recommendations():
     )
     if latest is None:
         return api_ok(
-            build_loads_recommendations(
-                enabled_loads=[],
-                advice_dict=None,
+            transform_loads_suggestions(
+                web_result={},
                 scope_mode=scope_mode,
                 scope_device_id=scope_device_id,
                 generated_at=generated_at,
@@ -2819,67 +2805,31 @@ def mobile_load_recommendations():
             meta={'api_version': 'v1', 'namespace': 'api/mobile'},
         )
 
-    lat, lng = _extract_station_coords(latest)
-    if lat is None or lng is None:
-        return api_ok(
-            build_loads_recommendations(
-                enabled_loads=[],
-                advice_dict=None,
-                scope_mode=scope_mode,
-                scope_device_id=scope_device_id,
-                generated_at=generated_at,
-                available=False,
-                reason='station_coords_unavailable',
-                message='Weather-dependent recommendations are not available for this device yet.',
-            ),
-            meta={'api_version': 'v1', 'namespace': 'api/mobile'},
-        )
+    # Bind scope so `_serialize_loads`'s `scoped_query` filters by
+    # the bearer-authenticated user + selected device. Restore on
+    # the way out — same shape as `device_insights` /
+    # `mobile_battery_lab`.
+    from ..blueprints.main import _smart_load_suggestions
 
-    tz_name = (target_device.timezone or current_app.config.get('LOCAL_TIMEZONE') or 'UTC')
-    try:
-        weather_snapshot = fetch_weather(lat, lng, tz_name)
-    except Exception:
-        weather_snapshot = None
-    if weather_snapshot is None:
-        return api_ok(
-            build_loads_recommendations(
-                enabled_loads=[],
-                advice_dict=None,
-                scope_mode=scope_mode,
-                scope_device_id=scope_device_id,
-                generated_at=generated_at,
-                available=False,
-                reason='weather_unreachable',
-                message='Weather service could not be reached right now.',
-            ),
-            meta={'api_version': 'v1', 'namespace': 'api/mobile'},
-        )
-
-    # Bind scope so smart_engine's snapshot-save targets the
-    # correct device/user. Restore on the way out — same shape as
-    # `device_insights`.
     prev_user = getattr(g, 'current_user', None)
     prev_device = getattr(g, 'current_device', None)
     g.current_user = user
     g.current_device = target_device
     try:
         settings = load_settings()
-        advice_dict = build_smart_energy_advice(
-            latest,
-            weather=weather_snapshot,
-            settings=settings,
-            context='periodic_day',
-        )
+        # `_smart_load_suggestions` fetches weather internally via
+        # `get_weather_for_latest(latest)` and degrades gracefully
+        # when weather isn't reachable (falls back to night-mode
+        # math). No need for the mobile to do its own weather
+        # fetch + branch.
+        web_result = _smart_load_suggestions(latest, settings)
     finally:
         g.current_user = prev_user
         g.current_device = prev_device
 
-    enabled_loads = list(query.filter_by(is_enabled=True).all())
-
     return api_ok(
-        build_loads_recommendations(
-            enabled_loads=enabled_loads,
-            advice_dict=advice_dict,
+        transform_loads_suggestions(
+            web_result=web_result,
             scope_mode=scope_mode,
             scope_device_id=scope_device_id,
             generated_at=generated_at,

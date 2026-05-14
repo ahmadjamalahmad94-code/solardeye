@@ -1,242 +1,199 @@
-"""Heavy v10.5.35 — Loads Recommendations unit tests.
+"""Heavy v10.5.37 — Loads Recommendations transformer tests.
 
-Covers `app/services/loads_recommendations.py` as a pure function
-(no DB, no Flask context) plus the endpoint-registration smoke
-test. Decision logic mirrors `docs/LOADS_BACKEND_SPEC.md` §3.2.
+The mobile endpoint is now a thin wrapper over the web's
+``_smart_load_suggestions`` helper (single source of truth).
+This module's algorithm is therefore a TRANSFORMER: given a web
+result dict, shape it into the mobile envelope.
+
+The tests exercise the transformer in isolation by feeding it
+synthetic web-result dicts that mimic the keys
+``_smart_load_suggestions`` actually emits (see main.py:597-616).
 
 Cases:
-  R1 — no loads + good level → empty items, totals zero.
-  R2 — critical level → every load denied with the same reason.
-  R3 — unknown level → only priority<=1 essentials allowed.
-  R4 — good level, surplus 3000 W, three loads → all allowed
-       in priority order; remaining_w shrinks correctly.
-  R5 — warning level, surplus 1000 W → essentials (priority<=1)
-       override; mid-priority denied because headroom 1.8x
-       blows past surplus.
-  R6 — reading_unavailable envelope is shaped honestly.
-  R7 — `predicted_next_hour_surplus` is None → treated as 0 W;
-       non-essentials denied.
-  R8 — endpoint path is registered (smoke).
+  T1 — happy path, day, mixed can_run/hold.
+  T2 — day phase, no can_run, hold-only with zero safe_available
+       (the "all hold" scenario the owner reported).
+  T3 — night phase, hold-only — level resolves to 'caution', not
+       'warning'.
+  T4 — no enabled loads at all → items=[], decision.level=unknown.
+  T5 — `available=false, reason='reading_unavailable'` envelope.
+  T6 — surplus block carries the four headline metrics
+       (safe / raw / battery / actual + phase + night_max).
+  T7 — totals correctly split watts across the two buckets.
+  T8 — endpoint is registered and references the new transformer.
 """
 from __future__ import annotations
 
 import os
 import sys
-from types import SimpleNamespace
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 
-# ── helpers ───────────────────────────────────────────────────────
+def _web(**overrides):
+    """Synthetic web-result. Mirrors the keys main.py:597-616
+    emits — keep this in sync if `_smart_load_suggestions`'s
+    output shape ever changes."""
+    base = {
+        'available_w': 0.0,
+        'safe_available_w': 0.0,
+        'actual_surplus_w': 0.0,
+        'raw_surplus_w': 0.0,
+        'battery_charge_need_w': 0.0,
+        'battery_soc': 0.0,
+        'can_run': [],
+        'hold': [],
+        'headline_ar': '',
+        'headline_en': '',
+        'mode_ar': '',
+        'mode_en': '',
+        'phase': 'day',
+        'night_max_w': 500.0,
+        'surplus_note_ar': '',
+        'surplus_note_en': '',
+    }
+    base.update(overrides)
+    return base
 
 
-def _fake_load(*, load_id: int, name: str, power_w: float, priority: int):
-    """SimpleNamespace fixture matching the columns
-    `build_loads_recommendations` reads from a UserLoad row."""
-    return SimpleNamespace(
-        id=load_id, name=name, power_w=power_w, priority=priority,
-    )
-
-
-def _advice(*, status_label: str = '🟢 مطمئن',
-            smart_warning: str = '',
-            smart_recommendation: str = '',
-            decision_now: str = '',
-            predicted_next_hour_surplus=None,
-            confidence_band: str = 'medium') -> dict:
+def _load(*, id_: int, name: str, power_w: float, priority: int = 1):
     return {
-        'status_label': status_label,
-        'smart_warning': smart_warning,
-        'smart_recommendation': smart_recommendation,
-        'decision_now': decision_now,
-        'predicted_next_hour_surplus': predicted_next_hour_surplus,
-        'confidence_band': confidence_band,
+        'id': id_,
+        'name': name,
+        'power_w': power_w,
+        'priority': priority,
     }
 
 
-# ── R1 — no loads ─────────────────────────────────────────────────
+# ── T1 — happy path, day, mixed ──────────────────────────────────
 
 
-def test_r1_no_loads_returns_empty_items_and_zero_totals():
-    from app.services.loads_recommendations import build_loads_recommendations
-    out = build_loads_recommendations(
-        enabled_loads=[],
-        advice_dict=_advice(predicted_next_hour_surplus=3.0),
+def test_t1_day_mixed_can_run_and_hold():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=300,
+        raw_surplus_w=1200,
+        battery_charge_need_w=900,
+        actual_surplus_w=300,
+        phase='day',
+        headline_ar='يمكنك الآن تشغيل: ثلاجة',
+        mode_ar='يعتمد الاقتراح الآن على الفائض الشمسي الفعلي',
+        can_run=[_load(id_=1, name='ثلاجة', power_w=200)],
+        hold=[_load(id_=2, name='فرن', power_w=2500)],
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
         scope_mode='device',
         scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
+        generated_at='2026-05-14T15:00:00',
     )
     assert out['available'] is True
-    assert out['items'] == []
-    assert out['totals'] == {
-        'enabled_load_count': 0,
-        'allowed_count': 0,
-        'denied_count': 0,
-        'allowed_power_w': 0.0,
-        'denied_power_w': 0.0,
-    }
     assert out['decision']['level'] == 'good'
-
-
-# ── R2 — critical denies every load ──────────────────────────────
-
-
-def test_r2_critical_level_denies_all_loads_with_unified_reason():
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        _fake_load(load_id=10, name='ثلاجة', power_w=200, priority=1),
-        _fake_load(load_id=11, name='فرن', power_w=2500, priority=3),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='🔴 حرج',
-            predicted_next_hour_surplus=5.0,  # ignored at critical
-        ),
-        scope_mode='device',
-        scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
-    )
-    assert out['decision']['level'] == 'critical'
-    assert all(item['allowed'] is False for item in out['items'])
-    assert all('الحالة حرجة' in item['reason'] for item in out['items'])
-    assert out['totals']['allowed_count'] == 0
-    assert out['totals']['denied_count'] == 2
-
-
-# ── R3 — unknown level — only essentials run ─────────────────────
-
-
-def test_r3_unknown_level_allows_only_essentials():
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        _fake_load(load_id=10, name='ثلاجة', power_w=200, priority=1),
-        _fake_load(load_id=11, name='غسالة', power_w=1200, priority=3),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='⚪ غير محدد',
-            predicted_next_hour_surplus=None,
-        ),
-        scope_mode='device',
-        scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
-    )
-    assert out['decision']['level'] == 'unknown'
-    by_id = {item['load_id']: item for item in out['items']}
-    assert by_id[10]['allowed'] is True
-    assert 'حمل أساسي' in by_id[10]['reason']
-    assert by_id[11]['allowed'] is False
-    assert 'القرار غير محدد' in by_id[11]['reason']
-
-
-# ── R4 — good level, surplus 3000 W, three loads ─────────────────
-
-
-def test_r4_good_level_surplus_eats_loads_in_priority_order():
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        _fake_load(load_id=10, name='ثلاجة', power_w=500, priority=1),
-        _fake_load(load_id=11, name='غسالة', power_w=1200, priority=2),
-        _fake_load(load_id=12, name='فرن', power_w=2500, priority=3),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='🟢 مطمئن',
-            predicted_next_hour_surplus=3.0,  # 3 kW = 3000 W
-        ),
-        scope_mode='device',
-        scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
-    )
-    by_id = {item['load_id']: item for item in out['items']}
-    # priority 1 + 2 fit (500 + 1200 = 1700 W); priority 3 needs
-    # 2500 W but only 1300 W remains → denied.
-    assert by_id[10]['allowed'] is True
-    assert by_id[11]['allowed'] is True
-    assert by_id[12]['allowed'] is False
-    assert out['totals']['allowed_count'] == 2
+    assert out['decision']['headline'] == 'يمكنك الآن تشغيل: ثلاجة'
+    by_id = {it['load_id']: it for it in out['items']}
+    assert by_id[1]['allowed'] is True
+    assert 'الفائض الفعلي يكفي' in by_id[1]['reason']
+    assert by_id[2]['allowed'] is False
+    assert 'الفائض الفعلي لا يكفي' in by_id[2]['reason']
+    assert out['totals']['allowed_count'] == 1
     assert out['totals']['denied_count'] == 1
 
 
-# ── R5 — warning level, surplus 1000 W, essentials override ──────
+# ── T2 — day, zero surplus, hold-only (owner's reported scenario)
 
 
-def test_r5_warning_level_essentials_override_when_surplus_short():
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        _fake_load(load_id=10, name='ثلاجة', power_w=200, priority=1),
-        _fake_load(load_id=11, name='غسالة', power_w=1200, priority=2),
-        _fake_load(load_id=12, name='فرن', power_w=2500, priority=3),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='🟠 احذر',
-            smart_warning='البطارية منخفضة',
-            predicted_next_hour_surplus=1.0,  # 1 kW = 1000 W
-        ),
+def test_t2_day_zero_surplus_hold_only_level_warning():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=0.0,
+        raw_surplus_w=0.0,
+        battery_charge_need_w=210.9,
+        actual_surplus_w=0.0,
+        phase='day',
+        headline_ar='يفضل تأجيل تشغيل الأحمال الإضافية الآن',
+        mode_ar='يعتمد الاقتراح الآن على الفائض الشمسي الفعلي',
+        can_run=[],
+        hold=[
+            _load(id_=1, name='ثلاجة', power_w=200),
+            _load(id_=2, name='قلاية', power_w=1600),
+        ],
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
         scope_mode='device',
         scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
+        generated_at='2026-05-14T15:00:00',
     )
-    by_id = {item['load_id']: item for item in out['items']}
-    # priority 1: 200 W × 1.8 = 360 W, surplus 1000 ≥ 360 → allowed
-    # via the surplus branch (no override needed).
-    assert by_id[10]['allowed'] is True
-    # priority 2: 1200 W × 1.8 = 2160 W, surplus 800 W remaining
-    # after the fridge consumed 200 → 800 < 2160 → denied (NOT
-    # essential, so no override).
-    assert by_id[11]['allowed'] is False
-    # priority 3: 2500 W × 1.8 = 4500 W, surplus much less → denied
-    assert by_id[12]['allowed'] is False
+    # Even a "small" essential load is denied — the web's algorithm
+    # is `power_w ≤ safe_available` and safe_available is 0.
     assert out['decision']['level'] == 'warning'
+    assert out['totals']['allowed_count'] == 0
+    assert out['totals']['denied_count'] == 2
+    assert all(it['allowed'] is False for it in out['items'])
+    assert 'يفضل تأجيل' in out['decision']['headline']
 
 
-def test_r5b_essentials_override_capped_by_power_at_warning():
-    """v10.5.36 — even an essential load (priority=1) gets denied
-    when its power_w exceeds the warning-level cap (200 W). This
-    is the fix for the "everything allowed" data-state problem
-    when an owner classifies every load as priority=1."""
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        # essential + tiny → overrides through despite no surplus.
-        _fake_load(load_id=20, name='شاشة', power_w=40, priority=1),
-        # essential + huge → DENIED because power exceeds 200 W cap.
-        _fake_load(load_id=21, name='قلاية هوائية', power_w=1600, priority=1),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='🟠 احذر',
-            predicted_next_hour_surplus=0.0,  # zero surplus
-        ),
+# ── T3 — night, hold-only, level=caution not warning ─────────────
+
+
+def test_t3_night_phase_hold_only_level_caution():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=0.0,
+        phase='night',
+        headline_ar='يفضل تأجيل تشغيل الأحمال الإضافية الآن',
+        mode_ar='ليلًا: الحد المعتمد 500 واط',
+        can_run=[],
+        hold=[_load(id_=1, name='ثلاجة', power_w=200)],
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
         scope_mode='device',
         scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
+        generated_at='2026-05-14T22:00:00',
     )
-    by_id = {item['load_id']: item for item in out['items']}
-    assert by_id[20]['allowed'] is True
-    assert 'أساسي خفيف' in by_id[20]['reason']
-    assert by_id[21]['allowed'] is False
-    assert 'لا يكفي' in by_id[21]['reason']
+    # Night with nothing runnable stays at 'caution' — we don't
+    # raise to 'warning' because lack of solar at night is
+    # expected and not an alert state.
+    assert out['decision']['level'] == 'caution'
+    assert out['items'][0]['allowed'] is False
+    assert 'الحد الليلي' in out['items'][0]['reason']
 
 
-# ── R6 — reading_unavailable envelope ─────────────────────────────
+# ── T4 — no enabled loads ───────────────────────────────────────
 
 
-def test_r6_reading_unavailable_envelope_is_honest():
-    from app.services.loads_recommendations import build_loads_recommendations
-    out = build_loads_recommendations(
-        enabled_loads=[],
-        advice_dict=None,
+def test_t4_no_loads_neutral_state():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=500.0,
+        can_run=[],
+        hold=[],
+        phase='day',
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
+        scope_mode='device',
+        scope_device_id=1,
+        generated_at='2026-05-14T15:00:00',
+    )
+    assert out['items'] == []
+    assert out['decision']['level'] == 'unknown'
+    assert out['totals']['enabled_load_count'] == 0
+
+
+# ── T5 — reading_unavailable envelope ────────────────────────────
+
+
+def test_t5_reading_unavailable_envelope():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    out = transform_loads_suggestions(
+        web_result={},
         scope_mode='device',
         scope_device_id=7,
-        generated_at='2026-05-14T12:00:00',
+        generated_at='2026-05-14T15:00:00',
         available=False,
         reason='reading_unavailable',
         message='No recent reading is available for this device yet.',
@@ -245,44 +202,77 @@ def test_r6_reading_unavailable_envelope_is_honest():
     assert out['reason'] == 'reading_unavailable'
     assert out['items'] == []
     assert out['decision'] is None
-    assert out['scope']['device_id'] == 7
     assert out['totals']['enabled_load_count'] == 0
 
 
-# ── R7 — surplus None → treated as 0 W ────────────────────────────
+# ── T6 — surplus block carries headline metrics ──────────────────
 
 
-def test_r7_none_surplus_treated_as_zero():
-    from app.services.loads_recommendations import build_loads_recommendations
-    loads = [
-        _fake_load(load_id=10, name='ثلاجة', power_w=200, priority=1),
-        _fake_load(load_id=11, name='غسالة', power_w=1200, priority=2),
-    ]
-    out = build_loads_recommendations(
-        enabled_loads=loads,
-        advice_dict=_advice(
-            status_label='🟡 ابقَ منتبهاً',
-            predicted_next_hour_surplus=None,
-        ),
+def test_t6_surplus_block_is_complete():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=300.0,
+        raw_surplus_w=1200.0,
+        battery_charge_need_w=900.0,
+        actual_surplus_w=300.0,
+        phase='day',
+        night_max_w=500.0,
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
         scope_mode='device',
         scope_device_id=1,
-        generated_at='2026-05-14T12:00:00',
+        generated_at='2026-05-14T15:00:00',
     )
-    by_id = {item['load_id']: item for item in out['items']}
-    # Essential allowed via override; non-essential denied (0 W
-    # surplus < anything).
-    assert by_id[10]['allowed'] is True
-    assert by_id[11]['allowed'] is False
-    assert out['decision']['level'] == 'caution'
+    assert out['surplus'] == {
+        'safe_available_w': 300.0,
+        'raw_w': 1200.0,
+        'battery_need_w': 900.0,
+        'actual_w': 300.0,
+        'phase': 'day',
+        'night_max_w': 500.0,
+    }
 
 
-# ── R8 — endpoint path is registered ──────────────────────────────
+# ── T7 — totals split watts across buckets ───────────────────────
 
 
-def test_r8_endpoint_path_is_registered_under_mobile_blueprint():
+def test_t7_totals_split_watts():
+    from app.services.loads_recommendations import transform_loads_suggestions
+    web = _web(
+        safe_available_w=400.0,
+        phase='day',
+        can_run=[
+            _load(id_=1, name='ثلاجة', power_w=200),
+            _load(id_=2, name='شاشة', power_w=40),
+        ],
+        hold=[
+            _load(id_=3, name='فرن', power_w=2500),
+            _load(id_=4, name='قلاية', power_w=1600),
+        ],
+    )
+    out = transform_loads_suggestions(
+        web_result=web,
+        scope_mode='device',
+        scope_device_id=1,
+        generated_at='2026-05-14T15:00:00',
+    )
+    assert out['totals']['allowed_count'] == 2
+    assert out['totals']['denied_count'] == 2
+    assert out['totals']['allowed_power_w'] == 240.0
+    assert out['totals']['denied_power_w'] == 4100.0
+
+
+# ── T8 — endpoint references the transformer ─────────────────────
+
+
+def test_t8_endpoint_references_transformer():
     from app.blueprints import mobile_api as mod
     handler = getattr(mod, 'mobile_load_recommendations', None)
     assert handler is not None
-    src = handler.__doc__ or ''
-    # Cheap sanity check that we replaced the stub, not preserved it.
-    assert 'live endpoint' in src or 'real per-load' in src or 'v10.5.35' in src
+    import inspect
+    src = inspect.getsource(handler)
+    # The new endpoint calls into the web helper directly + uses
+    # the transformer. Both references must be present.
+    assert '_smart_load_suggestions' in src
+    assert 'transform_loads_suggestions' in src
