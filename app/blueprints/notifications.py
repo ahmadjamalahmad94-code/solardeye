@@ -687,8 +687,16 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
                 body=message,
                 data={'event_type': push_event_type} if push_event_type else None,
             )
-            ok = sent > 0
-            resp = f'sent={sent} failed={failed}'
+            # v101 Phase D refinement — distinguish "no recipients"
+            # (sent=0 failed=0 → user simply has no active tokens, or
+            # this fired from a no-scope admin context) from a real
+            # send failure. (0,0) is a no-op, not a danger.
+            if sent == 0 and failed == 0:
+                ok = True
+                resp = 'no active tokens — skipped'
+            else:
+                ok = sent > 0
+                resp = f'sent={sent} failed={failed}'
         else:
             continue
         log_notification(event_key + ':' + channel, rule_name, title, message, channel, 'success' if ok else 'danger', resp, force=True)
@@ -716,11 +724,18 @@ def dispatch_notification(settings, event_key, rule_name, title, message, channe
             body=message,
             data={'event_type': push_event_type} if push_event_type else None,
         )
-        log_notification(
-            event_key + ':push', rule_name, title, message, 'push',
-            'success' if sent > 0 else 'danger',
-            f'sent={sent} failed={failed} (additive)', force=True,
-        )
+        # v101 Phase D refinement — only write a NotificationLog row
+        # when something actually happened. (0,0) means "no active
+        # tokens for this user" (e.g. they haven't installed the
+        # mobile app yet, or this rule fired in a no-scope admin
+        # context); silencing the log here keeps the audit trail
+        # honest and avoids spamming `status=failed` rows.
+        if sent > 0 or failed > 0:
+            log_notification(
+                event_key + ':push', rule_name, title, message, 'push',
+                'success' if sent > 0 else 'danger',
+                f'sent={sent} failed={failed} (additive)', force=True,
+            )
     # v43: mirror this already-decided energy/load/solar/weather event
     # into the mobile Notification Center exactly once per logical event
     # (after the channel loop, not per channel). The dispatch dedup gate
