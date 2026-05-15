@@ -474,10 +474,35 @@ class DeyeClient:
         return stations[0] if isinstance(stations[0], dict) else {}
 
     def _handle(self, response: requests.Response) -> dict:
+        # v102d-fix — every Deye API call ticks the quota monitor.
+        # HTTP 429 OR a Deye-specific rate-limit error code marks the
+        # day as exhausted so the 100% notification fires immediately
+        # without waiting for our local counter to catch up (Deye's
+        # quota is shared across the app key, so other clients +
+        # background jobs may have already burned through the day).
         try:
             data = response.json()
         except Exception as e:
+            try:
+                from .api_quota_monitor import API_DEYE, record_call
+                record_call(API_DEYE, success=False, exhausted=(response.status_code == 429))
+            except Exception:
+                pass
             raise DeyeAPIError(f'رد غير JSON. HTTP {response.status_code}') from e
+        try:
+            from .api_quota_monitor import API_DEYE, record_call
+            code_raw = str(data.get('code', '')) if isinstance(data, dict) else ''
+            # Deye marks rate-limit errors with codes like 1004013 /
+            # 1004014 ("API call frequency too high"). The string-prefix
+            # check covers the family without a brittle exact-match list.
+            is_quota = (
+                response.status_code == 429
+                or code_raw.startswith('100401')
+                or 'frequency' in (data.get('msg', '') or '').lower()
+            )
+            record_call(API_DEYE, success=response.ok, exhausted=is_quota)
+        except Exception:
+            pass
         if not response.ok:
             raise DeyeAPIError(f'HTTP {response.status_code}: {data}')
         code = str(data.get('code', '')) if isinstance(data, dict) else ''

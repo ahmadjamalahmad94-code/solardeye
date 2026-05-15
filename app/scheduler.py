@@ -395,6 +395,16 @@ def start_scheduler(app) -> BackgroundScheduler:
             'fn_path': 'app.services.backup_service.scheduled_backup_job',
             'trigger': CronTrigger(hour=2, minute=15, timezone=timezone_name),
         },
+        # v102d-fix — daily smart suggestion. Fires once at 07:30
+        # local so the subscriber wakes up to one actionable card in
+        # the Notifications "اقتراحات ذكية" bucket. The helper is
+        # idempotent per device per day, so an accidental misfire or
+        # a manual re-run during the day is a safe no-op.
+        {
+            'id': 'daily_smart_suggestions',
+            'fn_path': 'app.services.smart_suggestions.send_daily_smart_suggestions',
+            'trigger': CronTrigger(hour=7, minute=30, timezone=timezone_name),
+        },
     ]
 
     if app.config.get('AUTO_SYNC_ENABLED', True):

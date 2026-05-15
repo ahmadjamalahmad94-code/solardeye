@@ -194,7 +194,28 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         'forecast_days': 2,
         'timezone': timezone,
     }
-    r = requests.get(url, params=params, timeout=20)
+    # v102d-fix — every Open-Meteo call (success or failure) ticks the
+    # quota monitor so subscribers get a heads-up notification when
+    # we approach / hit the daily ceiling. HTTP 429 (or anything 5xx
+    # accompanied by the rate-limit error string Open-Meteo returns)
+    # is treated as `exhausted=True` so the 100% notification fires
+    # immediately even when our local counter is below the cap (the
+    # limit is shared across whoever else is calling the same IP).
+    try:
+        r = requests.get(url, params=params, timeout=20)
+    except Exception:
+        try:
+            from .api_quota_monitor import API_OPEN_METEO, record_call
+            record_call(API_OPEN_METEO, success=False)
+        except Exception:
+            pass
+        raise
+    try:
+        from .api_quota_monitor import API_OPEN_METEO, record_call
+        is_429 = r.status_code == 429
+        record_call(API_OPEN_METEO, success=r.ok, exhausted=is_429)
+    except Exception:
+        pass
     r.raise_for_status()
     data = r.json()
 

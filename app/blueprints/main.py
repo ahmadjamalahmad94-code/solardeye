@@ -764,6 +764,15 @@ def sync_now_internal(trigger='manual'):
         process_notifications(reading, previous)
     except Exception as notify_exc:
         log_event('warning', f'تعذر تنفيذ الإشعارات: {notify_exc}')
+    # v102d-fix — proactive solar-surplus suggestion (one per device
+    # per day). The helper short-circuits when the reading doesn't
+    # qualify or the suggestion already fired today, so this is a
+    # cheap guard to keep at the tail of every successful sync.
+    try:
+        from ..services.smart_suggestions import maybe_emit_surplus_suggestion
+        maybe_emit_surplus_suggestion(reading)
+    except Exception as surplus_exc:
+        log_event('warning', f'تعذر إصدار اقتراح الفائض الشمسي: {surplus_exc}')
     if trigger == 'manual':
         log_event('success', 'تمت مزامنة قراءة جديدة بنجاح', {'provider': provider_code, 'reading_id': reading.id})
     else:
