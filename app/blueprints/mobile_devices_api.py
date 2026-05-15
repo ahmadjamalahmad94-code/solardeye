@@ -336,6 +336,17 @@ def device_statistics(device_id: int):
     # existing web `_get_stats_context` helper: local-time start/end,
     # tzinfo stripped before the DB filter (Reading.created_at is a
     # naive `DateTime` column populated in local time).
+    #
+    # v102d-fix — owners reported the chart staying empty in the early
+    # hours of a fresh local day even though readings had already
+    # arrived. Root cause: when the device tz and the stored timestamps
+    # don't perfectly agree (e.g. DB rows landing in UTC because a
+    # cron worker used `datetime.utcnow()` while the timezone-aware
+    # path uses local), the strict naive-window query trims the late
+    # evening / early morning rows that *do* belong to the target day
+    # under `same_local_day`. We widen the SQL window by ±1 day and
+    # let `filter_rows_for_view` (which already uses `same_local_day`)
+    # do the precise tz-aware day boundary.
     if view == 'day':
         start = selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end = start + timedelta(days=1)
@@ -344,12 +355,14 @@ def device_statistics(device_id: int):
         end = (start + timedelta(days=32)).replace(day=1)
     start_naive = start.replace(tzinfo=None) if start.tzinfo else start
     end_naive = end.replace(tzinfo=None) if end.tzinfo else end
+    query_start = start_naive - timedelta(days=1)
+    query_end = end_naive + timedelta(days=1)
 
     max_rows = current_app.config.get('MAX_READINGS_QUERY', 2000)
     ordered = (
         Reading.query
         .filter_by(device_id=dev.id)
-        .filter(Reading.created_at >= start_naive, Reading.created_at < end_naive)
+        .filter(Reading.created_at >= query_start, Reading.created_at < query_end)
         .order_by(Reading.created_at.asc())
         .limit(max_rows)
         .all()
@@ -531,12 +544,18 @@ def device_reports_summary(device_id: int):
         end = (start + timedelta(days=32)).replace(day=1)
     start_naive = start.replace(tzinfo=None) if start.tzinfo else start
     end_naive = end.replace(tzinfo=None) if end.tzinfo else end
+    # v102d-fix — see device_statistics for the rationale; widen the
+    # SQL window by ±1 day so tz drift between the device's local tz
+    # and the stored timestamps doesn't strip the early-morning rows
+    # that legitimately belong to the target local day.
+    query_start = start_naive - timedelta(days=1)
+    query_end = end_naive + timedelta(days=1)
 
     max_rows = current_app.config.get('MAX_READINGS_QUERY', 2000)
     ordered = (
         Reading.query
         .filter_by(device_id=dev.id)
-        .filter(Reading.created_at >= start_naive, Reading.created_at < end_naive)
+        .filter(Reading.created_at >= query_start, Reading.created_at < query_end)
         .order_by(Reading.created_at.asc())
         .limit(max_rows)
         .all()
