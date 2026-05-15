@@ -640,6 +640,10 @@ def _mobile_weather_payload(device, snapshot, generated_at):
             )
             if slot is not None
         ],
+        # v102d — which day the timeline covers ('today' before
+        # sunset, 'tomorrow' after). The mobile widget swaps its
+        # title between "مخطط اليوم" and "مخطط الغد" based on this.
+        'timeline_for_day': getattr(snapshot, 'timeline_for_day', 'today'),
         'generated_at': generated_at,
     }
 

@@ -59,6 +59,11 @@ class WeatherSnapshot:
     sunrise_time: str | None
     effective_sunrise_time: str | None
     timeline: list[dict] = field(default_factory=list)
+    # v102d — which day the `timeline` covers. After today's
+    # sunset we switch to tomorrow's sunrise→sunset window so the
+    # chart stays useful at night ("شو هيكون الوضع بالغد").
+    # Values: 'today' | 'tomorrow'.
+    timeline_for_day: str = 'today'
 
 
 def decode_weather(code: int | None):
@@ -231,9 +236,55 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         except Exception:
             sunrise_dt = None
 
+    # v102d — sunrise/sunset for tomorrow (index 1 of the 2-day
+    # forecast) so the timeline can roll forward after sunset.
+    tomorrow_sunset_dt = None
+    tomorrow_sunrise_dt = None
+    if len(sunset_list) > 1:
+        try:
+            tomorrow_sunset_dt = datetime.fromisoformat(sunset_list[1])
+        except Exception:
+            tomorrow_sunset_dt = None
+    if len(sunrise_list) > 1:
+        try:
+            tomorrow_sunrise_dt = datetime.fromisoformat(sunrise_list[1])
+        except Exception:
+            tomorrow_sunrise_dt = None
+
+    # Pick which day's sunrise→sunset window the timeline should
+    # cover. Past today's sunset (and we have tomorrow's data),
+    # show tomorrow; otherwise show today.
+    past_sunset_today = sunset_dt is not None and now >= sunset_dt
+    if past_sunset_today and tomorrow_sunrise_dt is not None and tomorrow_sunset_dt is not None:
+        timeline_for_day = 'tomorrow'
+        target_sunrise_dt = tomorrow_sunrise_dt
+        target_sunset_dt = tomorrow_sunset_dt
+    else:
+        timeline_for_day = 'today'
+        target_sunrise_dt = sunrise_dt
+        target_sunset_dt = sunset_dt
+
     next_hour = None
     timeline = []
-    selected_hours = [8, 10, 12, 14, 16, 18]
+    # v102d — full daylight arc instead of the old fixed 6-hour
+    # window. Hours that fall between the target day's sunrise and
+    # sunset (inclusive on both ends, rounded to the hour mark).
+    if target_sunrise_dt is not None and target_sunset_dt is not None:
+        target_date = target_sunrise_dt.date()
+        hour_start = target_sunrise_dt.hour
+        hour_end = target_sunset_dt.hour
+    else:
+        # Fallback: keep the legacy 6 fixed hours so the screen
+        # never empties when sunrise/sunset are missing.
+        target_date = now.date()
+        hour_start = 8
+        hour_end = 18
+
+    # Use today's sunrise/sunset for the daylight check on entries
+    # the timeline includes (since `_is_daylight_dt` operates on
+    # absolute datetimes, today vs tomorrow doesn't matter — the
+    # same target dt has the right window picked from the dt's
+    # own day).
     for idx, t in enumerate(times):
         try:
             dt = datetime.fromisoformat(t)
@@ -244,10 +295,14 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
                 times, temps, codes, clouds, pops, dt.hour,
                 sunrise_dt=sunrise_dt, sunset_dt=sunset_dt,
             )
-        if dt.date() == now.date() and dt.hour in selected_hours:
+        if dt.date() == target_date and hour_start <= dt.hour <= hour_end:
             label, cat, ic = decode_weather(codes[idx] if idx < len(codes) else None)
             cloud = clouds[idx] if idx < len(clouds) else None
-            is_day = _is_daylight_dt(dt, sunrise_dt, sunset_dt)
+            is_day = _is_daylight_dt(
+                dt,
+                target_sunrise_dt or sunrise_dt,
+                target_sunset_dt or sunset_dt,
+            )
             # v93k — night-decorate clear/partly-cloudy categories
             # so a 6 PM slot after a 5:48 PM sunset doesn't read
             # "مشمس · ☀️".
@@ -289,4 +344,5 @@ def fetch_weather(lat: float, lng: float, timezone: str = 'Asia/Hebron') -> Weat
         sunrise_time=sunrise_time,
         effective_sunrise_time=effective_sunrise_time,
         timeline=timeline,
+        timeline_for_day=timeline_for_day,
     )
